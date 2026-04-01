@@ -1,0 +1,253 @@
+================================================================================
+  AlphaDetect: 强化学习驱动的 MIMO 检测算法自动发现
+  ——基于领域特定语言与符号-神经混合搜索的端到端框架
+================================================================================
+  目标期刊: Nature Machine Intelligence / Nature Communications
+  核心定位: 在通信物理层首次实现"算法级"的自动化科学发现
+================================================================================
+
+一、研究动机与核心创新
+=======================
+
+现有 MIMO 检测算法（MMSE、AMP/EP、K-Best 树搜、BP 等）均由人类专家历经
+数十年手工推导。本研究提出 AlphaDetect——一个完全自动化的算法发现系统，
+其核心创新在于：
+
+  (1) 统一搜索空间: 构建一套「MIMO 领域特定语言 (MIMO-DSL)」，将连续代数
+      运算（线性检测/迭代算法）与离散控制逻辑（树搜/剪枝）统一编码为
+      可组合的程序语法树 (AST)，搜索空间严格覆盖以下 5 大算法类别：
+        ① 线性检测器 (ZF, MMSE, Regularized variants)
+        ② 迭代收缩/消息传递 (AMP, OAMP, VAMP, EP, BP)
+        ③ 树搜索 (Sphere Decoding, K-Best, Stack, M-algorithm)
+        ④ Krylov 子空间迭代 (CG, GMRES, Chebyshev, Neumann)
+        ⑤ 混合型 (树搜 + 连续松弛, 迭代 + 判决反馈)
+      这 5 类算法在传统研究中分属不同子领域，从未在统一框架下搜索。
+
+  (2) 符号-神经混合搜索引擎: 用 MCTS + PPO 策略网络在 DSL 文法空间中
+      生成候选 AST，用 SymPy/Z3 符号引擎做实时代数化简、等价性检测和
+      物理约束验证，用 JAX 向量化仿真器做毫秒级评估。
+
+  (3) 可解释的数学输出: 发现的算法以闭式 AST 表达，人类可直接阅读、
+      证明其收敛性并部署到实际系统——不是黑盒神经网络。
+
+二、MIMO-DSL：超细粒度原语体系
+===============================
+
+2.1 类型系统 (Type System)
+--------------------------
+  Mat_{M,N}  : M×N 实矩阵      Vec_M : 长度 M 向量
+  Mat_{N,N}  : N×N 方阵          Scalar: 标量
+  DiagMat_N  : N×N 对角阵       Tree  : 搜索树 + 活跃队列
+  Graph      : 二分因子图        Bool  : 条件谓词
+
+  所有原语均带严格的输入/输出类型签名。类型不匹配在 AST 构建时即被拒绝
+  (Action Masking)，而非等到仿真才发现，极大收缩无效搜索空间。
+
+2.2 原语分层定义
+-----------------
+
+  Layer-0 原子原语 (不可再分):
+  ├── 线性代数: MatMul, MatVecMul, Transpose, DiagExtract, DiagMake,
+  │              Add, Sub, ScalarMul, Hadamard, DotProduct, Trace
+  ├── 范数/度量: L2Norm, SquaredError, MaxAbs
+  ├── 非线性:    SoftThreshold, HardThreshold, Tanh, Sign, ReLU, Clamp
+  ├── 统计:      Mean, Variance, LogSumExp, Softmax
+  ├── 标量函数:  Exp, Log, Sqrt, Div, Pow, Inv_Scalar
+  ├── 图操作:    BuildFactorGraph, GatherMessages, ScatterMessages, Marginalize
+  └── 树操作:    InitTree, ExpandNode, ComputeMetric, PruneByRadius,
+                  SortRetainK, CollapseLeaves
+
+  Layer-1 控制流原语:
+  ├── ForLoop(max_iter, body_AST, state_vars)
+  ├── WhileLoop(condition_AST, body_AST, state_vars)
+  ├── Conditional(predicate, then_AST, else_AST)
+  └── Compose(AST_A, AST_B)          // 串联两段算法
+
+  Layer-2 可学习参数:
+  ├── FreeScalar(init, bounds)        // RL 选结构，梯度下降调参数
+  ├── FreeVector(dim, init)
+  └── FreeMat(shape, structure)       // 可限制为对角/三角/对称
+
+  ⚠ 设计哲学: 刻意不提供 MatInverse 原语。迫使 RL 自行发现迭代求逆
+     (Neumann 级数、CG、Gauss-Seidel) 或避免求逆的算法结构。
+
+2.3 搜索空间容量估算
+---------------------
+  设原语数 P≈40, 最大 AST 深度 D=20, 最大宽度 W=5:
+  理论空间: O(P^(W^D)) → 远超 10^100 (比围棋搜索空间大)
+  有效空间 (类型约束 + 符号剪枝后): 估计 ~10^30，仍然巨大
+
+三、搜索引擎：MCTS + 深度策略网络
+===================================
+
+3.1 MDP 形式化
+--------------
+  状态 s_t:  当前 AST（不完整，含若干未填充叶节点）
+             用 GNN (Graph Neural Network) 编码为 d 维连续向量
+  动作 a_t:  选择一个合法原语填入某个叶节点
+             合法性由类型系统 + Action Mask 决定
+  转移:      确定性（AST 拼接）
+  终止:      所有叶节点填充完毕，AST 合法
+
+3.2 策略与价值网络
+-------------------
+  π(a|s; θ):  GNN → Transformer → Softmax over masked actions
+  V(s; θ):    同主干，额外一个 MLP head 输出标量值
+
+  训练:  类 AlphaZero self-play
+  ├── MCTS 在每步执行 N_sim=400 次模拟
+  ├── 叶节点评估: 快速 rollout + V(s) 混合
+  ├── 策略改进: MCTS 搜后概率 → 训练 π
+  └── PPO 或 REINFORCE with baseline 更新参数
+
+3.3 奖励函数 (多目标)
+---------------------
+  R(AST) = -ω₁·BER(AST, S_val) - ω₂·FLOPs(AST) + ω₃·Novelty(AST)
+
+  BER:      在验证集 S_val 上的误码率 (JAX vmap 加速)
+  FLOPs:    每个原语有预定义的开销 (MatMul: O(MN²) 等)
+  Novelty:  与已知优秀算法的 AST 树编辑距离 (鼓励探索)
+
+  权重调度: 训练初期 ω₃ 大 (exploration)，后期 ω₁ 大 (exploitation)
+
+四、符号推理层：AST 化简与物理约束
+====================================
+
+4.1 代数化简规则 (SymPy)
+-------------------------
+  ├── 恒等消除:  A + B - A → B;  I·X → X
+  ├── 矩阵恒等:  (H^T H)^T → H^T H;  Tr(A+B) → Tr(A)+Tr(B)
+  ├── 公共子表达式提取:  H^T y 计算一次，后续引用
+  └── 常量折叠:  2.0 * 3.0 → 6.0
+
+4.2 等价性检测 (Z3 SMT Solver)
+-------------------------------
+  对每个新发现的算法，检查是否与已知算法集合中的某个在符号上等价。
+  等价 → Novelty 奖励 = 0，避免重复发现同一算法的不同写法。
+
+4.3 物理约束强制执行
+---------------------
+  (a) 置换等变性验证:
+      f(P_r·y, P_r·H·P_t) = P_t·f(y, H) 必须成立
+      → 排除对天线编号有隐式依赖的"伪算法"
+
+  (b) 噪声缩放一致性:
+      AST 输出在 σ²→0 (高 SNR) 时必须趋近 ML 估计
+      AST 输出在 σ²→∞ (低 SNR) 时必须趋近先验均值
+
+  (c) 迭代发散检测:
+      ForLoop/WhileLoop 的中间残差 ||r_t||² 若连续 3 步增长 → 立即终止 → 负奖励
+
+五、可微分仿真器：JAX 后端
+============================
+
+5.1 AST → JAX 即时编译
+-----------------------
+  将 RL 生成的 AST 实时翻译为 JAX 函数:
+  ├── jax.jit: XLA 编译优化
+  ├── jax.vmap: 单次 10,000~100,000 信道实现并行仿真
+  ├── jax.grad: 对 AST 中 FreeScalar/FreeVector 自动求导微调
+  └── GPU batch: 毫秒级获得 BER 估计
+
+5.2 快速评估管线
+-----------------
+  粗筛 (Coarse):   1,000 样本, SNR=10dB, 5ms → 淘汰 99% 垃圾 AST
+  中筛 (Medium):   10,000 样本, SNR=[8,12,16]dB, 50ms → 评估 BER 曲线形状
+  精评 (Fine):     100,000 样本, 全 SNR 范围, 500ms → 最终排名
+
+六、分阶段实验路线图 (Phased Roadmap)
+======================================
+
+Phase 0: 基线建立 (第 1-2 周)  ← 当前阶段
+------------------------------------------
+  ✦ 目标: Python 实现经典基线 (MMSE, AMP, EP, K-Best)，建立 BER 参考
+  ✦ 场景: 32×16 i.i.d. Rayleigh, 16QAM, Eb/N0 = 6~14 dB, uncoded
+  ✦ 验收: 12dB 时 AMP(10 iter)/EP(7 iter) BER ∈ [3E-4, 5E-4]
+  ✦ 交付: baseline Python 代码 + BER 数据表 + 绘图脚本
+
+Phase 1: 线性迭代子空间 (第 3-6 周)
+------------------------------------
+  ✦ 开放原语: MatMul, Add/Sub, ScalarMul, ForLoop, FreeScalar
+  ✦ 人类已知最优: CG, Chebyshev, Steepest Descent, Neumann
+  ✦ 验证指标:
+    - RL 能否重新发现 CG 的最优步长闭式解?
+    - RL 能否发现 H^T y 作为最优初始化?
+    - 能否发现预条件矩阵 (Preconditioner)?
+  ✦ 论文贡献: 证明系统具备重新发现经典算法的能力
+
+Phase 2: 非线性迭代爆发 (第 7-14 周)   ← 核心突破期
+-----------------------------------------------------
+  ✦ 新增原语: SoftThreshold, Variance, Mean, Softmax, FreeVector
+  ✦ 激动人心的目标:
+    - RL 能否发现 AMP 的 Onsager 修正项?
+      (即: 必须将 z_{t-1} 的函数加入当前步以消除变量间相关性)
+    - 能否发现超越 OAMP/VAMP 的全新非线性迭代结构?
+    - 针对非高斯/相关信道，发现自适应的去噪函数?
+  ✦ 搜索策略:
+    - 课程学习: 先搜 4×4 小系统，再迁移到 32×16
+    - 奖励塑形: 额外奖励 BER 优于当前最佳基线的算法
+  ✦ 预期产出: 1~3 个新型迭代检测器，BER 优于 EP 0.5~1 dB
+
+Phase 3: 树搜索与混合架构 (第 15-22 周)   ← 终极挑战
+------------------------------------------------------
+  ✦ 新增原语: InitTree, ExpandNode, PruneByRadius, SortRetainK, WhileLoop
+  ✦ 关键问题:
+    - AI 能否自主发现: 先对 H 做 QR 分解再搜索效率更高?
+    - 能否发现 MMSE-SQRD 排序法则?
+    - 能否发明混合检测器: 浅层树搜 + 深层连续松弛?
+  ✦ 搜索策略:
+    - 离散动作空间用 Gumbel-Top-K trick 采样
+    - FLOPs 惩罚权重自适应: 超出 K=128 K-Best 复杂度时加大惩罚
+  ✦ 预期产出: 新型混合算法，以 K-Best 30~50% 的复杂度达到相近 BER
+
+Phase 4: 大规模验证与论文撰写 (第 23-30 周)
+---------------------------------------------
+  ✦ 多场景验证:
+    - 相关信道: 3GPP TDL-A/B/C
+    - 大规模 MIMO: 128×32, 256×64
+    - 高阶调制: 64QAM, 256QAM
+    - 编码系统: LDPC/Polar + 迭代检测译码 (IDD)
+  ✦ 消融实验:
+    - 无符号剪枝 vs 有符号剪枝
+    - 不同 RL 算法对比 (PPO vs SAC vs MCTS)
+    - 搜索空间大小 vs 发现质量
+  ✦ C++ 高性能实现: 最优算法移植到 FPGA-friendly C++
+  ✦ 论文撰写: 投稿 Nature Machine Intelligence
+
+七、技术栈
+===========
+  RL/Search:     PyTorch (策略网络) + 自研 MCTS
+  仿真后端:      JAX + XLA (GPU 加速 BER 评估)
+  符号引擎:      SymPy + Z3 SMT solver
+  AST 表示:      NetworkX (图存储) + custom DSL parser
+  基线验证:      Python NumPy/SciPy (本项目 Phase 0)
+  高性能部署:    C++ / Eigen3 / OpenMP (Phase 4)
+  实验管理:      MLflow + Weights & Biases
+
+八、预期贡献与发表策略
+========================
+
+  (1) 理论贡献: 首个覆盖连续+离散算法空间的通信物理层算法发现框架
+  (2) 方法贡献: 符号约束 + RL 混合搜索范式，可推广到其他信号处理问题
+  (3) 实践贡献: 发现 1~3 个新型检测器，某些场景下超越人工设计算法
+  (4) 系统贡献: 开源 MIMO-DSL 编译器 + RL 搜索引擎 + JAX 仿真器
+
+  发表路线:
+    Nature Machine Intelligence (主投): 强调"AI for Science"范式
+    备选: Nature Communications (如系统性更强)
+    补充: IEEE TSP / JSAC / TWC (工程细节与扩展实验)
+
+九、风险预案
+=============
+
+  风险 1: 搜索空间过大，RL 不收敛
+    → 对策: 课程学习 (小系统→大系统)，奖励塑形，warm-start 用已知算法初始化
+
+  风险 2: 找到的算法全是已知算法的变体
+    → 对策: Novelty 奖励 + 树编辑距离惩罚 + 人工审查
+
+  风险 3: JAX 编译开销过高影响搜索速度
+    → 对策: AST 缓存 + 增量编译 + 哈希去重
+
+  风险 4: 符号等价性检测不完备
+    → 对策: 数值验证作为后备 (随机输入对比输出)

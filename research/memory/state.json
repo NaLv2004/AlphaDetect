@@ -1,0 +1,13 @@
+{
+  "last_updated": "2026-04-01 12:00",
+  "active_topics": [
+    {
+      "name": "auto-discover-mimo-det",
+      "phase": "coding",
+      "status": "Phase 0 baseline completed. Python MIMO detectors (MMSE, AMP, EP, K-Best) validated at 32x16, 16QAM. BER targets met at 12dB.",
+      "next_action": "Phase 1: Implement MIMO-DSL type system and linear-iterative primitive search space",
+      "folder": "project-AutoDiscoverMimoDetAlg/"
+    }
+  ],
+  "global_notes": "Research plan finalized in theme_new.txt. Targeting Nature Machine Intelligence. Five algorithm categories unified in DSL search space."
+}
