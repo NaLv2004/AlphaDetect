@@ -716,3 +716,543 @@ Structured-BP GP  started 2026-04-14 23:19:53
           F_up    = (D_i + repeat(int(M_16)x: (D_i * M_up)))  [deps: M_up_15; val=0.0600]
           F_belief= M_up  [deps: CONST; val=0.1000]
           H_halt  = |EC1|  [varies: YES]
+================================================================================
+Structured-BP GP  started 2026-04-16 00:38:18
+================================================================================
+
+[2026-04-16 00:38:18] Configuration
+{
+  "generations": 30,
+  "population": 100,
+  "train_samples": 200,
+  "train_nt": 16,
+  "train_nr": 16,
+  "mod_order": 16,
+  "train_max_nodes": 1000,
+  "train_flops_max": 3000000,
+  "step_max": 2000,
+  "eval_trials": 1000,
+  "eval_max_nodes": 1500,
+  "eval_flops_max": 5000000,
+  "eval_nt": 16,
+  "eval_nr": 16,
+  "eval_step_max": 8000,
+  "train_snrs": "22",
+  "eval_snrs": "16,18,20,22,24",
+  "seed": 42,
+  "continuous": false,
+  "use_cpp": true,
+  "batch_gens": 5,
+  "log_suffix": "sbp0414-1",
+  "seed_genome_json": null
+}
+------------------------------------------------------------
+
+[2026-04-16 00:38:24] Baseline evaluation (experiment start)
+[
+  {
+    "snr_db": 16.0,
+    "lmmse_ber": 0.3721875,
+    "lmmse_bit_errors": 5955,
+    "kbest16_ber": 0.2226875,
+    "kbest16_bit_errors": 3563,
+    "kbest32_ber": 0.1704375,
+    "kbest32_bit_errors": 2727,
+    "samples": 1000
+  },
+  {
+    "snr_db": 18.0,
+    "lmmse_ber": 0.2915,
+    "lmmse_bit_errors": 4664,
+    "kbest16_ber": 0.090875,
+    "kbest16_bit_errors": 1454,
+    "kbest32_ber": 0.0541875,
+    "kbest32_bit_errors": 867,
+    "samples": 1000
+  },
+  {
+    "snr_db": 20.0,
+    "lmmse_ber": 0.22075,
+    "lmmse_bit_errors": 3532,
+    "kbest16_ber": 0.0255,
+    "kbest16_bit_errors": 408,
+    "kbest32_ber": 0.0086875,
+    "kbest32_bit_errors": 139,
+    "samples": 1000
+  },
+  {
+    "snr_db": 22.0,
+    "lmmse_ber": 0.16095637583892616,
+    "lmmse_bit_errors": 19186,
+    "kbest16_ber": 0.005016778523489933,
+    "kbest16_bit_errors": 598,
+    "kbest32_ber": 0.00087248322147651,
+    "kbest32_bit_errors": 104,
+    "samples": 7450
+  },
+  {
+    "snr_db": 24.0,
+    "lmmse_ber": 0.1133625,
+    "lmmse_bit_errors": 18138,
+    "kbest16_ber": 0.00136875,
+    "kbest16_bit_errors": 219,
+    "kbest32_ber": 0.0003125,
+    "kbest32_bit_errors": 50,
+    "samples": 10000
+  }
+]
+------------------------------------------------------------
+
+[2026-04-16 00:47:03] Gen 0  Fit(BER=0.06258 ratio=0.345 FLOPs=412941 len=32 faults=0.00 gap=0.042 bp=33641.8 nlbp=0.0 bpg=0.000)  (initial)
+  DOWN:[Bool.False ; Float.ConstHalf ; Vec.Scale ; Float.Max] | UP:[Node.ForEachChildMin([Node.GetCumDist]) ; Float.Mul ; Vec.Dot ; Node.ForEachChild([Float.ConstHalf, Node.GetMUp]) ; Float.EvoConst2 ; Float.Add ; Float.Tanh ; Float.ConstHalf ; Float.Div] | BEL:[Node.GetCumDist ; Node.GetMUp ; Float.EvoConst0 ; Mat.Row ; Int.Sub ; Mat.PeekAt ; Float.Sub ; Mat.PeekAt ; Mat.PeekAt ; Float.GetNoiseVar ; Node.SetMUp ; Vec.PeekAt] | HALT:[Mat.Rows ; Bool.Or ; Float.LT ; Int.Swap] | LOGC:[1.2850,-1.5575,1.3858,-1.4900]
+
+[2026-04-16 00:58:05] Gen 1  Fit(BER=0.06258 ratio=0.345 FLOPs=65984 len=28 faults=0.00 gap=0.042 bp=13521.2 nlbp=0.0 bpg=0.000)  (NEW BEST)
+  DOWN:[Int.Add ; Mat.Row ; Float.Swap ; Float.Sub ; Exec.DoTimes([Int.Sub, Node.GetSymRe, Node.GetSymRe]) ; Float.Square] | UP:[Float.Mul ; Float.Swap ; Float.Max ; Float.EvoConst2 ; Float.Sqrt ; Node.ForEachChildMin([Float.Pop])] | BEL:[Mat.PeekAtIm ; Vec.PeekAt ; Float.GetNoiseVar ; Node.GetMUp ; Node.GetCumDist ; Int.LT ; Node.SetMUp] | HALT:[Float.GT ; Float.EvoConst1 ; Int.Const0 ; Int.Const0 ; Bool.Not] | LOGC:[-0.4788,0.1466,-0.2347,0.1835]
+  [Diversity] unique=100/100  stagnant_gens=0
+  Top-10 individuals (Gen 1):
+    # 1  score=0.07524  BER=0.06258  faults=0.00  len=28
+          F_down  = (loop(n){ Re(s) })^2  [deps: M_parent_down,C_i; val=0.0400]
+          F_up    = sqrt(EC2)  [deps: M_up_0; val=0.1000]
+          F_belief= M_up  [deps: D_i,M_down,M_up; val=0.1000]
+          H_halt  = EC1  [varies: NO (always True)]
+          [EC]  EC0=0.332064 EC1=1.401371 EC2=0.582532 EC3=1.525639
+          [F_down ]:  (6 instrs)
+            v1 = (C_i - M_par_down)
+            for _ in range((?+layer)):  # Exec.DoTimes (max 15 iters)
+              # → stack_top = Re(s)
+            return (Re(s))^2
+          [F_up   ]:  (6 instrs)
+            return sqrt(EC2)
+          [F_belief]:  (7 instrs)
+            node.m_up = D_i
+            return (? < layer)  # bool  (float stack also has: M_up)
+          [H_halt ]:  (5 instrs)
+            return not((old_Mup > new_Mup))  # bool  (float stack also has: EC1)
+    # 2  score=0.07524  BER=0.06258  faults=0.00  len=32
+          F_down  = max(M_parent_down, C_i)  [deps: M_parent_down,C_i; val=0.5000]
+          F_up    = (tanh((Sum_children(M_up) + EC2)) / 0.5)  [deps: CONST/noop; val=2.0000]
+          F_belief= Re(x[i])  [deps: M_up; val=-22.5741]
+          H_halt  = (old_M_up < new_M_up)  [varies: YES]
+    # 3  score=0.07524  BER=0.06258  faults=0.00  len=38
+          F_down  = Im(x[i])  [deps: M_parent_down,C_i; val=0.2000]
+          F_up    = (-Sum_children((M_16 - C_16)))  [deps: M_up_0; val=-0.1000]
+          F_belief= ((M_down * M_up) / Im(R[i,j]))  [deps: D_i,M_down,M_up; val=8.3333]
+          H_halt  = noise_var  [varies: NO (always False)]
+    # 4  score=0.07525  BER=0.06258  faults=0.00  len=51
+          F_down  = loop(n){ (loop(n){ 1 } * loop(n){ 1 }) }  [deps: M_parent_down,C_i,M_up; val=0.8333]
+          F_up    = M_16  [deps: all_M_up(15/16); val=-0.2800]
+          F_belief= M_up  [deps: D_i,M_down,M_up; val=0.1000]
+          H_halt  = 0.5  [varies: YES]
+    # 5  score=0.07525  BER=0.06258  faults=0.00  len=45
+          F_down  = loop(n){ M_up }  [deps: M_parent_down,C_i; val=0.4568]
+          F_up    = (Sum_children(M_up) + EC1)  [deps: all_M_up(16/16); val=12.1026]
+          F_belief= Im(y[i])  [deps: D_i,M_down,M_up; val=0.1000]
+          H_halt  = (new_M_up < |old_M_up|)  [varies: YES]
+    # 6  score=0.07525  BER=0.06258  faults=0.00  len=27
+          F_down  = loop(n){ tanh(exp(|(M_parent_down + C_i)|)) }  [deps: M_parent_down,C_i; val=0.9909]
+          F_up    = Sum_children(M_up)  [deps: all_M_up(16/16); val=10.0000]
+          F_belief= min(C_i, (C_i * M_down))  [deps: D_i,M_down,M_up; val=0.0600]
+          H_halt  = 0  [varies: YES]
+    # 7  score=0.07525  BER=0.06258  faults=0.00  len=29
+          F_down  = dot(v1,v2)  [deps: M_parent_down; val=2.2063]
+          F_up    = (min(M_15, (C_16 * ((M_16 / B_i) - 1))) + min(0.5, Sum_children(M_up)))  [deps: all_M_up(16/16); val=27.3007]
+          F_belief= M_up  [deps: D_i,M_down,M_up; val=0.1000]
+          H_halt  = EMPTY  [varies: NO (always False)]
+    # 8  score=0.07526  BER=0.06258  faults=0.00  len=36
+          F_down  = ||v||^2  [deps: M_parent_down,C_i; val=0.8000]
+          F_up    = tanh(EC2)  [deps: M_up_0; val=0.2000]
+          F_belief= M_up  [deps: D_i,M_down,M_up; val=0.1000]
+          H_halt  = 0  [varies: YES]
+    # 9  score=0.07526  BER=0.06258  faults=0.00  len=49
+          F_down  = tanh(max((0 + loop(n){ EC0 }), R[i,j]))  [deps: M_parent_down,C_i; val=-0.6000]
+          F_up    = Sum_children(M_up)  [deps: all_M_up(16/16); val=10.0000]
+          F_belief= dot(v1,v2)  [deps: D_i,M_down,M_up; val=-0.1572]
+          H_halt  = (new_M_up > R[i,j])  [varies: NO (always False)]
+    #10  score=0.09248  BER=0.08741  faults=0.00  len=48
+          F_down  = loop(n){ v[layer] }  [deps: M_parent_down,C_i; val=-0.4998]
+          F_up    = |(-1)|  [deps: M_up_0; val=0.1000]
+          F_belief= ((Re(x[i]) + Re(x[i])) + Re(y[i]))  [deps: D_i,M_down,M_up; val=1.0000]
+          H_halt  = 0.1  [varies: YES]
+
+[2026-04-16 01:08:18] Gen 2  Fit(BER=0.05253 ratio=0.305 FLOPs=143726 len=25 faults=0.00 gap=0.007 bp=23555.9 nlbp=0.0 bpg=0.000)  (NEW BEST)
+  DOWN:[Float.Sub ; Float.Const2 ; Node.GetLayer ; Float.Add ; Graph.GetRoot] | UP:[Node.ChildAt ; Int.Dup ; Float.Min ; Node.NumChildren ; Vec.SecondPeekAtIm ; Vec.Len ; Node.GetMUp ; Float.Max ; Float.Const1 ; Node.GetMUp ; Int.Const1 ; Float.Neg] | BEL:[Float.Const0 ; Float.Sub ; Float.Div ; Float.Sub] | HALT:[Float.GT ; Float.ConstHalf ; Float.Max ; Float.EvoConst1] | LOGC:[1.4055,-0.6621,0.8997,-0.8096]
+  [Diversity] unique=100/100  stagnant_gens=1
+  Top-10 individuals (Gen 2):
+    # 1  score=0.05460  BER=0.05253  faults=0.00  len=25
+          F_down  = ((M_parent_down - C_i) + 2)  [deps: M_parent_down,C_i; val=2.2000]
+          F_up    = (-M_up)  [deps: M_up_0; val=-0.1000]
+          F_belief= (D_i - (M_down / (M_up - 0)))  [deps: D_i,M_down,M_up; val=-1.0000]
+          H_halt  = EC1  [varies: NO (always False)]
+          [EC]  EC0=25.439488 EC1=0.217741 EC2=7.938366 EC3=0.155041
+          [F_down ]:  (5 instrs)
+            return ((M_par_down - C_i) + 2)
+          [F_up   ]:  (12 instrs)
+            return (-M_up)
+          [F_belief]:  (4 instrs)
+            return (D_i - (M_dn / (M_up - 0)))
+          [H_halt ]:  (4 instrs)
+            return (old_Mup > new_Mup)  # bool  (float stack also has: EC1)
+    # 2  score=0.06703  BER=0.06647  faults=0.00  len=28
+          F_down  = (loop(n){ Re(s) })^2  [deps: M_parent_down,C_i; val=0.0400]
+          F_up    = sqrt(EC2)  [deps: M_up_0; val=0.1000]
+          F_belief= M_up  [deps: D_i,M_down,M_up; val=0.1000]
+          H_halt  = EC1  [varies: NO (always True)]
+    # 3  score=0.06703  BER=0.06647  faults=0.00  len=24
+          F_down  = ((M_parent_down * C_i) / 1)  [deps: M_parent_down,C_i; val=0.1500]
+          F_up    = M_16  [deps: CONST/noop; val=0.1000]
+          F_belief= sqrt(M_up)  [deps: D_i,M_down,M_up; val=0.3162]
+          H_halt  = (EC2 - EC1)  [varies: NO (always False)]
+    # 4  score=0.07524  BER=0.06258  faults=0.00  len=32
+          F_down  = max(M_parent_down, C_i)  [deps: M_parent_down,C_i; val=0.5000]
+          F_up    = (tanh((Sum_children(M_up) + EC2)) / 0.5)  [deps: CONST/noop; val=2.0000]
+          F_belief= Re(x[i])  [deps: M_up; val=-22.5741]
+          H_halt  = (old_M_up < new_M_up)  [varies: YES]
+    # 5  score=0.07524  BER=0.06258  faults=0.00  len=38
+          F_down  = Im(x[i])  [deps: M_parent_down,C_i; val=0.2000]
+          F_up    = (-Sum_children((M_16 - C_16)))  [deps: M_up_0; val=-0.1000]
+          F_belief= ((M_down * M_up) / Im(R[i,j]))  [deps: D_i,M_down,M_up; val=8.3333]
+          H_halt  = noise_var  [varies: NO (always False)]
+    # 6  score=0.07525  BER=0.06258  faults=0.00  len=51
+          F_down  = loop(n){ (loop(n){ 1 } * loop(n){ 1 }) }  [deps: M_parent_down,C_i,M_up; val=0.8333]
+          F_up    = M_16  [deps: all_M_up(15/16); val=-0.2800]
+          F_belief= M_up  [deps: D_i,M_down,M_up; val=0.1000]
+          H_halt  = 0.5  [varies: YES]
+    # 7  score=0.07525  BER=0.06258  faults=0.00  len=45
+          F_down  = loop(n){ M_up }  [deps: M_parent_down,C_i; val=0.4568]
+          F_up    = (Sum_children(M_up) + EC1)  [deps: all_M_up(16/16); val=12.1026]
+          F_belief= Im(y[i])  [deps: D_i,M_down,M_up; val=0.1000]
+          H_halt  = (new_M_up < |old_M_up|)  [varies: YES]
+    # 8  score=0.07525  BER=0.06258  faults=0.00  len=27
+          F_down  = loop(n){ tanh(exp(|(M_parent_down + C_i)|)) }  [deps: M_parent_down,C_i; val=0.9909]
+          F_up    = Sum_children(M_up)  [deps: all_M_up(16/16); val=10.0000]
+          F_belief= min(C_i, (C_i * M_down))  [deps: D_i,M_down,M_up; val=0.0600]
+          H_halt  = 0  [varies: YES]
+    # 9  score=0.09321  BER=0.08280  faults=0.00  len=35
+          F_down  = max(M_parent_down, (C_i * M_up))  [deps: M_parent_down; val=0.5000]
+          F_up    = loop(n){ C_16 }  [deps: M_up_15; val=0.8178]
+          F_belief= min(D_i, (((M_down * M_up))^2 + noise_var))  [deps: M_down,M_up; val=0.1036]
+          H_halt  = (old_M_up > new_M_up)  [varies: NO (always False)]
+    #10  score=0.10086  BER=0.09739  faults=0.00  len=28
+          F_down  = (|sqrt(C_i)| / Re(R[i,j]))  [deps: M_parent_down,C_i; val=0.9129]
+          F_up    = 0  [deps: M_up_0; val=0.1000]
+          F_belief= (D_i * (M_down + (M_up)^2))  [deps: D_i,M_down,M_up; val=0.1700]
+          H_halt  = EMPTY  [varies: NO (always False)]
+================================================================================
+Structured-BP GP  started 2026-04-16 01:28:23
+================================================================================
+
+[2026-04-16 01:28:23] Configuration
+{
+  "generations": 30,
+  "population": 100,
+  "train_samples": 200,
+  "train_nt": 16,
+  "train_nr": 16,
+  "mod_order": 16,
+  "train_max_nodes": 1000,
+  "train_flops_max": 3000000,
+  "step_max": 2000,
+  "eval_trials": 1000,
+  "eval_max_nodes": 1500,
+  "eval_flops_max": 5000000,
+  "eval_nt": 16,
+  "eval_nr": 16,
+  "eval_step_max": 8000,
+  "train_snrs": "22",
+  "eval_snrs": "16,18,20,22,24",
+  "seed": 42,
+  "continuous": false,
+  "use_cpp": true,
+  "batch_gens": 5,
+  "log_suffix": "sbp0414-1",
+  "seed_genome_json": null
+}
+------------------------------------------------------------
+
+[2026-04-16 01:28:29] Baseline evaluation (experiment start)
+[
+  {
+    "snr_db": 16.0,
+    "lmmse_ber": 0.3721875,
+    "lmmse_bit_errors": 5955,
+    "kbest16_ber": 0.2226875,
+    "kbest16_bit_errors": 3563,
+    "kbest32_ber": 0.1704375,
+    "kbest32_bit_errors": 2727,
+    "samples": 1000
+  },
+  {
+    "snr_db": 18.0,
+    "lmmse_ber": 0.2915,
+    "lmmse_bit_errors": 4664,
+    "kbest16_ber": 0.090875,
+    "kbest16_bit_errors": 1454,
+    "kbest32_ber": 0.0541875,
+    "kbest32_bit_errors": 867,
+    "samples": 1000
+  },
+  {
+    "snr_db": 20.0,
+    "lmmse_ber": 0.22075,
+    "lmmse_bit_errors": 3532,
+    "kbest16_ber": 0.0255,
+    "kbest16_bit_errors": 408,
+    "kbest32_ber": 0.0086875,
+    "kbest32_bit_errors": 139,
+    "samples": 1000
+  },
+  {
+    "snr_db": 22.0,
+    "lmmse_ber": 0.16095637583892616,
+    "lmmse_bit_errors": 19186,
+    "kbest16_ber": 0.005016778523489933,
+    "kbest16_bit_errors": 598,
+    "kbest32_ber": 0.00087248322147651,
+    "kbest32_bit_errors": 104,
+    "samples": 7450
+  },
+  {
+    "snr_db": 24.0,
+    "lmmse_ber": 0.1133625,
+    "lmmse_bit_errors": 18138,
+    "kbest16_ber": 0.00136875,
+    "kbest16_bit_errors": 219,
+    "kbest32_ber": 0.0003125,
+    "kbest32_bit_errors": 50,
+    "samples": 10000
+  }
+]
+------------------------------------------------------------
+================================================================================
+Structured-BP GP  started 2026-04-16 01:32:36
+================================================================================
+
+[2026-04-16 01:32:36] Configuration
+{
+  "generations": 30,
+  "population": 40,
+  "train_samples": 200,
+  "train_nt": 8,
+  "train_nr": 8,
+  "mod_order": 16,
+  "train_max_nodes": 1000,
+  "train_flops_max": 3000000,
+  "step_max": 2000,
+  "eval_trials": 1000,
+  "eval_max_nodes": 1500,
+  "eval_flops_max": 5000000,
+  "eval_nt": 8,
+  "eval_nr": 8,
+  "eval_step_max": 8000,
+  "train_snrs": "22",
+  "eval_snrs": "16,18,20,22,24",
+  "seed": 42,
+  "continuous": false,
+  "use_cpp": true,
+  "batch_gens": 5,
+  "log_suffix": "sbp0414-1",
+  "seed_genome_json": null
+}
+------------------------------------------------------------
+
+[2026-04-16 01:33:00] Baseline evaluation (experiment start)
+[
+  {
+    "snr_db": 16.0,
+    "lmmse_ber": 0.32975,
+    "lmmse_bit_errors": 2638,
+    "kbest16_ber": 0.115125,
+    "kbest16_bit_errors": 921,
+    "kbest32_ber": 0.099375,
+    "kbest32_bit_errors": 795,
+    "samples": 1000
+  },
+  {
+    "snr_db": 18.0,
+    "lmmse_ber": 0.243875,
+    "lmmse_bit_errors": 1951,
+    "kbest16_ber": 0.03525,
+    "kbest16_bit_errors": 282,
+    "kbest32_ber": 0.02625,
+    "kbest32_bit_errors": 210,
+    "samples": 1000
+  },
+  {
+    "snr_db": 20.0,
+    "lmmse_ber": 0.19604166666666667,
+    "lmmse_bit_errors": 5646,
+    "kbest16_ber": 0.005729166666666666,
+    "kbest16_bit_errors": 165,
+    "kbest32_ber": 0.0035069444444444445,
+    "kbest32_bit_errors": 101,
+    "samples": 3600
+  },
+  {
+    "snr_db": 22.0,
+    "lmmse_ber": 0.134775,
+    "lmmse_bit_errors": 10782,
+    "kbest16_ber": 0.0015625,
+    "kbest16_bit_errors": 125,
+    "kbest32_ber": 0.0005125,
+    "kbest32_bit_errors": 41,
+    "samples": 10000
+  },
+  {
+    "snr_db": 24.0,
+    "lmmse_ber": 0.0934125,
+    "lmmse_bit_errors": 7473,
+    "kbest16_ber": 0.000525,
+    "kbest16_bit_errors": 42,
+    "kbest32_ber": 0.0001,
+    "kbest32_bit_errors": 8,
+    "samples": 10000
+  }
+]
+------------------------------------------------------------
+
+[2026-04-16 01:35:03] Gen 0  Fit(BER=0.00000 ratio=0.000 FLOPs=30871 len=29 faults=0.00 gap=0.000 bp=6073.1 nlbp=0.0 bpg=0.000)  (initial)
+  DOWN:[Exec.DoTimes([Mat.VecMul]) ; Float.Add ; Vec.PeekAtIm ; Exec.DoTimes([Float.Square])] | UP:[Float.Mul ; Mat.ElementAt ; Node.GetMUp ; Int.Const0 ; Node.NumChildren ; Float.Div ; Float.Swap ; Float.Sqrt ; Float.EvoConst0 ; Node.ForEachChild([Float.Const1, Node.NumChildren, Node.GetMUp])] | BEL:[Float.Mul ; Float.Abs ; Float.Min ; Float.Square] | HALT:[Int.Const0 ; Float.GT ; Int.Const0 ; Float.Sub ; Node.GetLayer ; Graph.GetRoot] | LOGC:[-0.5018,1.8029,0.9280,0.3946]
+
+[2026-04-16 01:37:16] Gen 1  Fit(BER=0.00000 ratio=0.000 FLOPs=23630 len=36 faults=0.00 gap=0.000 bp=3395.4 nlbp=0.0 bpg=0.000)  (NEW BEST)
+  DOWN:[Int.Pop ; Vec.PeekAtIm ; Exec.DoTimes([Mat.VecMul]) ; Float.Div] | UP:[Node.ForEachChildMin([Float.Pop, Node.NumChildren, Float.Add]) ; Exec.DoTimes([Float.Abs]) ; Node.ForEachChild([Float.Div, Float.Sub, Float.Tanh]) ; Vec.Scale ; Graph.FrontierCount ; Vec.PeekAtIm ; Float.Div ; Float.Mul ; Node.ForEachChildMin([Float.ConstHalf, Float.Const0]) ; Node.ForEachChildMin([Node.GetMUp])] | BEL:[Float.Div ; Float.Div ; Float.Swap ; Node.GetMUp ; Float.Add] | HALT:[Int.Const0 ; Float.GT ; Float.Const1 ; Float.Const1 ; Node.GetMDown ; Float.ConstHalf] | LOGC:[-1.8346,0.9188,0.5638,-0.3051]
+  [Diversity] unique=40/40  stagnant_gens=0
+  Top-10 individuals (Gen 1):
+    # 1  score=0.00000  BER=0.00000  faults=0.00  len=36
+          F_down  = (Im(x[i]) / loop(n){ Im(x[i]) })  [deps: M_parent_down,C_i; val=1.6667]
+          F_up    = (M_16 * (loop(n){ |M_16| } / Im(x[N_frontier])))  [deps: M_up_0; val=0.1000]
+          F_belief= ((D_i / (M_down / M_up)) + M_up)  [deps: D_i,M_down,M_up; val=0.4333]
+          H_halt  = 0.5  [varies: NO (always False)]
+          [EC]  EC0=0.014635 EC1=8.295301 EC2=3.662556 EC3=0.495281
+          [F_down ]:  (4 instrs)
+            # int_drop: layer
+            for _ in range(n):  # Exec.DoTimes (max 15 iters)
+              # → stack_top = C_i
+            return (M_par_down / C_i)
+          [F_up   ]:  (10 instrs)
+            for _ in range(N_ch):  # Exec.DoTimes (max 15 iters)
+              # → stack_top = abs(M_16)
+            acc1 = 0.0
+            for child_j in node.children:  # ForEachChild → Σ body(child_j)
+              acc1 += tanh((M_15 - (C_16 / abs(M_16))))
+            return (C_16 * (abs(M_16) / acc1))
+          [F_belief]:  (5 instrs)
+            return ((D_i / (M_dn / M_up)) + M_up)
+          [H_halt ]:  (6 instrs)
+            return (old_Mup > new_Mup)  # bool  (float stack also has: 0.5)
+    # 2  score=0.00000  BER=0.00000  faults=0.00  len=29
+          F_down  = loop(n){ (Im(x[i]))^2 }  [deps: M_parent_down,C_i; val=0.8000]
+          F_up    = Sum_children(M_up)  [deps: all_M_up(16/16); val=10.0000]
+          F_belief= (min(D_i, |(M_down * M_up)|))^2  [deps: M_down,M_up; val=0.0036]
+          H_halt  = EMPTY  [varies: NO (always False)]
+    # 3  score=0.00000  BER=0.00000  faults=0.00  len=16
+          F_down  = (M_parent_down * C_i)  [deps: M_parent_down,C_i; val=0.1500]
+          F_up    = Sum_children((C_16 - sqrt(max(M_16, mem[k]))))  [deps: all_M_up(16/16); val=-4.5318]
+          F_belief= (D_i - (M_down - sqrt(M_up)))  [deps: D_i,M_down,M_up; val=0.6472]
+          H_halt  = (new_M_up > old_M_up)  [varies: YES]
+    # 4  score=0.00000  BER=0.00000  faults=0.00  len=23
+          F_down  = tanh(max((C_i * dot(v1,v2)), EC3))  [deps: CONST; val=1.0000]
+          F_up    = (|Sum_children((C_16 / M_16))| - sqrt(D_i))  [deps: all_M_up(16/16); val=12.1494]
+          F_belief= Im(R[i,j])  [deps: D_i,M_down,M_up; val=-1.0000]
+          H_halt  = (old_M_up > new_M_up)  [varies: NO (always False)]
+    # 5  score=0.00000  BER=0.00000  faults=0.00  len=45
+          F_down  = loop(n){ M_up }  [deps: M_parent_down,C_i; val=0.4568]
+          F_up    = (Sum_children(M_up) + EC1)  [deps: all_M_up(16/16); val=12.1026]
+          F_belief= Im(y[i])  [deps: D_i,M_down,M_up; val=0.1000]
+          H_halt  = (new_M_up < |old_M_up|)  [varies: YES]
+    # 6  score=0.00000  BER=0.00000  faults=0.00  len=25
+          F_down  = loop(2){ (M_parent_down + log(C_i)) }  [deps: M_parent_down,C_i; val=-0.7040]
+          F_up    = min(C_16, M_16)  [deps: M_up_0; val=0.1000]
+          F_belief= (D_i + sqrt(max(M_down, M_up)))  [deps: D_i,M_down,M_up; val=1.0477]
+          H_halt  = 0.1  [varies: NO (always False)]
+    # 7  score=0.00000  BER=0.00000  faults=0.00  len=49
+          F_down  = tanh(max((0 + loop(n){ EC0 }), R[i,j]))  [deps: M_parent_down,C_i; val=-0.6000]
+          F_up    = Sum_children(M_up)  [deps: all_M_up(16/16); val=10.0000]
+          F_belief= dot(v1,v2)  [deps: D_i,M_down,M_up; val=-0.1572]
+          H_halt  = (new_M_up > R[i,j])  [varies: NO (always False)]
+    # 8  score=0.00372  BER=0.00241  faults=0.00  len=42
+          F_down  = loop(n){ loop(2){ (-(-tanh(D_i))) } }  [deps: M_parent_down,C_i; val=0.1949]
+          F_up    = Sum_children(M_up)  [deps: all_M_up(16/16); val=10.0000]
+          F_belief= ((M_down + (M_up - Im(R[i,j]))))^2  [deps: D_i,M_down,M_up; val=0.3600]
+          H_halt  = 0.5  [varies: YES]
+    # 9  score=0.00609  BER=0.00591  faults=0.00  len=30
+          F_down  = (M_parent_down + C_i)  [deps: M_parent_down,C_i; val=0.8000]
+          F_up    = |Sum_children(0.5)|  [deps: M_up_0; val=0.1000]
+          F_belief= |tanh((D_i + ((M_down * M_up))^2))|  [deps: D_i,M_down,M_up; val=0.4649]
+          H_halt  = EC2  [varies: NO (always False)]
+    #10  score=0.00891  BER=0.00797  faults=0.00  len=21
+          F_down  = max(C_i, sqrt(loop(n){ (C_i / 0) }))  [deps: M_parent_down,C_i; val=0.5477]
+          F_up    = M_16  [deps: CONST/noop; val=0.4500]
+          F_belief= min(|(M_down + M_up)|, max(M_up, D_i))  [deps: D_i,M_up; val=0.3000]
+          H_halt  = B_i  [varies: YES]
+
+[2026-04-16 01:39:52] Gen 2  Fit(BER=0.00000 ratio=0.000 FLOPs=23630 len=36 faults=0.00 gap=0.000 bp=3395.4 nlbp=0.0 bpg=0.000)
+  DOWN:[Int.Pop ; Vec.PeekAtIm ; Exec.DoTimes([Mat.VecMul]) ; Float.Div] | UP:[Node.ForEachChildMin([Float.Pop, Node.NumChildren, Float.Add]) ; Exec.DoTimes([Float.Abs]) ; Node.ForEachChild([Float.Div, Float.Sub, Float.Tanh]) ; Vec.Scale ; Graph.FrontierCount ; Vec.PeekAtIm ; Float.Div ; Float.Mul ; Node.ForEachChildMin([Float.ConstHalf, Float.Const0]) ; Node.ForEachChildMin([Node.GetMUp])] | BEL:[Float.Div ; Float.Div ; Float.Swap ; Node.GetMUp ; Float.Add] | HALT:[Int.Const0 ; Float.GT ; Float.Const1 ; Float.Const1 ; Node.GetMDown ; Float.ConstHalf] | LOGC:[-1.8346,0.9188,0.5638,-0.3051]
+  [Diversity] unique=40/40  stagnant_gens=1
+  Top-10 individuals (Gen 2):
+    # 1  score=0.00000  BER=0.00000  faults=0.00  len=36
+          F_down  = (Im(x[i]) / loop(n){ Im(x[i]) })  [deps: M_parent_down,C_i; val=1.6667]
+          F_up    = (M_16 * (loop(n){ |M_16| } / Im(x[N_frontier])))  [deps: M_up_0; val=0.1000]
+          F_belief= ((D_i / (M_down / M_up)) + M_up)  [deps: D_i,M_down,M_up; val=0.4333]
+          H_halt  = 0.5  [varies: NO (always False)]
+          [EC]  EC0=0.014635 EC1=8.295301 EC2=3.662556 EC3=0.495281
+          [F_down ]:  (4 instrs)
+            # int_drop: layer
+            for _ in range(n):  # Exec.DoTimes (max 15 iters)
+              # → stack_top = C_i
+            return (M_par_down / C_i)
+          [F_up   ]:  (10 instrs)
+            for _ in range(N_ch):  # Exec.DoTimes (max 15 iters)
+              # → stack_top = abs(M_16)
+            acc1 = 0.0
+            for child_j in node.children:  # ForEachChild → Σ body(child_j)
+              acc1 += tanh((M_15 - (C_16 / abs(M_16))))
+            return (C_16 * (abs(M_16) / acc1))
+          [F_belief]:  (5 instrs)
+            return ((D_i / (M_dn / M_up)) + M_up)
+          [H_halt ]:  (6 instrs)
+            return (old_Mup > new_Mup)  # bool  (float stack also has: 0.5)
+    # 2  score=0.00000  BER=0.00000  faults=0.00  len=29
+          F_down  = loop(n){ (Im(x[i]))^2 }  [deps: M_parent_down,C_i; val=0.8000]
+          F_up    = Sum_children(M_up)  [deps: all_M_up(16/16); val=10.0000]
+          F_belief= (min(D_i, |(M_down * M_up)|))^2  [deps: M_down,M_up; val=0.0036]
+          H_halt  = EMPTY  [varies: NO (always False)]
+    # 3  score=0.00000  BER=0.00000  faults=0.00  len=16
+          F_down  = (M_parent_down * C_i)  [deps: M_parent_down,C_i; val=0.1500]
+          F_up    = Sum_children((C_16 - sqrt(max(M_16, mem[k]))))  [deps: all_M_up(16/16); val=-4.5318]
+          F_belief= (D_i - (M_down - sqrt(M_up)))  [deps: D_i,M_down,M_up; val=0.6472]
+          H_halt  = (new_M_up > old_M_up)  [varies: YES]
+    # 4  score=0.00000  BER=0.00000  faults=0.00  len=23
+          F_down  = tanh(max((C_i * dot(v1,v2)), EC3))  [deps: CONST; val=1.0000]
+          F_up    = (|Sum_children((C_16 / M_16))| - sqrt(D_i))  [deps: all_M_up(16/16); val=12.1494]
+          F_belief= Im(R[i,j])  [deps: D_i,M_down,M_up; val=-1.0000]
+          H_halt  = (old_M_up > new_M_up)  [varies: NO (always False)]
+    # 5  score=0.00000  BER=0.00000  faults=0.00  len=45
+          F_down  = loop(n){ M_up }  [deps: M_parent_down,C_i; val=0.4568]
+          F_up    = (Sum_children(M_up) + EC1)  [deps: all_M_up(16/16); val=12.1026]
+          F_belief= Im(y[i])  [deps: D_i,M_down,M_up; val=0.1000]
+          H_halt  = (new_M_up < |old_M_up|)  [varies: YES]
+    # 6  score=0.00000  BER=0.00000  faults=0.00  len=25
+          F_down  = loop(2){ (M_parent_down + log(C_i)) }  [deps: M_parent_down,C_i; val=-0.7040]
+          F_up    = min(C_16, M_16)  [deps: M_up_0; val=0.1000]
+          F_belief= (D_i + sqrt(max(M_down, M_up)))  [deps: D_i,M_down,M_up; val=1.0477]
+          H_halt  = 0.1  [varies: NO (always False)]
+    # 7  score=0.00688  BER=0.00613  faults=0.00  len=27
+          F_down  = C_i  [deps: M_parent_down,C_i; val=0.9311]
+          F_up    = Sum_children(M_up)  [deps: all_M_up(16/16); val=10.0000]
+          F_belief= M_up  [deps: D_i,M_down,M_up; val=0.1000]
+          H_halt  = (old_M_up < new_M_up)  [varies: YES]
+    # 8  score=0.00859  BER=0.00541  faults=0.00  len=22
+          F_down  = (M_parent_down + Re(x[v.len]))  [deps: M_parent_down,C_i; val=0.5900]
+          F_up    = (C_16 / M_16)  [deps: CONST/noop; val=0.0153]
+          F_belief= (D_i * max(M_down, M_up))  [deps: D_i,M_down,M_up; val=0.1500]
+          H_halt  = (old_M_up > new_M_up)  [varies: NO (always False)]
+    # 9  score=0.00875  BER=0.00725  faults=0.00  len=28
+          F_down  = ((M_parent_down + C_i) + M_up)  [deps: M_parent_down,C_i,M_up; val=0.9000]
+          F_up    = M_up  [deps: M_up_0; val=0.1000]
+          F_belief= max((D_i + sqrt(((M_down * M_up))^2)), D_i)  [deps: D_i,M_down,M_up; val=0.5600]
+          H_halt  = (old_M_up > (new_M_up - 1))  [varies: YES]
+    #10  score=0.00875  BER=0.00725  faults=0.00  len=32
+          F_down  = min(C_i, loop(n){ v[i] })  [deps: C_i; val=0.3000]
+          F_up    = (min(EC3, EC3) + 0)  [deps: CONST/noop; val=0.5500]
+          F_belief= (1 * sqrt(EC0))  [deps: D_i,M_down,M_up; val=0.4000]
+          H_halt  = (old_M_up < new_M_up)  [varies: YES]

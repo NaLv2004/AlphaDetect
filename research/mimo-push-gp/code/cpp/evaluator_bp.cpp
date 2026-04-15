@@ -17,12 +17,14 @@
 #include <cmath>
 #include <cstring>
 #include <cstdint>
+#include <cstdio>
 #include <algorithm>
 #include <complex>
 #include <vector>
 #include <queue>
 #include <functional>
 #include <limits>
+#include <atomic>
 
 using cx = std::complex<double>;
 
@@ -1571,6 +1573,9 @@ BP_EXPORT double bp_eval_dataset(void* ctx_,
     double total_bp = 0;
     int total_faults = 0;
 
+    std::atomic<int> ds_done(0);
+    int ds_next_pct = 5;  // next percentage threshold to print
+
     #pragma omp parallel for reduction(+:total_ber,total_flops,total_bp,total_faults) schedule(dynamic)
     for (int s = 0; s < n_samples; s++) {
         cx* H_cx = deinterleave(H_all + s * H_stride, Nr * Nt);
@@ -1608,6 +1613,21 @@ BP_EXPORT double bp_eval_dataset(void* ctx_,
         delete[] H_cx;
         delete[] y_cx;
         delete[] x_cx;
+
+        int completed = ds_done.fetch_add(1) + 1;
+        int pct = (int)((100LL * completed) / n_samples);
+        #pragma omp critical
+        {
+            if (pct >= ds_next_pct) {
+                printf("\r  [dataset] %d/%d samples (%d%%)", completed, n_samples, pct);
+                fflush(stdout);
+                ds_next_pct = pct + 5;
+            }
+        }
+    }
+    if (n_samples > 0) {
+        printf("\r  [dataset] %d/%d samples (100%%)\n", n_samples, n_samples);
+        fflush(stdout);
     }
 
     if (avg_flops_out) *avg_flops_out = total_flops / n_samples;
@@ -1653,6 +1673,12 @@ BP_EXPORT void bp_eval_batch(void* ctx_,
     // This eliminates the straggler problem where a few heavy genomes
     // monopolize cores while lighter genomes finish early.
     int total_work = n_genomes * n_samples;
+    std::atomic<int> batch_done(0);
+    int batch_next_pct = 5;  // next percentage threshold to print
+
+    printf("  [batch] evaluating %d genomes x %d samples = %d tasks\n",
+           n_genomes, n_samples, total_work);
+    fflush(stdout);
 
     #pragma omp parallel for schedule(dynamic, 4)
     for (int idx = 0; idx < total_work; idx++) {
@@ -1694,7 +1720,20 @@ BP_EXPORT void bp_eval_batch(void* ctx_,
         flops_out[g] += fo;
         #pragma omp atomic
         bp_calls_out[g] += (double)bpo;
+
+        int completed = batch_done.fetch_add(1) + 1;
+        int pct = (int)((100LL * completed) / total_work);
+        #pragma omp critical
+        {
+            if (pct >= batch_next_pct) {
+                printf("\r  [batch] %d/%d tasks (%d%%)", completed, total_work, pct);
+                fflush(stdout);
+                batch_next_pct = pct + 5;
+            }
+        }
     }
+    printf("\r  [batch] %d/%d tasks (100%%)\n", total_work, total_work);
+    fflush(stdout);
 
     // Normalize by n_samples
     for (int g = 0; g < n_genomes; g++) {

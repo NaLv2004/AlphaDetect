@@ -7,7 +7,7 @@ define a complete BP-augmented stack decoder.
 Run:
     conda activate AutoGenOld
     cd D:\\ChannelCoding\\RCOM\\AlphaDetect\\research\\mimo-push-gp\\code
-    python -u -B bp_main_v2.py --continuous --log-suffix sbp_1 --seed 42
+    python -u -B bp_main_v2.py --continuous --log-suffix sbp_1 --seed 42 --use-cpp
 """
 import argparse
 import os
@@ -2585,10 +2585,10 @@ def full_evaluation(genome: Genome, Nt, Nr, mod_order, n_trials=200,
 def parse_args():
     p = argparse.ArgumentParser(description="Structured BP Algorithm Discovery")
     p.add_argument('--generations', type=int, default=30)
-    p.add_argument('--population', type=int, default=100)
+    p.add_argument('--population', type=int, default=40)
     p.add_argument('--train-samples', type=int, default=200)
-    p.add_argument('--train-nt', type=int, default=16)
-    p.add_argument('--train-nr', type=int, default=16)
+    p.add_argument('--train-nt', type=int, default=8)
+    p.add_argument('--train-nr', type=int, default=8)
     p.add_argument('--mod-order', type=int, default=16)
     p.add_argument('--train-max-nodes', type=int, default=1000) # 300
     p.add_argument('--train-flops-max', type=int, default=3_000_000)
@@ -2596,9 +2596,9 @@ def parse_args():
     p.add_argument('--eval-trials', type=int, default=1000)
     p.add_argument('--eval-max-nodes', type=int, default=1500)
     p.add_argument('--eval-flops-max', type=int, default=5_000_000)
-    p.add_argument('--eval-nt', type=int, default=16,
+    p.add_argument('--eval-nt', type=int, default=8,
                    help='Nt for eval (default: same as train)')
-    p.add_argument('--eval-nr', type=int, default=16,
+    p.add_argument('--eval-nr', type=int, default=8,
                    help='Nr for eval (default: same as train)')
     p.add_argument('--eval-step-max', type=int, default=8000)
     p.add_argument('--train-snrs', type=str, default='22')
