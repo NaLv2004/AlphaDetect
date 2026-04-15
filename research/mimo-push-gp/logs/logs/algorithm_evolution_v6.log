@@ -1,0 +1,53 @@
+================================================================================
+MIMO-Push GP v2  started 2026-04-12 16:42:07
+================================================================================
+
+[2026-04-12 16:42:07] Configuration
+{
+  "generations": 20,
+  "population": 150,
+  "train_samples": 20,
+  "train_nt": 8,
+  "train_nr": 16,
+  "mod_order": 16,
+  "train_max_nodes": 60,
+  "train_flops_max": 80000,
+  "eval_trials": 200,
+  "eval_max_nodes": 1500,
+  "eval_flops_max": 200000,
+  "train_snrs": "10,12,14",
+  "eval_snrs": "8,10,12,14,16,18,20",
+  "seed": 7,
+  "continuous": true,
+  "batch_gens": 10,
+  "log_suffix": "v6"
+}
+------------------------------------------------------------
+================================================================================
+MIMO-Push GP v2  started 2026-04-12 16:46:40
+================================================================================
+
+[2026-04-12 16:46:40] Configuration
+{
+  "generations": 20,
+  "population": 150,
+  "train_samples": 20,
+  "train_nt": 8,
+  "train_nr": 16,
+  "mod_order": 16,
+  "train_max_nodes": 60,
+  "train_flops_max": 80000,
+  "eval_trials": 200,
+  "eval_max_nodes": 1500,
+  "eval_flops_max": 200000,
+  "train_snrs": "10,12,14",
+  "eval_snrs": "8,10,12,14,16,18,20",
+  "seed": 7,
+  "continuous": true,
+  "batch_gens": 10,
+  "log_suffix": "v6"
+}
+------------------------------------------------------------
+
+[2026-04-12 16:50:45] Gen 0  Fit(BER=0.06250 ratio=0.625 FLOPs=17751 len=1 faults=0.00 gap=0.000)  (initial)
+  Vector.Dup

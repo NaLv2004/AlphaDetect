@@ -1,0 +1,28 @@
+================================================================================
+BP-Stack-Decoder GP  started 2026-04-12 20:32:40
+================================================================================
+
+[2026-04-12 20:32:40] Configuration
+{
+  "generations": 30,
+  "population": 60,
+  "train_samples": 8,
+  "train_nt": 8,
+  "train_nr": 16,
+  "mod_order": 16,
+  "train_max_nodes": 100,
+  "train_flops_max": 1000000,
+  "bp_interval": 20,
+  "bp_sweeps": 1,
+  "step_max": 800,
+  "eval_trials": 100,
+  "eval_max_nodes": 500,
+  "eval_flops_max": 3000000,
+  "train_snrs": "8,10",
+  "eval_snrs": "8,10,12,14,16",
+  "seed": 777,
+  "continuous": true,
+  "batch_gens": 10,
+  "log_suffix": "bp4"
+}
+------------------------------------------------------------

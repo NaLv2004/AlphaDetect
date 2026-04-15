@@ -1,0 +1,131 @@
+{
+  "args": {
+    "nt": 16,
+    "nr": 16,
+    "mod_order": 16,
+    "snrs": "16,18,20,22,24",
+    "n_trials": 1000,
+    "min_bit_errors": 200,
+    "max_nodes": 2000,
+    "flops_max": 10000000,
+    "step_max": 3000,
+    "use_cpp": true,
+    "eval_baseline": false,
+    "seed": 42,
+    "genomes": null
+  },
+  "baselines": [],
+  "genomes": {
+    "test6_dominant": [
+      {
+        "snr_db": 16.0,
+        "evolved_ber": 0.444875,
+        "evolved_flops": 118764.784,
+        "evolved_samples": 1000,
+        "evolved_bit_errors": 7118
+      },
+      {
+        "snr_db": 18.0,
+        "evolved_ber": 0.271,
+        "evolved_flops": 96515.824,
+        "evolved_samples": 1000,
+        "evolved_bit_errors": 4336
+      },
+      {
+        "snr_db": 20.0,
+        "evolved_ber": 0.1095,
+        "evolved_flops": 67407.6,
+        "evolved_samples": 1000,
+        "evolved_bit_errors": 1752
+      },
+      {
+        "snr_db": 22.0,
+        "evolved_ber": 0.0261875,
+        "evolved_flops": 44224.448,
+        "evolved_samples": 1000,
+        "evolved_bit_errors": 419
+      },
+      {
+        "snr_db": 24.0,
+        "evolved_ber": 0.0025485436893203884,
+        "evolved_flops": 34213.24737864078,
+        "evolved_samples": 5150,
+        "evolved_bit_errors": 210
+      }
+    ],
+    "gen59_interesting": [
+      {
+        "snr_db": 16.0,
+        "evolved_ber": 0.520375,
+        "evolved_flops": 160405195.428,
+        "evolved_samples": 1000,
+        "evolved_bit_errors": 8326
+      },
+      {
+        "snr_db": 18.0,
+        "evolved_ber": 0.4254375,
+        "evolved_flops": 320558350.052,
+        "evolved_samples": 1000,
+        "evolved_bit_errors": 6807
+      },
+      {
+        "snr_db": 20.0,
+        "evolved_ber": 0.305875,
+        "evolved_flops": 311591547.8,
+        "evolved_samples": 1000,
+        "evolved_bit_errors": 4894
+      },
+      {
+        "snr_db": 22.0,
+        "evolved_ber": 0.1898125,
+        "evolved_flops": 242301060.099,
+        "evolved_samples": 1000,
+        "evolved_bit_errors": 3037
+      },
+      {
+        "snr_db": 24.0,
+        "evolved_ber": 0.1008125,
+        "evolved_flops": 194408706.83,
+        "evolved_samples": 1000,
+        "evolved_bit_errors": 1613
+      }
+    ],
+    "gen59_3_sub_mup": [
+      {
+        "snr_db": 16.0,
+        "evolved_ber": 0.4341875,
+        "evolved_flops": 425760.465,
+        "evolved_samples": 1000,
+        "evolved_bit_errors": 6947
+      },
+      {
+        "snr_db": 18.0,
+        "evolved_ber": 0.2628125,
+        "evolved_flops": 342311.489,
+        "evolved_samples": 1000,
+        "evolved_bit_errors": 4205
+      },
+      {
+        "snr_db": 20.0,
+        "evolved_ber": 0.1040625,
+        "evolved_flops": 210200.946,
+        "evolved_samples": 1000,
+        "evolved_bit_errors": 1665
+      },
+      {
+        "snr_db": 22.0,
+        "evolved_ber": 0.0239375,
+        "evolved_flops": 107606.171,
+        "evolved_samples": 1000,
+        "evolved_bit_errors": 383
+      },
+      {
+        "snr_db": 24.0,
+        "evolved_ber": 0.002376126126126126,
+        "evolved_flops": 58291.576216216214,
+        "evolved_samples": 5550,
+        "evolved_bit_errors": 211
+      }
+    ]
+  }
+}

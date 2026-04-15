@@ -1,0 +1,173 @@
+{
+  "gen": 200,
+  "best_prog": "Vec.Add ; Int.LT ; Float.Const0 ; Int.GetNumSymbols ; Vector.Swap ; Node.GetLayer ; Exec.While([Node.GetParent, Float.ConstNeg1, Graph.NodeCount, Float.Log]) ; Vec.Scale ; Node.ForEachAncestor([Node.ForEachAncestor([Node.GetLayer]), Vec.SecondPeekAt]) ; Float.Div ; Int.LT ; Exec.ForEachSymbol([Bool.True, Node.SetScore, Bool.Not]) ; Node.ChildAt ; Node.ForEachSibling([Node.ForEachChild([Float.Max, Int.GT, Float.Const0_1]), Node.GetLayer]) ; Float.Neg ; Exec.MinOverSymbols([Exec.While([Vector.Dup]), Node.GetParentScore]) ; Float.GetNoiseVar ; Float.GetNoiseVar ; Vec.Norm2",
+  "best_fitness": {
+    "ber": 0.020833333333333336,
+    "flops": 20426.2,
+    "ratio": 0.13333333333333336
+  },
+  "eval_results": [
+    {
+      "snr_db": 8.0,
+      "evolved_ber": 0.285625,
+      "evolved_flops": 44372.96,
+      "lmmse_ber": 0.31625,
+      "kbest16_ber": 0.27625,
+      "kbest32_ber": 0.2775
+    },
+    {
+      "snr_db": 10.0,
+      "evolved_ber": 0.145625,
+      "evolved_flops": 29547.84,
+      "lmmse_ber": 0.19,
+      "kbest16_ber": 0.14,
+      "kbest32_ber": 0.14
+    },
+    {
+      "snr_db": 12.0,
+      "evolved_ber": 0.04625,
+      "evolved_flops": 16851.68,
+      "lmmse_ber": 0.105,
+      "kbest16_ber": 0.043125,
+      "kbest32_ber": 0.043125
+    },
+    {
+      "snr_db": 14.0,
+      "evolved_ber": 0.009375,
+      "evolved_flops": 11190.72,
+      "lmmse_ber": 0.04,
+      "kbest16_ber": 0.0125,
+      "kbest32_ber": 0.0125
+    },
+    {
+      "snr_db": 16.0,
+      "evolved_ber": 0.00125,
+      "evolved_flops": 9612.0,
+      "lmmse_ber": 0.016875,
+      "kbest16_ber": 0.00125,
+      "kbest32_ber": 0.00125
+    }
+  ],
+  "history": [
+    {
+      "gen": 181,
+      "ber": 0.020833333333333336,
+      "flops": 20426.2,
+      "len": 37
+    },
+    {
+      "gen": 182,
+      "ber": 0.020833333333333336,
+      "flops": 20426.2,
+      "len": 37
+    },
+    {
+      "gen": 183,
+      "ber": 0.020833333333333336,
+      "flops": 20426.2,
+      "len": 37
+    },
+    {
+      "gen": 184,
+      "ber": 0.020833333333333336,
+      "flops": 20426.2,
+      "len": 37
+    },
+    {
+      "gen": 185,
+      "ber": 0.020833333333333336,
+      "flops": 20426.2,
+      "len": 37
+    },
+    {
+      "gen": 186,
+      "ber": 0.020833333333333336,
+      "flops": 20426.2,
+      "len": 37
+    },
+    {
+      "gen": 187,
+      "ber": 0.020833333333333336,
+      "flops": 20426.2,
+      "len": 37
+    },
+    {
+      "gen": 188,
+      "ber": 0.020833333333333336,
+      "flops": 20426.2,
+      "len": 37
+    },
+    {
+      "gen": 189,
+      "ber": 0.020833333333333336,
+      "flops": 20426.2,
+      "len": 37
+    },
+    {
+      "gen": 190,
+      "ber": 0.020833333333333336,
+      "flops": 20426.2,
+      "len": 37
+    },
+    {
+      "gen": 191,
+      "ber": 0.020833333333333336,
+      "flops": 20426.2,
+      "len": 37
+    },
+    {
+      "gen": 192,
+      "ber": 0.020833333333333336,
+      "flops": 20426.2,
+      "len": 37
+    },
+    {
+      "gen": 193,
+      "ber": 0.020833333333333336,
+      "flops": 20426.2,
+      "len": 37
+    },
+    {
+      "gen": 194,
+      "ber": 0.020833333333333336,
+      "flops": 20426.2,
+      "len": 37
+    },
+    {
+      "gen": 195,
+      "ber": 0.020833333333333336,
+      "flops": 20426.2,
+      "len": 37
+    },
+    {
+      "gen": 196,
+      "ber": 0.020833333333333336,
+      "flops": 20426.2,
+      "len": 37
+    },
+    {
+      "gen": 197,
+      "ber": 0.020833333333333336,
+      "flops": 20426.2,
+      "len": 37
+    },
+    {
+      "gen": 198,
+      "ber": 0.020833333333333336,
+      "flops": 20426.2,
+      "len": 37
+    },
+    {
+      "gen": 199,
+      "ber": 0.020833333333333336,
+      "flops": 20426.2,
+      "len": 37
+    },
+    {
+      "gen": 200,
+      "ber": 0.020833333333333336,
+      "flops": 20426.2,
+      "len": 37
+    }
+  ]
+}

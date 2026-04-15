@@ -1,0 +1,250 @@
+{
+  "gen": 25,
+  "best_genome": "DOWN:[Float.Rot ; Float.GetMMSELB ; Float.Add ; Float.Neg] | UP:[Float.Abs ; Node.ForEachChild([Node.GetMUp])] | BEL:[Node.GetMDown ; Node.GetMDown ; Node.GetMUp ; Node.GetCumDist ; Node.GetMUp ; Node.GetMDown ; Float.Sub ; Node.GetMDown ; Float.Sub ; Float.Add] | HALT:[Float.LT ; Float.Const0 ; Float.ConstHalf] | LOGC:[-0.6441,1.2302,0.5762,-1.1084]",
+  "eval_results": [
+    {
+      "snr_db": 16.0,
+      "evolved_ber": 0.2385,
+      "evolved_flops": 107193711.957,
+      "evolved_samples": 1000,
+      "evolved_bit_errors": 3816,
+      "lmmse_ber": 0.3721875,
+      "kbest16_ber": 0.2226875,
+      "kbest32_ber": 0.1704375
+    },
+    {
+      "snr_db": 18.0,
+      "evolved_ber": 0.0911875,
+      "evolved_flops": 89927281.525,
+      "evolved_samples": 1000,
+      "evolved_bit_errors": 1459,
+      "lmmse_ber": 0.2915,
+      "kbest16_ber": 0.090875,
+      "kbest32_ber": 0.0541875
+    },
+    {
+      "snr_db": 20.0,
+      "evolved_ber": 0.017178030303030303,
+      "evolved_flops": 47392053.69939394,
+      "evolved_samples": 3300,
+      "evolved_bit_errors": 907,
+      "lmmse_ber": 0.2224242424242424,
+      "kbest16_ber": 0.02625,
+      "kbest32_ber": 0.009564393939393939
+    },
+    {
+      "snr_db": 22.0,
+      "evolved_ber": 0.00235625,
+      "evolved_flops": 22486967.5955,
+      "evolved_samples": 10000,
+      "evolved_bit_errors": 377,
+      "lmmse_ber": 0.161475,
+      "kbest16_ber": 0.0053875,
+      "kbest32_ber": 0.00130625
+    },
+    {
+      "snr_db": 24.0,
+      "evolved_ber": 0.00010625,
+      "evolved_flops": 14002414.8957,
+      "evolved_samples": 10000,
+      "evolved_bit_errors": 17,
+      "lmmse_ber": 0.11264375,
+      "kbest16_ber": 0.001375,
+      "kbest32_ber": 0.00016875
+    }
+  ],
+  "baseline_results": [
+    {
+      "snr_db": 16.0,
+      "lmmse_ber": 0.3721875,
+      "lmmse_bit_errors": 5955,
+      "kbest16_ber": 0.2226875,
+      "kbest16_bit_errors": 3563,
+      "kbest32_ber": 0.1704375,
+      "kbest32_bit_errors": 2727,
+      "samples": 1000
+    },
+    {
+      "snr_db": 18.0,
+      "lmmse_ber": 0.2915,
+      "lmmse_bit_errors": 4664,
+      "kbest16_ber": 0.090875,
+      "kbest16_bit_errors": 1454,
+      "kbest32_ber": 0.0541875,
+      "kbest32_bit_errors": 867,
+      "samples": 1000
+    },
+    {
+      "snr_db": 20.0,
+      "lmmse_ber": 0.22075,
+      "lmmse_bit_errors": 3532,
+      "kbest16_ber": 0.0255,
+      "kbest16_bit_errors": 408,
+      "kbest32_ber": 0.0086875,
+      "kbest32_bit_errors": 139,
+      "samples": 1000
+    },
+    {
+      "snr_db": 22.0,
+      "lmmse_ber": 0.16095637583892616,
+      "lmmse_bit_errors": 19186,
+      "kbest16_ber": 0.005016778523489933,
+      "kbest16_bit_errors": 598,
+      "kbest32_ber": 0.00087248322147651,
+      "kbest32_bit_errors": 104,
+      "samples": 7450
+    },
+    {
+      "snr_db": 24.0,
+      "lmmse_ber": 0.1133625,
+      "lmmse_bit_errors": 18138,
+      "kbest16_ber": 0.00136875,
+      "kbest16_bit_errors": 219,
+      "kbest32_ber": 0.0003125,
+      "kbest32_bit_errors": 50,
+      "samples": 10000
+    }
+  ],
+  "history": [
+    {
+      "gen": 6,
+      "ber": 0.007000000000000001,
+      "flops": 11921277.1995,
+      "len": 19,
+      "bp_up": 2534.2466666666664
+    },
+    {
+      "gen": 7,
+      "ber": 0.007000000000000001,
+      "flops": 11921277.1995,
+      "len": 19,
+      "bp_up": 2534.2466666666664
+    },
+    {
+      "gen": 8,
+      "ber": 0.007000000000000001,
+      "flops": 11921277.1995,
+      "len": 19,
+      "bp_up": 2534.2466666666664
+    },
+    {
+      "gen": 9,
+      "ber": 0.007000000000000001,
+      "flops": 11921277.1995,
+      "len": 19,
+      "bp_up": 2534.2466666666664
+    },
+    {
+      "gen": 10,
+      "ber": 0.007000000000000001,
+      "flops": 11921277.1995,
+      "len": 19,
+      "bp_up": 2534.2466666666664
+    },
+    {
+      "gen": 11,
+      "ber": 0.007000000000000001,
+      "flops": 11921277.1995,
+      "len": 19,
+      "bp_up": 2534.2466666666664
+    },
+    {
+      "gen": 12,
+      "ber": 0.007000000000000001,
+      "flops": 11921277.1995,
+      "len": 19,
+      "bp_up": 2534.2466666666664
+    },
+    {
+      "gen": 13,
+      "ber": 0.007000000000000001,
+      "flops": 11921277.1995,
+      "len": 19,
+      "bp_up": 2534.2466666666664
+    },
+    {
+      "gen": 14,
+      "ber": 0.004812500000000001,
+      "flops": 12224617.324500002,
+      "len": 21,
+      "bp_up": 2574.14
+    },
+    {
+      "gen": 15,
+      "ber": 0.004812500000000001,
+      "flops": 12224617.324500002,
+      "len": 21,
+      "bp_up": 2574.14
+    },
+    {
+      "gen": 16,
+      "ber": 0.004812500000000001,
+      "flops": 12222331.318500001,
+      "len": 20,
+      "bp_up": 2574.14
+    },
+    {
+      "gen": 17,
+      "ber": 0.004812500000000001,
+      "flops": 12222331.318500001,
+      "len": 20,
+      "bp_up": 2574.14
+    },
+    {
+      "gen": 18,
+      "ber": 0.004812500000000001,
+      "flops": 12222331.318500001,
+      "len": 20,
+      "bp_up": 2574.14
+    },
+    {
+      "gen": 19,
+      "ber": 0.004812500000000001,
+      "flops": 12222331.318500001,
+      "len": 20,
+      "bp_up": 2574.14
+    },
+    {
+      "gen": 20,
+      "ber": 0.004812500000000001,
+      "flops": 12222331.318500001,
+      "len": 20,
+      "bp_up": 2574.14
+    },
+    {
+      "gen": 21,
+      "ber": 0.004812500000000001,
+      "flops": 12222331.318500001,
+      "len": 20,
+      "bp_up": 2574.14
+    },
+    {
+      "gen": 22,
+      "ber": 0.004812500000000001,
+      "flops": 12222331.318500001,
+      "len": 20,
+      "bp_up": 2574.14
+    },
+    {
+      "gen": 23,
+      "ber": 0.004812500000000001,
+      "flops": 12222331.318500001,
+      "len": 20,
+      "bp_up": 2574.14
+    },
+    {
+      "gen": 24,
+      "ber": 0.004812500000000001,
+      "flops": 12222331.318500001,
+      "len": 20,
+      "bp_up": 2574.14
+    },
+    {
+      "gen": 25,
+      "ber": 0.004812500000000001,
+      "flops": 12222331.318500001,
+      "len": 20,
+      "bp_up": 2574.14
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+================================================================================
+Structured-BP GP  started 2026-04-13 18:25:55
+================================================================================
+
+[2026-04-13 18:25:55] Configuration
+{
+  "generations": 2,
+  "population": 20,
+  "train_samples": 6,
+  "train_nt": 8,
+  "train_nr": 16,
+  "mod_order": 16,
+  "train_max_nodes": 80,
+  "train_flops_max": 3000000,
+  "step_max": 2000,
+  "eval_trials": 20,
+  "eval_max_nodes": 1500,
+  "eval_flops_max": 5000000,
+  "eval_nt": 8,
+  "eval_nr": 16,
+  "eval_step_max": 8000,
+  "train_snrs": "10,12,14",
+  "eval_snrs": "8,10,12,14,16",
+  "seed": 7,
+  "continuous": false,
+  "batch_gens": 5,
+  "log_suffix": "smoke_fix"
+}
+------------------------------------------------------------
+
+[2026-04-13 18:25:58] Gen 0  Fit(BER=0.07604 ratio=0.521 FLOPs=305438 len=25 faults=0.00 gap=0.062 bp=453.3 nlbp=0.0 bpg=0.000)  (initial)
+  DOWN:[Vec.Add ; Node.GetCumDist ; Float.GetMMSELB ; Node.GetMUp] | UP:[Float.ConstHalf ; Node.GetScore ; Node.Dup ; Node.GetCumDist ; Exec.DoTimes([Int.Pop, Float.Mul, Node.GetCumDist]) ; Node.GetCumDist ; Bool.Or] | BEL:[Float.GetMMSELB ; Float.GetNoiseVar ; Vec.SecondPeekAtIm ; Node.WriteMem ; Float.Div ; Float.Sub] | HALT:[Int.LT ; Bool.False ; Float.Sub ; Float.Abs ; Int.GT]
+
+[2026-04-13 18:26:02] Gen 1  Fit(BER=0.07604 ratio=0.521 FLOPs=305438 len=25 faults=0.00 gap=0.062 bp=453.3 nlbp=0.0 bpg=0.000)
+  DOWN:[Vec.Add ; Node.GetCumDist ; Float.GetMMSELB ; Node.GetMUp] | UP:[Float.ConstHalf ; Node.GetScore ; Node.Dup ; Node.GetCumDist ; Exec.DoTimes([Int.Pop, Float.Mul, Node.GetCumDist]) ; Node.GetCumDist ; Bool.Or] | BEL:[Float.GetMMSELB ; Float.GetNoiseVar ; Vec.SecondPeekAtIm ; Node.WriteMem ; Float.Div ; Float.Sub] | HALT:[Int.LT ; Bool.False ; Float.Sub ; Float.Abs ; Int.GT]
+
+[2026-04-13 18:26:07] Gen 2  Fit(BER=0.03438 ratio=0.206 FLOPs=10437 len=7 faults=0.00 gap=0.062 bp=226.7 nlbp=0.0 bpg=0.000)  (NEW BEST)
+  DOWN:[Float.Add] | UP:[Float.Min ; Node.GetLocalDist ; Float.Swap] | BEL:[Float.Add ; Node.GetCumDist] | HALT:[Float.ConstHalf]

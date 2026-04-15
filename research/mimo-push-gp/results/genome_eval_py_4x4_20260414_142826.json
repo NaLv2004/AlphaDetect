@@ -1,0 +1,29 @@
+{
+  "args": {
+    "nt": 4,
+    "nr": 4,
+    "mod_order": 4,
+    "snrs": "20",
+    "n_trials": 5,
+    "min_bit_errors": 1,
+    "max_nodes": 50,
+    "flops_max": 100000,
+    "step_max": 200,
+    "use_cpp": false,
+    "eval_baseline": false,
+    "seed": 42,
+    "genomes": "test6_dominant"
+  },
+  "baselines": [],
+  "genomes": {
+    "test6_dominant": [
+      {
+        "snr_db": 20.0,
+        "evolved_ber": 0.0,
+        "evolved_flops": 841.6,
+        "evolved_samples": 50,
+        "evolved_bit_errors": 0
+      }
+    ]
+  }
+}

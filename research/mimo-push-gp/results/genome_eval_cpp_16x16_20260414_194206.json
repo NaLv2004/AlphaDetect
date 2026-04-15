@@ -1,0 +1,226 @@
+{
+  "args": {
+    "nt": 16,
+    "nr": 16,
+    "mod_order": 16,
+    "snrs": "16,18,20,22,24",
+    "n_trials": 3000,
+    "min_bit_errors": 200,
+    "max_nodes": 2000,
+    "flops_max": 10000000,
+    "step_max": 3000,
+    "use_cpp": true,
+    "seed": 42,
+    "genomes": null
+  },
+  "baselines": [
+    {
+      "snr_db": 16.0,
+      "lmmse_ber": 0.3702916666666667,
+      "lmmse_bit_errors": 17774,
+      "kbest16_ber": 0.2188125,
+      "kbest16_bit_errors": 10503,
+      "kbest32_ber": 0.16947916666666665,
+      "kbest32_bit_errors": 8135,
+      "samples": 3000
+    },
+    {
+      "snr_db": 18.0,
+      "lmmse_ber": 0.29514583333333333,
+      "lmmse_bit_errors": 14167,
+      "kbest16_ber": 0.09135416666666667,
+      "kbest16_bit_errors": 4385,
+      "kbest32_ber": 0.051479166666666666,
+      "kbest32_bit_errors": 2471,
+      "samples": 3000
+    },
+    {
+      "snr_db": 20.0,
+      "lmmse_ber": 0.21939583333333335,
+      "lmmse_bit_errors": 10531,
+      "kbest16_ber": 0.021541666666666667,
+      "kbest16_bit_errors": 1034,
+      "kbest32_ber": 0.008375,
+      "kbest32_bit_errors": 402,
+      "samples": 3000
+    },
+    {
+      "snr_db": 22.0,
+      "lmmse_ber": 0.16138257575757575,
+      "lmmse_bit_errors": 17042,
+      "kbest16_ber": 0.006590909090909091,
+      "kbest16_bit_errors": 696,
+      "kbest32_ber": 0.001893939393939394,
+      "kbest32_bit_errors": 200,
+      "samples": 6600
+    },
+    {
+      "snr_db": 24.0,
+      "lmmse_ber": 0.11519583333333333,
+      "lmmse_bit_errors": 55294,
+      "kbest16_ber": 0.00128125,
+      "kbest16_bit_errors": 615,
+      "kbest32_ber": 0.0001875,
+      "kbest32_bit_errors": 90,
+      "samples": 30000
+    }
+  ],
+  "genomes": {
+    "test6_dominant": [
+      {
+        "snr_db": 16.0,
+        "evolved_ber": 0.43827083333333333,
+        "evolved_flops": 118606.49066666666,
+        "evolved_samples": 3000,
+        "evolved_bit_errors": 21037,
+        "lmmse_ber": 0.3702916666666667,
+        "kbest16_ber": 0.2188125,
+        "kbest32_ber": 0.16947916666666665
+      },
+      {
+        "snr_db": 18.0,
+        "evolved_ber": 0.27066666666666667,
+        "evolved_flops": 96627.30133333334,
+        "evolved_samples": 3000,
+        "evolved_bit_errors": 12992,
+        "lmmse_ber": 0.29514583333333333,
+        "kbest16_ber": 0.09135416666666667,
+        "kbest32_ber": 0.051479166666666666
+      },
+      {
+        "snr_db": 20.0,
+        "evolved_ber": 0.099,
+        "evolved_flops": 65079.83466666667,
+        "evolved_samples": 3000,
+        "evolved_bit_errors": 4752,
+        "lmmse_ber": 0.21939583333333335,
+        "kbest16_ber": 0.021541666666666667,
+        "kbest32_ber": 0.008375
+      },
+      {
+        "snr_db": 22.0,
+        "evolved_ber": 0.024706439393939395,
+        "evolved_flops": 44404.64727272727,
+        "evolved_samples": 6600,
+        "evolved_bit_errors": 2609,
+        "lmmse_ber": 0.16138257575757575,
+        "kbest16_ber": 0.006590909090909091,
+        "kbest32_ber": 0.001893939393939394
+      },
+      {
+        "snr_db": 24.0,
+        "evolved_ber": 0.0034291666666666667,
+        "evolved_flops": 34482.192533333335,
+        "evolved_samples": 30000,
+        "evolved_bit_errors": 1646,
+        "lmmse_ber": 0.11519583333333333,
+        "kbest16_ber": 0.00128125,
+        "kbest32_ber": 0.0001875
+      }
+    ],
+    "gen59_interesting": [
+      {
+        "snr_db": 16.0,
+        "evolved_ber": 0.5156458333333334,
+        "evolved_flops": 197300399.722,
+        "evolved_samples": 3000,
+        "evolved_bit_errors": 24751,
+        "lmmse_ber": 0.3702916666666667,
+        "kbest16_ber": 0.2188125,
+        "kbest32_ber": 0.16947916666666665
+      },
+      {
+        "snr_db": 18.0,
+        "evolved_ber": 0.431625,
+        "evolved_flops": 296112574.671,
+        "evolved_samples": 3000,
+        "evolved_bit_errors": 20718,
+        "lmmse_ber": 0.29514583333333333,
+        "kbest16_ber": 0.09135416666666667,
+        "kbest32_ber": 0.051479166666666666
+      },
+      {
+        "snr_db": 20.0,
+        "evolved_ber": 0.30141666666666667,
+        "evolved_flops": 263562817.36066666,
+        "evolved_samples": 3000,
+        "evolved_bit_errors": 14468,
+        "lmmse_ber": 0.21939583333333335,
+        "kbest16_ber": 0.021541666666666667,
+        "kbest32_ber": 0.008375
+      },
+      {
+        "snr_db": 22.0,
+        "evolved_ber": 0.1906439393939394,
+        "evolved_flops": 239606742.59181818,
+        "evolved_samples": 6600,
+        "evolved_bit_errors": 20132,
+        "lmmse_ber": 0.16138257575757575,
+        "kbest16_ber": 0.006590909090909091,
+        "kbest32_ber": 0.001893939393939394
+      },
+      {
+        "snr_db": 24.0,
+        "evolved_ber": 0.10445625,
+        "evolved_flops": 171373126.32376668,
+        "evolved_samples": 30000,
+        "evolved_bit_errors": 50139,
+        "lmmse_ber": 0.11519583333333333,
+        "kbest16_ber": 0.00128125,
+        "kbest32_ber": 0.0001875
+      }
+    ],
+    "gen59_3_sub_mup": [
+      {
+        "snr_db": 16.0,
+        "evolved_ber": 0.428875,
+        "evolved_flops": 427169.1153333333,
+        "evolved_samples": 3000,
+        "evolved_bit_errors": 20586,
+        "lmmse_ber": 0.3702916666666667,
+        "kbest16_ber": 0.2188125,
+        "kbest32_ber": 0.16947916666666665
+      },
+      {
+        "snr_db": 18.0,
+        "evolved_ber": 0.25954166666666667,
+        "evolved_flops": 340266.0223333333,
+        "evolved_samples": 3000,
+        "evolved_bit_errors": 12458,
+        "lmmse_ber": 0.29514583333333333,
+        "kbest16_ber": 0.09135416666666667,
+        "kbest32_ber": 0.051479166666666666
+      },
+      {
+        "snr_db": 20.0,
+        "evolved_ber": 0.10127083333333334,
+        "evolved_flops": 200414.42333333334,
+        "evolved_samples": 3000,
+        "evolved_bit_errors": 4861,
+        "lmmse_ber": 0.21939583333333335,
+        "kbest16_ber": 0.021541666666666667,
+        "kbest32_ber": 0.008375
+      },
+      {
+        "snr_db": 22.0,
+        "evolved_ber": 0.025094696969696968,
+        "evolved_flops": 107203.23954545455,
+        "evolved_samples": 6600,
+        "evolved_bit_errors": 2650,
+        "lmmse_ber": 0.16138257575757575,
+        "kbest16_ber": 0.006590909090909091,
+        "kbest32_ber": 0.001893939393939394
+      },
+      {
+        "snr_db": 24.0,
+        "evolved_ber": 0.00375625,
+        "evolved_flops": 59884.9852,
+        "evolved_samples": 30000,
+        "evolved_bit_errors": 1803,
+        "lmmse_ber": 0.11519583333333333,
+        "kbest16_ber": 0.00128125,
+        "kbest32_ber": 0.0001875
+      }
+    ]
+  }
+}

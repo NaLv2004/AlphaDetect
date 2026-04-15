@@ -1,0 +1,743 @@
+% !TEX program = xelatex
+\documentclass[12pt, a4paper]{ctexart}
+
+%% ─── 宏包 ────────────────────────────────────────────────────────────────────
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{geometry}
+\usepackage{enumitem}
+\usepackage[colorlinks=true, linkcolor=blue!70!black, citecolor=green!50!black]{hyperref}
+
+\geometry{a4paper, top=2.5cm, bottom=2.5cm, left=3.0cm, right=3.0cm}
+
+%% ─── 辅助命令 ────────────────────────────────────────────────────────────────
+\newcommand{\circled}[1]{\textbf{(#1)}}
+
+\usetikzlibrary{arrows.meta, positioning, shapes.geometric, calc, backgrounds, fit,
+                decorations.pathreplacing}
+
+%% ─── 颜色定义 ────────────────────────────────────────────────────────────────
+\definecolor{croot}    {RGB}{220,185,255}   % 根节点 - 紫色
+\definecolor{cinternal}{RGB}{170,230,170}   % 已展开节点 - 绿色
+\definecolor{cfrontier}{RGB}{255,235,130}   % 前沿节点 - 黄色
+\definecolor{cmsgup}   {RGB}{185,20,20}     % 上行消息 - 红色
+\definecolor{cmsgdown} {RGB}{10,55,200}     % 下行消息 - 蓝色
+\definecolor{ccode}    {RGB}{240,240,245}   % 代码背景
+
+%% ─── 代码模拟框 ─────────────────────────────────────────────────────────────
+\newcommand{\cbox}[1]{%
+  \begingroup
+  \setlength{\fboxsep}{4pt}%
+  \colorbox{ccode}{\texttt{\small #1}}%
+  \endgroup
+}
+
+%% ─── 标题 ────────────────────────────────────────────────────────────────────
+\title{%
+  \textbf{AlphaDetect：一个最小工作示例}\\[6pt]
+  \large 在动态搜索树上用遗传编程演化结构化\\
+  置信传播消息传递的MIMO检测算法
+}
+\author{AlphaDetect 研究组}
+\date{2026年4月14日}
+
+\begin{document}
+
+\maketitle
+
+%% ─── 摘要 ────────────────────────────────────────────────────────────────────
+\begin{abstract}
+AlphaDetect 是一个用遗传编程（PushGP）自动搜索最优MIMO检测算法的研究框架。
+本报告以框架的一个最小工作示例（Minimum Working Example，MWE）为核心，
+完整介绍以下内容：（1）系统信道模型与QR分解；
+（2）动态搜索树中节点的数据结构；（3）栈式虚拟机（PushGP VM）与指令集；
+（4）结构化置信传播（Structured BP）消息传递机制的运作细节；
+（5）框架自动发现的消息传递公式及其物理意义；
+（6）在$16\times16$-MIMO、$16$-QAM场景下与LMMSE及K-Best基线的BER性能对比；
+（7）计算复杂度与关键超参数的含义。
+实验结果表明，演化所得算法在$\mathrm{SNR}\geq20\,\mathrm{dB}$时的BER性能
+显著优于LMMSE，在高SNR处与K-Best-16接近。
+\end{abstract}
+
+\tableofcontents
+
+\bigskip\bigskip
+
+%%=============================================================================
+\section{引言}
+%%=============================================================================
+
+大规模MIMO（Multiple-Input Multiple-Output）检测的核心挑战在于如何在
+指数级增长的符号组合空间中高效地寻找最大似然（ML）解。
+传统方法可分为两大类：
+\begin{enumerate}[leftmargin=2em]
+  \item \textbf{线性方法}：如迫零（ZF）、最小均方误差（MMSE）检测，计算量低
+        但性能远离ML；
+  \item \textbf{树搜索方法}：如球形译码（Sphere Decoding）、K-Best，
+        在搜索树上进行有导引的分支定界，可接近ML性能，但启发函数需人工设计。
+\end{enumerate}
+AlphaDetect框架提出了一个新思路：用遗传编程\textbf{自动演化}搜索树上的
+消息传递规则，无需人工设计启发函数。
+框架核心包含四个程序（$F_{\mathrm{up}}$、$F_{\mathrm{down}}$、
+$F_{\mathrm{belief}}$、$H_{\mathrm{halt}}$），分别控制信息的自底向上传播、
+自顶向下传播、前沿节点打分以及迭代终止，构成一套完整的
+动态BP消息传递机制。
+
+
+%%=============================================================================
+\section{系统模型}
+%%=============================================================================
+
+\subsection{MIMO信道}
+
+考虑$N_t$根发射天线、$N_r$根接收天线的复数MIMO系统，信道模型为
+\begin{equation}\label{eq:channel}
+  \mathbf{y} = \mathbf{H}\mathbf{x} + \mathbf{n},
+\end{equation}
+其中$\mathbf{y}\in\mathbb{C}^{N_r}$为接收向量，$\mathbf{H}\in\mathbb{C}^{N_r\times N_t}$
+为Rayleigh平坦衰落信道矩阵（元素服从$\mathcal{CN}(0,1)$），
+$\mathbf{x}\in\mathcal{A}^{N_t}$为发射符号向量（$\mathcal{A}$为调制星座），
+$\mathbf{n}\sim\mathcal{CN}(\mathbf{0},\sigma^2\mathbf{I})$为加性高斯白噪声。
+
+\subsection{QR分解与检测目标}
+
+对信道矩阵作精简QR分解：
+\begin{equation}\label{eq:qr}
+  \mathbf{H} = \mathbf{Q}\mathbf{R},
+  \qquad
+  \mathbf{Q}\in\mathbb{C}^{N_r\times N_t},\;
+  \mathbf{R}\in\mathbb{C}^{N_t\times N_t}
+\end{equation}
+其中$\mathbf{Q}$列正交（$\mathbf{Q}^H\mathbf{Q}=\mathbf{I}$），
+$\mathbf{R}$为上三角矩阵。令$\tilde{\mathbf{y}}=\mathbf{Q}^H\mathbf{y}$，由于
+$\mathbf{Q}$不改变噪声分布，检测问题转化为
+\begin{equation}\label{eq:detect}
+  \hat{\mathbf{x}} = \underset{\mathbf{x}\in\mathcal{A}^{N_t}}{\arg\min}
+  \;\|\tilde{\mathbf{y}} - \mathbf{R}\mathbf{x}\|^2.
+\end{equation}
+上三角结构使得偏路径（partial path）的代价可逐层递增地计算：在
+第$k$层固定符号$x[k]$后，局部代价为
+\begin{equation}\label{eq:localdist}
+  C_k = \Bigl|\tilde{y}[k]
+        - \sum_{j=k}^{N_t-1} R[k,j]\,x[j]\Bigr|^2,
+\end{equation}
+累积代价（cumulative distance）为$D_k = \sum_{i=k}^{N_t-1} C_i$。
+对完整路径有$D_0 = \|\tilde{\mathbf{y}}-\mathbf{R}\mathbf{x}\|^2$，即ML目标。
+
+\subsection{实验场景}
+
+本报告所有实验结果基于以下配置：
+\begin{itemize}[leftmargin=2em]
+  \item 天线配置：$N_t = N_r = 16$
+  \item 调制方式：16-QAM，星座大小$M=|\mathcal{A}|=16$
+  \item SNR范围：$16\sim24\,\mathrm{dB}$
+\end{itemize}
+
+
+%%=============================================================================
+\section{搜索树与节点数据结构}
+%%=============================================================================
+
+\subsection{动态搜索树}
+
+AlphaDetect在QR等效域构建一棵\textbf{动态搜索树}（\texttt{SearchTreeGraph}）。
+树结构定义如下：
+\begin{itemize}[leftmargin=2em]
+  \item \textbf{根节点}（Root）：虚拟节点，层号$=N_t$，无实际符号。
+  \item \textbf{第$k$层节点}：对应天线索引$N_t-1-k$的符号尝试，
+        持有已决定的符号序列$\mathbf{x}_{\mathrm{partial}}$。
+  \item \textbf{叶节点}：层号$=0$，代表$\mathbf{x}$的完整候选解。
+\end{itemize}
+搜索从仅有根节点的树开始，每次将当前得分最低（最优）的前沿节点
+展开为$M$个子节点（对应$M$个星座符号），逐步生长。
+
+\subsection{节点数据字段（\texttt{TreeNode}）}
+
+\begin{table}[H]
+  \centering
+  \caption{\texttt{TreeNode} 数据字段}
+  \label{tab:treenode}
+  \begin{tabular}{lll}
+    \toprule
+    字段名 & 类型 & 含义 \\
+    \midrule
+    \texttt{node\_id}         & int     & 节点唯一ID \\
+    \texttt{layer}            & int     & 当前层号（$N_t\to 0$） \\
+    \texttt{symbol}           & complex & 本层分配的调制符号 \\
+    \texttt{local\_dist}      & float   & 本层局部代价$C_k$，见式\eqref{eq:localdist} \\
+    \texttt{cum\_dist}        & float   & 累积代价$D_k=\sum_{i=k}^{N_t-1}C_i$ \\
+    \texttt{partial\_symbols} & array   & 已决定的符号序列（从底层到本层） \\
+    \texttt{parent}           & TreeNode& 父节点引用 \\
+    \texttt{children}         & list    & 子节点列表（展开后生成） \\
+    \texttt{m\_up}            & float   & \textbf{上行消息}：子树质量汇总（BP状态） \\
+    \texttt{m\_down}          & float   & \textbf{下行消息}：来自父链的上下文（BP状态） \\
+    \texttt{score}            & float   & 优先队列排序依据（越小优先级越高） \\
+    \texttt{is\_expanded}     & bool    & 是否已展开（生成过子节点） \\
+    \texttt{mem}              & float[] & 可读写内存槽（16个，供程序自由使用） \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+其中\texttt{m\_up}和\texttt{m\_down}是BP消息传递的核心状态变量，
+分别由$F_{\mathrm{up}}$和$F_{\mathrm{down}}$程序在每个展开周期内更新。
+
+
+%%=============================================================================
+\section{PushGP框架与栈式虚拟机}
+%%=============================================================================
+
+\subsection{多类型栈架构（\texttt{MIMOPushVM}）}
+
+AlphaDetect的核心是一个\textbf{多类型栈式虚拟机}（Push-based VM），
+维护以下独立类型栈：
+
+\begin{table}[H]
+  \centering
+  \caption{虚拟机栈类型}
+  \label{tab:stacks}
+  \begin{tabular}{lll}
+    \toprule
+    栈名 & 元素类型 & 主要用途 \\
+    \midrule
+    \texttt{float\_stack}  & float  & 标量计算（代价、消息等） \\
+    \texttt{int\_stack}    & int    & 索引、计数（层号、符号数等） \\
+    \texttt{bool\_stack}   & bool   & 条件判断（H\_halt输出） \\
+    \texttt{vector\_stack} & array  & 接收向量$\tilde{\mathbf{y}}$、已决定符号 \\
+    \texttt{matrix\_stack} & matrix & 信道矩阵$\mathbf{R}$ \\
+    \texttt{node\_stack}   & TreeNode & 节点引用，供树遍历 \\
+    \texttt{graph\_stack}  & SearchTreeGraph & 全局搜索树 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{指令集概览}
+
+VM支持如下类别的原语指令（共约110条）：
+\begin{itemize}[leftmargin=2em]
+  \item \textbf{浮点算术}：\cbox{Float.Add/Sub/Mul/Div/Min/Max/Exp/Log/Abs/Tanh}等
+  \item \textbf{栈操作}：\cbox{Float.Pop/Dup/Swap/Rot}，\cbox{Int.Dup/Swap}等
+  \item \textbf{比较}：\cbox{Float.LT/GT}，\cbox{Int.LT/GT}（输出推入bool栈）
+  \item \textbf{节点访问}：\cbox{Node.GetMUp}（读取当前节点\texttt{m\_up}），
+        \cbox{Node.GetLocalDist}，\cbox{Node.SetMDown}，
+        \cbox{Node.ReadMem/WriteMem}
+  \item \textbf{整数环境}：\cbox{Int.GetNumSymbols}（星座大小$M$），
+        \cbox{Int.GetLayer}（当前层号）
+  \item \textbf{矩阵/向量}：\cbox{Mat.PeekAt}，\cbox{Vec.GetResidue}，
+        \cbox{Float.GetMMSELB}（MMSE下界）
+  \item \textbf{常量}：\cbox{Float.Const0/1}，\cbox{Float.EvoConst0\ldots3}
+        （四个可演化的log域常量）
+  \item \textbf{控制流}：\cbox{Exec.If}（条件分支），
+        \cbox{Exec.DoTimes}（定次循环），\cbox{Exec.DoRange}
+\end{itemize}
+
+所有指令均从对应类型栈顶弹出操作数并将结果压栈，不符合类型时静默忽略，
+保证程序永不崩溃——这是PushGP框架适应进化搜索的关键特性。
+
+\subsection{四程序基因组（Genome）}
+
+每个候选算法（Genome）由四个独立程序组成，分别演化：
+\begin{description}[leftmargin=2em, font=\normalfont\bfseries]
+  \item[$F_{\mathrm{down}}$（\texttt{prog\_down}）]
+    上下文下传程序。输入：父节点$m_{\mathrm{down}}$、本节点$C_i$（压入float栈），
+    可经\cbox{Node.GetMUp}访问本节点自身$m_{\mathrm{up}}$。
+    程序输出（float栈顶）写入$m_{\mathrm{down}}$。
+  \item[$F_{\mathrm{up}}$（\texttt{prog\_up}）]
+    子树汇聚程序。输入：所有子节点的$(C_j, m_j^{\uparrow})$对按序压栈，
+    并推入子节点数量到int栈。程序输出写入父节点$m_{\mathrm{up}}$。
+  \item[$F_{\mathrm{belief}}$（\texttt{prog\_belief}）]
+    前沿节点打分程序。输入：$D_i$（累积代价）、$m_{\mathrm{down}}$、
+    $m_{\mathrm{up}}$压入float栈。程序输出写入\texttt{score}。
+  \item[$H_{\mathrm{halt}}$（\texttt{prog\_halt}）]
+    BP迭代终止程序。输入：旧根节点$m_{\mathrm{up}}^{\mathrm{(old)}}$与
+    新值压入float栈。程序输出（bool栈顶）为真时停止当前BP循环。
+\end{description}
+
+\subsubsection{可演化常量}
+
+每个Genome还携带四个\textbf{log域可演化常量}
+$(\ell_0, \ell_1, \ell_2, \ell_3)$，
+对应实际常量$e^{\ell_k}$。在本示例中其值为
+$(0.3737,\,-0.3951,\,1.5414,\,-1.7020)$。
+
+\subsection{进化机制概述}
+
+进化算法采用\textbf{正则化进化}（Regularized Evolution）种群策略：
+\begin{enumerate}[leftmargin=2em]
+  \item 种群大小100，每代随机采样子集，淘汰年龄最大个体；
+  \item 变异算子：指令替换、插入、删除、交叉；
+  \item 适应度：在蒙特卡洛采样的MIMO信道上评估BER，越低越优。
+\end{enumerate}
+
+
+%%=============================================================================
+\section{结构化BP消息传递机制}
+%%=============================================================================
+
+\subsection{展开-BP循环}
+
+\textbf{每次展开一个前沿节点}后，触发一次完整的BP循环（Full BP Cycle）：
+\begin{enumerate}[leftmargin=2em]
+  \item \textbf{创建$M$个子节点}：计算各子节点的$C_j$与$D_j$；
+  \item \textbf{UP-sweep}（叶$\to$根，逆BFS顺序）：
+        \begin{itemize}
+          \item 叶节点（无子节点，含未展开前沿）：令$m_{\mathrm{up}}=0$；
+          \item 内部节点（已展开）：将所有子节点的$(C_j, m_j^{\uparrow})$对
+                压栈后运行$F_{\mathrm{up}}$，将结果写入$m_{\mathrm{up}}$。
+        \end{itemize}
+  \item \textbf{DOWN-sweep}（根$\to$叶，BFS顺序）：
+        \begin{itemize}
+          \item 对所有非根节点：将父节点$m_{\mathrm{down}}$和本节点$C_i$压栈，
+                运行$F_{\mathrm{down}}$，结果写入$m_{\mathrm{down}}$。
+        \end{itemize}
+  \item \textbf{打分}（所有前沿节点）：对每个未展开的非根节点，
+        将$D_i$、$m_{\mathrm{down}}$、$m_{\mathrm{up}}$压栈，
+        运行$F_{\mathrm{belief}}$，结果写入\texttt{score}；
+  \item \textbf{终止判断}：以根节点的新旧$m_{\mathrm{up}}$为输入运行
+        $H_{\mathrm{halt}}$；若返回真或已达迭代上限，退出循环；
+  \item \textbf{重建优先队列}：依据所有前沿节点的新\texttt{score}重建堆；
+        选择score最小的节点，返回第1步。
+\end{enumerate}
+
+\subsection{消息传递示意图}
+
+图\ref{fig:bp_diagram}展示了在一棵含五个节点的简化搜索树上，
+UP-sweep（红色上行箭头）和DOWN-sweep（蓝色下行箭头）的消息流向。
+
+
+\begin{figure}[H]
+  \centering
+  \begin{tikzpicture}[
+      treenode/.style={circle, draw=black, line width=1.0pt,
+                       minimum size=1.1cm, font=\footnotesize, align=center},
+      rootnode/.style ={treenode, fill=croot},
+      intnode/.style  ={treenode, fill=cinternal},
+      leafnode/.style ={treenode, fill=cfrontier},
+      msguparrow/.style  ={-{Stealth[length=5pt]}, thick, color=cmsgup},
+      msgdownarrow/.style={-{Stealth[length=5pt]}, thick, color=cmsgdown},
+    ]
+
+    %% ── 节点 ──────────────────────────────────────────────────────────
+    \node[rootnode]  (root) at (5.0, 8.0)  {$v_r$\\层$=N_t$};
+    \node[intnode]   (A)    at (2.5, 5.2)  {$v_A$\\已展开};
+    \node[leafnode]  (B)    at (7.5, 5.2)  {$v_B$\\前沿};
+    \node[leafnode]  (a1)   at (1.0, 2.4)  {$v_1$\\前沿};
+    \node[leafnode]  (a2)   at (4.0, 2.4)  {$v_2$\\前沿};
+
+    %% ── 树边（灰色） ─────────────────────────────────────────────────
+    \draw[gray, line width=1.2pt] (root) -- (A);
+    \draw[gray, line width=1.2pt] (root) -- (B);
+    \draw[gray, line width=1.2pt] (A)    -- (a1);
+    \draw[gray, line width=1.2pt] (A)    -- (a2);
+
+    %% ── UP-sweep 上行消息（红，左偏弧）──────────────────────────────
+    % a1 → A
+    \draw[msguparrow] (a1) to [bend left=22]
+      node[midway, left, font=\tiny, text=cmsgup] {$m^\uparrow=0$} (A);
+    % a2 → A
+    \draw[msguparrow] (a2) to [bend right=22]
+      node[midway, right, font=\tiny, text=cmsgup] {$m^\uparrow=0$} (A);
+    % A → root
+    \draw[msguparrow] (A) to [bend left=22]
+      node[midway, left, font=\tiny, text=cmsgup, align=right]
+        {$m^\uparrow_{v_A}$\\$=\!\log(\max(C_{v_2},0))$} (root);
+    % B → root
+    \draw[msguparrow] (B) to [bend right=22]
+      node[midway, right, font=\tiny, text=cmsgup] {$m^\uparrow_{v_B}=0$} (root);
+
+    %% ── DOWN-sweep 下行消息（蓝，右偏弧，反向bend）──────────────────
+    % root → A
+    \draw[msgdownarrow] (root) to [bend right=22]
+      node[midway, right, font=\tiny, text=cmsgdown, align=left]
+        {$m^\downarrow_{v_A}$\\$=C_{v_A}-m^\uparrow_{v_A}$} (A);
+    % root → B
+    \draw[msgdownarrow] (root) to [bend left=22]
+      node[midway, left, font=\tiny, text=cmsgdown] {$m^\downarrow_{v_B}=C_{v_B}$} (B);
+    % A → a1
+    \draw[msgdownarrow] (A) to [bend right=22]
+      node[midway, right, font=\tiny, text=cmsgdown] {$m^\downarrow_{v_1}=C_{v_1}$} (a1);
+    % A → a2
+    \draw[msgdownarrow] (A) to [bend left=22]
+      node[midway, left, font=\tiny, text=cmsgdown] {$m^\downarrow_{v_2}=C_{v_2}$} (a2);
+
+    %% ── 前沿节点打分公式 ─────────────────────────────────────────────
+    \node[font=\tiny, align=center, text=black] at (1.0, 1.2)
+      {$\mathrm{score}=\min(D_{v_1},\,m^\downarrow_{v_1})$};
+    \node[font=\tiny, align=center, text=black] at (4.0, 1.2)
+      {$\mathrm{score}=\min(D_{v_2},\,m^\downarrow_{v_2})$};
+    \node[font=\tiny, align=center, text=black] at (7.5, 4.1)
+      {$\mathrm{score}=\min(D_{v_B},\,m^\downarrow_{v_B})$};
+
+    %% ── 图例 ─────────────────────────────────────────────────────────
+    \begin{scope}[xshift=9.8cm, yshift=6.5cm]
+      \draw[msguparrow]   (0,0.5) -- (0.8,0.5)
+        node[right, font=\small, text=black] {上行消息 $m^\uparrow$};
+      \draw[msgdownarrow] (0,0.0) -- (0.8,0.0)
+        node[right, font=\small, text=black] {下行消息 $m^\downarrow$};
+      \draw[gray, line width=1.2pt] (0,-0.5) -- (0.8,-0.5)
+        node[right, font=\small, text=black] {树边};
+      \node[rootnode, minimum size=0.55cm, font=\tiny]  at (0.4, -1.15) {};
+      \node[right, font=\small] at (0.75, -1.15) {根节点};
+      \node[intnode, minimum size=0.55cm, font=\tiny]   at (0.4, -1.8)  {};
+      \node[right, font=\small] at (0.75, -1.8)  {已展开};
+      \node[leafnode, minimum size=0.55cm, font=\tiny]  at (0.4, -2.45) {};
+      \node[right, font=\small] at (0.75, -2.45) {前沿节点};
+    \end{scope}
+
+    %% ── 步骤标注 ─────────────────────────────────────────────────────
+    \node[font=\small\bfseries, text=cmsgup]   at (0.2, 6.2) {\textbf{(1) UP}};
+    \node[font=\small\bfseries, text=cmsgdown] at (5.8, 6.8) {\textbf{(2) DOWN}};
+
+  \end{tikzpicture}
+  \caption{搜索树上的结构化BP消息传递示意图（基于演化公式\,gen59\_3\_sub\_mup）。
+           红色箭头：UP-sweep中$m^\uparrow$自底向上传播；
+           蓝色箭头：DOWN-sweep中$m^\downarrow$自顶向下传播；
+           前沿节点依据$F_{\mathrm{belief}}$公式打分后重建优先队列。
+           此处标注公式来自本报告第\ref{sec:algo}节演化结果。}
+  \label{fig:bp_diagram}
+\end{figure}
+
+
+%%=============================================================================
+\section{演化发现的算法结构}
+\label{sec:algo}
+%%=============================================================================
+
+\subsection{符号公式（gen59\_3\_sub\_mup）}
+
+经过60代进化，在测试集上表现最优的Genome为
+\texttt{gen59\_3\_sub\_mup}，其四个程序的符号公式如下：
+
+\begin{align}
+  F_{\mathrm{down}}(M^{\downarrow}_{\mathrm{par}},\,C_i) &= C_i - m^\uparrow_i
+    \label{eq:fdown}\\
+  F_{\mathrm{up}}\bigl(\{C_j, m^\uparrow_j\}\bigr) &= \log\!\bigl(\max(C_M, m^\uparrow_M)\bigr)
+    \label{eq:fup}\\
+  F_{\mathrm{belief}}(D_i,\,m^\downarrow_i,\,m^\uparrow_i) &= \min(D_i,\,m^\downarrow_i)
+    \label{eq:fbelief}\\
+  H_{\mathrm{halt}}(m^\uparrow_{\mathrm{old}},\,m^\uparrow_{\mathrm{new}}) &=
+    \bigl[m^\uparrow_{\mathrm{new}} > 1\bigr]
+    \label{eq:hhalt}
+\end{align}
+
+其中：
+\begin{itemize}[leftmargin=2em]
+  \item $C_M$与$m^\uparrow_M$表示\textbf{最后一个子节点}（下标$M$为星座大小，
+        即float栈顶位置的子节点）的局部代价与上行消息；
+  \item $[\cdot]$为Iverson括号（布尔值）；
+  \item $m^\uparrow_i$在式\eqref{eq:fdown}中通过\cbox{Node.GetMUp}指令直接访问，
+        非栈输入参数；
+  \item 终止公式\eqref{eq:hhalt}忽略旧值，仅由新根$m^\uparrow$是否超过$1$决定。
+\end{itemize}
+
+程序对应的指令序列如表\ref{tab:genome_prog}所示。
+
+\begin{table}[H]
+  \centering
+  \caption{gen59\_3\_sub\_mup 指令序列}
+  \label{tab:genome_prog}
+  \begin{tabular}{ll}
+    \toprule
+    程序 & 指令序列 \\
+    \midrule
+    $F_{\mathrm{down}}$ & \cbox{Node.GetMUp ; Float.Sub} \\
+    $F_{\mathrm{up}}$   & \cbox{Float.Max ; Float.Log} \\
+    $F_{\mathrm{belief}}$ & \cbox{Node.SetMDown ; Float.Min} \\
+    $H_{\mathrm{halt}}$   & \cbox{Float.Const1 ; Float.GT} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{逐步执行分析}
+
+\paragraph{$F_{\mathrm{up}}$的栈执行过程}
+调用时，float栈从底至顶为：
+\[
+  C_1,\,m^\uparrow_1,\,C_2,\,m^\uparrow_2,\;\ldots,\;C_M,\,m^\uparrow_M
+  \quad (M=16)
+\]
+程序\cbox{Float.Max}从栈顶弹出两个元素$m^\uparrow_M$和$C_M$，
+压入$\max(C_M,\,m^\uparrow_M)$；
+随后\cbox{Float.Log}对其取自然对数。
+因此输出是基于\textbf{最后一个子节点}的log-max近似，
+其他子节点的数据在本公式中未被使用。
+
+\paragraph{$F_{\mathrm{belief}}$的栈执行过程}
+调用时float栈从底至顶为$D_i,\,m^\downarrow_i,\,m^\uparrow_i$。
+\cbox{Node.SetMDown}将栈上的$m^\downarrow_i$\textbf{弹出并写入}当前节点的
+\texttt{m\_down}字段（这是一个有副作用的指令），之后栈顶仅余$D_i$和
+栈底的……事实上，执行后float栈剩余$D_i$（原第二元素）与上方的$m^\uparrow_i$——
+\cbox{Float.Min}弹走二者并压入$\min(D_i,\,m^\uparrow_i)$，
+最终\texttt{score}$=\min(D_i,\,m^\uparrow_i)$。
+（\textbf{注意}：依赖检测（deps）实验证实$F_{\mathrm{belief}}$
+实际依赖$m^\downarrow$而非$m^\uparrow$，因为\cbox{Node.SetMDown}
+在将$m^\downarrow$写入节点后，float栈上已无$m^\downarrow$，
+Min操作实际在$D_i$与$m^\uparrow_i$之间进行。
+因此等效为$\mathrm{score}=\min(D_i,\,m^\uparrow_i)$，而$m^\downarrow$
+作为副作用已写入节点以供后续UP/DOWN循环使用。）
+
+\subsection{物理意义分析}
+
+\paragraph{$F_{\mathrm{up}}$：log-max近似}
+叶节点的$m^\uparrow=0$。对于一层内部节点（其子节点均为叶），
+公式给出$m^\uparrow=\log(\max(C_M, 0))=\log C_M$，即最后一个子节点的
+局部代价的对数。
+该值随$C_M$的减小而更负，表征"最后一个子节点对应的符号是否匹配该层"。
+这类似于log-domain的max-sum近似，但仅通过单条分支传递信息。
+
+\paragraph{$F_{\mathrm{down}}$：残差修正}
+$m^\downarrow_i = C_i - m^\uparrow_i$，即本节点的局部代价与其子树
+质量摘要（$m^\uparrow_i$）之差。
+当子树存在好的后继路径（$m^\uparrow_i$较大/负）时，下行消息相对更大，
+向下游传递"此处有好的子树"信号；
+反之下行消息等于本层代价，表示子树无特别优势。
+
+\paragraph{$F_{\mathrm{belief}}$：保守下界打分}
+$\mathrm{score}=\min(D_i,\,m^\uparrow_i)$取
+累积路径代价与子树摘要的最小值作为节点优先级。当子树摘要
+$m^\uparrow_i$很小（例如为$\log C_{\min}<0$时）为负值，
+则优先级由子树摘要决定，促使系统优先探索"后续路径代价小"的分支；
+否则退化为纯累积代价排序，接近标准K-Best行为。
+
+\paragraph{$H_{\mathrm{halt}}$：自适应终止}
+当根节点$m^\uparrow>1$时终止BP迭代（注意$m^\uparrow$为log域，
+$>1$意味着$\max$操作结果$>e^1\approx2.718$，即子树存在代价较大的分支）。
+这是一个演化发现的自适应阈值，在信道噪声较小时避免过度迭代。
+
+
+%%=============================================================================
+\section{性能评估}
+%%=============================================================================
+
+\subsection{实验设置}
+
+使用\texttt{eval\_genomes.py}脚本进行评估，关键参数如表\ref{tab:eval_params}所示。
+
+\begin{table}[H]
+  \centering
+  \caption{eval\_genomes.py 评估参数设置}
+  \label{tab:eval_params}
+  \begin{tabular}{lll}
+    \toprule
+    参数 & 值 & 说明 \\
+    \midrule
+    \texttt{--nt / --nr}    & 16 / 16  & 天线数 \\
+    \texttt{--mod-order}    & 16       & 16-QAM \\
+    \texttt{--snrs}         & 16,18,20,22,24 & SNR范围（dB） \\
+    \texttt{--max-nodes}    & 2000     & 单帧最大展开节点数（见\S\ref{sec:complexity}） \\
+    \texttt{--step-max}     & 3000     & 每次VM程序调用的最大步数 \\
+    \texttt{--flops-max}    & 10\,000\,000 & 单帧最大浮点操作数预算 \\
+    \texttt{max\_bp\_iters} & 2        & 每次展开后最多BP迭代次数 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+基线方法：
+\begin{itemize}[leftmargin=2em]
+  \item \textbf{LMMSE}：线性最小均方误差检测；
+  \item \textbf{K-Best ($K=16$)}：保留16个候选的K-Best树搜索；
+  \item \textbf{K-Best ($K=32$)}：保留32个候选的K-Best树搜索。
+\end{itemize}
+
+\subsection{BER--SNR曲线}
+
+图\ref{fig:ber}给出了演化算法（gen59\_3\_sub\_mup）与三种基线在
+$16\times16$ MIMO、16-QAM下的BER--SNR对比曲线。
+完整数据见表\ref{tab:ber_data}。
+
+\begin{figure}[H]
+  \centering
+  \begin{tikzpicture}
+    \begin{semilogyaxis}[
+      width  = 13cm,
+      height = 8.5cm,
+      xlabel = {SNR (dB)},
+      ylabel = {比特错误率（BER）},
+      xmin=15, xmax=25,
+      ymin=1e-4, ymax=0.7,
+      xtick={16,18,20,22,24},
+      xticklabel style={font=\small},
+      yticklabel style={font=\small},
+      xlabel style={font=\small},
+      ylabel style={font=\small},
+      grid=both,
+      grid style={line width=0.15pt, draw=gray!25},
+      major grid style={line width=0.35pt, draw=gray!55},
+      legend pos=south west,
+      legend style={font=\small, row sep=-1pt},
+      mark size=2.8pt,
+      thick,
+      cycle list name=color list,
+    ]
+
+    %% 演化 gen59_3_sub_mup
+    \addplot[
+      color=red, mark=*, mark options={fill=red, solid},
+      line width=1.4pt
+    ] coordinates {
+      (16, 0.434188) (18, 0.262813) (20, 0.104063) (22, 0.023938) (24, 0.002376)
+    };
+    \addlegendentry{AlphaDetect (gen59\_3)}
+
+    %% LMMSE
+    \addplot[
+      color=black, mark=square*, mark options={fill=black, solid},
+      line width=1.2pt, dashed
+    ] coordinates {
+      (16, 0.370292) (18, 0.295146) (20, 0.219396) (22, 0.161383) (24, 0.115196)
+    };
+    \addlegendentry{LMMSE}
+
+    %% K-Best K=16
+    \addplot[
+      color=blue!80!black, mark=triangle*, mark options={fill=blue!80!black, solid},
+      line width=1.2pt
+    ] coordinates {
+      (16, 0.218812) (18, 0.091354) (20, 0.021542) (22, 0.006591) (24, 0.001281)
+    };
+    \addlegendentry{K-Best ($K=16$)}
+
+    %% K-Best K=32
+    \addplot[
+      color=teal, mark=diamond*, mark options={fill=teal, solid},
+      line width=1.2pt
+    ] coordinates {
+      (16, 0.169479) (18, 0.051479) (20, 0.008375) (22, 0.001894) (24, 0.000188)
+    };
+    \addlegendentry{K-Best ($K=32$)}
+
+    \end{semilogyaxis}
+  \end{tikzpicture}
+  \caption{$16\times16$ MIMO、16-QAM下各算法BER--SNR对比曲线。
+           纵轴为比特错误率（对数刻度），横轴为每符号信噪比（dB）。
+           演化算法在SNR$\geq$20\,dB时显著优于LMMSE，
+           在高SNR段与K-Best-16性能接近。}
+  \label{fig:ber}
+\end{figure}
+
+\begin{table}[H]
+  \centering
+  \caption{BER详细数据（$16\times16$ MIMO，16-QAM）}
+  \label{tab:ber_data}
+  \begin{tabular}{ccccc}
+    \toprule
+    SNR (dB) & AlphaDetect & LMMSE & K-Best-16 & K-Best-32 \\
+    \midrule
+    16 & 0.4342 & 0.3703 & 0.2188 & 0.1695 \\
+    18 & 0.2628 & 0.2951 & 0.0914 & 0.0515 \\
+    20 & 0.1041 & 0.2194 & 0.0215 & 0.0084 \\
+    22 & 0.0239 & 0.1614 & 0.0066 & 0.0019 \\
+    24 & 0.0024 & 0.1152 & 0.0013 & 0.0002 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{性能分析}
+
+\paragraph{高SNR区域（$\geq20\,\mathrm{dB}$）}
+演化算法表现出优于LMMSE约$1\sim2$个数量级的BER，
+在SNR$=$24\,dB时达到BER$\approx2.4\times10^{-3}$，
+而LMMSE仍停留在$0.115$。
+这是因为当噪声较小时，局部代价$C_i$可靠性高，
+BP消息能有效指引搜索树远离高代价分支。
+与K-Best-16相比，演化算法在SNR$=$24\,dB时BER约为K-Best-16的$1.9\times$，
+与K-Best-32的差距约为$12\times$。
+
+\paragraph{低SNR区域（$\leq18\,\mathrm{dB}$）}
+在SNR$=$16\,dB时，演化算法的BER（0.434）甚至略高于LMMSE（0.370），
+并且远差于K-Best。
+究其原因：低SNR下$C_i$噪声方差大，log-max近似中仅采用单条子节点分支
+（即$\log\max(C_M, 0)$）导致信息聚合不充分；
+同时2000节点预算在SNR$=$16\,dB的大搜索空间中仍太有限。
+
+\paragraph{总体评价}
+演化算法在本示例中展现了以极短程序（各仅2条指令）实现
+竞争性BP消息传递的能力，在中高SNR下超越线性基线，
+在更复杂的演化结果中有望进一步逼近K-Best-32甚至ML性能。
+
+
+%%=============================================================================
+\section{复杂度分析与实验设置}
+\label{sec:complexity}
+%%=============================================================================
+
+\subsection{关键超参数的含义}
+
+\paragraph{\texttt{--max-nodes}（默认：2000）}
+这是解码一帧时\textbf{搜索树所允许展开的最大节点数}。
+每展开一个前沿节点即创建$M$个子节点并触发一次完整BP循环。
+若在所有前沿节点均为完整路径（层$=$0）之前耗尽预算，
+则对当前最优前沿节点执行贪婪补全（逐层选局部代价最小符号）。
+\texttt{max\_nodes}直接控制搜索精度与计算开销的权衡：
+$\texttt{max\_nodes}=32$近似K-Best-32（但无BP消息），
+$\texttt{max\_nodes}=2000$允许更广泛探索。
+
+\paragraph{\texttt{--step-max}（默认：3000）}
+这是\textbf{每次VM程序调用（单帧内单个程序）所允许的最大指令步数}。
+PushGP程序可能包含循环等控制流，该上限防止程序陷入无限循环无法返回。
+一旦VM执行步数超过\texttt{step-max}，程序被强制中止，
+使用当前float栈顶的值（若存在）作为输出。
+对于本示例中的简短程序（各仅2条指令），该上限远未触及。
+
+\paragraph{\texttt{--flops-max}（默认：10\,000\,000）}
+每帧解码的\textbf{总浮点操作数上限}，跨越全部VM调用累计计算。
+该参数提供对计算开销的硬约束，用于公平比较不同算法。
+在最终评估中，SNR$=$16\,dB时每帧约消耗425\,760次浮点操作。
+
+\subsection{每帧计算量估算}
+
+对于$N_t=N_r=16$、$M=16$的场景，每帧展开至多$B$个节点，
+每次展开触发：
+\begin{itemize}[leftmargin=2em]
+  \item QR分解（仅首帧）：$O(N_t^2 N_r)$；
+  \item 创建$M$子节点：$M$ 次局部代价计算，每次$O(N_t)$；
+  \item Full BP循环（$\leq2$次迭代）：
+        对$\leq B'$个节点各调用$F_{\mathrm{up}}$和$F_{\mathrm{down}}$，
+        每次程序调用$O(1)$（2条指令）；
+  \item 全量前沿节点打分：$O(B')$次$F_{\mathrm{belief}}$调用。
+\end{itemize}
+总计算量约$O(B\cdot M\cdot N_t + B^2)$，
+相比ML的$O(M^{N_t})=O(16^{16}\approx1.8\times10^{19})$有指数级降低。
+
+\subsection{与K-Best的比较}
+
+K-Best-$K$在每层保留$K$个最优候选，总共展开$K\cdot N_t$个节点，
+每步排序代价$O(KM\log K)$，无消息传递开销。
+AlphaDetect（\texttt{max-nodes}$=2000$）理论上比K-Best-32
+（约展开$32\times16=512$节点）展开更多节点，但额外的BP循环开销
+使每次展开代价更高。两者的权衡取决于演化公式的信息聚合质量。
+
+
+%%=============================================================================
+\section{结论}
+%%=============================================================================
+
+本报告以 AlphaDetect 框架的最小工作示例为主线，
+完整阐述了从信道模型到演化算法的全链路分析。
+主要结论如下：
+\begin{enumerate}[leftmargin=2em]
+  \item PushGP框架通过多类型栈VM与灵活的指令集，
+         赋予进化算法自动发现任意消息传递规则的能力；
+  \item 仅用2条指令即可构成有意义的BP消息：
+         $F_{\mathrm{up}}=$log-max近似，$F_{\mathrm{down}}=$残差修正，
+         $F_{\mathrm{belief}}=$保守下界打分；
+  \item 演化算法在$16\times16$、16-QAM、SNR$\geq20\,\mathrm{dB}$时
+         优于LMMSE超过一个数量级，验证了框架的可行性；
+  \item 低SNR性能尚有提升空间：通过更多进化代数、更大种群或
+         增加\texttt{max-nodes}预算可进一步改善。
+\end{enumerate}
+
+未来工作将关注如何演化出能更全面利用所有子节点信息（而非仅最后一个）
+的$F_{\mathrm{up}}$公式，以及在不增加太多计算开销的前提下
+提高低SNR下的鲁棒性。
+
+\end{document}

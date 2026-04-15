@@ -1,0 +1,83 @@
+{
+  "gen": 5,
+  "best_prog": "Float.Sqrt ; Graph.NodeCount ; Int.Const0 ; Vec.Scale ; Float.FromInt ; Node.GetParent ; Vec.ElementAt ; Exec.MinOverSymbols([]) ; Float.GetMMSELB ; Node.ForEachSibling([Node.GetCumDist, Node.SetScore]) ; IF([Bool.Or, Node.Dup, Float.GetNoiseVar, Node.ChildAt], [Float.Square, Matrix.Dup]) ; Node.NumChildren",
+  "best_fitness": {
+    "ber": 0.20527343750000002,
+    "flops": 12256.95,
+    "ratio": 0.9731481481481482
+  },
+  "eval_results": [
+    {
+      "snr_db": 8.0,
+      "evolved_ber": 0.31625,
+      "evolved_flops": 49798.4,
+      "lmmse_ber": 0.31625,
+      "kbest16_ber": 0.27625,
+      "kbest32_ber": 0.2775
+    },
+    {
+      "snr_db": 10.0,
+      "evolved_ber": 0.198125,
+      "evolved_flops": 38778.08,
+      "lmmse_ber": 0.19,
+      "kbest16_ber": 0.14,
+      "kbest32_ber": 0.14
+    },
+    {
+      "snr_db": 12.0,
+      "evolved_ber": 0.1075,
+      "evolved_flops": 30269.36,
+      "lmmse_ber": 0.105,
+      "kbest16_ber": 0.043125,
+      "kbest32_ber": 0.043125
+    },
+    {
+      "snr_db": 14.0,
+      "evolved_ber": 0.04875,
+      "evolved_flops": 20202.4,
+      "lmmse_ber": 0.04,
+      "kbest16_ber": 0.0125,
+      "kbest32_ber": 0.0125
+    },
+    {
+      "snr_db": 16.0,
+      "evolved_ber": 0.043125,
+      "evolved_flops": 17992.24,
+      "lmmse_ber": 0.016875,
+      "kbest16_ber": 0.00125,
+      "kbest32_ber": 0.00125
+    }
+  ],
+  "history": [
+    {
+      "gen": 1,
+      "ber": 0.2087890625,
+      "flops": 12205.025000000001,
+      "len": 18
+    },
+    {
+      "gen": 2,
+      "ber": 0.2087890625,
+      "flops": 12205.025000000001,
+      "len": 18
+    },
+    {
+      "gen": 3,
+      "ber": 0.2087890625,
+      "flops": 12205.025000000001,
+      "len": 18
+    },
+    {
+      "gen": 4,
+      "ber": 0.2087890625,
+      "flops": 12205.025000000001,
+      "len": 18
+    },
+    {
+      "gen": 5,
+      "ber": 0.20527343750000002,
+      "flops": 12256.95,
+      "len": 20
+    }
+  ]
+}

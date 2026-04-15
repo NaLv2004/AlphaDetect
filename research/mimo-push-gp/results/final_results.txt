@@ -1,0 +1,40 @@
+
+Scenario: 16 x 16 , 16-QAM
+
+# Learned
+============================================================
+  gen59_3_sub_mup
+============================================================
+  F_down(M_parent_down, C_i) = (C_i - M_up)  [deps: C_i,M_up; val=0.2000]
+  F_up({C_j, M_j_up}) = log(max(C_2, M_2_up))  [deps: M_up_2; val=-1.2040]
+  F_belief(D_i, M_down, M_up) = min(D_i, M_down)  [deps: M_down; val=0.3000]
+  H_halt(old_M_up, new_M_up) = (new_M_up > 1)  [varies: YES]
+
+  === BP Message Passing Flow ===
+  1. Expand node → create M children with local_dist, cum_dist
+  2. UP sweep (leaves→root): parent.m_up = F_up(children's m_up, local_dist)
+  3. DOWN sweep (root→leaves): child.m_down = F_down(parent.m_down, child.local_dist)
+  4. Score frontier: node.score = F_belief(cum_dist, m_down, m_up)
+  5. Repeat BP if H_halt(old_root_m_up, new_root_m_up) = False
+  6. Pop best-scored frontier node → expand → goto 1
+
+  Evolved constants: EC0=2.364286, EC1=0.402624, EC2=34.785640, EC3=0.019861
+  Log-domain:        0.3737, -0.3951, 1.5414, -1.7020
+
+  H_halt(old_M_up, new_M_up) = (new_M_up > 1)
+
+Full eval SNRs: 100%|████████████████████████████████████████████████████████████████| 5/5 [04:44<00:00, 56.91s/SNR] 
+  SNR= 16.0  Evo=0.434188(6947err,425760fl)                                                                          
+  SNR= 18.0  Evo=0.262813(4205err,342311fl)
+  SNR= 20.0  Evo=0.104063(1665err,210201fl)
+  SNR= 22.0  Evo=0.023938(383err,107606fl)
+  SNR= 24.0  Evo=0.002376(211err,58292fl)
+  [284.6s]
+
+
+# Baselines
+  SNR= 16.0  LMMSE=0.370292(17774err)  KB16=0.218812(10503err)  KB32=0.169479(8135err)  [3000samp]
+  SNR= 18.0  LMMSE=0.295146(14167err)  KB16=0.091354(4385err)  KB32=0.051479(2471err)  [3000samp]
+  SNR= 20.0  LMMSE=0.219396(10531err)  KB16=0.021542(1034err)  KB32=0.008375(402err)  [3000samp]
+  SNR= 22.0  LMMSE=0.161383(17042err)  KB16=0.006591(696err)  KB32=0.001894(200err)  [6600samp]
+  SNR= 24.0  LMMSE=0.115196(55294err)  KB16=0.001281(615err)  KB32=0.000188(90err)  [30000samp]

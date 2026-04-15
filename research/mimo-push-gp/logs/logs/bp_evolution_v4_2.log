@@ -1,0 +1,55 @@
+================================================================================
+BP-Stack-Decoder GP  started 2026-04-13 02:18:37
+================================================================================
+
+[2026-04-13 02:18:37] Configuration
+{
+  "generations": 30,
+  "population": 150,
+  "train_samples": 32,
+  "train_nt": 8,
+  "train_nr": 16,
+  "mod_order": 16,
+  "train_max_nodes": 500,
+  "train_flops_max": 4000000,
+  "step_max": 3000,
+  "eval_trials": 200,
+  "eval_max_nodes": 2000,
+  "eval_flops_max": 5000000,
+  "train_snrs": "8,10,12",
+  "eval_snrs": "8,10,12,14,16",
+  "seed": 137,
+  "continuous": true,
+  "batch_gens": 5,
+  "log_suffix": "v4_2"
+}
+------------------------------------------------------------
+
+[2026-04-13 02:30:24] Gen 0  Fit(BER=0.19531 ratio=1.020 FLOPs=19766 len=5 faults=0.00 gap=0.000 bp=0.0)  (initial)
+  Vec.SecondPeekAt ; Node.Pop ; Vec.PeekAt ; Vec.Dot ; Int.GetNumSymbols
+================================================================================
+BP-Stack-Decoder GP  started 2026-04-13 02:39:12
+================================================================================
+
+[2026-04-13 02:39:12] Configuration
+{
+  "generations": 30,
+  "population": 150,
+  "train_samples": 32,
+  "train_nt": 8,
+  "train_nr": 16,
+  "mod_order": 16,
+  "train_max_nodes": 500,
+  "train_flops_max": 4000000,
+  "step_max": 3000,
+  "eval_trials": 200,
+  "eval_max_nodes": 2000,
+  "eval_flops_max": 5000000,
+  "train_snrs": "8,10,12",
+  "eval_snrs": "8,10,12,14,16",
+  "seed": 137,
+  "continuous": true,
+  "batch_gens": 5,
+  "log_suffix": "v4_2"
+}
+------------------------------------------------------------

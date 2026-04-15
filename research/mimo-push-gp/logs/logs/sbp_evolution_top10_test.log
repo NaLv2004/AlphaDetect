@@ -1,0 +1,35 @@
+================================================================================
+Structured-BP GP  started 2026-04-13 18:29:12
+================================================================================
+
+[2026-04-13 18:29:12] Configuration
+{
+  "generations": 1,
+  "population": 8,
+  "train_samples": 4,
+  "train_nt": 8,
+  "train_nr": 16,
+  "mod_order": 16,
+  "train_max_nodes": 60,
+  "train_flops_max": 500000,
+  "step_max": 800,
+  "eval_trials": 5,
+  "eval_max_nodes": 1500,
+  "eval_flops_max": 5000000,
+  "eval_nt": null,
+  "eval_nr": null,
+  "eval_step_max": 8000,
+  "train_snrs": "12",
+  "eval_snrs": "8,10,12,14,16",
+  "seed": 42,
+  "continuous": false,
+  "batch_gens": 5,
+  "log_suffix": "top10_test"
+}
+------------------------------------------------------------
+
+[2026-04-13 18:29:12] Gen 0  Fit(BER=0.05469 ratio=0.875 FLOPs=9541 len=18 faults=0.00 gap=0.052 bp=170.0 nlbp=0.0 bpg=0.000)  (initial)
+  DOWN:[Node.GetCumDist ; Float.Const0 ; Float.Sub ; Float.Const2 ; Float.Div ; Node.GetCumDist] | UP:[Float.Max ; Node.Dup ; Float.Max ; Vec.SecondPeekAtIm ; Float.Sub ; Float.Sqrt ; Node.GetMUp ; Int.Pop] | BEL:[Float.Dup ; Node.GetLayer] | HALT:[Float.Sub ; Int.Sub]
+
+[2026-04-13 18:29:12] Gen 1  Fit(BER=0.05469 ratio=0.875 FLOPs=9541 len=18 faults=0.00 gap=0.052 bp=170.0 nlbp=0.0 bpg=0.000)
+  DOWN:[Node.GetCumDist ; Float.Const0 ; Float.Sub ; Float.Const2 ; Float.Div ; Node.GetCumDist] | UP:[Float.Max ; Node.Dup ; Float.Max ; Vec.SecondPeekAtIm ; Float.Sub ; Float.Sqrt ; Node.GetMUp ; Int.Pop] | BEL:[Float.Dup ; Node.GetLayer] | HALT:[Float.Sub ; Int.Sub]

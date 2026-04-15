@@ -1,0 +1,145 @@
+{
+  "gen": 5,
+  "best_genome": "DOWN:[Float.Sub] | UP:[Float.Const1 ; Float.Pop ; Float.Div ; Node.ForEachChild([Float.Const0, Float.Neg, Node.GetMUp, Node.GetMUp])] | BEL:[Node.GetMDown ; Float.EvoConst1 ; Float.EvoConst0 ; Float.Sub ; Node.GetMUp ; Float.Add ; Node.GetCumDist ; Float.Mul ; Float.ConstHalf ; Float.Mul ; Node.GetMUp ; Float.Add] | HALT:[Bool.False ; Float.GT ; Float.Const0] | LOGC:[-0.2746,-2.9163,-1.7082,0.9331]",
+  "eval_results": [
+    {
+      "snr_db": 16.0,
+      "evolved_ber": 0.4313125,
+      "evolved_flops": 1217138.874,
+      "evolved_samples": 1000,
+      "evolved_bit_errors": 6901,
+      "lmmse_ber": 0.3721875,
+      "kbest16_ber": 0.2226875,
+      "kbest32_ber": 0.1704375
+    },
+    {
+      "snr_db": 18.0,
+      "evolved_ber": 0.2885,
+      "evolved_flops": 973080.471,
+      "evolved_samples": 1000,
+      "evolved_bit_errors": 4616,
+      "lmmse_ber": 0.2915,
+      "kbest16_ber": 0.090875,
+      "kbest32_ber": 0.0541875
+    },
+    {
+      "snr_db": 20.0,
+      "evolved_ber": 0.1184469696969697,
+      "evolved_flops": 591463.2854545454,
+      "evolved_samples": 3300,
+      "evolved_bit_errors": 6254,
+      "lmmse_ber": 0.2224242424242424,
+      "kbest16_ber": 0.02625,
+      "kbest32_ber": 0.009564393939393939
+    },
+    {
+      "snr_db": 22.0,
+      "evolved_ber": 0.03240625,
+      "evolved_flops": 277066.5684,
+      "evolved_samples": 10000,
+      "evolved_bit_errors": 5185,
+      "lmmse_ber": 0.161475,
+      "kbest16_ber": 0.0053875,
+      "kbest32_ber": 0.00130625
+    },
+    {
+      "snr_db": 24.0,
+      "evolved_ber": 0.00544375,
+      "evolved_flops": 135313.5718,
+      "evolved_samples": 10000,
+      "evolved_bit_errors": 871,
+      "lmmse_ber": 0.11264375,
+      "kbest16_ber": 0.001375,
+      "kbest32_ber": 0.00016875
+    }
+  ],
+  "baseline_results": [
+    {
+      "snr_db": 16.0,
+      "lmmse_ber": 0.3721875,
+      "lmmse_bit_errors": 5955,
+      "kbest16_ber": 0.2226875,
+      "kbest16_bit_errors": 3563,
+      "kbest32_ber": 0.1704375,
+      "kbest32_bit_errors": 2727,
+      "samples": 1000
+    },
+    {
+      "snr_db": 18.0,
+      "lmmse_ber": 0.2915,
+      "lmmse_bit_errors": 4664,
+      "kbest16_ber": 0.090875,
+      "kbest16_bit_errors": 1454,
+      "kbest32_ber": 0.0541875,
+      "kbest32_bit_errors": 867,
+      "samples": 1000
+    },
+    {
+      "snr_db": 20.0,
+      "lmmse_ber": 0.22075,
+      "lmmse_bit_errors": 3532,
+      "kbest16_ber": 0.0255,
+      "kbest16_bit_errors": 408,
+      "kbest32_ber": 0.0086875,
+      "kbest32_bit_errors": 139,
+      "samples": 1000
+    },
+    {
+      "snr_db": 22.0,
+      "lmmse_ber": 0.16095637583892616,
+      "lmmse_bit_errors": 19186,
+      "kbest16_ber": 0.005016778523489933,
+      "kbest16_bit_errors": 598,
+      "kbest32_ber": 0.00087248322147651,
+      "kbest32_bit_errors": 104,
+      "samples": 7450
+    },
+    {
+      "snr_db": 24.0,
+      "lmmse_ber": 0.1133625,
+      "lmmse_bit_errors": 18138,
+      "kbest16_ber": 0.00136875,
+      "kbest16_bit_errors": 219,
+      "kbest32_ber": 0.0003125,
+      "kbest32_bit_errors": 50,
+      "samples": 10000
+    }
+  ],
+  "history": [
+    {
+      "gen": 1,
+      "ber": 0.138875,
+      "flops": 46728.569500000005,
+      "len": 23,
+      "bp_up": 2787.7733333333335
+    },
+    {
+      "gen": 2,
+      "ber": 0.138875,
+      "flops": 46728.569500000005,
+      "len": 23,
+      "bp_up": 2787.7733333333335
+    },
+    {
+      "gen": 3,
+      "ber": 0.138875,
+      "flops": 46728.569500000005,
+      "len": 23,
+      "bp_up": 2787.7733333333335
+    },
+    {
+      "gen": 4,
+      "ber": 0.12734375,
+      "flops": 83157.82200000001,
+      "len": 24,
+      "bp_up": 8967.5
+    },
+    {
+      "gen": 5,
+      "ber": 0.12734375,
+      "flops": 83157.82200000001,
+      "len": 24,
+      "bp_up": 8967.5
+    }
+  ]
+}

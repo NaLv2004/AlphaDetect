@@ -1,0 +1,666 @@
+================================================================================
+Structured-BP GP  started 2026-04-14 02:22:53
+================================================================================
+
+[2026-04-14 02:22:53] Configuration
+{
+  "generations": 60,
+  "population": 80,
+  "train_samples": 80,
+  "train_nt": 8,
+  "train_nr": 16,
+  "mod_order": 16,
+  "train_max_nodes": 1200,
+  "train_flops_max": 1200000,
+  "step_max": 1000,
+  "eval_trials": 200,
+  "eval_max_nodes": 2000,
+  "eval_flops_max": 5000000,
+  "eval_nt": null,
+  "eval_nr": null,
+  "eval_step_max": 5000,
+  "train_snrs": "10,12,14",
+  "eval_snrs": "8,10,12,14,16",
+  "seed": 42,
+  "continuous": false,
+  "use_cpp": true,
+  "batch_gens": 5,
+  "log_suffix": "cpp_test5",
+  "seed_genome_json": "seed_genomes\\cpp_test4_gen4_best.json"
+}
+------------------------------------------------------------
+
+[2026-04-14 02:22:53] Seed genome loaded
+{
+  "_comment": "Best genome from cpp_test4 generation 4. BER=0.05453, ratio=0.459 vs LMMSE.",
+  "_formula": {
+    "F_down": "(M_par_down + C_i) -- cumulative distance A*. Int.Inc/Node.GetParent are int/node-stack no-ops on float.",
+    "F_up": "log(sqrt(max(0.5, (0.5 - EC1)/repeat(...)))) -- near-constant, dead weight per ablation A1",
+    "F_belief": "max(M_down, EC1) -- clamped A* with floor EC1\u22480.348. Int.Sub/Int.Inc are int-stack no-ops.",
+    "H_halt": "(mem[k] < new_M_up) -- triggers halt after 1 BP iteration"
+  },
+  "_insight": "F_down = cumulative distance A*. F_belief = max(cum_dist, 0.348). F_up dead weight (A1 ablation). H_halt fires after 1st iteration. Entire genome = clamped A* search. Floor prevents greedy over-expansion of shallow nodes.",
+  "prog_down": [
+    "Int.Inc",
+    "Float.Add",
+    "Node.GetParent"
+  ],
+  "prog_up": [
+    "Float.ConstHalf",
+    "Float.ConstHalf",
+    "Float.EvoConst1",
+    "Float.Sub",
+    "Exec.DoTimes",
+    "Mat.Row",
+    "Float.Div",
+    "Float.Max",
+    "Float.Sqrt",
+    "Float.Log",
+    "Float.Dup"
+  ],
+  "prog_belief": [
+    "Float.Swap",
+    "Float.ConstHalf",
+    "Float.Swap",
+    "Float.EvoConst1",
+    "Int.Sub",
+    "Int.Inc",
+    "Float.Max"
+  ],
+  "prog_halt": [
+    "Bool.Or",
+    "Node.ReadMem",
+    "Float.Swap",
+    "Float.LT"
+  ],
+  "log_constants": [
+    0.0111,
+    -0.4585,
+    1.0875,
+    -1.7998
+  ]
+}
+------------------------------------------------------------
+
+[2026-04-14 02:29:05] Gen 0  Fit(BER=0.06141 ratio=0.644 FLOPs=33702 len=17 faults=0.00 gap=0.009 bp=4683.1 nlbp=0.0 bpg=0.000)  (initial)
+  DOWN:[Int.Pop ; Node.WriteMem ; Float.Const1 ; Float.Abs ; Float.Sub] | UP:[Float.Max ; Node.SetMUp ; Bool.Or] | BEL:[Int.Const0 ; Float.Square ; Float.ConstHalf ; Node.SetMDown ; Float.Sqrt ; Float.Swap ; Float.Add] | HALT:[Float.LT ; Float.Abs] | LOGC:[1.7890,1.9440,1.0135,-0.4950]
+
+[2026-04-14 02:33:28] Gen 1  Fit(BER=0.06141 ratio=0.644 FLOPs=33702 len=17 faults=0.00 gap=0.009 bp=4683.1 nlbp=0.0 bpg=0.000)
+  DOWN:[Int.Pop ; Node.WriteMem ; Float.Const1 ; Float.Abs ; Float.Sub] | UP:[Float.Max ; Node.SetMUp ; Bool.Or] | BEL:[Int.Const0 ; Float.Square ; Float.ConstHalf ; Node.SetMDown ; Float.Sqrt ; Float.Swap ; Float.Add] | HALT:[Float.LT ; Float.Abs] | LOGC:[1.7890,1.9440,1.0135,-0.4950]
+  Top-10 individuals (Gen 1):
+    # 1  score=0.09027  BER=0.06141  faults=0.00  len=17
+          F_down  = (M_par_down - |1|)
+          F_up    = M_1_up
+          F_belief= (sqrt((M_up)^2) + M_down)
+          H_halt  = |(old_M_up < new_M_up)|
+          [DOWN]   Int.Pop ; Node.WriteMem ; Float.Const1 ; Float.Abs ; Float.Sub
+          [UP]     Float.Max ; Node.SetMUp ; Bool.Or
+          [BELIEF] Int.Const0 ; Float.Square ; Float.ConstHalf ; Node.SetMDown ; Float.Sqrt ; Float.Swap ; Float.Add
+          [HALT]   Float.LT ; Float.Abs
+    # 2  score=0.09027  BER=0.06141  faults=0.00  len=17
+          F_down  = (M_par_down - |1|)
+          F_up    = M_1_up
+          F_belief= (sqrt((M_up)^2) + M_down)
+          H_halt  = |(old_M_up < new_M_up)|
+    # 3  score=0.11222  BER=0.06656  faults=0.00  len=13
+          F_down  = max(M_par_down, C_i)
+          F_up    = Sum_children(EMPTY)
+          F_belief= (max(M_down, M_up) + 0.5)
+          H_halt  = (old_M_up < new_M_up)
+    # 4  score=0.11400  BER=0.10227  faults=0.00  len=13
+          F_down  = ((M_par_down - C_i))^2
+          F_up    = sqrt((C_2 / M_2_up))
+          F_belief= (M_down - M_up)
+          H_halt  = 0
+    # 5  score=0.12784  BER=0.10227  faults=0.00  len=12
+          F_down  = ((M_par_down - C_i))^2
+          F_up    = sqrt(M_2_up)
+          F_belief= (M_down - M_up)
+          H_halt  = 0
+    # 6  score=0.12784  BER=0.10227  faults=0.00  len=12
+          F_down  = ((M_par_down - C_i))^2
+          F_up    = sqrt(M_2_up)
+          F_belief= (M_down - M_up)
+          H_halt  = 0
+    # 7  score=0.13252  BER=0.05523  faults=0.00  len=20
+          F_down  = (M_par_down - exp((C_i)^2))
+          F_up    = |(M_1_up - (C_2 / [?Vec.GetResidue]))|
+          F_belief= (-(M_down + M_up))
+          H_halt  = EMPTY
+    # 8  score=0.13690  BER=0.07594  faults=0.00  len=21
+          F_down  = (|(M_par_down - C_i)|)^2
+          F_up    = M_up
+          F_belief= (D_i + ((M_down + M_up) - 1))
+          H_halt  = 1
+    # 9  score=0.13691  BER=0.04961  faults=0.00  len=24
+          F_down  = (M_par_down + C_i)
+          F_up    = log(sqrt(max(0.5, ((0.5 - EC1) / [?Exec.DoTimes]))))
+          F_belief= max(M_down, EC1)
+          H_halt  = (mem[k] < new_M_up)
+    #10  score=0.14112  BER=0.04961  faults=0.00  len=26
+          F_down  = R[i,j]
+          F_up    = log(sqrt(max(M_2_up, (0.5 / (0.5 - EC1)))))
+          F_belief= max(M_up, ((0.5 + M_down))^2)
+          H_halt  = (mem[k] < new_M_up)
+
+[2026-04-14 02:36:49] Gen 2  Fit(BER=0.07500 ratio=0.632 FLOPs=20247 len=18 faults=0.00 gap=0.000 bp=2268.4 nlbp=0.0 bpg=0.000)  (NEW BEST)
+  DOWN:[Int.Pop ; Node.WriteMem ; Float.Const1 ; Float.Abs ; Float.Sub] | UP:[Float.Max ; Node.GetMUp ; Bool.Or ; Float.Sub] | BEL:[Int.Const0 ; Float.Square ; Float.ConstHalf ; Node.SetMDown ; Float.Sqrt ; Float.Swap ; Float.Add] | HALT:[Float.LT ; Float.Abs] | LOGC:[1.7890,1.9440,1.0135,-0.4950]
+  Top-10 individuals (Gen 2):
+    # 1  score=0.08107  BER=0.07500  faults=0.00  len=18
+          F_down  = (M_par_down - |1|)
+          F_up    = (max(C_2, M_2_up) - M_up)
+          F_belief= (sqrt((M_up)^2) + M_down)
+          H_halt  = |(old_M_up < new_M_up)|
+          [DOWN]   Int.Pop ; Node.WriteMem ; Float.Const1 ; Float.Abs ; Float.Sub
+          [UP]     Float.Max ; Node.GetMUp ; Bool.Or ; Float.Sub
+          [BELIEF] Int.Const0 ; Float.Square ; Float.ConstHalf ; Node.SetMDown ; Float.Sqrt ; Float.Swap ; Float.Add
+          [HALT]   Float.LT ; Float.Abs
+    # 2  score=0.08160  BER=0.05742  faults=0.00  len=26
+          F_down  = (M_par_down + C_i)
+          F_up    = log(sqrt(max(0.5, ((0.5 - EC1) / [?Exec.DoTimes]))))
+          F_belief= max(M_down, 0.5)
+          H_halt  = (mem[k] < new_M_up)
+    # 3  score=0.08160  BER=0.05742  faults=0.00  len=25
+          F_down  = (M_par_down + C_i)
+          F_up    = log(sqrt(max(0.5, ((0.5 - EC1) / [?Exec.DoTimes]))))
+          F_belief= max(M_down, EC1)
+          H_halt  = (mem[k] < new_M_up)
+    # 4  score=0.08160  BER=0.05742  faults=0.00  len=24
+          F_down  = (M_par_down + C_i)
+          F_up    = log(sqrt(max(0.5, ((0.5 - EC1) / [?Exec.DoTimes]))))
+          F_belief= max(M_down, EC1)
+          H_halt  = (mem[k] < new_M_up)
+    # 5  score=0.08171  BER=0.07500  faults=0.00  len=16
+          F_down  = (M_par_down - |1|)
+          F_up    = M_1_up
+          F_belief= (sqrt(M_up) + M_down)
+          H_halt  = |(old_M_up < new_M_up)|
+    # 6  score=0.08263  BER=0.07500  faults=0.00  len=17
+          F_down  = (M_par_down - 1)
+          F_up    = M_1_up
+          F_belief= (sqrt((M_up)^2) + M_down)
+          H_halt  = |(old_M_up < new_M_up)|
+    # 7  score=0.08263  BER=0.07500  faults=0.00  len=17
+          F_down  = (M_par_down - |1|)
+          F_up    = M_1_up
+          F_belief= (sqrt((M_up)^2) + M_down)
+          H_halt  = (old_M_up < |new_M_up|)
+    # 8  score=0.08367  BER=0.05742  faults=0.00  len=26
+          F_down  = (M_par_down + |C_i|)
+          F_up    = log(sqrt(max(0.5, ((0.5 - EC1) / [?Exec.DoTimes]))))
+          F_belief= max(M_down, EC1)
+          H_halt  = (EC3 < new_M_up)
+    # 9  score=0.08549  BER=0.05742  faults=0.00  len=25
+          F_down  = R[i,j]
+          F_up    = log(sqrt(max(M_2_up, (0.5 / (0.5 - EC1)))))
+          F_belief= ((0.5 + M_down))^2
+          H_halt  = (mem[k] < new_M_up)
+    #10  score=0.08549  BER=0.05742  faults=0.00  len=26
+          F_down  = R[i,j]
+          F_up    = log(sqrt(max(M_2_up, (0.5 / (0.5 - EC1)))))
+          F_belief= max(M_up, ((0.5 + M_down))^2)
+          H_halt  = (mem[k] < new_M_up)
+
+[2026-04-14 02:39:39] Gen 3  Fit(BER=0.05742 ratio=0.484 FLOPs=26356 len=25 faults=0.00 gap=0.008 bp=7166.9 nlbp=0.0 bpg=0.000)  (NEW BEST)
+  DOWN:[Int.Inc ; Float.Add ; Node.GetParent] | UP:[Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Int.Dup ; Float.Dup] | BEL:[Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max] | HALT:[Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT] | LOGC:[0.0111,-0.7197,1.0081,-1.7998]
+  Top-10 individuals (Gen 3):
+    # 1  score=0.08095  BER=0.05742  faults=0.00  len=25
+          F_down  = (M_par_down + C_i)
+          F_up    = sqrt(max(0.5, ((0.5 - EC1) / [?Exec.DoTimes])))
+          F_belief= max(M_down, EC1)
+          H_halt  = (mem[k] < new_M_up)
+          [DOWN]   Int.Inc ; Float.Add ; Node.GetParent
+          [UP]     Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Int.Dup ; Float.Dup
+          [BELIEF] Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max
+          [HALT]   Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT
+    # 2  score=0.08107  BER=0.07500  faults=0.00  len=18
+          F_down  = (M_par_down - |1|)
+          F_up    = (max(C_2, M_2_up) - M_up)
+          F_belief= (sqrt((M_up)^2) + M_down)
+          H_halt  = |(old_M_up < new_M_up)|
+    # 3  score=0.08108  BER=0.07500  faults=0.00  len=18
+          F_down  = (M_par_down - |C_i|)
+          F_up    = (max(C_2, M_2_up) - M_up)
+          F_belief= (sqrt((M_up)^2) + M_down)
+          H_halt  = (old_M_up < |new_M_up|)
+    # 4  score=0.08108  BER=0.07500  faults=0.00  len=18
+          F_down  = (M_par_down - |1|)
+          F_up    = (max(C_2, M_2_up) - M_up)
+          F_belief= (sqrt((M_up)^2) + M_down)
+          H_halt  = (old_M_up < |new_M_up|)
+    # 5  score=0.08160  BER=0.05742  faults=0.00  len=26
+          F_down  = (M_par_down + C_i)
+          F_up    = log(sqrt(max(0.5, ((0.5 - EC1) / [?Exec.DoTimes]))))
+          F_belief= max(M_down, 0.5)
+          H_halt  = (mem[k] < new_M_up)
+    # 6  score=0.08160  BER=0.05742  faults=0.00  len=25
+          F_down  = (M_par_down + C_i)
+          F_up    = log(sqrt(max(0.5, ((0.5 - EC1) / [?Exec.DoTimes]))))
+          F_belief= max(M_down, EC1)
+          H_halt  = (mem[k] < new_M_up)
+    # 7  score=0.08160  BER=0.05742  faults=0.00  len=24
+          F_down  = (M_par_down + C_i)
+          F_up    = log(sqrt(max(0.5, ((0.5 - EC1) / [?Exec.DoTimes]))))
+          F_belief= max(M_down, EC1)
+          H_halt  = (mem[k] < new_M_up)
+    # 8  score=0.08160  BER=0.05742  faults=0.00  len=24
+          F_down  = (M_par_down + C_i)
+          F_up    = log(sqrt(max(0.5, ((0.5 - EC1) / [?Exec.DoTimes]))))
+          F_belief= max(0.5, M_down)
+          H_halt  = (mem[k] < new_M_up)
+    # 9  score=0.08160  BER=0.05742  faults=0.00  len=26
+          F_down  = (M_par_down + C_i)
+          F_up    = log(sqrt(max(0.5, ((0.5 - EC1) / [?Exec.DoTimes]))))
+          F_belief= max(M_down, 0.5)
+          H_halt  = (mem[k] < new_M_up)
+    #10  score=0.08160  BER=0.05742  faults=0.00  len=26
+          F_down  = (M_par_down + C_i)
+          F_up    = log(sqrt(max(M_2_up, (0.5 / (0.5 - EC1)))))
+          F_belief= max(M_down, 0.5)
+          H_halt  = (mem[k] < new_M_up)
+
+[2026-04-14 02:41:35] Gen 4  Fit(BER=0.07500 ratio=0.632 FLOPs=18136 len=17 faults=0.00 gap=0.000 bp=2268.4 nlbp=0.0 bpg=0.000)  (NEW BEST)
+  DOWN:[Int.Pop ; Node.WriteMem ; Float.Const1 ; Float.Sub] | UP:[Float.Max ; Node.GetMUp ; Bool.Or ; Float.Sub] | BEL:[Int.Const0 ; Float.Square ; Float.ConstHalf ; Node.SetMDown ; Float.Sqrt ; Float.Swap ; Float.Add] | HALT:[Float.Abs ; Float.LT] | LOGC:[1.7890,1.9440,1.0135,-0.5562]
+  Top-10 individuals (Gen 4):
+    # 1  score=0.08044  BER=0.07500  faults=0.00  len=17
+          F_down  = (M_par_down - 1)
+          F_up    = (max(C_2, M_2_up) - M_up)
+          F_belief= (sqrt((M_up)^2) + M_down)
+          H_halt  = (old_M_up < |new_M_up|)
+          [DOWN]   Int.Pop ; Node.WriteMem ; Float.Const1 ; Float.Sub
+          [UP]     Float.Max ; Node.GetMUp ; Bool.Or ; Float.Sub
+          [BELIEF] Int.Const0 ; Float.Square ; Float.ConstHalf ; Node.SetMDown ; Float.Sqrt ; Float.Swap ; Float.Add
+          [HALT]   Float.Abs ; Float.LT
+    # 2  score=0.08047  BER=0.07500  faults=0.00  len=18
+          F_down  = (M_par_down - |1|)
+          F_up    = (max(C_2, M_2_up) - M_up)
+          F_belief= (M_down + (M_up)^2)
+          H_halt  = EMPTY
+    # 3  score=0.08080  BER=0.07500  faults=0.00  len=15
+          F_down  = (M_par_down - 1)
+          F_up    = M_1_up
+          F_belief= M_down
+          H_halt  = (old_M_up < |new_M_up|)
+    # 4  score=0.08095  BER=0.05742  faults=0.00  len=25
+          F_down  = (M_par_down + C_i)
+          F_up    = sqrt(max(0.5, ((0.5 - EC1) / [?Exec.DoTimes])))
+          F_belief= max(M_down, EC1)
+          H_halt  = (mem[k] < new_M_up)
+    # 5  score=0.08095  BER=0.05742  faults=0.00  len=26
+          F_down  = (M_par_down + C_i)
+          F_up    = sqrt(max(0.5, ((0.5 - EC1) / [?Exec.DoTimes])))
+          F_belief= max(M_down, EC1)
+          H_halt  = (mem[k] < new_M_up)
+    # 6  score=0.08095  BER=0.05742  faults=0.00  len=24
+          F_down  = (M_par_down + C_i)
+          F_up    = sqrt(max(0.5, ((0.5 - EC1) / [?Exec.DoTimes])))
+          F_belief= max(M_down, EC1)
+          H_halt  = (mem[k] < new_M_up)
+    # 7  score=0.08095  BER=0.05742  faults=0.00  len=25
+          F_down  = (M_par_down + C_i)
+          F_up    = sqrt(max((0.5 / (0.5 - EC1)), [?Exec.DoTimes]))
+          F_belief= max(M_down, EC1)
+          H_halt  = (mem[k] < new_M_up)
+    # 8  score=0.08095  BER=0.05742  faults=0.00  len=26
+          F_down  = (M_par_down + C_i)
+          F_up    = sqrt(max(M_2_up, (0.5 / (0.5 - EC1))))
+          F_belief= max(M_down, EC1)
+          H_halt  = (mem[k] < new_M_up)
+    # 9  score=0.08107  BER=0.07500  faults=0.00  len=18
+          F_down  = (M_par_down - |1|)
+          F_up    = (max(C_2, M_2_up) - M_up)
+          F_belief= (sqrt((M_up)^2) + M_down)
+          H_halt  = |(old_M_up < new_M_up)|
+    #10  score=0.08107  BER=0.07500  faults=0.00  len=18
+          F_down  = (M_par_down - |1|)
+          F_up    = (max(C_2, M_2_up) - M_up)
+          F_belief= (sqrt((M_up)^2) + M_down)
+          H_halt  = |(old_M_up < new_M_up)|
+
+[2026-04-14 02:43:21] Gen 5  Fit(BER=0.07500 ratio=0.632 FLOPs=18136 len=17 faults=0.00 gap=0.000 bp=2268.4 nlbp=0.0 bpg=0.000)
+  DOWN:[Int.Pop ; Node.WriteMem ; Float.Const1 ; Float.Sub] | UP:[Float.Max ; Node.GetMUp ; Bool.Or ; Float.Sub] | BEL:[Int.Const0 ; Float.Square ; Float.ConstHalf ; Node.SetMDown ; Float.Sqrt ; Float.Swap ; Float.Add] | HALT:[Float.Abs ; Float.LT] | LOGC:[1.7890,1.9440,1.0135,-0.5562]
+  Top-10 individuals (Gen 5):
+    # 1  score=0.08044  BER=0.07500  faults=0.00  len=17
+          F_down  = (M_par_down - 1)
+          F_up    = (max(C_2, M_2_up) - M_up)
+          F_belief= (sqrt((M_up)^2) + M_down)
+          H_halt  = (old_M_up < |new_M_up|)
+          [DOWN]   Int.Pop ; Node.WriteMem ; Float.Const1 ; Float.Sub
+          [UP]     Float.Max ; Node.GetMUp ; Bool.Or ; Float.Sub
+          [BELIEF] Int.Const0 ; Float.Square ; Float.ConstHalf ; Node.SetMDown ; Float.Sqrt ; Float.Swap ; Float.Add
+          [HALT]   Float.Abs ; Float.LT
+    # 2  score=0.08047  BER=0.07500  faults=0.00  len=18
+          F_down  = (M_par_down - |1|)
+          F_up    = (max(C_2, M_2_up) - M_up)
+          F_belief= (M_down + (M_up)^2)
+          H_halt  = EMPTY
+    # 3  score=0.08080  BER=0.07500  faults=0.00  len=15
+          F_down  = (M_par_down - 1)
+          F_up    = M_1_up
+          F_belief= M_down
+          H_halt  = (old_M_up < |new_M_up|)
+    # 4  score=0.08095  BER=0.05742  faults=0.00  len=25
+          F_down  = (M_par_down + C_i)
+          F_up    = sqrt(max(0.5, ((0.5 - EC1) / [?Exec.DoTimes])))
+          F_belief= max(M_down, EC1)
+          H_halt  = (mem[k] < new_M_up)
+    # 5  score=0.08095  BER=0.05742  faults=0.00  len=26
+          F_down  = (M_par_down + C_i)
+          F_up    = sqrt(max(0.5, ((0.5 - EC1) / [?Exec.DoTimes])))
+          F_belief= max(M_down, EC1)
+          H_halt  = (mem[k] < new_M_up)
+    # 6  score=0.08095  BER=0.05742  faults=0.00  len=24
+          F_down  = (M_par_down + C_i)
+          F_up    = sqrt(max(0.5, ((0.5 - EC1) / [?Exec.DoTimes])))
+          F_belief= max(M_down, EC1)
+          H_halt  = (mem[k] < new_M_up)
+    # 7  score=0.08840  BER=0.06617  faults=0.00  len=31
+          F_down  = (|C_i| + R[i,j])
+          F_up    = log(sqrt(max(C_1, (M_1_up / (max(C_2, M_2_up) - M_up)))))
+          F_belief= ((max(sqrt((M_up)^2), M_down) + D_i))^2
+          H_halt  = (mem[k] < new_M_up)
+    # 8  score=0.10592  BER=0.06641  faults=0.00  len=26
+          F_down  = (M_par_down + C_i)
+          F_up    = sqrt(max(0.5, ((0.5 - EC1) / [?Exec.DoTimes])))
+          F_belief= max(M_down, EC1)
+          H_halt  = (mem[k] < new_M_up)
+    # 9  score=0.10592  BER=0.06641  faults=0.00  len=24
+          F_down  = (M_par_down + C_i)
+          F_up    = sqrt(max(M_2_up, ((0.5 - EC1) / [?Exec.DoTimes])))
+          F_belief= max(M_down, EC1)
+          H_halt  = (mem[k] < new_M_up)
+    #10  score=0.10592  BER=0.06641  faults=0.00  len=24
+          F_down  = (M_par_down + C_i)
+          F_up    = sqrt(max(0.5, ((0.5 - EC1) / [?Exec.DoTimes])))
+          F_belief= max(M_down, 0.5)
+          H_halt  = (EC3 < new_M_up)
+
+[2026-04-14 02:45:29] Gen 6  Fit(BER=0.07500 ratio=0.632 FLOPs=18136 len=17 faults=0.00 gap=0.000 bp=2268.4 nlbp=0.0 bpg=0.000)
+  DOWN:[Int.Pop ; Node.WriteMem ; Float.Const1 ; Float.Sub] | UP:[Float.Max ; Node.GetMUp ; Bool.Or ; Float.Sub] | BEL:[Int.Const0 ; Float.Square ; Float.ConstHalf ; Node.SetMDown ; Float.Sqrt ; Float.Swap ; Float.Add] | HALT:[Float.Abs ; Float.LT] | LOGC:[1.7890,1.9440,1.0135,-0.5562]
+  Top-10 individuals (Gen 6):
+    # 1  score=0.08044  BER=0.07500  faults=0.00  len=17
+          F_down  = (M_par_down - 1)
+          F_up    = (max(C_2, M_2_up) - M_up)
+          F_belief= (sqrt((M_up)^2) + M_down)
+          H_halt  = (old_M_up < |new_M_up|)
+          [DOWN]   Int.Pop ; Node.WriteMem ; Float.Const1 ; Float.Sub
+          [UP]     Float.Max ; Node.GetMUp ; Bool.Or ; Float.Sub
+          [BELIEF] Int.Const0 ; Float.Square ; Float.ConstHalf ; Node.SetMDown ; Float.Sqrt ; Float.Swap ; Float.Add
+          [HALT]   Float.Abs ; Float.LT
+    # 2  score=0.08047  BER=0.07500  faults=0.00  len=18
+          F_down  = (M_par_down - |1|)
+          F_up    = (max(C_2, M_2_up) - M_up)
+          F_belief= (M_down + (M_up)^2)
+          H_halt  = EMPTY
+    # 3  score=0.08080  BER=0.07500  faults=0.00  len=15
+          F_down  = (M_par_down - 1)
+          F_up    = M_1_up
+          F_belief= M_down
+          H_halt  = (old_M_up < |new_M_up|)
+    # 4  score=0.08095  BER=0.05742  faults=0.00  len=25
+          F_down  = (M_par_down + C_i)
+          F_up    = sqrt(max(0.5, ((0.5 - EC1) / [?Exec.DoTimes])))
+          F_belief= max(M_down, EC1)
+          H_halt  = (mem[k] < new_M_up)
+    # 5  score=0.08095  BER=0.05742  faults=0.00  len=26
+          F_down  = (M_par_down + C_i)
+          F_up    = sqrt(max(0.5, ((0.5 - EC1) / [?Exec.DoTimes])))
+          F_belief= max(M_down, EC1)
+          H_halt  = (mem[k] < new_M_up)
+    # 6  score=0.08095  BER=0.05742  faults=0.00  len=24
+          F_down  = (M_par_down + C_i)
+          F_up    = sqrt(max(0.5, ((0.5 - EC1) / [?Exec.DoTimes])))
+          F_belief= max(M_down, EC1)
+          H_halt  = (mem[k] < new_M_up)
+    # 7  score=0.08965  BER=0.05992  faults=0.00  len=17
+          F_down  = (M_par_down - |1|)
+          F_up    = ((M_1_up - max(C_2, M_2_up)) - M_up)
+          F_belief= (sqrt(M_down) + D_i)
+          H_halt  = |(old_M_up < new_M_up)|
+    # 8  score=0.08965  BER=0.06617  faults=0.00  len=32
+          F_down  = (|C_i| + R[i,j])
+          F_up    = log(sqrt(max(C_1, (M_1_up / (max(C_2, M_2_up) - M_up)))))
+          F_belief= (|(max(sqrt((M_up)^2), M_down) + D_i)|)^2
+          H_halt  = (mem[k] < new_M_up)
+    # 9  score=0.10255  BER=0.06617  faults=0.00  len=31
+          F_down  = (|C_i| + R[i,j])
+          F_up    = log(sqrt(max(C_1, (M_1_up / (max(C_2, M_2_up) - M_up)))))
+          F_belief= ((max(sqrt((M_up)^2), M_down) + D_i))^2
+          H_halt  = old_M_up
+    #10  score=0.10578  BER=0.06641  faults=0.00  len=19
+          F_down  = (M_par_down + C_i)
+          F_up    = sqrt(max((0.5 - EC1), [?Exec.DoTimes]))
+          F_belief= max(M_down, 0.5)
+          H_halt  = (EC3 < new_M_up)
+
+[2026-04-14 02:47:47] Gen 7  Fit(BER=0.07500 ratio=0.632 FLOPs=18136 len=17 faults=0.00 gap=0.000 bp=2268.4 nlbp=0.0 bpg=0.000)
+  DOWN:[Int.Pop ; Node.WriteMem ; Float.Const1 ; Float.Sub] | UP:[Float.Max ; Node.GetMUp ; Bool.Or ; Float.Sub] | BEL:[Int.Const0 ; Float.Square ; Float.ConstHalf ; Node.SetMDown ; Float.Sqrt ; Float.Swap ; Float.Add] | HALT:[Float.Abs ; Float.LT] | LOGC:[1.7890,1.9440,1.0135,-0.5562]
+  Top-10 individuals (Gen 7):
+    # 1  score=0.08044  BER=0.07500  faults=0.00  len=17
+          F_down  = (M_par_down - 1)
+          F_up    = (max(C_2, M_2_up) - M_up)
+          F_belief= (sqrt((M_up)^2) + M_down)
+          H_halt  = (old_M_up < |new_M_up|)
+          [DOWN]   Int.Pop ; Node.WriteMem ; Float.Const1 ; Float.Sub
+          [UP]     Float.Max ; Node.GetMUp ; Bool.Or ; Float.Sub
+          [BELIEF] Int.Const0 ; Float.Square ; Float.ConstHalf ; Node.SetMDown ; Float.Sqrt ; Float.Swap ; Float.Add
+          [HALT]   Float.Abs ; Float.LT
+    # 2  score=0.08047  BER=0.07500  faults=0.00  len=18
+          F_down  = (M_par_down - |1|)
+          F_up    = (max(C_2, M_2_up) - M_up)
+          F_belief= (M_down + (M_up)^2)
+          H_halt  = EMPTY
+    # 3  score=0.08080  BER=0.07500  faults=0.00  len=15
+          F_down  = (M_par_down - 1)
+          F_up    = M_1_up
+          F_belief= M_down
+          H_halt  = (old_M_up < |new_M_up|)
+    # 4  score=0.08095  BER=0.05742  faults=0.00  len=25
+          F_down  = (M_par_down + C_i)
+          F_up    = sqrt(max(0.5, ((0.5 - EC1) / [?Exec.DoTimes])))
+          F_belief= max(M_down, EC1)
+          H_halt  = (mem[k] < new_M_up)
+    # 5  score=0.08095  BER=0.05742  faults=0.00  len=26
+          F_down  = (M_par_down + C_i)
+          F_up    = sqrt(max(0.5, ((0.5 - EC1) / [?Exec.DoTimes])))
+          F_belief= max(M_down, EC1)
+          H_halt  = (mem[k] < new_M_up)
+    # 6  score=0.08095  BER=0.05742  faults=0.00  len=24
+          F_down  = (M_par_down + C_i)
+          F_up    = sqrt(max(0.5, ((0.5 - EC1) / [?Exec.DoTimes])))
+          F_belief= max(M_down, EC1)
+          H_halt  = (mem[k] < new_M_up)
+    # 7  score=0.08854  BER=0.06617  faults=0.00  len=31
+          F_down  = (M_par_down + |C_i|)
+          F_up    = sqrt(max(C_1, (M_1_up / (max(C_2, M_2_up) - M_up))))
+          F_belief= (|(max(sqrt((M_up)^2), M_down) + D_i)|)^2
+          H_halt  = EC1
+    # 8  score=0.08941  BER=0.05992  faults=0.00  len=16
+          F_down  = (M_par_down - |1|)
+          F_up    = (max(C_2, M_2_up) - M_up)
+          F_belief= (sqrt(M_down) + D_i)
+          H_halt  = |(old_M_up < new_M_up)|
+    # 9  score=0.09061  BER=0.06359  faults=0.00  len=27
+          F_down  = (M_par_down + C_i)
+          F_up    = max(C_2, sqrt(max((M_2_up / (0.5 - EC1)), [?Exec.DoTimes])))
+          F_belief= max(M_down, 1)
+          H_halt  = (mem[k] < new_M_up)
+    #10  score=0.09918  BER=0.06617  faults=0.00  len=33
+          F_down  = (|C_i| + R[i,j])
+          F_up    = log(sqrt(max(M_1_up, (max(C_2, M_2_up) / (noise_var - M_up)))))
+          F_belief= (|(max(sqrt((M_up)^2), M_down) + D_i)|)^2
+          H_halt  = (old_M_up < mem[k])
+
+[2026-04-14 02:52:07] Gen 8  Fit(BER=0.07500 ratio=0.632 FLOPs=18136 len=17 faults=0.00 gap=0.000 bp=2268.4 nlbp=0.0 bpg=0.000)
+  DOWN:[Int.Pop ; Node.WriteMem ; Float.Const1 ; Float.Sub] | UP:[Float.Max ; Node.GetMUp ; Bool.Or ; Float.Sub] | BEL:[Int.Const0 ; Float.Square ; Float.ConstHalf ; Node.SetMDown ; Float.Sqrt ; Float.Swap ; Float.Add] | HALT:[Float.Abs ; Float.LT] | LOGC:[1.7890,1.9440,1.0135,-0.5562]
+  Top-10 individuals (Gen 8):
+    # 1  score=0.08044  BER=0.07500  faults=0.00  len=17
+          F_down  = (M_par_down - 1)
+          F_up    = (max(C_2, M_2_up) - M_up)
+          F_belief= (sqrt((M_up)^2) + M_down)
+          H_halt  = (old_M_up < |new_M_up|)
+          [DOWN]   Int.Pop ; Node.WriteMem ; Float.Const1 ; Float.Sub
+          [UP]     Float.Max ; Node.GetMUp ; Bool.Or ; Float.Sub
+          [BELIEF] Int.Const0 ; Float.Square ; Float.ConstHalf ; Node.SetMDown ; Float.Sqrt ; Float.Swap ; Float.Add
+          [HALT]   Float.Abs ; Float.LT
+    # 2  score=0.08047  BER=0.07500  faults=0.00  len=18
+          F_down  = (M_par_down - |1|)
+          F_up    = (max(C_2, M_2_up) - M_up)
+          F_belief= (M_down + (M_up)^2)
+          H_halt  = EMPTY
+    # 3  score=0.08080  BER=0.07500  faults=0.00  len=15
+          F_down  = (M_par_down - 1)
+          F_up    = M_1_up
+          F_belief= M_down
+          H_halt  = (old_M_up < |new_M_up|)
+    # 4  score=0.10620  BER=0.08695  faults=0.00  len=23
+          F_down  = (M_par_down + C_i)
+          F_up    = sqrt(max((0.5 / (0.5 - EC1)), [?Exec.DoTimes]))
+          F_belief= max(M_down, EC1)
+          H_halt  = (mem[k] < new_M_up)
+    # 5  score=0.10620  BER=0.08695  faults=0.00  len=26
+          F_down  = (M_par_down + C_i)
+          F_up    = sqrt(max(0.5, ((0.5 - EC1) / [?Exec.DoTimes])))
+          F_belief= max(M_down, 0.5)
+          H_halt  = (mem[k] < new_M_up)
+    # 6  score=0.10637  BER=0.08695  faults=0.00  len=21
+          F_down  = (M_par_down + C_i)
+          F_up    = sqrt(max(M_1_up, (C_2 / ((M_2_up - 0.5) / [?Exec.DoTimes]))))
+          F_belief= M_down
+          H_halt  = (mem[k] < new_M_up)
+    # 7  score=0.10745  BER=0.08695  faults=0.00  len=25
+          F_down  = (M_par_down + C_i)
+          F_up    = sqrt((max(tanh(M_2_up), (0.5 / ((0.5 - EC1) / [?Exec.DoTimes]))))^2)
+          F_belief= M_down
+          H_halt  = (mem[k] < new_M_up)
+    # 8  score=0.10888  BER=0.08695  faults=0.00  len=25
+          F_down  = (M_par_down + C_i)
+          F_up    = sqrt(max([?Exec.DoTimes], 0.5))
+          F_belief= max((M_down + 0.5), EC1)
+          H_halt  = (mem[k] < new_M_up)
+    # 9  score=0.11216  BER=0.08320  faults=0.00  len=16
+          F_down  = (M_par_down - C_i)
+          F_up    = (max(C_2, M_2_up) - (M_up)^2)
+          F_belief= (sqrt(M_down) + D_i)
+          H_halt  = (old_M_up < |new_M_up|)
+    #10  score=0.11298  BER=0.08695  faults=0.00  len=25
+          F_down  = (M_par_down + C_i)
+          F_up    = sqrt(max(0.5, ((0.5 / EC1) - [?Exec.DoTimes])))
+          F_belief= max(M_down, EC1)
+          H_halt  = (old_M_up < (mem[k] < new_M_up))
+
+[2026-04-14 02:56:14] Gen 9  Fit(BER=0.07500 ratio=0.632 FLOPs=18136 len=17 faults=0.00 gap=0.000 bp=2268.4 nlbp=0.0 bpg=0.000)
+  DOWN:[Int.Pop ; Node.WriteMem ; Float.Const1 ; Float.Sub] | UP:[Float.Max ; Node.GetMUp ; Bool.Or ; Float.Sub] | BEL:[Int.Const0 ; Float.Square ; Float.ConstHalf ; Node.SetMDown ; Float.Sqrt ; Float.Swap ; Float.Add] | HALT:[Float.Abs ; Float.LT] | LOGC:[1.7890,1.9440,1.0135,-0.5562]
+  Top-10 individuals (Gen 9):
+    # 1  score=0.08044  BER=0.07500  faults=0.00  len=17
+          F_down  = (M_par_down - 1)
+          F_up    = (max(C_2, M_2_up) - M_up)
+          F_belief= (sqrt((M_up)^2) + M_down)
+          H_halt  = (old_M_up < |new_M_up|)
+          [DOWN]   Int.Pop ; Node.WriteMem ; Float.Const1 ; Float.Sub
+          [UP]     Float.Max ; Node.GetMUp ; Bool.Or ; Float.Sub
+          [BELIEF] Int.Const0 ; Float.Square ; Float.ConstHalf ; Node.SetMDown ; Float.Sqrt ; Float.Swap ; Float.Add
+          [HALT]   Float.Abs ; Float.LT
+    # 2  score=0.08047  BER=0.07500  faults=0.00  len=18
+          F_down  = (M_par_down - |1|)
+          F_up    = (max(C_2, M_2_up) - M_up)
+          F_belief= (M_down + (M_up)^2)
+          H_halt  = EMPTY
+    # 3  score=0.08080  BER=0.07500  faults=0.00  len=15
+          F_down  = (M_par_down - 1)
+          F_up    = M_1_up
+          F_belief= M_down
+          H_halt  = (old_M_up < |new_M_up|)
+    # 4  score=0.10620  BER=0.08695  faults=0.00  len=24
+          F_down  = (M_par_down + C_i)
+          F_up    = sqrt(max(M_1_up, ((M_2_up - C_2) / [?Exec.DoTimes])))
+          F_belief= max(M_down, EC1)
+          H_halt  = (mem[k] < new_M_up)
+    # 5  score=0.10745  BER=0.08695  faults=0.00  len=26
+          F_down  = (M_par_down + C_i)
+          F_up    = sqrt((max(tanh(M_2_up), (0.5 / (-((0.5 - EC1) / [?Exec.DoTimes])))))^2)
+          F_belief= M_down
+          H_halt  = (mem[k] < new_M_up)
+    # 6  score=0.11216  BER=0.08320  faults=0.00  len=16
+          F_down  = (M_par_down - C_i)
+          F_up    = (max(C_2, M_2_up) - (M_up)^2)
+          F_belief= (sqrt(M_down) + D_i)
+          H_halt  = (old_M_up < |new_M_up|)
+    # 7  score=0.11298  BER=0.08695  faults=0.00  len=21
+          F_down  = (M_par_down + C_i)
+          F_up    = max(M_2_up, (0.5 / (0.5 / (EC1 - [?Exec.DoTimes]))))
+          F_belief= M_down
+          H_halt  = (new_M_up < old_M_up)
+    # 8  score=0.11298  BER=0.08695  faults=0.00  len=26
+          F_down  = (M_par_down + C_i)
+          F_up    = sqrt(max(0.5, ((0.5 - EC1) / [?Exec.DoTimes])))
+          F_belief= max(M_down, EC0)
+          H_halt  = (new_M_up < mem[k])
+    # 9  score=0.11351  BER=0.08695  faults=0.00  len=21
+          F_down  = (M_par_down + C_i)
+          F_up    = sqrt(max(M_1_up, (C_2 / ((M_2_up - 0.5) / [?Exec.DoTimes]))))
+          F_belief= M_down
+          H_halt  = (old_M_up < mem[k])
+    #10  score=0.11404  BER=0.08695  faults=0.00  len=19
+          F_down  = (M_par_down + C_i)
+          F_up    = sqrt(((M_2_up - (0.5 / EC1)) / sqrt(max([?Exec.DoTimes], 1))))
+          F_belief= max(M_up, M_down)
+          H_halt  = (new_M_up < old_M_up)
+
+[2026-04-14 03:00:48] Gen 10  Fit(BER=0.07500 ratio=0.632 FLOPs=18136 len=17 faults=0.00 gap=0.000 bp=2268.4 nlbp=0.0 bpg=0.000)
+  DOWN:[Int.Pop ; Node.WriteMem ; Float.Const1 ; Float.Sub] | UP:[Float.Max ; Node.GetMUp ; Bool.Or ; Float.Sub] | BEL:[Int.Const0 ; Float.Square ; Float.ConstHalf ; Node.SetMDown ; Float.Sqrt ; Float.Swap ; Float.Add] | HALT:[Float.Abs ; Float.LT] | LOGC:[1.7890,1.9440,1.0135,-0.5562]
+  Top-10 individuals (Gen 10):
+    # 1  score=0.08044  BER=0.07500  faults=0.00  len=17
+          F_down  = (M_par_down - 1)
+          F_up    = (max(C_2, M_2_up) - M_up)
+          F_belief= (sqrt((M_up)^2) + M_down)
+          H_halt  = (old_M_up < |new_M_up|)
+          [DOWN]   Int.Pop ; Node.WriteMem ; Float.Const1 ; Float.Sub
+          [UP]     Float.Max ; Node.GetMUp ; Bool.Or ; Float.Sub
+          [BELIEF] Int.Const0 ; Float.Square ; Float.ConstHalf ; Node.SetMDown ; Float.Sqrt ; Float.Swap ; Float.Add
+          [HALT]   Float.Abs ; Float.LT
+    # 2  score=0.08047  BER=0.07500  faults=0.00  len=18
+          F_down  = (M_par_down - |1|)
+          F_up    = (max(C_2, M_2_up) - M_up)
+          F_belief= (M_down + (M_up)^2)
+          H_halt  = EMPTY
+    # 3  score=0.08080  BER=0.07500  faults=0.00  len=15
+          F_down  = (M_par_down - 1)
+          F_up    = M_1_up
+          F_belief= M_down
+          H_halt  = (old_M_up < |new_M_up|)
+    # 4  score=0.10709  BER=0.08695  faults=0.00  len=23
+          F_down  = (M_par_down + C_i)
+          F_up    = max(M_2_up, (0.5 / (0.5 / tanh((EC1 - [?Exec.DoTimes])))))
+          F_belief= M_down
+          H_halt  = (0.1 < new_M_up)
+    # 5  score=0.10759  BER=0.08695  faults=0.00  len=24
+          F_down  = (M_par_down + C_i)
+          F_up    = (M_1_up - sqrt(max(C_2, (sqrt(M_2_up) / [?Exec.DoTimes]))))
+          F_belief= max(M_down, EC1)
+          H_halt  = (mem[k] < new_M_up)
+    # 6  score=0.11150  BER=0.07836  faults=0.00  len=25
+          F_down  = (M_par_down + (C_i)^2)
+          F_up    = (max(0.5, ((0.5 - EC1) / ([?Exec.DoTimes] / EC1))))^2
+          F_belief= M_down
+          H_halt  = (old_M_up < mem[k])
+    # 7  score=0.11296  BER=0.08695  faults=0.00  len=21
+          F_down  = (M_par_down + C_i)
+          F_up    = max(M_2_up, (0.5 / (0.5 / (EC1 - [?Exec.DoTimes]))))
+          F_belief= max(D_i, max(M_down, M_up))
+          H_halt  = (old_M_up < new_M_up)
+    # 8  score=0.11298  BER=0.08695  faults=0.00  len=19
+          F_down  = (M_par_down + C_i)
+          F_up    = sqrt(max(C_2, ((M_2_up - 0.5) / [?Exec.DoTimes])))
+          F_belief= M_down
+          H_halt  = (new_M_up < mem[k])
+    # 9  score=0.11298  BER=0.08695  faults=0.00  len=27
+          F_down  = (M_par_down + C_i)
+          F_up    = sqrt([?Exec.DoTimes])
+          F_belief= max(M_down, EC0)
+          H_halt  = (new_M_up < mem[k])
+    #10  score=0.11351  BER=0.08695  faults=0.00  len=18
+          F_down  = (M_par_down + C_i)
+          F_up    = sqrt(((M_2_up - (0.5 / EC1)) / max([?Exec.DoTimes], 1)))
+          F_belief= max(M_up, M_down)
+          H_halt  = (new_M_up < old_M_up)

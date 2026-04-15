@@ -1,0 +1,166 @@
+{
+  "gen": 8,
+  "best_genome": "DOWN:[Float.Sub ; Mat.VecMul ; Bool.True ; Mat.PeekAtIm] | UP:[Float.Tanh ; Float.Dup ; Vec.PeekAtIm ; Node.ForEachChildMin([Float.EvoConst2, Node.GetCumDist]) ; Int.Pop ; Exec.DoTimes([Float.GetNoiseVar, Node.NumChildren, Float.EvoConst3]) ; Node.ForEachChild([Node.GetMUp, Int.Pop, Node.NumChildren])] | BEL:[Bool.Or ; Node.GetLayer ; Float.Div ; Float.Add] | HALT:[Bool.Not ; Float.LT ; Node.GetLayer] | LOGC:[-1.5593,-0.5319,-1.1880,-0.3497]",
+  "eval_results": [
+    {
+      "snr_db": 16.0,
+      "evolved_ber": 0.4108125,
+      "evolved_flops": 353732.332,
+      "evolved_samples": 1000,
+      "evolved_bit_errors": 6573,
+      "lmmse_ber": 0.3721875,
+      "kbest16_ber": 0.2226875,
+      "kbest32_ber": 0.1704375
+    },
+    {
+      "snr_db": 18.0,
+      "evolved_ber": 0.245375,
+      "evolved_flops": 301652.93,
+      "evolved_samples": 1000,
+      "evolved_bit_errors": 3926,
+      "lmmse_ber": 0.2915,
+      "kbest16_ber": 0.090875,
+      "kbest32_ber": 0.0541875
+    },
+    {
+      "snr_db": 20.0,
+      "evolved_ber": 0.10229166666666667,
+      "evolved_flops": 180075.83515151514,
+      "evolved_samples": 3300,
+      "evolved_bit_errors": 5401,
+      "lmmse_ber": 0.2224242424242424,
+      "kbest16_ber": 0.02625,
+      "kbest32_ber": 0.009564393939393939
+    },
+    {
+      "snr_db": 22.0,
+      "evolved_ber": 0.03076875,
+      "evolved_flops": 113072.2761,
+      "evolved_samples": 10000,
+      "evolved_bit_errors": 4923,
+      "lmmse_ber": 0.161475,
+      "kbest16_ber": 0.0053875,
+      "kbest32_ber": 0.00130625
+    },
+    {
+      "snr_db": 24.0,
+      "evolved_ber": 0.007775,
+      "evolved_flops": 84978.7663,
+      "evolved_samples": 10000,
+      "evolved_bit_errors": 1244,
+      "lmmse_ber": 0.11264375,
+      "kbest16_ber": 0.001375,
+      "kbest32_ber": 0.00016875
+    }
+  ],
+  "baseline_results": [
+    {
+      "snr_db": 16.0,
+      "lmmse_ber": 0.3721875,
+      "lmmse_bit_errors": 5955,
+      "kbest16_ber": 0.2226875,
+      "kbest16_bit_errors": 3563,
+      "kbest32_ber": 0.1704375,
+      "kbest32_bit_errors": 2727,
+      "samples": 1000
+    },
+    {
+      "snr_db": 18.0,
+      "lmmse_ber": 0.2915,
+      "lmmse_bit_errors": 4664,
+      "kbest16_ber": 0.090875,
+      "kbest16_bit_errors": 1454,
+      "kbest32_ber": 0.0541875,
+      "kbest32_bit_errors": 867,
+      "samples": 1000
+    },
+    {
+      "snr_db": 20.0,
+      "lmmse_ber": 0.22075,
+      "lmmse_bit_errors": 3532,
+      "kbest16_ber": 0.0255,
+      "kbest16_bit_errors": 408,
+      "kbest32_ber": 0.0086875,
+      "kbest32_bit_errors": 139,
+      "samples": 1000
+    },
+    {
+      "snr_db": 22.0,
+      "lmmse_ber": 0.16095637583892616,
+      "lmmse_bit_errors": 19186,
+      "kbest16_ber": 0.005016778523489933,
+      "kbest16_bit_errors": 598,
+      "kbest32_ber": 0.00087248322147651,
+      "kbest32_bit_errors": 104,
+      "samples": 7450
+    },
+    {
+      "snr_db": 24.0,
+      "lmmse_ber": 0.1133625,
+      "lmmse_bit_errors": 18138,
+      "kbest16_ber": 0.00136875,
+      "kbest16_bit_errors": 219,
+      "kbest32_ber": 0.0003125,
+      "kbest32_bit_errors": 50,
+      "samples": 10000
+    }
+  ],
+  "history": [
+    {
+      "gen": 1,
+      "ber": 0.10379166666666667,
+      "flops": 59239.842666666664,
+      "len": 31,
+      "bp_up": 4641.0
+    },
+    {
+      "gen": 2,
+      "ber": 0.10379166666666667,
+      "flops": 59239.842666666664,
+      "len": 31,
+      "bp_up": 4641.0
+    },
+    {
+      "gen": 3,
+      "ber": 0.10379166666666667,
+      "flops": 59239.842666666664,
+      "len": 31,
+      "bp_up": 4641.0
+    },
+    {
+      "gen": 4,
+      "ber": 0.10379166666666667,
+      "flops": 59239.842666666664,
+      "len": 31,
+      "bp_up": 4641.0
+    },
+    {
+      "gen": 5,
+      "ber": 0.10379166666666667,
+      "flops": 59239.842666666664,
+      "len": 31,
+      "bp_up": 4641.0
+    },
+    {
+      "gen": 6,
+      "ber": 0.10379166666666667,
+      "flops": 59239.842666666664,
+      "len": 31,
+      "bp_up": 4641.0
+    },
+    {
+      "gen": 7,
+      "ber": 0.09635416666666667,
+      "flops": 39621.04266666667,
+      "len": 26,
+      "bp_up": 1547.0
+    },
+    {
+      "gen": 8,
+      "ber": 0.09635416666666667,
+      "flops": 39621.04266666667,
+      "len": 26,
+      "bp_up": 1547.0
+    }
+  ]
+}

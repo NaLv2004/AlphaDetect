@@ -1,0 +1,4 @@
+startup --host_jvm_args="-Dhttp.proxyHost=127.0.0.1"
+startup --host_jvm_args="-Dhttp.proxyPort=7897"
+startup --host_jvm_args="-Dhttps.proxyHost=127.0.0.1"
+startup --host_jvm_args="-Dhttps.proxyPort=7897"

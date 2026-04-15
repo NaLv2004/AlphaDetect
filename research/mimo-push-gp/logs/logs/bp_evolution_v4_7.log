@@ -1,0 +1,41 @@
+================================================================================
+BP-Stack-Decoder GP  started 2026-04-13 02:54:45
+================================================================================
+
+[2026-04-13 02:54:45] Configuration
+{
+  "generations": 30,
+  "population": 120,
+  "train_samples": 32,
+  "train_nt": 8,
+  "train_nr": 16,
+  "mod_order": 16,
+  "train_max_nodes": 200,
+  "train_flops_max": 3000000,
+  "step_max": 2000,
+  "eval_trials": 200,
+  "eval_max_nodes": 2000,
+  "eval_flops_max": 5000000,
+  "train_snrs": "10,12,14",
+  "eval_snrs": "8,10,12,14,16",
+  "seed": 7777,
+  "continuous": true,
+  "batch_gens": 5,
+  "log_suffix": "v4_7"
+}
+------------------------------------------------------------
+
+[2026-04-13 02:59:37] Gen 0  Fit(BER=0.09512 ratio=1.015 FLOPs=14147 len=10 faults=0.00 gap=0.012 bp=274.4)  (initial)
+  Float.Const2 ; Mat.Rows ; Exec.MinOverSymbols([Float.Const2, Float.Add]) ; Node.ForEachSibling([Node.GetScore, Node.SetScore]) ; Int.GetNumSymbols ; Vec.Dot
+
+[2026-04-13 03:04:33] Gen 1  Fit(BER=0.09512 ratio=1.015 FLOPs=14147 len=10 faults=0.00 gap=0.012 bp=274.4)
+  Float.Const2 ; Mat.Rows ; Exec.MinOverSymbols([Float.Const2, Float.Add]) ; Node.ForEachSibling([Node.GetScore, Node.SetScore]) ; Int.GetNumSymbols ; Vec.Dot
+
+[2026-04-13 03:08:45] Gen 2  Fit(BER=0.08594 ratio=0.667 FLOPs=9558 len=12 faults=0.00 gap=0.000 bp=106.0)  (NEW BEST)
+  Graph.FrontierCount ; Int.Dup ; Bool.Not ; Node.IsExpanded ; Vec.Len ; Node.ForEachChild([Node.GetLocalDist, Node.GetLocalDist, Float.Max, Node.SetScore]) ; Float.Abs ; Float.LT
+
+[2026-04-13 03:13:15] Gen 3  Fit(BER=0.08594 ratio=0.667 FLOPs=9558 len=12 faults=0.00 gap=0.000 bp=106.0)
+  Graph.FrontierCount ; Int.Dup ; Bool.Not ; Node.IsExpanded ; Vec.Len ; Node.ForEachChild([Node.GetLocalDist, Node.GetLocalDist, Float.Max, Node.SetScore]) ; Float.Abs ; Float.LT
+
+[2026-04-13 03:17:44] Gen 4  Fit(BER=0.08594 ratio=0.667 FLOPs=9552 len=19 faults=0.00 gap=0.000 bp=106.0)  (NEW BEST)
+  Exec.While([Float.Abs, Int.Pop]) ; Int.Dup ; Node.GetLayer ; Graph.FrontierCount ; Int.Dup ; Bool.Not ; Mat.ElementAt ; Node.ForEachAncestor([Bool.Dup, Int.Pop]) ; Node.ForEachChild([Node.GetLocalDist, Node.GetLocalDist, Float.Max, Node.SetScore]) ; Node.ReadMem ; Float.LT

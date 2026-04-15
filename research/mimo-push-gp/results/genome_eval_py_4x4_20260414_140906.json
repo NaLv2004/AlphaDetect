@@ -1,0 +1,62 @@
+{
+  "args": {
+    "nt": 4,
+    "nr": 4,
+    "mod_order": 4,
+    "snrs": "20,24",
+    "n_trials": 5,
+    "min_bit_errors": 1,
+    "max_nodes": 50,
+    "flops_max": 100000,
+    "step_max": 200,
+    "use_cpp": false,
+    "seed": 42,
+    "genomes": "test6_dominant"
+  },
+  "baselines": [
+    {
+      "snr_db": 20.0,
+      "lmmse_ber": 0.015,
+      "lmmse_bit_errors": 3,
+      "kbest16_ber": 0.0,
+      "kbest16_bit_errors": 0,
+      "kbest32_ber": 0.0,
+      "kbest32_bit_errors": 0,
+      "samples": 50
+    },
+    {
+      "snr_db": 24.0,
+      "lmmse_ber": 0.005,
+      "lmmse_bit_errors": 1,
+      "kbest16_ber": 0.0,
+      "kbest16_bit_errors": 0,
+      "kbest32_ber": 0.0,
+      "kbest32_bit_errors": 0,
+      "samples": 50
+    }
+  ],
+  "genomes": {
+    "test6_dominant": [
+      {
+        "snr_db": 20.0,
+        "evolved_ber": 0.0,
+        "evolved_flops": 841.6,
+        "evolved_samples": 50,
+        "evolved_bit_errors": 0,
+        "lmmse_ber": 0.015,
+        "kbest16_ber": 0.0,
+        "kbest32_ber": 0.0
+      },
+      {
+        "snr_db": 24.0,
+        "evolved_ber": 0.0,
+        "evolved_flops": 842.56,
+        "evolved_samples": 50,
+        "evolved_bit_errors": 0,
+        "lmmse_ber": 0.005,
+        "kbest16_ber": 0.0,
+        "kbest32_ber": 0.0
+      }
+    ]
+  }
+}

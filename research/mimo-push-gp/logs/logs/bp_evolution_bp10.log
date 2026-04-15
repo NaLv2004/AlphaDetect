@@ -1,0 +1,1077 @@
+================================================================================
+BP-Stack-Decoder GP  started 2026-04-12 21:06:51
+================================================================================
+
+[2026-04-12 21:06:51] Configuration
+{
+  "generations": 30,
+  "population": 40,
+  "train_samples": 12,
+  "train_nt": 8,
+  "train_nr": 16,
+  "mod_order": 16,
+  "train_max_nodes": 80,
+  "train_flops_max": 200000,
+  "bp_interval": 20,
+  "bp_sweeps": 2,
+  "step_max": 150,
+  "bp_step_limit": 50,
+  "bp_flops_limit": 5000,
+  "eval_trials": 200,
+  "eval_max_nodes": 300,
+  "eval_flops_max": 2000000,
+  "train_snrs": "10,12",
+  "eval_snrs": "8,10,12,14,16",
+  "seed": 777,
+  "continuous": true,
+  "batch_gens": 50,
+  "log_suffix": "bp10"
+}
+------------------------------------------------------------
+
+[2026-04-12 21:07:57] Gen 0  Fit(BER=0.08333 ratio=0.500 FLOPs=25666 len=7 faults=0.00 gap=0.000)  (initial)
+  Float.Rot ; Node.ChildAt ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Vec.Add ; Node.GetCumDist
+
+[2026-04-12 21:08:37] Gen 1  Fit(BER=0.08333 ratio=0.500 FLOPs=25666 len=7 faults=0.00 gap=0.000)
+  Float.Rot ; Node.ChildAt ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Vec.Add ; Node.GetCumDist
+
+[2026-04-12 21:08:59] Gen 2  Fit(BER=0.06250 ratio=0.462 FLOPs=23776 len=8 faults=0.00 gap=0.000)  (NEW BEST)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add
+
+[2026-04-12 21:09:44] Gen 3  Fit(BER=0.06250 ratio=0.462 FLOPs=23776 len=8 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add
+
+[2026-04-12 21:10:12] Gen 4  Fit(BER=0.06250 ratio=0.462 FLOPs=23776 len=8 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add
+
+[2026-04-12 21:10:54] Gen 5  Fit(BER=0.06250 ratio=0.462 FLOPs=23776 len=8 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add
+
+[2026-04-12 21:11:54] Gen 6  Fit(BER=0.06250 ratio=0.462 FLOPs=23776 len=8 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add
+
+[2026-04-12 21:13:11] Gen 7  Fit(BER=0.06250 ratio=0.462 FLOPs=23776 len=8 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add
+
+[2026-04-12 21:14:21] Gen 8  Fit(BER=0.06250 ratio=0.462 FLOPs=23776 len=8 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add
+
+[2026-04-12 21:15:10] Gen 9  Fit(BER=0.06250 ratio=0.462 FLOPs=23776 len=8 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add
+
+[2026-04-12 21:15:50] Gen 10  Fit(BER=0.06250 ratio=0.462 FLOPs=23776 len=8 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add
+
+[2026-04-12 21:16:19] Gen 11  Fit(BER=0.06250 ratio=0.462 FLOPs=23776 len=8 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add
+
+[2026-04-12 21:17:21] Gen 12  Fit(BER=0.06250 ratio=0.462 FLOPs=23776 len=8 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add
+
+[2026-04-12 21:17:58] Gen 13  Fit(BER=0.04167 ratio=0.286 FLOPs=28129 len=14 faults=0.00 gap=0.000)  (NEW BEST)
+  Node.GetScore ; Node.GetLayer ; Vec.PeekAt ; Node.ForEachSibling([Vec.Dot]) ; Float.Dup ; Mat.VecMul ; Int.Const1 ; Node.ChildAt ; Node.GetSymRe ; Vec.ElementAt ; Float.GetMMSELB ; Float.Dup ; Vec.Add
+
+[2026-04-12 21:18:51] Gen 14  Fit(BER=0.04167 ratio=0.286 FLOPs=28129 len=14 faults=0.00 gap=0.000)
+  Node.GetScore ; Node.GetLayer ; Vec.PeekAt ; Node.ForEachSibling([Vec.Dot]) ; Float.Dup ; Mat.VecMul ; Int.Const1 ; Node.ChildAt ; Node.GetSymRe ; Vec.ElementAt ; Float.GetMMSELB ; Float.Dup ; Vec.Add
+
+[2026-04-12 21:19:30] Gen 15  Fit(BER=0.04167 ratio=0.286 FLOPs=28129 len=14 faults=0.00 gap=0.000)
+  Node.GetScore ; Node.GetLayer ; Vec.PeekAt ; Node.ForEachSibling([Vec.Dot]) ; Float.Dup ; Mat.VecMul ; Int.Const1 ; Node.ChildAt ; Node.GetSymRe ; Vec.ElementAt ; Float.GetMMSELB ; Float.Dup ; Vec.Add
+
+[2026-04-12 21:20:14] Gen 16  Fit(BER=0.04167 ratio=0.286 FLOPs=28129 len=14 faults=0.00 gap=0.000)
+  Node.GetScore ; Node.GetLayer ; Vec.PeekAt ; Node.ForEachSibling([Vec.Dot]) ; Float.Dup ; Mat.VecMul ; Int.Const1 ; Node.ChildAt ; Node.GetSymRe ; Vec.ElementAt ; Float.GetMMSELB ; Float.Dup ; Vec.Add
+
+[2026-04-12 21:20:44] Gen 17  Fit(BER=0.04167 ratio=0.286 FLOPs=28129 len=14 faults=0.00 gap=0.000)
+  Node.GetScore ; Node.GetLayer ; Vec.PeekAt ; Node.ForEachSibling([Vec.Dot]) ; Float.Dup ; Mat.VecMul ; Int.Const1 ; Node.ChildAt ; Node.GetSymRe ; Vec.ElementAt ; Float.GetMMSELB ; Float.Dup ; Vec.Add
+
+[2026-04-12 21:21:22] Gen 18  Fit(BER=0.04167 ratio=0.286 FLOPs=28129 len=14 faults=0.00 gap=0.000)
+  Node.GetScore ; Node.GetLayer ; Vec.PeekAt ; Node.ForEachSibling([Vec.Dot]) ; Float.Dup ; Mat.VecMul ; Int.Const1 ; Node.ChildAt ; Node.GetSymRe ; Vec.ElementAt ; Float.GetMMSELB ; Float.Dup ; Vec.Add
+
+[2026-04-12 21:21:45] Gen 19  Fit(BER=0.04167 ratio=0.286 FLOPs=28129 len=14 faults=0.00 gap=0.000)
+  Node.GetScore ; Node.GetLayer ; Vec.PeekAt ; Node.ForEachSibling([Vec.Dot]) ; Float.Dup ; Mat.VecMul ; Int.Const1 ; Node.ChildAt ; Node.GetSymRe ; Vec.ElementAt ; Float.GetMMSELB ; Float.Dup ; Vec.Add
+
+[2026-04-12 21:22:04] Gen 20  Fit(BER=0.04167 ratio=0.286 FLOPs=28129 len=14 faults=0.00 gap=0.000)
+  Node.GetScore ; Node.GetLayer ; Vec.PeekAt ; Node.ForEachSibling([Vec.Dot]) ; Float.Dup ; Mat.VecMul ; Int.Const1 ; Node.ChildAt ; Node.GetSymRe ; Vec.ElementAt ; Float.GetMMSELB ; Float.Dup ; Vec.Add
+
+[2026-04-12 21:22:45] Gen 21  Fit(BER=0.04167 ratio=0.286 FLOPs=28129 len=14 faults=0.00 gap=0.000)
+  Node.GetScore ; Node.GetLayer ; Vec.PeekAt ; Node.ForEachSibling([Vec.Dot]) ; Float.Dup ; Mat.VecMul ; Int.Const1 ; Node.ChildAt ; Node.GetSymRe ; Vec.ElementAt ; Float.GetMMSELB ; Float.Dup ; Vec.Add
+
+[2026-04-12 21:23:11] Gen 22  Fit(BER=0.04167 ratio=0.286 FLOPs=28129 len=14 faults=0.00 gap=0.000)
+  Node.GetScore ; Node.GetLayer ; Vec.PeekAt ; Node.ForEachSibling([Vec.Dot]) ; Float.Dup ; Mat.VecMul ; Int.Const1 ; Node.ChildAt ; Node.GetSymRe ; Vec.ElementAt ; Float.GetMMSELB ; Float.Dup ; Vec.Add
+
+[2026-04-12 21:23:41] Gen 23  Fit(BER=0.04167 ratio=0.286 FLOPs=28129 len=14 faults=0.00 gap=0.000)
+  Node.GetScore ; Node.GetLayer ; Vec.PeekAt ; Node.ForEachSibling([Vec.Dot]) ; Float.Dup ; Mat.VecMul ; Int.Const1 ; Node.ChildAt ; Node.GetSymRe ; Vec.ElementAt ; Float.GetMMSELB ; Float.Dup ; Vec.Add
+
+[2026-04-12 21:24:23] Gen 24  Fit(BER=0.04167 ratio=0.286 FLOPs=28129 len=14 faults=0.00 gap=0.000)
+  Node.GetScore ; Node.GetLayer ; Vec.PeekAt ; Node.ForEachSibling([Vec.Dot]) ; Float.Dup ; Mat.VecMul ; Int.Const1 ; Node.ChildAt ; Node.GetSymRe ; Vec.ElementAt ; Float.GetMMSELB ; Float.Dup ; Vec.Add
+
+[2026-04-12 21:25:25] Gen 25  Fit(BER=0.04167 ratio=0.286 FLOPs=28129 len=14 faults=0.00 gap=0.000)
+  Node.GetScore ; Node.GetLayer ; Vec.PeekAt ; Node.ForEachSibling([Vec.Dot]) ; Float.Dup ; Mat.VecMul ; Int.Const1 ; Node.ChildAt ; Node.GetSymRe ; Vec.ElementAt ; Float.GetMMSELB ; Float.Dup ; Vec.Add
+
+[2026-04-12 21:26:05] Gen 26  Fit(BER=0.04167 ratio=0.286 FLOPs=28129 len=14 faults=0.00 gap=0.000)
+  Node.GetScore ; Node.GetLayer ; Vec.PeekAt ; Node.ForEachSibling([Vec.Dot]) ; Float.Dup ; Mat.VecMul ; Int.Const1 ; Node.ChildAt ; Node.GetSymRe ; Vec.ElementAt ; Float.GetMMSELB ; Float.Dup ; Vec.Add
+
+[2026-04-12 21:26:31] Gen 27  Fit(BER=0.04167 ratio=0.286 FLOPs=28129 len=14 faults=0.00 gap=0.000)
+  Node.GetScore ; Node.GetLayer ; Vec.PeekAt ; Node.ForEachSibling([Vec.Dot]) ; Float.Dup ; Mat.VecMul ; Int.Const1 ; Node.ChildAt ; Node.GetSymRe ; Vec.ElementAt ; Float.GetMMSELB ; Float.Dup ; Vec.Add
+
+[2026-04-12 21:27:27] Gen 28  Fit(BER=0.04167 ratio=0.286 FLOPs=28129 len=14 faults=0.00 gap=0.000)
+  Node.GetScore ; Node.GetLayer ; Vec.PeekAt ; Node.ForEachSibling([Vec.Dot]) ; Float.Dup ; Mat.VecMul ; Int.Const1 ; Node.ChildAt ; Node.GetSymRe ; Vec.ElementAt ; Float.GetMMSELB ; Float.Dup ; Vec.Add
+
+[2026-04-12 21:28:19] Gen 29  Fit(BER=0.04167 ratio=0.286 FLOPs=28129 len=14 faults=0.00 gap=0.000)
+  Node.GetScore ; Node.GetLayer ; Vec.PeekAt ; Node.ForEachSibling([Vec.Dot]) ; Float.Dup ; Mat.VecMul ; Int.Const1 ; Node.ChildAt ; Node.GetSymRe ; Vec.ElementAt ; Float.GetMMSELB ; Float.Dup ; Vec.Add
+
+[2026-04-12 21:29:06] Gen 30  Fit(BER=0.04167 ratio=0.286 FLOPs=28129 len=14 faults=0.00 gap=0.000)
+  Node.GetScore ; Node.GetLayer ; Vec.PeekAt ; Node.ForEachSibling([Vec.Dot]) ; Float.Dup ; Mat.VecMul ; Int.Const1 ; Node.ChildAt ; Node.GetSymRe ; Vec.ElementAt ; Float.GetMMSELB ; Float.Dup ; Vec.Add
+
+[2026-04-12 21:29:32] Gen 31  Fit(BER=0.04167 ratio=0.286 FLOPs=28129 len=14 faults=0.00 gap=0.000)
+  Node.GetScore ; Node.GetLayer ; Vec.PeekAt ; Node.ForEachSibling([Vec.Dot]) ; Float.Dup ; Mat.VecMul ; Int.Const1 ; Node.ChildAt ; Node.GetSymRe ; Vec.ElementAt ; Float.GetMMSELB ; Float.Dup ; Vec.Add
+
+[2026-04-12 21:29:59] Gen 32  Fit(BER=0.04167 ratio=0.286 FLOPs=28129 len=14 faults=0.00 gap=0.000)
+  Node.GetScore ; Node.GetLayer ; Vec.PeekAt ; Node.ForEachSibling([Vec.Dot]) ; Float.Dup ; Mat.VecMul ; Int.Const1 ; Node.ChildAt ; Node.GetSymRe ; Vec.ElementAt ; Float.GetMMSELB ; Float.Dup ; Vec.Add
+
+[2026-04-12 21:30:27] Gen 33  Fit(BER=0.04167 ratio=0.286 FLOPs=28129 len=14 faults=0.00 gap=0.000)
+  Node.GetScore ; Node.GetLayer ; Vec.PeekAt ; Node.ForEachSibling([Vec.Dot]) ; Float.Dup ; Mat.VecMul ; Int.Const1 ; Node.ChildAt ; Node.GetSymRe ; Vec.ElementAt ; Float.GetMMSELB ; Float.Dup ; Vec.Add
+
+[2026-04-12 21:30:58] Gen 34  Fit(BER=0.04167 ratio=0.286 FLOPs=28129 len=14 faults=0.00 gap=0.000)
+  Node.GetScore ; Node.GetLayer ; Vec.PeekAt ; Node.ForEachSibling([Vec.Dot]) ; Float.Dup ; Mat.VecMul ; Int.Const1 ; Node.ChildAt ; Node.GetSymRe ; Vec.ElementAt ; Float.GetMMSELB ; Float.Dup ; Vec.Add
+
+[2026-04-12 21:31:38] Gen 35  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)  (NEW BEST)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 21:32:34] Gen 36  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 21:33:07] Gen 37  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 21:33:38] Gen 38  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 21:34:00] Gen 39  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 21:34:26] Gen 40  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 21:35:01] Gen 41  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 21:35:42] Gen 42  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 21:36:14] Gen 43  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 21:36:42] Gen 44  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 21:37:21] Gen 45  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 21:38:19] Gen 46  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 21:39:02] Gen 47  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 21:39:41] Gen 48  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 21:40:58] Gen 49  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 21:41:51] Gen 50  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 21:42:43] Full eval
+[
+  {
+    "snr_db": 8.0,
+    "evolved_ber": 0.280625,
+    "evolved_flops": 40253.6,
+    "lmmse_ber": 0.31625,
+    "kbest16_ber": 0.27625,
+    "kbest32_ber": 0.2775
+  },
+  {
+    "snr_db": 10.0,
+    "evolved_ber": 0.141875,
+    "evolved_flops": 25004.48,
+    "lmmse_ber": 0.19,
+    "kbest16_ber": 0.14,
+    "kbest32_ber": 0.14
+  },
+  {
+    "snr_db": 12.0,
+    "evolved_ber": 0.045625,
+    "evolved_flops": 14234.4,
+    "lmmse_ber": 0.105,
+    "kbest16_ber": 0.043125,
+    "kbest32_ber": 0.043125
+  },
+  {
+    "snr_db": 14.0,
+    "evolved_ber": 0.011875,
+    "evolved_flops": 9959.36,
+    "lmmse_ber": 0.04,
+    "kbest16_ber": 0.0125,
+    "kbest32_ber": 0.0125
+  },
+  {
+    "snr_db": 16.0,
+    "evolved_ber": 0.001875,
+    "evolved_flops": 8824.16,
+    "lmmse_ber": 0.016875,
+    "kbest16_ber": 0.00125,
+    "kbest32_ber": 0.00125
+  }
+]
+------------------------------------------------------------
+
+[2026-04-12 21:44:35] Gen 51  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 21:45:15] Gen 52  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 21:46:16] Gen 53  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 21:47:07] Gen 54  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 21:48:03] Gen 55  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 21:49:21] Gen 56  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 21:50:20] Gen 57  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 21:51:22] Gen 58  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 21:52:16] Gen 59  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 21:52:59] Gen 60  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 21:53:41] Gen 61  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 21:55:12] Gen 62  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 21:57:02] Gen 63  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 21:59:14] Gen 64  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 22:00:58] Gen 65  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 22:02:03] Gen 66  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 22:02:45] Gen 67  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 22:03:54] Gen 68  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 22:05:10] Gen 69  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 22:06:42] Gen 70  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 22:08:59] Gen 71  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 22:09:54] Gen 72  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 22:10:46] Gen 73  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 22:11:23] Gen 74  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 22:12:00] Gen 75  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 22:13:00] Gen 76  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 22:14:01] Gen 77  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 22:15:26] Gen 78  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 22:16:54] Gen 79  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 22:17:37] Gen 80  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 22:18:37] Gen 81  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 22:19:42] Gen 82  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 22:20:54] Gen 83  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 22:22:10] Gen 84  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 22:23:39] Gen 85  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 22:25:00] Gen 86  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 22:27:12] Gen 87  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 22:28:33] Gen 88  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 22:30:01] Gen 89  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 22:31:11] Gen 90  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 22:32:08] Gen 91  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 22:33:03] Gen 92  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 22:34:15] Gen 93  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 22:35:19] Gen 94  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 22:36:10] Gen 95  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 22:37:12] Gen 96  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 22:37:58] Gen 97  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 22:39:57] Gen 98  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 22:40:56] Gen 99  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 22:41:34] Gen 100  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 22:42:32] Full eval
+[
+  {
+    "snr_db": 8.0,
+    "evolved_ber": 0.280625,
+    "evolved_flops": 40253.6,
+    "lmmse_ber": 0.31625,
+    "kbest16_ber": 0.27625,
+    "kbest32_ber": 0.2775
+  },
+  {
+    "snr_db": 10.0,
+    "evolved_ber": 0.141875,
+    "evolved_flops": 25004.48,
+    "lmmse_ber": 0.19,
+    "kbest16_ber": 0.14,
+    "kbest32_ber": 0.14
+  },
+  {
+    "snr_db": 12.0,
+    "evolved_ber": 0.045625,
+    "evolved_flops": 14234.4,
+    "lmmse_ber": 0.105,
+    "kbest16_ber": 0.043125,
+    "kbest32_ber": 0.043125
+  },
+  {
+    "snr_db": 14.0,
+    "evolved_ber": 0.011875,
+    "evolved_flops": 9959.36,
+    "lmmse_ber": 0.04,
+    "kbest16_ber": 0.0125,
+    "kbest32_ber": 0.0125
+  },
+  {
+    "snr_db": 16.0,
+    "evolved_ber": 0.001875,
+    "evolved_flops": 8824.16,
+    "lmmse_ber": 0.016875,
+    "kbest16_ber": 0.00125,
+    "kbest32_ber": 0.00125
+  }
+]
+------------------------------------------------------------
+
+[2026-04-12 22:43:19] Gen 101  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 22:44:04] Gen 102  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 22:45:32] Gen 103  Fit(BER=0.04167 ratio=0.190 FLOPs=22223 len=13 faults=0.00 gap=0.000)
+  Float.Rot ; Node.GetSymRe ; Node.ChildAt ; Mat.Row ; Vec.SecondPeekAt ; Vec.ElementAt ; Float.GetMMSELB ; Int.Const1 ; Vec.Add ; Node.IsExpanded ; Node.GetLocalDist ; Mat.PeekAtIm ; Vec.PeekAtIm
+
+[2026-04-12 22:46:30] Gen 104  Fit(BER=0.04167 ratio=0.400 FLOPs=19339 len=4 faults=0.00 gap=0.000)  (NEW BEST)
+  Float.Log ; Int.Const1 ; Vec.ElementAt ; Vec.SecondPeekAt
+
+[2026-04-12 22:47:22] Gen 105  Fit(BER=0.04167 ratio=0.400 FLOPs=19339 len=4 faults=0.00 gap=0.000)
+  Float.Log ; Int.Const1 ; Vec.ElementAt ; Vec.SecondPeekAt
+
+[2026-04-12 22:47:53] Gen 106  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)  (NEW BEST)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 22:48:12] Gen 107  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 22:48:42] Gen 108  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 22:49:23] Gen 109  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 22:50:15] Gen 110  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 22:51:13] Gen 111  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 22:52:13] Gen 112  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 22:52:58] Gen 113  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 22:53:42] Gen 114  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 22:54:42] Gen 115  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 22:55:34] Gen 116  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 22:56:37] Gen 117  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 22:57:45] Gen 118  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 22:58:25] Gen 119  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 22:59:33] Gen 120  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:00:38] Gen 121  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:01:32] Gen 122  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:02:26] Gen 123  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:03:37] Gen 124  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:04:12] Gen 125  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:04:56] Gen 126  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:05:43] Gen 127  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:06:29] Gen 128  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:07:19] Gen 129  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:08:26] Gen 130  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:08:59] Gen 131  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:09:36] Gen 132  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:10:13] Gen 133  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:10:49] Gen 134  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:11:22] Gen 135  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:13:04] Gen 136  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:14:01] Gen 137  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:14:43] Gen 138  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:15:27] Gen 139  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:16:09] Gen 140  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:17:00] Gen 141  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:17:44] Gen 142  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:18:43] Gen 143  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:20:02] Gen 144  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:21:15] Gen 145  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:22:11] Gen 146  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:23:02] Gen 147  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:23:44] Gen 148  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:24:28] Gen 149  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:25:08] Gen 150  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:26:13] Full eval
+[
+  {
+    "snr_db": 8.0,
+    "evolved_ber": 0.279375,
+    "evolved_flops": 51906.88,
+    "lmmse_ber": 0.31625,
+    "kbest16_ber": 0.27625,
+    "kbest32_ber": 0.2775
+  },
+  {
+    "snr_db": 10.0,
+    "evolved_ber": 0.149375,
+    "evolved_flops": 33256.56,
+    "lmmse_ber": 0.19,
+    "kbest16_ber": 0.14,
+    "kbest32_ber": 0.14
+  },
+  {
+    "snr_db": 12.0,
+    "evolved_ber": 0.044375,
+    "evolved_flops": 19082.0,
+    "lmmse_ber": 0.105,
+    "kbest16_ber": 0.043125,
+    "kbest32_ber": 0.043125
+  },
+  {
+    "snr_db": 14.0,
+    "evolved_ber": 0.015,
+    "evolved_flops": 12063.92,
+    "lmmse_ber": 0.04,
+    "kbest16_ber": 0.0125,
+    "kbest32_ber": 0.0125
+  },
+  {
+    "snr_db": 16.0,
+    "evolved_ber": 0.0025,
+    "evolved_flops": 10418.24,
+    "lmmse_ber": 0.016875,
+    "kbest16_ber": 0.00125,
+    "kbest32_ber": 0.00125
+  }
+]
+------------------------------------------------------------
+
+[2026-04-12 23:27:03] Gen 151  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:27:54] Gen 152  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:28:15] Gen 153  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:28:45] Gen 154  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:29:13] Gen 155  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:29:45] Gen 156  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:30:21] Gen 157  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:31:39] Gen 158  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:32:18] Gen 159  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:33:06] Gen 160  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:34:07] Gen 161  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:35:05] Gen 162  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:36:00] Gen 163  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:37:38] Gen 164  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:38:31] Gen 165  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:39:48] Gen 166  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:41:57] Gen 167  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:42:55] Gen 168  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:43:27] Gen 169  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:44:25] Gen 170  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:45:12] Gen 171  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:46:05] Gen 172  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:46:43] Gen 173  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:47:38] Gen 174  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:48:29] Gen 175  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:49:05] Gen 176  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:49:47] Gen 177  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:50:44] Gen 178  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:51:48] Gen 179  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:52:48] Gen 180  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:53:26] Gen 181  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:53:50] Gen 182  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:54:27] Gen 183  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:55:16] Gen 184  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:56:25] Gen 185  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:57:24] Gen 186  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:58:18] Gen 187  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:58:49] Gen 188  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-12 23:59:36] Gen 189  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:01:07] Gen 190  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:03:40] Gen 191  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:05:05] Gen 192  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:06:25] Gen 193  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:07:07] Gen 194  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:08:02] Gen 195  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:08:32] Gen 196  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:09:08] Gen 197  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:10:20] Gen 198  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:10:50] Gen 199  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:11:31] Gen 200  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:12:35] Full eval
+[
+  {
+    "snr_db": 8.0,
+    "evolved_ber": 0.279375,
+    "evolved_flops": 51906.88,
+    "lmmse_ber": 0.31625,
+    "kbest16_ber": 0.27625,
+    "kbest32_ber": 0.2775
+  },
+  {
+    "snr_db": 10.0,
+    "evolved_ber": 0.149375,
+    "evolved_flops": 33256.56,
+    "lmmse_ber": 0.19,
+    "kbest16_ber": 0.14,
+    "kbest32_ber": 0.14
+  },
+  {
+    "snr_db": 12.0,
+    "evolved_ber": 0.044375,
+    "evolved_flops": 19082.0,
+    "lmmse_ber": 0.105,
+    "kbest16_ber": 0.043125,
+    "kbest32_ber": 0.043125
+  },
+  {
+    "snr_db": 14.0,
+    "evolved_ber": 0.015,
+    "evolved_flops": 12063.92,
+    "lmmse_ber": 0.04,
+    "kbest16_ber": 0.0125,
+    "kbest32_ber": 0.0125
+  },
+  {
+    "snr_db": 16.0,
+    "evolved_ber": 0.0025,
+    "evolved_flops": 10418.24,
+    "lmmse_ber": 0.016875,
+    "kbest16_ber": 0.00125,
+    "kbest32_ber": 0.00125
+  }
+]
+------------------------------------------------------------
+
+[2026-04-13 00:13:19] Gen 201  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:14:22] Gen 202  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:15:06] Gen 203  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:15:51] Gen 204  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:16:28] Gen 205  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:17:03] Gen 206  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:17:33] Gen 207  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:18:09] Gen 208  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:18:37] Gen 209  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:19:03] Gen 210  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:19:30] Gen 211  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:20:10] Gen 212  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:21:01] Gen 213  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:21:53] Gen 214  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:22:40] Gen 215  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:23:14] Gen 216  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:23:47] Gen 217  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:24:17] Gen 218  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:24:55] Gen 219  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:25:41] Gen 220  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:26:54] Gen 221  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:27:19] Gen 222  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:27:52] Gen 223  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:28:41] Gen 224  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:29:32] Gen 225  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:30:09] Gen 226  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:31:12] Gen 227  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:33:09] Gen 228  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:33:46] Gen 229  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:34:09] Gen 230  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:34:36] Gen 231  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:35:15] Gen 232  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:36:12] Gen 233  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:37:09] Gen 234  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:38:00] Gen 235  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:38:56] Gen 236  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:39:59] Gen 237  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:41:17] Gen 238  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:42:02] Gen 239  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:42:54] Gen 240  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:43:57] Gen 241  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:45:05] Gen 242  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:46:03] Gen 243  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:46:58] Gen 244  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:47:52] Gen 245  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:48:38] Gen 246  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:49:19] Gen 247  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:50:43] Gen 248  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:51:26] Gen 249  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:52:39] Gen 250  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:53:58] Full eval
+[
+  {
+    "snr_db": 8.0,
+    "evolved_ber": 0.279375,
+    "evolved_flops": 51906.88,
+    "lmmse_ber": 0.31625,
+    "kbest16_ber": 0.27625,
+    "kbest32_ber": 0.2775
+  },
+  {
+    "snr_db": 10.0,
+    "evolved_ber": 0.149375,
+    "evolved_flops": 33256.56,
+    "lmmse_ber": 0.19,
+    "kbest16_ber": 0.14,
+    "kbest32_ber": 0.14
+  },
+  {
+    "snr_db": 12.0,
+    "evolved_ber": 0.044375,
+    "evolved_flops": 19082.0,
+    "lmmse_ber": 0.105,
+    "kbest16_ber": 0.043125,
+    "kbest32_ber": 0.043125
+  },
+  {
+    "snr_db": 14.0,
+    "evolved_ber": 0.015,
+    "evolved_flops": 12063.92,
+    "lmmse_ber": 0.04,
+    "kbest16_ber": 0.0125,
+    "kbest32_ber": 0.0125
+  },
+  {
+    "snr_db": 16.0,
+    "evolved_ber": 0.0025,
+    "evolved_flops": 10418.24,
+    "lmmse_ber": 0.016875,
+    "kbest16_ber": 0.00125,
+    "kbest32_ber": 0.00125
+  }
+]
+------------------------------------------------------------
+
+[2026-04-13 00:54:57] Gen 251  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:56:01] Gen 252  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:56:47] Gen 253  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:57:48] Gen 254  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:58:49] Gen 255  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 00:59:59] Gen 256  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 01:00:30] Gen 257  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 01:01:03] Gen 258  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 01:01:25] Gen 259  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 01:02:33] Gen 260  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 01:03:08] Gen 261  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 01:03:52] Gen 262  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 01:04:35] Gen 263  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 01:05:35] Gen 264  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 01:06:34] Gen 265  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 01:07:15] Gen 266  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 01:07:52] Gen 267  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 01:08:14] Gen 268  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 01:09:05] Gen 269  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 01:09:56] Gen 270  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 01:10:49] Gen 271  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 01:11:40] Gen 272  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm
+
+[2026-04-13 01:12:38] Gen 273  Fit(BER=0.04167 ratio=0.400 FLOPs=19189 len=17 faults=0.00 gap=0.000)
+  Mat.VecMul ; Bool.Dup ; Vec.Add ; Bool.True ; Mat.VecMul ; Node.WriteMem ; Node.GetSymRe ; Node.GetCumDist ; Vec.Norm2 ; Node.GetParent ; Vec.Dot ; Vec.PeekAtIm ; Vec.PeekAt ; Node.GetCumDist ; Matrix.Dup ; Node.GetLocalDist ; Vec.SecondPeekAtIm

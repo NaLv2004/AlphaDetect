@@ -1,0 +1,66 @@
+================================================================================
+Structured-BP GP  started 2026-04-15 01:05:52
+================================================================================
+
+[2026-04-15 01:05:52] Configuration
+{
+  "generations": 8,
+  "population": 60,
+  "train_samples": 80,
+  "train_nt": 16,
+  "train_nr": 16,
+  "mod_order": 16,
+  "train_max_nodes": 1000,
+  "train_flops_max": 3000000,
+  "step_max": 2000,
+  "eval_trials": 1000,
+  "eval_max_nodes": 1500,
+  "eval_flops_max": 5000000,
+  "eval_nt": 16,
+  "eval_nr": 16,
+  "eval_step_max": 8000,
+  "train_snrs": "22",
+  "eval_snrs": "20,22,24",
+  "seed": 123,
+  "continuous": false,
+  "use_cpp": true,
+  "batch_gens": 5,
+  "log_suffix": "baseline_test",
+  "seed_genome_json": null
+}
+------------------------------------------------------------
+
+[2026-04-15 01:05:57] Baseline evaluation (experiment start)
+[
+  {
+    "snr_db": 20.0,
+    "lmmse_ber": 0.2259375,
+    "lmmse_bit_errors": 3615,
+    "kbest16_ber": 0.0336875,
+    "kbest16_bit_errors": 539,
+    "kbest32_ber": 0.0153125,
+    "kbest32_bit_errors": 245,
+    "samples": 1000
+  },
+  {
+    "snr_db": 22.0,
+    "lmmse_ber": 0.16171348314606743,
+    "lmmse_bit_errors": 11514,
+    "kbest16_ber": 0.007317415730337079,
+    "kbest16_bit_errors": 521,
+    "kbest32_ber": 0.0014185393258426967,
+    "kbest32_bit_errors": 101,
+    "samples": 4450
+  },
+  {
+    "snr_db": 24.0,
+    "lmmse_ber": 0.11315,
+    "lmmse_bit_errors": 18104,
+    "kbest16_ber": 0.0011125,
+    "kbest16_bit_errors": 178,
+    "kbest32_ber": 0.0003125,
+    "kbest32_bit_errors": 50,
+    "samples": 10000
+  }
+]
+------------------------------------------------------------

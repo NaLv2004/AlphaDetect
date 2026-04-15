@@ -1,0 +1,93 @@
+{
+  "gen": 5,
+  "best_prog": "Mat.Rows ; Exec.DoTimes([Bool.And]) ; Float.Abs ; Vec.ElementAt ; Float.Sub ; Vec.SecondPeekAt ; Node.Dup ; Node.ForEachSibling([Bool.Or, Node.GetScore]) ; Node.GetLocalDist",
+  "best_fitness": {
+    "ber": 0.0859375,
+    "flops": 11120.125,
+    "ratio": 0.6666666666666666
+  },
+  "eval_results": [
+    {
+      "snr_db": 8.0,
+      "evolved_ber": 0.2825,
+      "evolved_flops": 33804.56,
+      "lmmse_ber": 0.31625,
+      "kbest16_ber": 0.27625,
+      "kbest32_ber": 0.2775
+    },
+    {
+      "snr_db": 10.0,
+      "evolved_ber": 0.145,
+      "evolved_flops": 24456.4,
+      "lmmse_ber": 0.19,
+      "kbest16_ber": 0.14,
+      "kbest32_ber": 0.14
+    },
+    {
+      "snr_db": 12.0,
+      "evolved_ber": 0.045625,
+      "evolved_flops": 14147.44,
+      "lmmse_ber": 0.105,
+      "kbest16_ber": 0.043125,
+      "kbest32_ber": 0.043125
+    },
+    {
+      "snr_db": 14.0,
+      "evolved_ber": 0.011875,
+      "evolved_flops": 9959.36,
+      "lmmse_ber": 0.04,
+      "kbest16_ber": 0.0125,
+      "kbest32_ber": 0.0125
+    },
+    {
+      "snr_db": 16.0,
+      "evolved_ber": 0.001875,
+      "evolved_flops": 8824.16,
+      "lmmse_ber": 0.016875,
+      "kbest16_ber": 0.00125,
+      "kbest32_ber": 0.00125
+    }
+  ],
+  "history": [
+    {
+      "gen": 1,
+      "ber": 0.1193359375,
+      "flops": 12921.696875000001,
+      "len": 23,
+      "bp_gain": 0.0,
+      "nonlocal_bp": 0.0
+    },
+    {
+      "gen": 2,
+      "ber": 0.0859375,
+      "flops": 11120.125,
+      "len": 12,
+      "bp_gain": 0.0,
+      "nonlocal_bp": 0.0
+    },
+    {
+      "gen": 3,
+      "ber": 0.0859375,
+      "flops": 11120.125,
+      "len": 12,
+      "bp_gain": 0.0,
+      "nonlocal_bp": 0.0
+    },
+    {
+      "gen": 4,
+      "ber": 0.0859375,
+      "flops": 11120.125,
+      "len": 12,
+      "bp_gain": 0.0,
+      "nonlocal_bp": 0.0
+    },
+    {
+      "gen": 5,
+      "ber": 0.0859375,
+      "flops": 11120.125,
+      "len": 12,
+      "bp_gain": 0.0,
+      "nonlocal_bp": 0.0
+    }
+  ]
+}

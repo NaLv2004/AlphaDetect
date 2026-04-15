@@ -1,0 +1,42 @@
+{
+  "args": {
+    "nt": 6,
+    "nr": 6,
+    "mod_order": 4,
+    "snrs": "18,20",
+    "n_trials": 10,
+    "min_bit_errors": 5,
+    "max_nodes": 100,
+    "flops_max": 500000,
+    "step_max": 500,
+    "use_cpp": false,
+    "eval_baseline": true,
+    "seed": 42,
+    "genomes": "test6_dominant"
+  },
+  "baselines": [],
+  "genomes": {
+    "test6_dominant": [
+      {
+        "snr_db": 18.0,
+        "evolved_ber": 0.0,
+        "evolved_flops": 1971.56,
+        "evolved_samples": 100,
+        "evolved_bit_errors": 0,
+        "lmmse_ber": 0.011666666666666667,
+        "kbest16_ber": 0.0,
+        "kbest32_ber": 0.0
+      },
+      {
+        "snr_db": 20.0,
+        "evolved_ber": 0.0,
+        "evolved_flops": 1925.7,
+        "evolved_samples": 100,
+        "evolved_bit_errors": 0,
+        "lmmse_ber": 0.021666666666666667,
+        "kbest16_ber": 0.0,
+        "kbest32_ber": 0.0
+      }
+    ]
+  }
+}

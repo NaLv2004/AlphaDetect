@@ -1,0 +1,22 @@
+{
+  "_comment": "Best genome from cpp_test4 generation 4. BER=0.05453, ratio=0.459 vs LMMSE.",
+  "_formula": {
+    "F_down": "(M_par_down + C_i) -- cumulative distance A*. Int.Inc/Node.GetParent are int/node-stack no-ops on float.",
+    "F_up": "log(sqrt(max(0.5, (0.5 - EC1)/repeat(...)))) -- near-constant, dead weight per ablation A1",
+    "F_belief": "max(M_down, EC1) -- clamped A* with floor EC1≈0.348. Int.Sub/Int.Inc are int-stack no-ops.",
+    "H_halt": "(mem[k] < new_M_up) -- triggers halt after 1 BP iteration"
+  },
+  "_insight": "F_down = cumulative distance A*. F_belief = max(cum_dist, 0.348). F_up dead weight (A1 ablation). H_halt fires after 1st iteration. Entire genome = clamped A* search. Floor prevents greedy over-expansion of shallow nodes.",
+  "prog_down": ["Int.Inc", "Float.Add", "Node.GetParent"],
+  "prog_up": [
+    "Float.ConstHalf", "Float.ConstHalf", "Float.EvoConst1", "Float.Sub",
+    "Exec.DoTimes", "Mat.Row", "Float.Div", "Float.Max",
+    "Float.Sqrt", "Float.Log", "Float.Dup"
+  ],
+  "prog_belief": [
+    "Float.Swap", "Float.ConstHalf", "Float.Swap", "Float.EvoConst1",
+    "Int.Sub", "Int.Inc", "Float.Max"
+  ],
+  "prog_halt": ["Bool.Or", "Node.ReadMem", "Float.Swap", "Float.LT"],
+  "log_constants": [0.0111, -0.4585, 1.0875, -1.7998]
+}

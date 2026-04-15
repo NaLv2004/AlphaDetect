@@ -1,0 +1,1 @@
+python -u -B bp_main_v2.py --generations 40 --population 80 --train-samples 80 --train-max-nodes 600 --train-flops-max 600000 --step-max 1000 --train-snrs "10,12,14" --eval-trials 200 --eval-max-nodes 2000 --eval-flops-max 5000000 --eval-step-max 5000 --train-nt 8 --train-nr 16 --log-suffix cpp_test4 --use-cpp

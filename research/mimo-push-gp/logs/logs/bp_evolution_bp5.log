@@ -1,0 +1,127 @@
+================================================================================
+BP-Stack-Decoder GP  started 2026-04-12 20:35:45
+================================================================================
+
+[2026-04-12 20:35:45] Configuration
+{
+  "generations": 30,
+  "population": 40,
+  "train_samples": 5,
+  "train_nt": 8,
+  "train_nr": 16,
+  "mod_order": 16,
+  "train_max_nodes": 60,
+  "train_flops_max": 500000,
+  "bp_interval": 60,
+  "bp_sweeps": 1,
+  "step_max": 400,
+  "eval_trials": 100,
+  "eval_max_nodes": 300,
+  "eval_flops_max": 2000000,
+  "train_snrs": "8,10",
+  "eval_snrs": "8,10,12,14,16",
+  "seed": 42,
+  "continuous": true,
+  "batch_gens": 15,
+  "log_suffix": "bp5"
+}
+------------------------------------------------------------
+
+[2026-04-12 20:36:34] Gen 0  Fit(BER=0.20375 ratio=1.019 FLOPs=24112 len=19 faults=0.00 gap=0.008)  (initial)
+  Int.Const0 ; Exec.ForEachSymbol([]) ; Bool.Pop ; Mat.VecMul ; Mat.PeekAtIm ; Vec.GetResidue ; Exec.MinOverSymbols([Float.Swap, Float.Neg, Int.Pop, Node.GetSymRe]) ; Node.NumChildren ; Float.GT ; Int.Dec ; Exec.MinOverSymbols([]) ; Mat.PeekAt ; Vec.SecondPeekAt ; Node.WriteMem ; Mat.PeekAtIm
+
+[2026-04-12 20:37:12] Gen 1  Fit(BER=0.20375 ratio=1.019 FLOPs=24112 len=19 faults=0.00 gap=0.008)
+  Int.Const0 ; Exec.ForEachSymbol([]) ; Bool.Pop ; Mat.VecMul ; Mat.PeekAtIm ; Vec.GetResidue ; Exec.MinOverSymbols([Float.Swap, Float.Neg, Int.Pop, Node.GetSymRe]) ; Node.NumChildren ; Float.GT ; Int.Dec ; Exec.MinOverSymbols([]) ; Mat.PeekAt ; Vec.SecondPeekAt ; Node.WriteMem ; Mat.PeekAtIm
+
+[2026-04-12 20:37:48] Gen 2  Fit(BER=0.17125 ratio=0.761 FLOPs=30605 len=20 faults=0.00 gap=0.008)  (NEW BEST)
+  Int.Const0 ; Exec.ForEachSymbol([]) ; Bool.Pop ; Mat.VecMul ; Mat.PeekAtIm ; Vec.GetResidue ; Exec.MinOverSymbols([Int.Inc, Mat.Rows, Float.GetMMSELB, Float.Const2, Vec.Len]) ; Node.NumChildren ; Float.GT ; Int.Dec ; Exec.MinOverSymbols([]) ; Mat.PeekAt ; Vec.SecondPeekAt ; Node.WriteMem ; Mat.PeekAtIm
+================================================================================
+BP-Stack-Decoder GP  started 2026-04-12 20:40:11
+================================================================================
+
+[2026-04-12 20:40:11] Configuration
+{
+  "generations": 30,
+  "population": 60,
+  "train_samples": 8,
+  "train_nt": 8,
+  "train_nr": 16,
+  "mod_order": 16,
+  "train_max_nodes": 60,
+  "train_flops_max": 500000,
+  "bp_interval": 30,
+  "bp_sweeps": 1,
+  "step_max": 400,
+  "bp_step_limit": 100,
+  "bp_flops_limit": 20000,
+  "eval_trials": 200,
+  "eval_max_nodes": 300,
+  "eval_flops_max": 2000000,
+  "train_snrs": "8,10",
+  "eval_snrs": "8,10,12,14,16",
+  "seed": 42,
+  "continuous": true,
+  "batch_gens": 20,
+  "log_suffix": "bp5"
+}
+------------------------------------------------------------
+
+[2026-04-12 20:42:35] Gen 0  Fit(BER=0.21875 ratio=0.933 FLOPs=25258 len=19 faults=0.00 gap=0.000)  (initial)
+  Int.Const0 ; Exec.ForEachSymbol([]) ; Bool.Pop ; Mat.VecMul ; Mat.PeekAtIm ; Vec.GetResidue ; Exec.MinOverSymbols([Float.Swap, Float.Neg, Int.Pop, Node.GetSymRe]) ; Node.NumChildren ; Float.GT ; Int.Dec ; Exec.MinOverSymbols([]) ; Mat.PeekAt ; Vec.SecondPeekAt ; Node.WriteMem ; Mat.PeekAtIm
+================================================================================
+BP-Stack-Decoder GP  started 2026-04-12 20:48:08
+================================================================================
+
+[2026-04-12 20:48:08] Configuration
+{
+  "generations": 30,
+  "population": 60,
+  "train_samples": 6,
+  "train_nt": 8,
+  "train_nr": 16,
+  "mod_order": 16,
+  "train_max_nodes": 60,
+  "train_flops_max": 200000,
+  "bp_interval": 30,
+  "bp_sweeps": 1,
+  "step_max": 150,
+  "bp_step_limit": 50,
+  "bp_flops_limit": 5000,
+  "eval_trials": 200,
+  "eval_max_nodes": 300,
+  "eval_flops_max": 2000000,
+  "train_snrs": "8,10",
+  "eval_snrs": "8,10,12,14,16",
+  "seed": 42,
+  "continuous": true,
+  "batch_gens": 20,
+  "log_suffix": "bp5"
+}
+------------------------------------------------------------
+
+[2026-04-12 20:48:53] Gen 0  Fit(BER=0.20833 ratio=1.111 FLOPs=18052 len=15 faults=0.00 gap=0.000)  (initial)
+  Vec.Dot ; Vec.GetResidue ; Exec.DoTimes([Exec.While([Float.GT, Int.Const0]), Vec.Len, Node.GetCumDist]) ; Vec.SecondPeekAtIm ; Node.ForEachChild([Vec.PeekAt, Bool.Pop]) ; Mat.VecMul ; Float.FromInt ; Mat.Rows
+
+[2026-04-12 20:49:41] Gen 1  Fit(BER=0.20833 ratio=1.111 FLOPs=18052 len=14 faults=0.00 gap=0.000)  (NEW BEST)
+  Vec.Dot ; Vec.GetResidue ; Exec.DoTimes([Exec.While([Float.GT, Int.Const0]), Vec.Len, Node.GetCumDist]) ; Vec.SecondPeekAtIm ; Node.ForEachChild([Vec.PeekAt, Bool.Pop]) ; Float.FromInt ; Mat.Rows
+
+[2026-04-12 20:50:07] Gen 2  Fit(BER=0.16667 ratio=0.727 FLOPs=25840 len=15 faults=0.00 gap=0.000)  (NEW BEST)
+  Float.Rot ; Vec.Scale ; Vec.Dot ; Vec.GetResidue ; Exec.DoTimes([Exec.While([Float.GT, Int.Const0]), Vec.Len, Node.GetCumDist]) ; Vec.SecondPeekAtIm ; Node.ForEachChild([Vec.PeekAt, Bool.Pop]) ; Mat.VecMul
+
+[2026-04-12 20:50:37] Gen 3  Fit(BER=0.16667 ratio=0.727 FLOPs=25840 len=15 faults=0.00 gap=0.000)
+  Float.Rot ; Vec.Scale ; Vec.Dot ; Vec.GetResidue ; Exec.DoTimes([Exec.While([Float.GT, Int.Const0]), Vec.Len, Node.GetCumDist]) ; Vec.SecondPeekAtIm ; Node.ForEachChild([Vec.PeekAt, Bool.Pop]) ; Mat.VecMul
+
+[2026-04-12 20:51:05] Gen 4  Fit(BER=0.16667 ratio=0.727 FLOPs=25840 len=10 faults=0.00 gap=0.000)  (NEW BEST)
+  Float.Rot ; Vec.Scale ; Exec.DoTimes([Exec.While([Float.GT, Int.Const0]), Vec.Len, Node.GetCumDist]) ; Vec.SecondPeekAtIm ; Vec.Dot
+
+[2026-04-12 20:51:27] Gen 5  Fit(BER=0.16667 ratio=0.727 FLOPs=27690 len=1 faults=0.00 gap=0.000)  (NEW BEST)
+  Mat.Rows
+
+[2026-04-12 20:51:51] Gen 6  Fit(BER=0.16667 ratio=0.727 FLOPs=27690 len=1 faults=0.00 gap=0.000)
+  Mat.Rows
+
+[2026-04-12 20:52:12] Gen 7  Fit(BER=0.16667 ratio=0.727 FLOPs=27690 len=1 faults=0.00 gap=0.000)
+  Mat.Rows
+
+[2026-04-12 20:52:42] Gen 8  Fit(BER=0.16667 ratio=0.727 FLOPs=27690 len=1 faults=0.00 gap=0.000)
+  Mat.Rows

@@ -1,0 +1,90 @@
+================================================================================
+BP-Stack-Decoder GP  started 2026-04-12 20:11:48
+================================================================================
+
+[2026-04-12 20:11:48] Configuration
+{
+  "generations": 30,
+  "population": 80,
+  "train_samples": 5,
+  "train_nt": 8,
+  "train_nr": 16,
+  "mod_order": 16,
+  "train_max_nodes": 500,
+  "train_flops_max": 3000000,
+  "bp_interval": 32,
+  "bp_sweeps": 2,
+  "eval_trials": 100,
+  "eval_max_nodes": 2000,
+  "eval_flops_max": 8000000,
+  "train_snrs": "10,12,14",
+  "eval_snrs": "8,10,12,14,16",
+  "seed": 1337,
+  "continuous": true,
+  "batch_gens": 5,
+  "log_suffix": "bp2"
+}
+------------------------------------------------------------
+================================================================================
+BP-Stack-Decoder GP  started 2026-04-12 20:15:29
+================================================================================
+
+[2026-04-12 20:15:29] Configuration
+{
+  "generations": 30,
+  "population": 80,
+  "train_samples": 5,
+  "train_nt": 8,
+  "train_nr": 16,
+  "mod_order": 16,
+  "train_max_nodes": 500,
+  "train_flops_max": 3000000,
+  "bp_interval": 32,
+  "bp_sweeps": 2,
+  "eval_trials": 100,
+  "eval_max_nodes": 2000,
+  "eval_flops_max": 8000000,
+  "train_snrs": "10,12,14",
+  "eval_snrs": "8,10,12,14,16",
+  "seed": 1337,
+  "continuous": true,
+  "batch_gens": 5,
+  "log_suffix": "bp2"
+}
+------------------------------------------------------------
+================================================================================
+BP-Stack-Decoder GP  started 2026-04-12 20:18:53
+================================================================================
+
+[2026-04-12 20:18:53] Configuration
+{
+  "generations": 30,
+  "population": 80,
+  "train_samples": 5,
+  "train_nt": 8,
+  "train_nr": 16,
+  "mod_order": 16,
+  "train_max_nodes": 500,
+  "train_flops_max": 3000000,
+  "bp_interval": 32,
+  "bp_sweeps": 2,
+  "eval_trials": 100,
+  "eval_max_nodes": 2000,
+  "eval_flops_max": 8000000,
+  "train_snrs": "10,12,14",
+  "eval_snrs": "8,10,12,14,16",
+  "seed": 1337,
+  "continuous": true,
+  "batch_gens": 5,
+  "log_suffix": "bp2"
+}
+------------------------------------------------------------
+
+[2026-04-12 20:22:13] Gen 0  Fit(BER=0.00000 ratio=0.000 FLOPs=25672 len=36 faults=0.00 gap=0.000)  (initial)
+  Node.GetLocalDist ; Float.Const0 ; Vec.SecondPeekAtIm ; Node.Swap ; Vec.Sub ; Vec.Dot ; Node.GetSymRe ; Float.GetMMSELB ; Vec.ElementAt ; Int.Pop ; Int.Inc ; Int.GT ; Vec.PeekAt ; Float.ConstNeg1 ; Mat.Row ; IF([Exec.MinOverSymbols([Node.GetScore])], [Vec.Dot]) ; Vector.Dup ; Int.GetNumSymbols ; Mat.Row ; Int.GT ; Node.ChildAt ; Node.IsExpanded ; Vec.SecondPeekAt ; Exec.MinOverSymbols([Float.Swap]) ; Node.GetLayer ; Exec.MinOverSymbols([]) ; Node.GetLocalDist ; Exec.DoTimes([Int.GT, Node.NumChildren, Bool.Dup, Float.FromInt])
+
+[2026-04-12 20:25:35] Gen 1  Fit(BER=0.00000 ratio=0.000 FLOPs=25406 len=24 faults=0.00 gap=0.000)  (NEW BEST)
+  Vec.PeekAt ; Float.ConstNeg1 ; Mat.Row ; IF([Exec.MinOverSymbols([Node.GetScore])], [Vec.Dot]) ; Vector.Dup ; Int.GetNumSymbols ; Mat.Row ; Int.GT ; Node.ChildAt ; Node.IsExpanded ; Vec.SecondPeekAt ; Exec.MinOverSymbols([Float.Swap]) ; Node.GetLayer ; Exec.MinOverSymbols([]) ; Node.GetLocalDist ; Exec.DoTimes([Int.GT, Node.NumChildren, Bool.Dup, Float.FromInt])
+
+[2026-04-12 20:28:04] Gen 2  Fit(BER=0.00000 ratio=0.000 FLOPs=10744 len=47 faults=0.00 gap=0.000)  (NEW BEST)
+  Node.GetLocalDist ; Float.Const0 ; Vec.SecondPeekAtIm ; Node.Swap ; Vec.Sub ; Vec.Dot ; Node.GetSymRe ; Float.GetMMSELB ; Vec.ElementAt ; Int.Pop ; Int.Inc ; Int.GT ; Vec.PeekAt ; Float.ConstNeg1 ; Mat.Row ; IF([Exec.MinOverSymbols([Node.GetScore])], [Vec.Dot]) ; Vector.Dup ; Int.GetNumSymbols ; Mat.Row ; Int.GT ; Node.ChildAt ; Node.WriteMem ; Node.GetSymRe ; Float.Const2 ; Node.IsExpanded ; Exec.MinOverSymbols([]) ; Vec.SecondPeekAt ; Exec.MinOverSymbols([Float.Swap]) ; Node.GetLayer ; Exec.MinOverSymbols([]) ; Node.GetLocalDist ; Exec.DoTimes([Int.GT, Node.NumChildren, Bool.Dup, Float.FromInt]) ; Float.LT ; Float.Const2 ; Bool.False ; Float.Mul ; Vec.Len ; Mat.Row ; Vector.Dup

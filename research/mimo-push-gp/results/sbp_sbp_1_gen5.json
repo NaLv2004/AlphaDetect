@@ -1,0 +1,88 @@
+{
+  "gen": 5,
+  "best_genome": "DOWN:[Node.GetLayer ; Float.Swap] | UP:[Float.Rot ; Node.ForEachChild([])] | BEL:[Node.GetLocalDist] | HALT:[Bool.False]",
+  "best_fitness": {
+    "ber": 0.06536458333333334,
+    "flops": 10160.933333333334,
+    "ratio": 0.5976190476190476
+  },
+  "eval_results": [
+    {
+      "snr_db": 8.0,
+      "evolved_ber": 0.3,
+      "evolved_flops": 15921.36,
+      "lmmse_ber": 0.31625,
+      "kbest16_ber": 0.27625,
+      "kbest32_ber": 0.2775
+    },
+    {
+      "snr_db": 10.0,
+      "evolved_ber": 0.188125,
+      "evolved_flops": 12117.6,
+      "lmmse_ber": 0.19,
+      "kbest16_ber": 0.14,
+      "kbest32_ber": 0.14
+    },
+    {
+      "snr_db": 12.0,
+      "evolved_ber": 0.063125,
+      "evolved_flops": 10385.12,
+      "lmmse_ber": 0.105,
+      "kbest16_ber": 0.043125,
+      "kbest32_ber": 0.043125
+    },
+    {
+      "snr_db": 14.0,
+      "evolved_ber": 0.01625,
+      "evolved_flops": 8793.44,
+      "lmmse_ber": 0.04,
+      "kbest16_ber": 0.0125,
+      "kbest32_ber": 0.0125
+    },
+    {
+      "snr_db": 16.0,
+      "evolved_ber": 0.001875,
+      "evolved_flops": 8467.36,
+      "lmmse_ber": 0.016875,
+      "kbest16_ber": 0.00125,
+      "kbest32_ber": 0.00125
+    }
+  ],
+  "history": [
+    {
+      "gen": 1,
+      "ber": 0.1078125,
+      "flops": 13143.487500000001,
+      "len": 5,
+      "bp_up": 45.916666666666664
+    },
+    {
+      "gen": 2,
+      "ber": 0.0890625,
+      "flops": 11444.483333333334,
+      "len": 26,
+      "bp_up": 37.77777777777778
+    },
+    {
+      "gen": 3,
+      "ber": 0.0890625,
+      "flops": 10554.683333333334,
+      "len": 7,
+      "bp_up": 37.77777777777778
+    },
+    {
+      "gen": 4,
+      "ber": 0.0890625,
+      "flops": 10383.866666666667,
+      "len": 7,
+      "bp_up": 37.77777777777778
+    },
+    {
+      "gen": 5,
+      "ber": 0.06536458333333334,
+      "flops": 10160.933333333334,
+      "len": 6,
+      "bp_up": 35.833333333333336
+    }
+  ]
+}

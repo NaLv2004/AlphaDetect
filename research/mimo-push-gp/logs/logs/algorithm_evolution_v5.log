@@ -1,0 +1,59 @@
+================================================================================
+MIMO-Push GP v2  started 2026-04-12 16:33:49
+================================================================================
+
+[2026-04-12 16:33:49] Configuration
+{
+  "generations": 20,
+  "population": 150,
+  "train_samples": 20,
+  "train_nt": 8,
+  "train_nr": 16,
+  "mod_order": 16,
+  "train_max_nodes": 40,
+  "train_flops_max": 80000,
+  "eval_trials": 200,
+  "eval_max_nodes": 1500,
+  "eval_flops_max": 200000,
+  "train_snrs": "10,12,14",
+  "eval_snrs": "8,10,12,14,16,18,20",
+  "seed": 42,
+  "continuous": true,
+  "batch_gens": 10,
+  "log_suffix": "v5"
+}
+------------------------------------------------------------
+
+[2026-04-12 16:35:11] Gen 0  Fit(BER=0.06250 ratio=0.625 FLOPs=18718 len=38 faults=0.00 gap=0.000)  (initial)
+  Node.ForEachAncestor([Bool.True, Bool.False, Node.NumChildren]) ; Vec.Add ; Exec.While([Int.Add]) ; Node.ForEachChild([Node.WriteMem]) ; Float.Pop ; Node.ReadMem ; Float.Neg ; Bool.Dup ; Node.GetLocalDist ; IF([Int.Swap, Node.Pop, Graph.GetRoot, Float.Exp], [Int.Sub]) ; Node.ForEachSibling([IF([Float.Max, Vec.ElementAt], [Float.Div]), Node.GetSymIm]) ; Float.Add ; Bool.Pop ; Matrix.Dup ; Mat.Row ; Exec.DoTimes([Int.LT, Vec.Dot, Graph.GetRoot, Float.Const2]) ; Mat.VecMul ; Node.Pop ; Mat.VecMul
+================================================================================
+MIMO-Push GP v2  started 2026-04-12 16:38:17
+================================================================================
+
+[2026-04-12 16:38:17] Configuration
+{
+  "generations": 20,
+  "population": 150,
+  "train_samples": 20,
+  "train_nt": 8,
+  "train_nr": 16,
+  "mod_order": 16,
+  "train_max_nodes": 40,
+  "train_flops_max": 80000,
+  "eval_trials": 200,
+  "eval_max_nodes": 1500,
+  "eval_flops_max": 200000,
+  "train_snrs": "10,12,14",
+  "eval_snrs": "8,10,12,14,16,18,20",
+  "seed": 42,
+  "continuous": true,
+  "batch_gens": 10,
+  "log_suffix": "v5"
+}
+------------------------------------------------------------
+
+[2026-04-12 16:39:31] Gen 0  Fit(BER=0.06594 ratio=0.659 FLOPs=21390 len=7 faults=0.00 gap=0.006)  (initial)
+  Vec.PeekAt ; Vector.Dup ; Exec.While([Float.Min]) ; Vec.ElementAt ; Float.Add ; Node.GetLayer
+
+[2026-04-12 16:41:00] Gen 1  Fit(BER=0.06250 ratio=0.625 FLOPs=17147 len=16 faults=0.00 gap=0.000)  (NEW BEST)
+  Float.LT ; Float.Exp ; Node.GetLayer ; Bool.Or ; Node.GetLocalDist ; Node.GetSymIm ; Int.LT ; Vector.Pop ; Float.Add ; Matrix.Dup ; Graph.GetRoot ; Node.ChildAt ; Float.Const1 ; Bool.Or ; Int.Add ; Vec.Scale

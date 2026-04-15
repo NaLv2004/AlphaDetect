@@ -1,0 +1,250 @@
+{
+  "gen": 56,
+  "best_genome": "DOWN:[Vec.Scale ; Float.Square ; Node.GetLocalDist ; Float.Add] | UP:[Int.Dup ; Float.Rot ; Node.ForEachChild([Node.GetLocalDist, Node.GetMUp]) ; Float.Dup ; Float.EvoConst0] | BEL:[Node.GetMUp ; Node.GetMDown ; Node.GetCumDist ; Float.Tanh ; Float.Sub ; Float.Add] | HALT:[Float.EvoConst1 ; Node.GetLayer ; Node.GetLayer ; Float.Abs ; Float.Const1] | LOGC:[-0.6873,-0.5314,-0.2811,0.1234]",
+  "eval_results": [
+    {
+      "snr_db": 16.0,
+      "evolved_ber": 0.4390625,
+      "evolved_flops": 1259432.994,
+      "evolved_samples": 1000,
+      "evolved_bit_errors": 7025,
+      "lmmse_ber": 0.3721875,
+      "kbest16_ber": 0.2226875,
+      "kbest32_ber": 0.1704375
+    },
+    {
+      "snr_db": 18.0,
+      "evolved_ber": 0.27225,
+      "evolved_flops": 1024568.233,
+      "evolved_samples": 1000,
+      "evolved_bit_errors": 4356,
+      "lmmse_ber": 0.2915,
+      "kbest16_ber": 0.090875,
+      "kbest32_ber": 0.0541875
+    },
+    {
+      "snr_db": 20.0,
+      "evolved_ber": 0.08990530303030303,
+      "evolved_flops": 536583.6115151516,
+      "evolved_samples": 3300,
+      "evolved_bit_errors": 4747,
+      "lmmse_ber": 0.2224242424242424,
+      "kbest16_ber": 0.02625,
+      "kbest32_ber": 0.009564393939393939
+    },
+    {
+      "snr_db": 22.0,
+      "evolved_ber": 0.01900625,
+      "evolved_flops": 218305.215,
+      "evolved_samples": 10000,
+      "evolved_bit_errors": 3041,
+      "lmmse_ber": 0.161475,
+      "kbest16_ber": 0.0053875,
+      "kbest32_ber": 0.00130625
+    },
+    {
+      "snr_db": 24.0,
+      "evolved_ber": 0.003025,
+      "evolved_flops": 115851.2881,
+      "evolved_samples": 10000,
+      "evolved_bit_errors": 484,
+      "lmmse_ber": 0.11264375,
+      "kbest16_ber": 0.001375,
+      "kbest32_ber": 0.00016875
+    }
+  ],
+  "baseline_results": [
+    {
+      "snr_db": 16.0,
+      "lmmse_ber": 0.3721875,
+      "lmmse_bit_errors": 5955,
+      "kbest16_ber": 0.2226875,
+      "kbest16_bit_errors": 3563,
+      "kbest32_ber": 0.1704375,
+      "kbest32_bit_errors": 2727,
+      "samples": 1000
+    },
+    {
+      "snr_db": 18.0,
+      "lmmse_ber": 0.2915,
+      "lmmse_bit_errors": 4664,
+      "kbest16_ber": 0.090875,
+      "kbest16_bit_errors": 1454,
+      "kbest32_ber": 0.0541875,
+      "kbest32_bit_errors": 867,
+      "samples": 1000
+    },
+    {
+      "snr_db": 20.0,
+      "lmmse_ber": 0.22075,
+      "lmmse_bit_errors": 3532,
+      "kbest16_ber": 0.0255,
+      "kbest16_bit_errors": 408,
+      "kbest32_ber": 0.0086875,
+      "kbest32_bit_errors": 139,
+      "samples": 1000
+    },
+    {
+      "snr_db": 22.0,
+      "lmmse_ber": 0.16095637583892616,
+      "lmmse_bit_errors": 19186,
+      "kbest16_ber": 0.005016778523489933,
+      "kbest16_bit_errors": 598,
+      "kbest32_ber": 0.00087248322147651,
+      "kbest32_bit_errors": 104,
+      "samples": 7450
+    },
+    {
+      "snr_db": 24.0,
+      "lmmse_ber": 0.1133625,
+      "lmmse_bit_errors": 18138,
+      "kbest16_ber": 0.00136875,
+      "kbest16_bit_errors": 219,
+      "kbest32_ber": 0.0003125,
+      "kbest32_bit_errors": 50,
+      "samples": 10000
+    }
+  ],
+  "history": [
+    {
+      "gen": 37,
+      "ber": 0.02016666666666667,
+      "flops": 101086.41333333333,
+      "len": 22,
+      "bp_up": 4019.7066666666665
+    },
+    {
+      "gen": 38,
+      "ber": 0.02016666666666667,
+      "flops": 101086.41333333333,
+      "len": 22,
+      "bp_up": 4019.7066666666665
+    },
+    {
+      "gen": 39,
+      "ber": 0.02016666666666667,
+      "flops": 101086.41333333333,
+      "len": 22,
+      "bp_up": 4019.7066666666665
+    },
+    {
+      "gen": 40,
+      "ber": 0.02016666666666667,
+      "flops": 101086.41333333333,
+      "len": 22,
+      "bp_up": 4019.7066666666665
+    },
+    {
+      "gen": 41,
+      "ber": 0.02016666666666667,
+      "flops": 101086.41333333333,
+      "len": 22,
+      "bp_up": 4019.7066666666665
+    },
+    {
+      "gen": 42,
+      "ber": 0.02016666666666667,
+      "flops": 101086.41333333333,
+      "len": 22,
+      "bp_up": 4019.7066666666665
+    },
+    {
+      "gen": 43,
+      "ber": 0.02016666666666667,
+      "flops": 101086.41333333333,
+      "len": 22,
+      "bp_up": 4019.7066666666665
+    },
+    {
+      "gen": 44,
+      "ber": 0.02016666666666667,
+      "flops": 101086.41333333333,
+      "len": 22,
+      "bp_up": 4019.7066666666665
+    },
+    {
+      "gen": 45,
+      "ber": 0.02016666666666667,
+      "flops": 101086.41333333333,
+      "len": 22,
+      "bp_up": 4019.7066666666665
+    },
+    {
+      "gen": 46,
+      "ber": 0.02016666666666667,
+      "flops": 101086.41333333333,
+      "len": 22,
+      "bp_up": 4019.7066666666665
+    },
+    {
+      "gen": 47,
+      "ber": 0.02016666666666667,
+      "flops": 101086.41333333333,
+      "len": 22,
+      "bp_up": 4019.7066666666665
+    },
+    {
+      "gen": 48,
+      "ber": 0.02016666666666667,
+      "flops": 101086.41333333333,
+      "len": 22,
+      "bp_up": 4019.7066666666665
+    },
+    {
+      "gen": 49,
+      "ber": 0.02016666666666667,
+      "flops": 101086.41333333333,
+      "len": 22,
+      "bp_up": 4019.7066666666665
+    },
+    {
+      "gen": 50,
+      "ber": 0.02016666666666667,
+      "flops": 101086.41333333333,
+      "len": 22,
+      "bp_up": 4019.7066666666665
+    },
+    {
+      "gen": 51,
+      "ber": 0.02016666666666667,
+      "flops": 101086.41333333333,
+      "len": 22,
+      "bp_up": 4019.7066666666665
+    },
+    {
+      "gen": 52,
+      "ber": 0.02016666666666667,
+      "flops": 101086.41333333333,
+      "len": 22,
+      "bp_up": 4019.7066666666665
+    },
+    {
+      "gen": 53,
+      "ber": 0.02016666666666667,
+      "flops": 101086.41333333333,
+      "len": 22,
+      "bp_up": 4019.7066666666665
+    },
+    {
+      "gen": 54,
+      "ber": 0.02016666666666667,
+      "flops": 101086.41333333333,
+      "len": 22,
+      "bp_up": 4019.7066666666665
+    },
+    {
+      "gen": 55,
+      "ber": 0.02016666666666667,
+      "flops": 101086.41333333333,
+      "len": 22,
+      "bp_up": 4019.7066666666665
+    },
+    {
+      "gen": 56,
+      "ber": 0.015833333333333338,
+      "flops": 95399.696,
+      "len": 22,
+      "bp_up": 3654.7733333333335
+    }
+  ]
+}

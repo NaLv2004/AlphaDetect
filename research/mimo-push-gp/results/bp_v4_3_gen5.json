@@ -1,0 +1,83 @@
+{
+  "gen": 5,
+  "best_prog": "Node.ForEachAncestor([Node.GetLocalDist]) ; Node.GetLayer ; Exec.ForEachSymbol([Int.LT, Node.GetSymIm, Vec.PeekAt]) ; Node.GetLocalDist ; Bool.Dup ; Vec.ElementAt ; Mat.PeekAtIm ; Float.Sqrt ; Graph.NodeCount ; Float.GetMMSELB ; Vec.PeekAtIm ; Node.Pop ; Node.GetCumDist ; Node.NumChildren ; Node.ForEachChild([Int.LT, Int.Swap]) ; Float.Sub ; Bool.And",
+  "best_fitness": {
+    "ber": 0.203125,
+    "flops": 12891.850000000002,
+    "ratio": 0.7878787878787878
+  },
+  "eval_results": [
+    {
+      "snr_db": 8.0,
+      "evolved_ber": 0.3225,
+      "evolved_flops": 50610.62,
+      "lmmse_ber": 0.31625,
+      "kbest16_ber": 0.27625,
+      "kbest32_ber": 0.2775
+    },
+    {
+      "snr_db": 10.0,
+      "evolved_ber": 0.2125,
+      "evolved_flops": 43660.74,
+      "lmmse_ber": 0.19,
+      "kbest16_ber": 0.14,
+      "kbest32_ber": 0.14
+    },
+    {
+      "snr_db": 12.0,
+      "evolved_ber": 0.1025,
+      "evolved_flops": 34054.46,
+      "lmmse_ber": 0.105,
+      "kbest16_ber": 0.043125,
+      "kbest32_ber": 0.043125
+    },
+    {
+      "snr_db": 14.0,
+      "evolved_ber": 0.050625,
+      "evolved_flops": 23143.62,
+      "lmmse_ber": 0.04,
+      "kbest16_ber": 0.0125,
+      "kbest32_ber": 0.0125
+    },
+    {
+      "snr_db": 16.0,
+      "evolved_ber": 0.03875,
+      "evolved_flops": 18685.83,
+      "lmmse_ber": 0.016875,
+      "kbest16_ber": 0.00125,
+      "kbest32_ber": 0.00125
+    }
+  ],
+  "history": [
+    {
+      "gen": 1,
+      "ber": 0.22734375,
+      "flops": 14934.650000000001,
+      "len": 24
+    },
+    {
+      "gen": 2,
+      "ber": 0.17890625000000002,
+      "flops": 12639.850000000002,
+      "len": 14
+    },
+    {
+      "gen": 3,
+      "ber": 0.17890625000000002,
+      "flops": 12639.850000000002,
+      "len": 14
+    },
+    {
+      "gen": 4,
+      "ber": 0.14921875,
+      "flops": 16195.900000000001,
+      "len": 13
+    },
+    {
+      "gen": 5,
+      "ber": 0.203125,
+      "flops": 12891.850000000002,
+      "len": 23
+    }
+  ]
+}

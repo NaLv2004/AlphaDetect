@@ -1,0 +1,83 @@
+{
+  "gen": 5,
+  "best_prog": "Node.GetScore ; Float.GetNoiseVar ; Exec.While([Int.FromFloat]) ; Node.ForEachChild([Float.Rot, Float.Div, Node.GetLayer]) ; Mat.VecMul ; Node.ForEachSibling([Vec.Dot, Float.Neg]) ; Node.GetLayer",
+  "best_fitness": {
+    "ber": 0.109375,
+    "flops": 17059.2,
+    "ratio": 0.875
+  },
+  "eval_results": [
+    {
+      "snr_db": 8.0,
+      "evolved_ber": 0.344375,
+      "evolved_flops": 69866.72,
+      "lmmse_ber": 0.31625,
+      "kbest16_ber": 0.27625,
+      "kbest32_ber": 0.2775
+    },
+    {
+      "snr_db": 10.0,
+      "evolved_ber": 0.20875,
+      "evolved_flops": 58790.8,
+      "lmmse_ber": 0.19,
+      "kbest16_ber": 0.14,
+      "kbest32_ber": 0.14
+    },
+    {
+      "snr_db": 12.0,
+      "evolved_ber": 0.125,
+      "evolved_flops": 55503.28,
+      "lmmse_ber": 0.105,
+      "kbest16_ber": 0.043125,
+      "kbest32_ber": 0.043125
+    },
+    {
+      "snr_db": 14.0,
+      "evolved_ber": 0.084375,
+      "evolved_flops": 53385.92,
+      "lmmse_ber": 0.04,
+      "kbest16_ber": 0.0125,
+      "kbest32_ber": 0.0125
+    },
+    {
+      "snr_db": 16.0,
+      "evolved_ber": 0.081875,
+      "evolved_flops": 51662.96,
+      "lmmse_ber": 0.016875,
+      "kbest16_ber": 0.00125,
+      "kbest32_ber": 0.00125
+    }
+  ],
+  "history": [
+    {
+      "gen": 1,
+      "ber": 0.109375,
+      "flops": 19972.800000000003,
+      "len": 23
+    },
+    {
+      "gen": 2,
+      "ber": 0.109375,
+      "flops": 17187.2,
+      "len": 4
+    },
+    {
+      "gen": 3,
+      "ber": 0.109375,
+      "flops": 17187.2,
+      "len": 4
+    },
+    {
+      "gen": 4,
+      "ber": 0.109375,
+      "flops": 17059.2,
+      "len": 13
+    },
+    {
+      "gen": 5,
+      "ber": 0.109375,
+      "flops": 17059.2,
+      "len": 13
+    }
+  ]
+}

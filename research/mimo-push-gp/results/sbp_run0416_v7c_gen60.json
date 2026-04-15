@@ -1,0 +1,250 @@
+{
+  "gen": 60,
+  "best_genome": "DOWN:[Float.Rot ; Float.Swap ; Float.GetMMSELB ; Float.Neg] | UP:[Node.ForEachChild([Node.GetMUp])] | BEL:[Node.GetLocalDist ; Node.GetMUp ; Node.GetCumDist ; Node.GetMUp ; Node.GetMDown ; Float.Sub ; Node.GetMDown ; Float.Sub ; Float.Add] | HALT:[Float.LT ; Float.ConstHalf ; Float.ConstHalf] | LOGC:[-2.3559,0.5342,0.6748,-0.2658]",
+  "eval_results": [
+    {
+      "snr_db": 16.0,
+      "evolved_ber": 0.2614375,
+      "evolved_flops": 70660200.949,
+      "evolved_samples": 1000,
+      "evolved_bit_errors": 4183,
+      "lmmse_ber": 0.3721875,
+      "kbest16_ber": 0.2226875,
+      "kbest32_ber": 0.1704375
+    },
+    {
+      "snr_db": 18.0,
+      "evolved_ber": 0.1098125,
+      "evolved_flops": 67690954.328,
+      "evolved_samples": 1000,
+      "evolved_bit_errors": 1757,
+      "lmmse_ber": 0.2915,
+      "kbest16_ber": 0.090875,
+      "kbest32_ber": 0.0541875
+    },
+    {
+      "snr_db": 20.0,
+      "evolved_ber": 0.018996212121212122,
+      "evolved_flops": 37593945.60212121,
+      "evolved_samples": 3300,
+      "evolved_bit_errors": 1003,
+      "lmmse_ber": 0.2224242424242424,
+      "kbest16_ber": 0.02625,
+      "kbest32_ber": 0.009564393939393939
+    },
+    {
+      "snr_db": 22.0,
+      "evolved_ber": 0.00191875,
+      "evolved_flops": 18684730.9376,
+      "evolved_samples": 10000,
+      "evolved_bit_errors": 307,
+      "lmmse_ber": 0.161475,
+      "kbest16_ber": 0.0053875,
+      "kbest32_ber": 0.00130625
+    },
+    {
+      "snr_db": 24.0,
+      "evolved_ber": 8.75e-05,
+      "evolved_flops": 12667741.9174,
+      "evolved_samples": 10000,
+      "evolved_bit_errors": 14,
+      "lmmse_ber": 0.11264375,
+      "kbest16_ber": 0.001375,
+      "kbest32_ber": 0.00016875
+    }
+  ],
+  "baseline_results": [
+    {
+      "snr_db": 16.0,
+      "lmmse_ber": 0.3721875,
+      "lmmse_bit_errors": 5955,
+      "kbest16_ber": 0.2226875,
+      "kbest16_bit_errors": 3563,
+      "kbest32_ber": 0.1704375,
+      "kbest32_bit_errors": 2727,
+      "samples": 1000
+    },
+    {
+      "snr_db": 18.0,
+      "lmmse_ber": 0.2915,
+      "lmmse_bit_errors": 4664,
+      "kbest16_ber": 0.090875,
+      "kbest16_bit_errors": 1454,
+      "kbest32_ber": 0.0541875,
+      "kbest32_bit_errors": 867,
+      "samples": 1000
+    },
+    {
+      "snr_db": 20.0,
+      "lmmse_ber": 0.22075,
+      "lmmse_bit_errors": 3532,
+      "kbest16_ber": 0.0255,
+      "kbest16_bit_errors": 408,
+      "kbest32_ber": 0.0086875,
+      "kbest32_bit_errors": 139,
+      "samples": 1000
+    },
+    {
+      "snr_db": 22.0,
+      "lmmse_ber": 0.16095637583892616,
+      "lmmse_bit_errors": 19186,
+      "kbest16_ber": 0.005016778523489933,
+      "kbest16_bit_errors": 598,
+      "kbest32_ber": 0.00087248322147651,
+      "kbest32_bit_errors": 104,
+      "samples": 7450
+    },
+    {
+      "snr_db": 24.0,
+      "lmmse_ber": 0.1133625,
+      "lmmse_bit_errors": 18138,
+      "kbest16_ber": 0.00136875,
+      "kbest16_bit_errors": 219,
+      "kbest32_ber": 0.0003125,
+      "kbest32_bit_errors": 50,
+      "samples": 10000
+    }
+  ],
+  "history": [
+    {
+      "gen": 41,
+      "ber": 0.00571875,
+      "flops": 11883589.110000001,
+      "len": 22,
+      "bp_up": 2532.32
+    },
+    {
+      "gen": 42,
+      "ber": 0.00571875,
+      "flops": 11883589.110000001,
+      "len": 22,
+      "bp_up": 2532.32
+    },
+    {
+      "gen": 43,
+      "ber": 0.00571875,
+      "flops": 11883589.110000001,
+      "len": 22,
+      "bp_up": 2532.32
+    },
+    {
+      "gen": 44,
+      "ber": 0.00571875,
+      "flops": 11883589.110000001,
+      "len": 22,
+      "bp_up": 2532.32
+    },
+    {
+      "gen": 45,
+      "ber": 0.00571875,
+      "flops": 11883589.110000001,
+      "len": 22,
+      "bp_up": 2532.32
+    },
+    {
+      "gen": 46,
+      "ber": 0.00571875,
+      "flops": 11883589.110000001,
+      "len": 22,
+      "bp_up": 2532.32
+    },
+    {
+      "gen": 47,
+      "ber": 0.00571875,
+      "flops": 11883589.110000001,
+      "len": 22,
+      "bp_up": 2532.32
+    },
+    {
+      "gen": 48,
+      "ber": 0.00571875,
+      "flops": 11883589.110000001,
+      "len": 22,
+      "bp_up": 2532.32
+    },
+    {
+      "gen": 49,
+      "ber": 0.00571875,
+      "flops": 11883589.110000001,
+      "len": 22,
+      "bp_up": 2532.32
+    },
+    {
+      "gen": 50,
+      "ber": 0.00571875,
+      "flops": 11821899.446,
+      "len": 22,
+      "bp_up": 2529.1466666666665
+    },
+    {
+      "gen": 51,
+      "ber": 0.00571875,
+      "flops": 11821899.446,
+      "len": 22,
+      "bp_up": 2529.1466666666665
+    },
+    {
+      "gen": 52,
+      "ber": 0.00571875,
+      "flops": 11821899.446,
+      "len": 22,
+      "bp_up": 2529.1466666666665
+    },
+    {
+      "gen": 53,
+      "ber": 0.00571875,
+      "flops": 11821899.446,
+      "len": 22,
+      "bp_up": 2529.1466666666665
+    },
+    {
+      "gen": 54,
+      "ber": 0.00571875,
+      "flops": 11821899.446,
+      "len": 22,
+      "bp_up": 2529.1466666666665
+    },
+    {
+      "gen": 55,
+      "ber": 0.00571875,
+      "flops": 11821899.446,
+      "len": 22,
+      "bp_up": 2529.1466666666665
+    },
+    {
+      "gen": 56,
+      "ber": 0.00434375,
+      "flops": 11483517.272,
+      "len": 21,
+      "bp_up": 2474.86
+    },
+    {
+      "gen": 57,
+      "ber": 0.00434375,
+      "flops": 11483517.272,
+      "len": 21,
+      "bp_up": 2474.86
+    },
+    {
+      "gen": 58,
+      "ber": 0.00434375,
+      "flops": 11481320.826000001,
+      "len": 18,
+      "bp_up": 2474.86
+    },
+    {
+      "gen": 59,
+      "ber": 0.00434375,
+      "flops": 11481320.826000001,
+      "len": 18,
+      "bp_up": 2474.86
+    },
+    {
+      "gen": 60,
+      "ber": 0.00434375,
+      "flops": 11481320.826000001,
+      "len": 18,
+      "bp_up": 2474.86
+    }
+  ]
+}

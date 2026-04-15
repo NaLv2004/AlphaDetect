@@ -1,13 +1,14 @@
-{
-  "last_updated": "2026-04-01 12:00",
-  "active_topics": [
-    {
-      "name": "auto-discover-mimo-det",
-      "phase": "coding",
-      "status": "Phase 0 baseline completed. Python MIMO detectors (MMSE, AMP, EP, K-Best) validated at 32x16, 16QAM. BER targets met at 12dB.",
-      "next_action": "Phase 1: Implement MIMO-DSL type system and linear-iterative primitive search space",
-      "folder": "project-AutoDiscoverMimoDetAlg/"
-    }
-  ],
-  "global_notes": "Research plan finalized in theme_new.txt. Targeting Nature Machine Intelligence. Five algorithm categories unified in DSL search space."
+﻿{
+	"last_updated": "2026-04-14 18:00",
+	"active_topics": [
+		{
+			"name": "mimo-push-gp-v2-structured-bp-fixed",
+			"phase": "experiment",
+			"status": "cpp_test4 COMPLETED (40 gens). Best genome: gen-4, BER=0.05453, ratio=0.459. FULL ANALYSIS DONE: Evolved genome = Clamped A* (score=max(cum_dist,0.348)). formula analysis corrected (program_to_formula had multi-stack bug). Ablations (200 trials) confirm: F_up dead weight, F_down=cumulative dist critical, floor EC1=0.348 helps ~10% over pure A*. cpp_test5 ready to launch (seed from gen-4, max_nodes=1200, 60 gens).",
+			"next_action": "1. Launch cpp_test5 (run_test5.bat, seed from gen-4, 60 gens, max_nodes=1200) to find more sophisticated scoring beyond clamped A*. 2. Evolve toward R-matrix-aware scoring (column norms, interference cancellation). 3. Consider disabling H_halt or forcing max_bp_iters>=2 to prevent 1-iteration degenerate case. 4. After test5, analyze if new programs access R matrix or use multi-iteration BP.",
+			"folder": "research/mimo-push-gp/"
+		}
+	],
+	"global_notes": "Structured BP v2 architecture: 4-program genome (F_down, F_up, F_belief, H_halt). Full-tree BP sweeps: UP (leaves-root), DOWN (root-leaves), score frontier. C++ DLL evaluator (evaluator_bp.dll) for fast evolution. Key insight: current best genome is CLAMPED A* — genuinely novel BP message passing not yet achieved. The system works correctly. program_to_formula fixed to track multi-stack (float/int/bool/node). Next challenge: evolve programs that use R matrix context or multi-pass BP."
 }
+

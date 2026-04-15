@@ -1,0 +1,2353 @@
+================================================================================
+Structured-BP GP  started 2026-04-14 00:46:34
+================================================================================
+
+[2026-04-14 00:46:34] Configuration
+{
+  "generations": 40,
+  "population": 80,
+  "train_samples": 80,
+  "train_nt": 8,
+  "train_nr": 16,
+  "mod_order": 16,
+  "train_max_nodes": 600,
+  "train_flops_max": 600000,
+  "step_max": 1000,
+  "eval_trials": 200,
+  "eval_max_nodes": 2000,
+  "eval_flops_max": 5000000,
+  "eval_nt": null,
+  "eval_nr": null,
+  "eval_step_max": 5000,
+  "train_snrs": "10,12,14",
+  "eval_snrs": "8,10,12,14,16",
+  "seed": 42,
+  "continuous": false,
+  "use_cpp": true,
+  "batch_gens": 5,
+  "log_suffix": "cpp_test4"
+}
+------------------------------------------------------------
+
+[2026-04-14 00:48:16] Gen 0  Fit(BER=0.06141 ratio=0.644 FLOPs=27853 len=17 faults=0.00 gap=0.009 bp=3786.8 nlbp=0.0 bpg=0.000)  (initial)
+  DOWN:[Int.Pop ; Node.WriteMem ; Float.Const1 ; Float.Abs ; Float.Sub] | UP:[Float.Max ; Node.SetMUp ; Bool.Or] | BEL:[Int.Const0 ; Float.Square ; Float.ConstHalf ; Node.SetMDown ; Float.Sqrt ; Float.Swap ; Float.Add] | HALT:[Float.LT ; Float.Abs] | LOGC:[1.7890,1.9440,1.0135,-0.4950]
+
+[2026-04-14 00:49:24] Gen 1  Fit(BER=0.06141 ratio=0.644 FLOPs=27853 len=17 faults=0.00 gap=0.009 bp=3786.8 nlbp=0.0 bpg=0.000)
+  DOWN:[Int.Pop ; Node.WriteMem ; Float.Const1 ; Float.Abs ; Float.Sub] | UP:[Float.Max ; Node.SetMUp ; Bool.Or] | BEL:[Int.Const0 ; Float.Square ; Float.ConstHalf ; Node.SetMDown ; Float.Sqrt ; Float.Swap ; Float.Add] | HALT:[Float.LT ; Float.Abs] | LOGC:[1.7890,1.9440,1.0135,-0.4950]
+  Top-10 individuals (Gen 1):
+    # 1  score=0.08851  BER=0.06141  faults=0.00  len=17
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (sqrt([Node.SetMDown]) + 0.5)
+          H_halt  = |(old_M_up < new_M_up)|
+          [DOWN]   Int.Pop ; Node.WriteMem ; Float.Const1 ; Float.Abs ; Float.Sub
+          [UP]     Float.Max ; Node.SetMUp ; Bool.Or
+          [BELIEF] Int.Const0 ; Float.Square ; Float.ConstHalf ; Node.SetMDown ; Float.Sqrt ; Float.Swap ; Float.Add
+          [HALT]   Float.LT ; Float.Abs
+    # 2  score=0.11329  BER=0.06883  faults=0.00  len=26
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(0.5, ((0.5 - EC1) / [Mat.Row]))))
+          F_belief= max((([Int.Sub] + 0.5))^2, [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+    # 3  score=0.11329  BER=0.06883  faults=0.00  len=26
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(0.5, ((0.5 - EC1) / [Mat.Row]))))
+          F_belief= max((([Int.Sub] + M_up))^2, [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+    # 4  score=0.11329  BER=0.06883  faults=0.00  len=25
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(0.5, ((0.5 - EC1) / [Mat.Row]))))
+          F_belief= max((([Int.Sub] + 0.5))^2, [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+    # 5  score=0.11329  BER=0.06883  faults=0.00  len=27
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max((([Int.Sub] + 0.5))^2, [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+    # 6  score=0.11329  BER=0.06883  faults=0.00  len=26
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(M_2_up, ((min(0.5, 0.5) - EC1) / [Mat.Row]))))
+          F_belief= max((([Int.Sub] + 0.5))^2, [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+    # 7  score=0.11549  BER=0.06883  faults=0.00  len=24
+          F_down  = M_par_down
+          F_up    = repeat([Int.Pop])
+          F_belief= ((M_down + M_up) + [Bool.Not])
+          H_halt  = max([Node.SetScore], [Int.Add])
+    # 8  score=0.11772  BER=0.06031  faults=0.00  len=15
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = max(M_2_up, [Node.SetMUp])
+          F_belief= (sqrt([Node.SetMDown]) + ([Int.Const0])^2)
+          H_halt  = |(old_M_up < new_M_up)|
+    # 9  score=0.11875  BER=0.06117  faults=0.00  len=20
+          F_down  = (exp((C_i)^2) - [Int.Inc])
+          F_up    = |((C_2 / [Vec.GetResidue]) - [Int.Dup])|
+          F_belief= [Node.WriteMem]
+          H_halt  = [Vec.Scale]
+    #10  score=0.12048  BER=0.06883  faults=0.00  len=19
+          F_down  = [Node.IsExpanded]
+          F_up    = max(M_2_up, (-[Node.Pop]))
+          F_belief= ((max(sqrt(1), layer) * EC0) + [Node.SetMDown])
+          H_halt  = [Int.Const0]
+
+[2026-04-14 00:50:08] Gen 2  Fit(BER=0.05852 ratio=0.493 FLOPs=22121 len=16 faults=0.00 gap=0.002 bp=2764.2 nlbp=0.0 bpg=0.000)  (NEW BEST)
+  DOWN:[Float.Square ; Node.WriteMem ; Float.Const1 ; Float.Abs ; Float.Sub] | UP:[Float.Pop ; Node.SetMUp ; Bool.Or] | BEL:[Float.Add ; Float.Add] | HALT:[Int.LT ; Float.GT ; Float.Const0 ; Float.LT ; Float.LT ; Float.Abs] | LOGC:[1.5339,1.9168,0.9653,-0.0642]
+  Top-10 individuals (Gen 2):
+    # 1  score=0.06828  BER=0.05852  faults=0.00  len=16
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |(old_M_up < ((new_M_up > [Int.LT]) < 0))|
+          [DOWN]   Float.Square ; Node.WriteMem ; Float.Const1 ; Float.Abs ; Float.Sub
+          [UP]     Float.Pop ; Node.SetMUp ; Bool.Or
+          [BELIEF] Float.Add ; Float.Add
+          [HALT]   Int.LT ; Float.GT ; Float.Const0 ; Float.LT ; Float.LT ; Float.Abs
+    # 2  score=0.06839  BER=0.05453  faults=0.00  len=27
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+    # 3  score=0.06941  BER=0.05453  faults=0.00  len=23
+          F_down  = [Int.Inc]
+          F_up    = log(max(0.5, ((0.5 - EC1) / [Mat.Row])))
+          F_belief= max((([Int.Sub] + 0.5))^2, [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+    # 4  score=0.06948  BER=0.05453  faults=0.00  len=27
+          F_down  = [Mat.ElementAt]
+          F_up    = log(sqrt(max(0.5, ((0.5 - EC1) / [Mat.Row]))))
+          F_belief= max((noise_var)^2, [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+    # 5  score=0.06948  BER=0.05453  faults=0.00  len=24
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(0.5, ((0.5 - EC1) / [Mat.Row]))))
+          F_belief= max((([Int.Sub] + 0.5))^2, [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+    # 6  score=0.06948  BER=0.05453  faults=0.00  len=25
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(0.5, ((0.5 - EC1) / [Mat.Row]))))
+          F_belief= max((([Int.Sub] + 0.5))^2, [Int.Inc])
+          H_halt  = (0 < [Bool.Or])
+    # 7  score=0.06948  BER=0.05453  faults=0.00  len=24
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(0.5, ((0.5 - EC1) / [Mat.Row]))))
+          F_belief= max((([Int.Sub] + 0.5))^2, [Int.Inc])
+          H_halt  = ([Node.ReadMem] < new_M_up)
+    # 8  score=0.07021  BER=0.05453  faults=0.00  len=25
+          F_down  = (M_par_down + C_i)
+          F_up    = [Int.Dup]
+          F_belief= (layer)^2
+          H_halt  = (new_M_up > ([Node.ReadMem] < [Bool.Or]))
+    # 9  score=0.07057  BER=0.05453  faults=0.00  len=27
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(0.5, ((0.5 - EC1) / [Mat.Row]))))
+          F_belief= max(((M_down / ([Int.Sub] + M_up)))^2, [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+    #10  score=0.07536  BER=0.05453  faults=0.00  len=18
+          F_down  = [Node.IsExpanded]
+          F_up    = max(M_2_up, (-[Node.Pop]))
+          F_belief= ((max(M_up, sqrt(1)) * EC0) + [Node.SetMDown])
+          H_halt  = [Int.Const0]
+
+[2026-04-14 00:50:59] Gen 3  Fit(BER=0.05852 ratio=0.493 FLOPs=22121 len=16 faults=0.00 gap=0.002 bp=2764.2 nlbp=0.0 bpg=0.000)
+  DOWN:[Float.Square ; Node.WriteMem ; Float.Const1 ; Float.Abs ; Float.Sub] | UP:[Float.Pop ; Node.SetMUp ; Bool.Or] | BEL:[Float.Add ; Float.Add] | HALT:[Int.LT ; Float.GT ; Float.Const0 ; Float.LT ; Float.LT ; Float.Abs] | LOGC:[1.5339,1.9168,0.9653,-0.0642]
+  Top-10 individuals (Gen 3):
+    # 1  score=0.06828  BER=0.05852  faults=0.00  len=16
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |(old_M_up < ((new_M_up > [Int.LT]) < 0))|
+          [DOWN]   Float.Square ; Node.WriteMem ; Float.Const1 ; Float.Abs ; Float.Sub
+          [UP]     Float.Pop ; Node.SetMUp ; Bool.Or
+          [BELIEF] Float.Add ; Float.Add
+          [HALT]   Int.LT ; Float.GT ; Float.Const0 ; Float.LT ; Float.LT ; Float.Abs
+    # 2  score=0.06828  BER=0.05852  faults=0.00  len=16
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |(old_M_up < ((new_M_up > [Int.LT]) < 0))|
+    # 3  score=0.06839  BER=0.05453  faults=0.00  len=27
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+    # 4  score=0.06839  BER=0.05453  faults=0.00  len=27
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+    # 5  score=0.06839  BER=0.05453  faults=0.00  len=27
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+    # 6  score=0.06839  BER=0.05453  faults=0.00  len=27
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+    # 7  score=0.06941  BER=0.05453  faults=0.00  len=23
+          F_down  = [Int.Inc]
+          F_up    = log(max(0.5, ((0.5 - EC1) / [Mat.Row])))
+          F_belief= max((([Int.Sub] + 0.5))^2, [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+    # 8  score=0.06948  BER=0.05453  faults=0.00  len=27
+          F_down  = [Mat.ElementAt]
+          F_up    = log(sqrt(max(0.5, ((0.5 - EC1) / [Mat.Row]))))
+          F_belief= max((noise_var)^2, [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+    # 9  score=0.06948  BER=0.05453  faults=0.00  len=24
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(0.5, ((0.5 - EC1) / [Mat.Row]))))
+          F_belief= max((([Int.Sub] + 0.5))^2, [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+    #10  score=0.06948  BER=0.05453  faults=0.00  len=25
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(0.5, ((0.5 - EC1) / [Mat.Row]))))
+          F_belief= max((([Int.Sub] + 0.5))^2, [Int.Inc])
+          H_halt  = (0 < [Bool.Or])
+
+[2026-04-14 00:51:38] Gen 4  Fit(BER=0.05453 ratio=0.459 FLOPs=21735 len=25 faults=0.00 gap=0.003 bp=4115.1 nlbp=0.0 bpg=0.000)  (NEW BEST)
+  DOWN:[Int.Inc ; Float.Add ; Node.GetParent] | UP:[Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup] | BEL:[Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max] | HALT:[Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT] | LOGC:[0.0111,-0.4585,1.0875,-1.7998]
+  Top-10 individuals (Gen 4):
+    # 1  score=0.06730  BER=0.05453  faults=0.00  len=25
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+          [DOWN]   Int.Inc ; Float.Add ; Node.GetParent
+          [UP]     Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup
+          [BELIEF] Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max
+          [HALT]   Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT
+    # 2  score=0.06778  BER=0.05453  faults=0.00  len=28
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(0.5, ((sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))) - EC1) / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = (0 < [Bool.Or])
+    # 3  score=0.06828  BER=0.05852  faults=0.00  len=16
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |(old_M_up < ((new_M_up > [Int.LT]) < 0))|
+    # 4  score=0.06828  BER=0.05852  faults=0.00  len=16
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |(old_M_up < ((new_M_up > [Int.LT]) < 0))|
+    # 5  score=0.06828  BER=0.05852  faults=0.00  len=17
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Int.Dup]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |(old_M_up < ((new_M_up > [Int.LT]) < 0))|
+    # 6  score=0.06828  BER=0.05852  faults=0.00  len=16
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |(old_M_up < ((new_M_up > [Int.LT]) < 0))|
+    # 7  score=0.06828  BER=0.05852  faults=0.00  len=16
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |(old_M_up < ((new_M_up > [Int.LT]) < 0))|
+    # 8  score=0.06828  BER=0.05852  faults=0.00  len=15
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Node.SetMUp]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |(old_M_up < ((new_M_up > [Int.LT]) < 0))|
+    # 9  score=0.06828  BER=0.05852  faults=0.00  len=16
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |(old_M_up < ((new_M_up > [Int.LT]) < 0))|
+    #10  score=0.06832  BER=0.05453  faults=0.00  len=16
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max(M_2_up, (0.5 / [Mat.Row]))))
+          F_belief= max((M_up)^2, [Int.Inc])
+          H_halt  = (0 < new_M_up)
+
+[2026-04-14 00:52:16] Gen 5  Fit(BER=0.05453 ratio=0.459 FLOPs=21735 len=25 faults=0.00 gap=0.003 bp=4115.1 nlbp=0.0 bpg=0.000)
+  DOWN:[Int.Inc ; Float.Add ; Node.GetParent] | UP:[Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup] | BEL:[Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max] | HALT:[Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT] | LOGC:[0.0111,-0.4585,1.0875,-1.7998]
+  Top-10 individuals (Gen 5):
+    # 1  score=0.06730  BER=0.05453  faults=0.00  len=25
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+          [DOWN]   Int.Inc ; Float.Add ; Node.GetParent
+          [UP]     Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup
+          [BELIEF] Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max
+          [HALT]   Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT
+    # 2  score=0.06778  BER=0.05453  faults=0.00  len=28
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(0.5, ((sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))) - EC1) / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = (0 < [Bool.Or])
+    # 3  score=0.06828  BER=0.05852  faults=0.00  len=16
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |(old_M_up < ((new_M_up > [Int.LT]) < 0))|
+    # 4  score=0.06828  BER=0.05852  faults=0.00  len=16
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |(old_M_up < ((new_M_up > [Int.LT]) < 0))|
+    # 5  score=0.06828  BER=0.05852  faults=0.00  len=17
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Int.Dup]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |(old_M_up < ((new_M_up > [Int.LT]) < 0))|
+    # 6  score=0.06828  BER=0.05852  faults=0.00  len=16
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |(old_M_up < ((new_M_up > [Int.LT]) < 0))|
+    # 7  score=0.08161  BER=0.06195  faults=0.00  len=24
+          F_down  = ([Int.Inc] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= [Float.Swap]
+          H_halt  = [Int.Const0]
+    # 8  score=0.09517  BER=0.07867  faults=0.00  len=25
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max(EC1, [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+    # 9  score=0.09517  BER=0.07867  faults=0.00  len=24
+          F_down  = (C_i + [Int.Inc])
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+    #10  score=0.09546  BER=0.07867  faults=0.00  len=30
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(M_2_up, (0.5 / sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row])))))))
+          F_belief= [Int.Inc]
+          H_halt  = (0 < [Bool.Or])
+
+[2026-04-14 00:53:03] Gen 6  Fit(BER=0.05453 ratio=0.459 FLOPs=21735 len=25 faults=0.00 gap=0.003 bp=4115.1 nlbp=0.0 bpg=0.000)
+  DOWN:[Int.Inc ; Float.Add ; Node.GetParent] | UP:[Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup] | BEL:[Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max] | HALT:[Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT] | LOGC:[0.0111,-0.4585,1.0875,-1.7998]
+  Top-10 individuals (Gen 6):
+    # 1  score=0.06730  BER=0.05453  faults=0.00  len=25
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+          [DOWN]   Int.Inc ; Float.Add ; Node.GetParent
+          [UP]     Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup
+          [BELIEF] Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max
+          [HALT]   Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT
+    # 2  score=0.06778  BER=0.05453  faults=0.00  len=28
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(0.5, ((sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))) - EC1) / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = (0 < [Bool.Or])
+    # 3  score=0.06828  BER=0.05852  faults=0.00  len=16
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |(old_M_up < ((new_M_up > [Int.LT]) < 0))|
+    # 4  score=0.06828  BER=0.05852  faults=0.00  len=16
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |(old_M_up < ((new_M_up > [Int.LT]) < 0))|
+    # 5  score=0.06828  BER=0.05852  faults=0.00  len=17
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Int.Dup]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |(old_M_up < ((new_M_up > [Int.LT]) < 0))|
+    # 6  score=0.06828  BER=0.05852  faults=0.00  len=16
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |(old_M_up < ((new_M_up > [Int.LT]) < 0))|
+    # 7  score=0.08161  BER=0.06195  faults=0.00  len=23
+          F_down  = ([Int.Inc] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= [Float.Swap]
+          H_halt  = [Int.Const0]
+    # 8  score=0.08161  BER=0.06195  faults=0.00  len=24
+          F_down  = ([Int.Inc] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= [Float.Swap]
+          H_halt  = [Int.Const0]
+    # 9  score=0.08161  BER=0.06195  faults=0.00  len=24
+          F_down  = ([Int.Inc] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= [Float.Swap]
+          H_halt  = [Int.Const0]
+    #10  score=0.09517  BER=0.07867  faults=0.00  len=24
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max(0.5, ((0.5 - EC1) / [Mat.Row]))))
+          F_belief= max(EC1, [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+
+[2026-04-14 00:53:51] Gen 7  Fit(BER=0.05453 ratio=0.459 FLOPs=21735 len=25 faults=0.00 gap=0.003 bp=4115.1 nlbp=0.0 bpg=0.000)
+  DOWN:[Int.Inc ; Float.Add ; Node.GetParent] | UP:[Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup] | BEL:[Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max] | HALT:[Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT] | LOGC:[0.0111,-0.4585,1.0875,-1.7998]
+  Top-10 individuals (Gen 7):
+    # 1  score=0.06730  BER=0.05453  faults=0.00  len=25
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+          [DOWN]   Int.Inc ; Float.Add ; Node.GetParent
+          [UP]     Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup
+          [BELIEF] Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max
+          [HALT]   Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT
+    # 2  score=0.06778  BER=0.05453  faults=0.00  len=28
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(0.5, ((sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))) - EC1) / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = (0 < [Bool.Or])
+    # 3  score=0.06828  BER=0.05852  faults=0.00  len=16
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |(old_M_up < ((new_M_up > [Int.LT]) < 0))|
+    # 4  score=0.06828  BER=0.05852  faults=0.00  len=16
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |(old_M_up < ((new_M_up > [Int.LT]) < 0))|
+    # 5  score=0.06828  BER=0.05852  faults=0.00  len=17
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Int.Dup]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |(old_M_up < ((new_M_up > [Int.LT]) < 0))|
+    # 6  score=0.06828  BER=0.05852  faults=0.00  len=16
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |(old_M_up < ((new_M_up > [Int.LT]) < 0))|
+    # 7  score=0.08161  BER=0.06195  faults=0.00  len=23
+          F_down  = ([Int.Inc] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= [Float.Swap]
+          H_halt  = [Int.Const0]
+    # 8  score=0.08161  BER=0.06195  faults=0.00  len=23
+          F_down  = ([Int.Inc] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= [Float.Swap]
+          H_halt  = [Int.Const0]
+    # 9  score=0.08161  BER=0.06195  faults=0.00  len=24
+          F_down  = ([Int.Inc] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= [Float.Swap]
+          H_halt  = [Int.Const0]
+    #10  score=0.08161  BER=0.06195  faults=0.00  len=23
+          F_down  = ([Int.Inc] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= [Float.Swap]
+          H_halt  = [Int.Const0]
+
+[2026-04-14 00:54:30] Gen 8  Fit(BER=0.05453 ratio=0.459 FLOPs=21735 len=25 faults=0.00 gap=0.003 bp=4115.1 nlbp=0.0 bpg=0.000)
+  DOWN:[Int.Inc ; Float.Add ; Node.GetParent] | UP:[Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup] | BEL:[Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max] | HALT:[Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT] | LOGC:[0.0111,-0.4585,1.0875,-1.7998]
+  Top-10 individuals (Gen 8):
+    # 1  score=0.06730  BER=0.05453  faults=0.00  len=25
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+          [DOWN]   Int.Inc ; Float.Add ; Node.GetParent
+          [UP]     Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup
+          [BELIEF] Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max
+          [HALT]   Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT
+    # 2  score=0.06778  BER=0.05453  faults=0.00  len=28
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(0.5, ((sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))) - EC1) / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = (0 < [Bool.Or])
+    # 3  score=0.06828  BER=0.05852  faults=0.00  len=16
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |(old_M_up < ((new_M_up > [Int.LT]) < 0))|
+    # 4  score=0.06828  BER=0.05852  faults=0.00  len=16
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |(old_M_up < ((new_M_up > [Int.LT]) < 0))|
+    # 5  score=0.06828  BER=0.05852  faults=0.00  len=17
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Int.Dup]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |(old_M_up < ((new_M_up > [Int.LT]) < 0))|
+    # 6  score=0.06828  BER=0.05852  faults=0.00  len=16
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |(old_M_up < ((new_M_up > [Int.LT]) < 0))|
+    # 7  score=0.11009  BER=0.08469  faults=0.00  len=19
+          F_down  = ([Int.Inc] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= [Float.Swap]
+          H_halt  = [Int.Const0]
+    # 8  score=0.11009  BER=0.08469  faults=0.00  len=26
+          F_down  = ([Int.Inc] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= ((M_down + M_up) + D_i)
+          H_halt  = 0.5
+    # 9  score=0.11020  BER=0.08469  faults=0.00  len=24
+          F_down  = ([Int.Inc] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= [Float.Swap]
+          H_halt  = [Int.Const0]
+    #10  score=0.11020  BER=0.08469  faults=0.00  len=23
+          F_down  = ([Int.Inc] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= [Float.Swap]
+          H_halt  = [Int.Const0]
+
+[2026-04-14 00:55:37] Gen 9  Fit(BER=0.05453 ratio=0.459 FLOPs=21735 len=25 faults=0.00 gap=0.003 bp=4115.1 nlbp=0.0 bpg=0.000)
+  DOWN:[Int.Inc ; Float.Add ; Node.GetParent] | UP:[Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup] | BEL:[Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max] | HALT:[Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT] | LOGC:[0.0111,-0.4585,1.0875,-1.7998]
+  Top-10 individuals (Gen 9):
+    # 1  score=0.06730  BER=0.05453  faults=0.00  len=25
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+          [DOWN]   Int.Inc ; Float.Add ; Node.GetParent
+          [UP]     Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup
+          [BELIEF] Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max
+          [HALT]   Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT
+    # 2  score=0.06778  BER=0.05453  faults=0.00  len=28
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(0.5, ((sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))) - EC1) / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = (0 < [Bool.Or])
+    # 3  score=0.06828  BER=0.05852  faults=0.00  len=16
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |(old_M_up < ((new_M_up > [Int.LT]) < 0))|
+    # 4  score=0.10239  BER=0.08750  faults=0.00  len=18
+          F_down  = ([Node.WriteMem] - tanh(|1|))
+          F_up    = max([Bool.Or], [Node.SetMUp])
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |(old_M_up < ((new_M_up > [Int.LT]) < 0))|
+    # 5  score=0.10401  BER=0.08469  faults=0.00  len=26
+          F_down  = ([Int.Inc] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + layer)
+          H_halt  = ([Int.Const0] < EC0)
+    # 6  score=0.10998  BER=0.08469  faults=0.00  len=17
+          F_down  = ([Node.WriteMem] - |0.5|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |((new_M_up > [Int.LT]) < (0 < layer))|
+    # 7  score=0.10998  BER=0.08469  faults=0.00  len=16
+          F_down  = ([Node.WriteMem] - |0.5|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |((old_M_up > new_M_up) < ([Float.GT] < 0))|
+    # 8  score=0.11009  BER=0.08469  faults=0.00  len=29
+          F_down  = ([Int.Inc] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= ((M_down + M_up) + D_i)
+          H_halt  = [Int.LT]
+    # 9  score=0.11009  BER=0.08469  faults=0.00  len=27
+          F_down  = ([Int.Inc] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= ((M_down + M_up) + D_i)
+          H_halt  = 0.5
+    #10  score=0.11020  BER=0.08469  faults=0.00  len=22
+          F_down  = ([Int.Inc] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = [Int.Const0]
+
+[2026-04-14 00:56:45] Gen 10  Fit(BER=0.05453 ratio=0.459 FLOPs=21735 len=25 faults=0.00 gap=0.003 bp=4115.1 nlbp=0.0 bpg=0.000)
+  DOWN:[Int.Inc ; Float.Add ; Node.GetParent] | UP:[Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup] | BEL:[Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max] | HALT:[Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT] | LOGC:[0.0111,-0.4585,1.0875,-1.7998]
+  Top-10 individuals (Gen 10):
+    # 1  score=0.06730  BER=0.05453  faults=0.00  len=25
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+          [DOWN]   Int.Inc ; Float.Add ; Node.GetParent
+          [UP]     Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup
+          [BELIEF] Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max
+          [HALT]   Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT
+    # 2  score=0.06778  BER=0.05453  faults=0.00  len=28
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(0.5, ((sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))) - EC1) / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = (0 < [Bool.Or])
+    # 3  score=0.06828  BER=0.05852  faults=0.00  len=16
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |(old_M_up < ((new_M_up > [Int.LT]) < 0))|
+    # 4  score=0.10405  BER=0.08469  faults=0.00  len=26
+          F_down  = ([Int.Inc] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + layer)
+          H_halt  = ([Int.Const0] < EC0)
+    # 5  score=0.10810  BER=0.08469  faults=0.00  len=16
+          F_down  = ([Node.WriteMem] - |0.5|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |(new_M_up < (0 < 0))|
+    # 6  score=0.10835  BER=0.08469  faults=0.00  len=29
+          F_down  = ([Int.Inc] - 1)
+          F_up    = [Bool.Or]
+          F_belief= ((M_down + M_up) + D_i)
+          H_halt  = [Int.LT]
+    # 7  score=0.10986  BER=0.08469  faults=0.00  len=15
+          F_down  = ([Node.WriteMem] - 0.5)
+          F_up    = [Bool.Or]
+          F_belief= layer
+          H_halt  = [Float.LT]
+    # 8  score=0.10998  BER=0.08469  faults=0.00  len=15
+          F_down  = ([Node.WriteMem] - |0.5|)
+          F_up    = M_2_up
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |(old_M_up < ((new_M_up > [Bool.Or]) < 0))|
+    # 9  score=0.10998  BER=0.08469  faults=0.00  len=18
+          F_down  = ([Node.WriteMem] - |0.5|)
+          F_up    = [Node.SetMUp]
+          F_belief= [Float.Swap]
+          H_halt  = |((new_M_up > [Int.LT]) < (0 < layer))|
+    #10  score=0.10998  BER=0.08469  faults=0.00  len=17
+          F_down  = ([Node.WriteMem] - |0.5|)
+          F_up    = [Node.SetMUp]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |[Float.LT]|
+
+[2026-04-14 00:57:42] Gen 11  Fit(BER=0.05453 ratio=0.459 FLOPs=21735 len=25 faults=0.00 gap=0.003 bp=4115.1 nlbp=0.0 bpg=0.000)
+  DOWN:[Int.Inc ; Float.Add ; Node.GetParent] | UP:[Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup] | BEL:[Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max] | HALT:[Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT] | LOGC:[0.0111,-0.4585,1.0875,-1.7998]
+  Top-10 individuals (Gen 11):
+    # 1  score=0.06730  BER=0.05453  faults=0.00  len=25
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+          [DOWN]   Int.Inc ; Float.Add ; Node.GetParent
+          [UP]     Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup
+          [BELIEF] Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max
+          [HALT]   Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT
+    # 2  score=0.06778  BER=0.05453  faults=0.00  len=28
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(0.5, ((sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))) - EC1) / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = (0 < [Bool.Or])
+    # 3  score=0.06828  BER=0.05852  faults=0.00  len=16
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |(old_M_up < ((new_M_up > [Int.LT]) < 0))|
+    # 4  score=0.10828  BER=0.06117  faults=0.00  len=23
+          F_down  = [Node.GetParent]
+          F_up    = sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row])))
+          F_belief= [Int.Inc]
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+    # 5  score=0.10851  BER=0.06117  faults=0.00  len=25
+          F_down  = [Node.GetParent]
+          F_up    = sqrt(max(0.5, ((sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))) - EC1) / [Mat.Row])))
+          F_belief= [Int.Inc]
+          H_halt  = (0 < [Bool.Or])
+    # 6  score=0.10867  BER=0.06117  faults=0.00  len=24
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max((0.5 - EC3), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = old_M_up
+    # 7  score=0.10867  BER=0.06117  faults=0.00  len=25
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+    # 8  score=0.11063  BER=0.06117  faults=0.00  len=27
+          F_down  = |[Node.GetParent]|
+          F_up    = log(sqrt(max(0.5, ((sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))) - B_i) / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = (0 < [Bool.Or])
+    # 9  score=0.11137  BER=0.08352  faults=0.00  len=14
+          F_down  = max(log(C_i), [Int.Sub])
+          F_up    = (C_2 - (M_2_up * [Node.GetParent]))
+          F_belief= ((1 / [Int.Sub]) - [Vec.Add])
+          H_halt  = (new_M_up < [Vec.SecondPeekAtIm])
+    #10  score=0.11178  BER=0.06117  faults=0.00  len=17
+          F_down  = [Node.GetParent]
+          F_up    = log(M_2_up)
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < ([Bool.Or] < 0))
+
+[2026-04-14 00:58:46] Gen 12  Fit(BER=0.05453 ratio=0.459 FLOPs=21735 len=25 faults=0.00 gap=0.003 bp=4115.1 nlbp=0.0 bpg=0.000)
+  DOWN:[Int.Inc ; Float.Add ; Node.GetParent] | UP:[Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup] | BEL:[Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max] | HALT:[Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT] | LOGC:[0.0111,-0.4585,1.0875,-1.7998]
+  Top-10 individuals (Gen 12):
+    # 1  score=0.06730  BER=0.05453  faults=0.00  len=25
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+          [DOWN]   Int.Inc ; Float.Add ; Node.GetParent
+          [UP]     Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup
+          [BELIEF] Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max
+          [HALT]   Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT
+    # 2  score=0.06778  BER=0.05453  faults=0.00  len=28
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(0.5, ((sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))) - EC1) / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = (0 < [Bool.Or])
+    # 3  score=0.06828  BER=0.05852  faults=0.00  len=16
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |(old_M_up < ((new_M_up > [Int.LT]) < 0))|
+    # 4  score=0.10828  BER=0.06117  faults=0.00  len=25
+          F_down  = ([Int.Inc] + [Node.GetParent])
+          F_up    = [Node.ForEachChild]
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Not])
+    # 5  score=0.10828  BER=0.06117  faults=0.00  len=20
+          F_down  = [Node.GetParent]
+          F_up    = sqrt(max(0.5, ((0.5 - EC1) / [Exec.DoTimes])))
+          F_belief= [Int.Inc]
+          H_halt  = (0 < old_M_up)
+    # 6  score=0.10858  BER=0.06117  faults=0.00  len=22
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max(C_2, M_2_up)))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+    # 7  score=0.10867  BER=0.06117  faults=0.00  len=24
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= EC1
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+    # 8  score=0.10875  BER=0.06117  faults=0.00  len=23
+          F_down  = (C_i + [Int.Inc])
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < FALSE)
+    # 9  score=0.10891  BER=0.06117  faults=0.00  len=27
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(0.5, ((sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))) - EC1) / [Mat.Row]))))
+          F_belief= max(M_up, [Int.Inc])
+          H_halt  = new_M_up
+    #10  score=0.10904  BER=0.06117  faults=0.00  len=30
+          F_down  = [Int.Inc]
+          F_up    = max(log(sqrt(max(((sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))) - EC1) / [Mat.Row]), layer))), log(sqrt(max(((sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))) - EC1) / [Mat.Row]), layer))))
+          F_belief= max(M_up, [Int.Inc])
+          H_halt  = (0 < [Bool.Or])
+
+[2026-04-14 00:59:52] Gen 13  Fit(BER=0.05453 ratio=0.459 FLOPs=21735 len=25 faults=0.00 gap=0.003 bp=4115.1 nlbp=0.0 bpg=0.000)
+  DOWN:[Int.Inc ; Float.Add ; Node.GetParent] | UP:[Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup] | BEL:[Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max] | HALT:[Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT] | LOGC:[0.0111,-0.4585,1.0875,-1.7998]
+  Top-10 individuals (Gen 13):
+    # 1  score=0.06730  BER=0.05453  faults=0.00  len=25
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+          [DOWN]   Int.Inc ; Float.Add ; Node.GetParent
+          [UP]     Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup
+          [BELIEF] Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max
+          [HALT]   Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT
+    # 2  score=0.06778  BER=0.05453  faults=0.00  len=28
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(0.5, ((sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))) - EC1) / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = (0 < [Bool.Or])
+    # 3  score=0.06828  BER=0.05852  faults=0.00  len=16
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |(old_M_up < ((new_M_up > [Int.LT]) < 0))|
+    # 4  score=0.10828  BER=0.06117  faults=0.00  len=21
+          F_down  = [Node.GetParent]
+          F_up    = sqrt(max(0.5, ((0.5 - EC1) / [Exec.DoTimes])))
+          F_belief= [Int.Inc]
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+    # 5  score=0.10867  BER=0.06117  faults=0.00  len=24
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+    # 6  score=0.10867  BER=0.06117  faults=0.00  len=25
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+    # 7  score=0.10867  BER=0.06117  faults=0.00  len=25
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+    # 8  score=0.10899  BER=0.06117  faults=0.00  len=33
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max(M_down, [Int.Inc])
+          H_halt  = ([Node.ReadMem] < FALSE)
+    # 9  score=0.10904  BER=0.06117  faults=0.00  len=27
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(0.5, ((sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))) - EC1) / [Mat.Row]))))
+          F_belief= max(M_up, [Int.Inc])
+          H_halt  = (0 < [Bool.Or])
+    #10  score=0.10907  BER=0.06117  faults=0.00  len=33
+          F_down  = (C_i + [Node.GetParent])
+          F_up    = log(sqrt(max(([Mat.Row] - (sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))) - EC1)), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max(M_up, [Int.Inc])
+          H_halt  = ([Node.ReadMem] < FALSE)
+
+[2026-04-14 01:01:03] Gen 14  Fit(BER=0.05453 ratio=0.459 FLOPs=21735 len=25 faults=0.00 gap=0.003 bp=4115.1 nlbp=0.0 bpg=0.000)
+  DOWN:[Int.Inc ; Float.Add ; Node.GetParent] | UP:[Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup] | BEL:[Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max] | HALT:[Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT] | LOGC:[0.0111,-0.4585,1.0875,-1.7998]
+  Top-10 individuals (Gen 14):
+    # 1  score=0.06730  BER=0.05453  faults=0.00  len=25
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+          [DOWN]   Int.Inc ; Float.Add ; Node.GetParent
+          [UP]     Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup
+          [BELIEF] Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max
+          [HALT]   Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT
+    # 2  score=0.06778  BER=0.05453  faults=0.00  len=28
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(0.5, ((sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))) - EC1) / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = (0 < [Bool.Or])
+    # 3  score=0.06828  BER=0.05852  faults=0.00  len=16
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |(old_M_up < ((new_M_up > [Int.LT]) < 0))|
+    # 4  score=0.11241  BER=0.09406  faults=0.00  len=17
+          F_down  = ([Node.WriteMem] - max(1, |2|))
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = (old_M_up < ((new_M_up > [Int.LT]) < 0))
+    # 5  score=0.12724  BER=0.09227  faults=0.00  len=24
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + ((M_down + M_up) + M_up))
+          H_halt  = |(old_M_up < ((new_M_up > 0.1) < 0))|
+    # 6  score=0.13109  BER=0.10000  faults=0.00  len=27
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(EC1, (C_i / [Mat.Row]))))
+          F_belief= max(M_up, [Int.Inc])
+          H_halt  = (0 < new_M_up)
+    # 7  score=0.15156  BER=0.09164  faults=0.00  len=21
+          F_down  = [Node.GetParent]
+          F_up    = sqrt(max(B_i, ((0.5 - EC1) / [Exec.DoTimes])))
+          F_belief= [Int.Inc]
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+    # 8  score=0.15181  BER=0.09164  faults=0.00  len=23
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max([Int.Pop], [Mat.Row])))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+    # 9  score=0.15190  BER=0.09164  faults=0.00  len=24
+          F_down  = (C_i + [Node.GetParent])
+          F_up    = log(max(0.5, ((EC1 - [Exec.DoTimes]) / [Mat.Row])))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+    #10  score=0.15198  BER=0.09164  faults=0.00  len=24
+          F_down  = (C_i + [Node.GetParent])
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+
+[2026-04-14 01:02:06] Gen 15  Fit(BER=0.05453 ratio=0.459 FLOPs=21735 len=25 faults=0.00 gap=0.003 bp=4115.1 nlbp=0.0 bpg=0.000)
+  DOWN:[Int.Inc ; Float.Add ; Node.GetParent] | UP:[Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup] | BEL:[Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max] | HALT:[Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT] | LOGC:[0.0111,-0.4585,1.0875,-1.7998]
+  Top-10 individuals (Gen 15):
+    # 1  score=0.06730  BER=0.05453  faults=0.00  len=25
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+          [DOWN]   Int.Inc ; Float.Add ; Node.GetParent
+          [UP]     Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup
+          [BELIEF] Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max
+          [HALT]   Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT
+    # 2  score=0.06778  BER=0.05453  faults=0.00  len=28
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(0.5, ((sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))) - EC1) / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = (0 < [Bool.Or])
+    # 3  score=0.06828  BER=0.05852  faults=0.00  len=16
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |(old_M_up < ((new_M_up > [Int.LT]) < 0))|
+    # 4  score=0.11395  BER=0.10000  faults=0.00  len=33
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max(0.5, ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max(M_down, M_up)
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+    # 5  score=0.11702  BER=0.08375  faults=0.00  len=24
+          F_down  = (C_i - M_par_down)
+          F_up    = repeat(EC3)
+          F_belief= (D_i + (1/(M_down + M_up)))
+          H_halt  = (1/(new_M_up < EC2))
+    # 6  score=0.12694  BER=0.09227  faults=0.00  len=17
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = (new_M_up > |([Int.LT] < (0 < 0))|)
+    # 7  score=0.12695  BER=0.09227  faults=0.00  len=18
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |EC2|
+    # 8  score=0.13087  BER=0.10000  faults=0.00  len=26
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max(EC1, (0.5 / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = (0 < new_M_up)
+    # 9  score=0.13283  BER=0.10000  faults=0.00  len=28
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(EC1, (C_i / [Mat.Row]))))
+          F_belief= max(M_up, [Int.Inc])
+          H_halt  = (0 < new_M_up)
+    #10  score=0.15099  BER=0.09250  faults=0.00  len=25
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+
+[2026-04-14 01:03:17] Gen 16  Fit(BER=0.05453 ratio=0.459 FLOPs=21735 len=25 faults=0.00 gap=0.003 bp=4115.1 nlbp=0.0 bpg=0.000)
+  DOWN:[Int.Inc ; Float.Add ; Node.GetParent] | UP:[Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup] | BEL:[Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max] | HALT:[Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT] | LOGC:[0.0111,-0.4585,1.0875,-1.7998]
+  Top-10 individuals (Gen 16):
+    # 1  score=0.06730  BER=0.05453  faults=0.00  len=25
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+          [DOWN]   Int.Inc ; Float.Add ; Node.GetParent
+          [UP]     Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup
+          [BELIEF] Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max
+          [HALT]   Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT
+    # 2  score=0.06778  BER=0.05453  faults=0.00  len=28
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(0.5, ((sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))) - EC1) / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = (0 < [Bool.Or])
+    # 3  score=0.06828  BER=0.05852  faults=0.00  len=16
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |(old_M_up < ((new_M_up > [Int.LT]) < 0))|
+    # 4  score=0.11320  BER=0.10000  faults=0.00  len=32
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max(0.5, ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max(M_down, M_up)
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+    # 5  score=0.12668  BER=0.09742  faults=0.00  len=29
+          F_down  = sqrt((M_par_down + C_i))
+          F_up    = [Int.Dup]
+          F_belief= ([Float.Swap] + noise_var)
+          H_halt  = ([Bool.Not] < [Int.Swap])
+    # 6  score=0.12695  BER=0.09227  faults=0.00  len=19
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = EC2
+    # 7  score=0.13087  BER=0.10000  faults=0.00  len=26
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(EC1, (0.5 / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = (0 < new_M_up)
+    # 8  score=0.13283  BER=0.10000  faults=0.00  len=29
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(EC0, (C_i / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = (new_M_up < [Bool.And])
+    # 9  score=0.13766  BER=0.10000  faults=0.00  len=31
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max(0.5, ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max(M_down, sqrt(M_up))
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+    #10  score=0.14317  BER=0.08344  faults=0.00  len=28
+          F_down  = (1 - [Node.WriteMem])
+          F_up    = repeat(EC3)
+          F_belief= (D_i + (1/(M_down + M_up)))
+          H_halt  = (1/([Int.LT] < [Bool.And]))
+
+[2026-04-14 01:04:16] Gen 17  Fit(BER=0.05453 ratio=0.459 FLOPs=21735 len=25 faults=0.00 gap=0.003 bp=4115.1 nlbp=0.0 bpg=0.000)
+  DOWN:[Int.Inc ; Float.Add ; Node.GetParent] | UP:[Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup] | BEL:[Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max] | HALT:[Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT] | LOGC:[0.0111,-0.4585,1.0875,-1.7998]
+  Top-10 individuals (Gen 17):
+    # 1  score=0.06730  BER=0.05453  faults=0.00  len=25
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+          [DOWN]   Int.Inc ; Float.Add ; Node.GetParent
+          [UP]     Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup
+          [BELIEF] Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max
+          [HALT]   Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT
+    # 2  score=0.06778  BER=0.05453  faults=0.00  len=28
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(0.5, ((sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))) - EC1) / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = (0 < [Bool.Or])
+    # 3  score=0.06828  BER=0.05852  faults=0.00  len=16
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |(old_M_up < ((new_M_up > [Int.LT]) < 0))|
+    # 4  score=0.12089  BER=0.09578  faults=0.00  len=19
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Node.SetMUp]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = EC2
+    # 5  score=0.13432  BER=0.08672  faults=0.00  len=28
+          F_down  = sqrt((M_par_down + C_i))
+          F_up    = [Int.Dup]
+          F_belief= ([Float.Swap] + noise_var)
+          H_halt  = ([Bool.Not] < [Int.Swap])
+    # 6  score=0.13924  BER=0.08898  faults=0.00  len=29
+          F_down  = (1 - [Node.WriteMem])
+          F_up    = repeat(EC3)
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = (1/([Int.LT] < [Bool.And]))
+    # 7  score=0.14935  BER=0.10633  faults=0.00  len=23
+          F_down  = (0 - [Mat.PeekAt])
+          F_up    = Re(s)
+          F_belief= (N_ch + sqrt([Int.Const0]))
+          H_halt  = [Mat.PeekAt]
+    # 8  score=0.16256  BER=0.09984  faults=0.00  len=17
+          F_down  = max([Node.SetMUp], log(Re(s)))
+          F_up    = [Graph.NodeCount]
+          F_belief= M_up
+          H_halt  = min(old_M_up, (new_M_up > noise_var))
+    # 9  score=0.16454  BER=0.09984  faults=0.00  len=25
+          F_down  = log(tanh(max(C_i, layer)))
+          F_up    = Sum_children([Float.Tanh])
+          F_belief= layer
+          H_halt  = ((old_M_up - new_M_up) < 0.1)
+    #10  score=0.17557  BER=0.09359  faults=0.00  len=11
+          F_down  = (M_par_down + sqrt(C_i))
+          F_up    = M_1_up
+          F_belief= [Int.LT]
+          H_halt  = [Float.Sub]
+
+[2026-04-14 01:05:25] Gen 18  Fit(BER=0.05453 ratio=0.459 FLOPs=21735 len=25 faults=0.00 gap=0.003 bp=4115.1 nlbp=0.0 bpg=0.000)
+  DOWN:[Int.Inc ; Float.Add ; Node.GetParent] | UP:[Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup] | BEL:[Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max] | HALT:[Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT] | LOGC:[0.0111,-0.4585,1.0875,-1.7998]
+  Top-10 individuals (Gen 18):
+    # 1  score=0.06730  BER=0.05453  faults=0.00  len=25
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+          [DOWN]   Int.Inc ; Float.Add ; Node.GetParent
+          [UP]     Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup
+          [BELIEF] Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max
+          [HALT]   Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT
+    # 2  score=0.06778  BER=0.05453  faults=0.00  len=28
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(0.5, ((sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))) - EC1) / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = (0 < [Bool.Or])
+    # 3  score=0.06828  BER=0.05852  faults=0.00  len=16
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |(old_M_up < ((new_M_up > [Int.LT]) < 0))|
+    # 4  score=0.12088  BER=0.09578  faults=0.00  len=18
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |([Int.LT] < ([Int.LT] < 0))|
+    # 5  score=0.13011  BER=0.07141  faults=0.00  len=31
+          F_down  = ([Int.Inc] - C_i)
+          F_up    = repeat(EC3)
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = (1/(new_M_up < [Bool.And]))
+    # 6  score=0.13538  BER=0.08898  faults=0.00  len=33
+          F_down  = (1 - [Node.WriteMem])
+          F_up    = repeat(EC3)
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = (1/([Bool.Or] < (TRUE < [Bool.Or])))
+    # 7  score=0.14280  BER=0.08898  faults=0.00  len=31
+          F_down  = (1 - sqrt([Node.WriteMem]))
+          F_up    = repeat(EC3)
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = (1/([Int.LT] < [Bool.And]))
+    # 8  score=0.15414  BER=0.08672  faults=0.00  len=28
+          F_down  = sqrt((M_par_down + C_i))
+          F_up    = [Int.Dup]
+          F_belief= ([Float.Swap] + noise_var)
+          H_halt  = ([Bool.Not] < [Int.Swap])
+    # 9  score=0.15465  BER=0.09813  faults=0.00  len=17
+          F_down  = log([Node.SetMUp])
+          F_up    = |[Graph.NodeCount]|
+          F_belief= |M_up|
+          H_halt  = (old_M_up > min(new_M_up, noise_var))
+    #10  score=0.16061  BER=0.07375  faults=0.00  len=29
+          F_down  = (M_par_down + sqrt(C_i))
+          F_up    = [Int.Dup]
+          F_belief= ([Float.Swap] + noise_var)
+          H_halt  = ([Bool.Not] < [Int.Swap])
+
+[2026-04-14 01:06:28] Gen 19  Fit(BER=0.05453 ratio=0.459 FLOPs=21735 len=25 faults=0.00 gap=0.003 bp=4115.1 nlbp=0.0 bpg=0.000)
+  DOWN:[Int.Inc ; Float.Add ; Node.GetParent] | UP:[Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup] | BEL:[Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max] | HALT:[Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT] | LOGC:[0.0111,-0.4585,1.0875,-1.7998]
+  Top-10 individuals (Gen 19):
+    # 1  score=0.06730  BER=0.05453  faults=0.00  len=25
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+          [DOWN]   Int.Inc ; Float.Add ; Node.GetParent
+          [UP]     Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup
+          [BELIEF] Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max
+          [HALT]   Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT
+    # 2  score=0.06778  BER=0.05453  faults=0.00  len=28
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(0.5, ((sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))) - EC1) / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = (0 < [Bool.Or])
+    # 3  score=0.06828  BER=0.05852  faults=0.00  len=16
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |(old_M_up < ((new_M_up > [Int.LT]) < 0))|
+    # 4  score=0.12015  BER=0.09578  faults=0.00  len=15
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |(old_M_up < ((new_M_up > [Int.LT]) < 0))|
+    # 5  score=0.12088  BER=0.09578  faults=0.00  len=16
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = ([Int.LT] < ([Int.LT] < 0))
+    # 6  score=0.12089  BER=0.09578  faults=0.00  len=19
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |([Int.LT] < [Int.LT])|
+    # 7  score=0.12158  BER=0.09578  faults=0.00  len=19
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + |M_up|))
+          H_halt  = |(0 < [Int.LT])|
+    # 8  score=0.12993  BER=0.07141  faults=0.00  len=28
+          F_down  = (C_i - M_par_down)
+          F_up    = repeat(EC3)
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = (new_M_up < [Bool.And])
+    # 9  score=0.12999  BER=0.07141  faults=0.00  len=31
+          F_down  = ([Int.Inc] - C_i)
+          F_up    = repeat(EC3)
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = (1/(new_M_up < |[Bool.And]|))
+    #10  score=0.13011  BER=0.07141  faults=0.00  len=31
+          F_down  = (M_par_down - [Int.Inc])
+          F_up    = repeat(EC3)
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = (1/(new_M_up < [Bool.And]))
+
+[2026-04-14 01:07:42] Gen 20  Fit(BER=0.05453 ratio=0.459 FLOPs=21735 len=25 faults=0.00 gap=0.003 bp=4115.1 nlbp=0.0 bpg=0.000)
+  DOWN:[Int.Inc ; Float.Add ; Node.GetParent] | UP:[Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup] | BEL:[Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max] | HALT:[Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT] | LOGC:[0.0111,-0.4585,1.0875,-1.7998]
+  Top-10 individuals (Gen 20):
+    # 1  score=0.06730  BER=0.05453  faults=0.00  len=25
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+          [DOWN]   Int.Inc ; Float.Add ; Node.GetParent
+          [UP]     Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup
+          [BELIEF] Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max
+          [HALT]   Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT
+    # 2  score=0.06778  BER=0.05453  faults=0.00  len=28
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(0.5, ((sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))) - EC1) / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = (0 < [Bool.Or])
+    # 3  score=0.06828  BER=0.05852  faults=0.00  len=16
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |(old_M_up < ((new_M_up > [Int.LT]) < 0))|
+    # 4  score=0.09827  BER=0.07297  faults=0.00  len=15
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |(old_M_up < ((new_M_up > [Int.LT]) < 0))|
+    # 5  score=0.09914  BER=0.07297  faults=0.00  len=16
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = ([Int.LT] < ([Int.LT] < 0))
+    # 6  score=0.09921  BER=0.07297  faults=0.00  len=14
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |((old_M_up > new_M_up) < 0)|
+    # 7  score=0.13914  BER=0.13125  faults=0.00  len=32
+          F_down  = ([Int.Inc] - C_i)
+          F_up    = repeat(EC3)
+          F_belief= (M_down + (M_up + M_up))
+          H_halt  = (1/(old_M_up < |new_M_up|))
+    # 8  score=0.16234  BER=0.09305  faults=0.00  len=13
+          F_down  = log(max(M_par_down, C_i))
+          F_up    = layer
+          F_belief= (M_up + M_down)
+          H_halt  = [Int.Const0]
+    # 9  score=0.16933  BER=0.08078  faults=0.00  len=23
+          F_down  = (C_i + [Int.Inc])
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+    #10  score=0.16974  BER=0.08078  faults=0.00  len=28
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max(noise_var, ((sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))) - EC1) / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = (0 < [Bool.Or])
+
+[2026-04-14 01:08:54] Gen 21  Fit(BER=0.05453 ratio=0.459 FLOPs=21735 len=25 faults=0.00 gap=0.003 bp=4115.1 nlbp=0.0 bpg=0.000)
+  DOWN:[Int.Inc ; Float.Add ; Node.GetParent] | UP:[Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup] | BEL:[Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max] | HALT:[Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT] | LOGC:[0.0111,-0.4585,1.0875,-1.7998]
+  Top-10 individuals (Gen 21):
+    # 1  score=0.06730  BER=0.05453  faults=0.00  len=25
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+          [DOWN]   Int.Inc ; Float.Add ; Node.GetParent
+          [UP]     Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup
+          [BELIEF] Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max
+          [HALT]   Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT
+    # 2  score=0.06778  BER=0.05453  faults=0.00  len=28
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(0.5, ((sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))) - EC1) / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = (0 < [Bool.Or])
+    # 3  score=0.06828  BER=0.05852  faults=0.00  len=16
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |(old_M_up < ((new_M_up > [Int.LT]) < 0))|
+    # 4  score=0.09827  BER=0.07297  faults=0.00  len=16
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (M_down + (M_up + D_i))
+          H_halt  = |(old_M_up < ((new_M_up > [Int.LT]) < 0))|
+    # 5  score=0.09921  BER=0.07297  faults=0.00  len=17
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Int.Dup]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |(([Int.LT] > [Bool.Or]) < 0)|
+    # 6  score=0.11049  BER=0.07750  faults=0.00  len=15
+          F_down  = (1 - |sqrt([Node.WriteMem])|)
+          F_up    = max(M_1_up, C_2)
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = ([Int.LT] < ([Int.LT] < 0))
+    # 7  score=0.14357  BER=0.09023  faults=0.00  len=14
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (M_down + M_up)
+          H_halt  = |0|
+    # 8  score=0.16183  BER=0.11445  faults=0.00  len=30
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(M_1_up, ((C_2 - sqrt(max(M_2_up, ([Exec.DoTimes] / [Mat.Row])))) / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = (0 < ([Int.LT] < 0))
+    # 9  score=0.16516  BER=0.09445  faults=0.00  len=14
+          F_down  = log([Node.SetMUp])
+          F_up    = [Int.Pop]
+          F_belief= M_up
+          H_halt  = noise_var
+    #10  score=0.16924  BER=0.08078  faults=0.00  len=19
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max(0.5, ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max(M_down, M_up)
+          H_halt  = ([Bool.Or] < 0.1)
+
+[2026-04-14 01:10:04] Gen 22  Fit(BER=0.05453 ratio=0.459 FLOPs=21735 len=25 faults=0.00 gap=0.003 bp=4115.1 nlbp=0.0 bpg=0.000)
+  DOWN:[Int.Inc ; Float.Add ; Node.GetParent] | UP:[Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup] | BEL:[Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max] | HALT:[Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT] | LOGC:[0.0111,-0.4585,1.0875,-1.7998]
+  Top-10 individuals (Gen 22):
+    # 1  score=0.06730  BER=0.05453  faults=0.00  len=25
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+          [DOWN]   Int.Inc ; Float.Add ; Node.GetParent
+          [UP]     Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup
+          [BELIEF] Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max
+          [HALT]   Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT
+    # 2  score=0.06778  BER=0.05453  faults=0.00  len=28
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(0.5, ((sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))) - EC1) / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = (0 < [Bool.Or])
+    # 3  score=0.06828  BER=0.05852  faults=0.00  len=16
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |(old_M_up < ((new_M_up > [Int.LT]) < 0))|
+    # 4  score=0.09921  BER=0.07297  faults=0.00  len=17
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Int.Dup]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |(([Int.LT] > [Bool.Or]) < 0)|
+    # 5  score=0.09921  BER=0.07297  faults=0.00  len=17
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = (1 < (|[Int.LT]| < 0))
+    # 6  score=0.12774  BER=0.10227  faults=0.00  len=26
+          F_down  = [Node.SetMDown]
+          F_up    = (C_2 - M_2_up)
+          F_belief= ([Int.Const2] - layer)
+          H_halt  = EC0
+    # 7  score=0.15239  BER=0.09164  faults=0.00  len=27
+          F_down  = M_par_down
+          F_up    = repeat(N_ch)
+          F_belief= |([Float.Rot] + C_i)|
+          H_halt  = 0
+    # 8  score=0.16131  BER=0.08195  faults=0.00  len=31
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(M_1_up, ((C_2 - sqrt(max(M_2_up, ([Exec.DoTimes] / [Mat.Row])))) / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = (layer < (([Int.LT] < [Int.LT]) < EC2))
+    # 9  score=0.16179  BER=0.11445  faults=0.00  len=31
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max((M_1_up - (C_2 / max(M_2_up, ([Exec.DoTimes] / [Mat.Row])))), sqrt([Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = ([Int.LT] < (0 < EC1))
+    #10  score=0.16516  BER=0.09445  faults=0.00  len=13
+          F_down  = log([Node.SetMUp])
+          F_up    = [Int.Pop]
+          F_belief= M_up
+          H_halt  = noise_var
+
+[2026-04-14 01:11:09] Gen 23  Fit(BER=0.05453 ratio=0.459 FLOPs=21735 len=25 faults=0.00 gap=0.003 bp=4115.1 nlbp=0.0 bpg=0.000)
+  DOWN:[Int.Inc ; Float.Add ; Node.GetParent] | UP:[Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup] | BEL:[Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max] | HALT:[Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT] | LOGC:[0.0111,-0.4585,1.0875,-1.7998]
+  Top-10 individuals (Gen 23):
+    # 1  score=0.06730  BER=0.05453  faults=0.00  len=25
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+          [DOWN]   Int.Inc ; Float.Add ; Node.GetParent
+          [UP]     Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup
+          [BELIEF] Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max
+          [HALT]   Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT
+    # 2  score=0.06778  BER=0.05453  faults=0.00  len=28
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(0.5, ((sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))) - EC1) / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = (0 < [Bool.Or])
+    # 3  score=0.06828  BER=0.05852  faults=0.00  len=16
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |(old_M_up < ((new_M_up > [Int.LT]) < 0))|
+    # 4  score=0.08470  BER=0.07273  faults=0.00  len=25
+          F_down  = tanh(([Int.Inc] + exp([Int.Inc])))
+          F_up    = layer
+          F_belief= max(M_up, [Int.Inc])
+          H_halt  = ((new_M_up > [Node.ReadMem]) < old_M_up)
+    # 5  score=0.10809  BER=0.05859  faults=0.00  len=25
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max(M_1_up, ((sqrt(max(C_2, ([Exec.DoTimes] / [Mat.Row]))) - EC1) / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = (old_M_up < new_M_up)
+    # 6  score=0.11119  BER=0.05438  faults=0.00  len=23
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max(EC1, [Int.Sub])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+    # 7  score=0.11119  BER=0.05438  faults=0.00  len=24
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+    # 8  score=0.11127  BER=0.05438  faults=0.00  len=26
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max((0.5 + (0.5 - EC1)), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+    # 9  score=0.11128  BER=0.05438  faults=0.00  len=26
+          F_down  = ([Int.Inc] + [Node.GetParent])
+          F_up    = log(sqrt(max(0.5, ((0.5 - EC1) - ([Exec.DoTimes] * [Mat.Row])))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+    #10  score=0.11150  BER=0.05438  faults=0.00  len=18
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max(tanh(0.5), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max(M_down, M_up)
+          H_halt  = (old_M_up < 0.1)
+
+[2026-04-14 01:12:15] Gen 24  Fit(BER=0.05453 ratio=0.459 FLOPs=21735 len=25 faults=0.00 gap=0.003 bp=4115.1 nlbp=0.0 bpg=0.000)
+  DOWN:[Int.Inc ; Float.Add ; Node.GetParent] | UP:[Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup] | BEL:[Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max] | HALT:[Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT] | LOGC:[0.0111,-0.4585,1.0875,-1.7998]
+  Top-10 individuals (Gen 24):
+    # 1  score=0.06730  BER=0.05453  faults=0.00  len=25
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+          [DOWN]   Int.Inc ; Float.Add ; Node.GetParent
+          [UP]     Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup
+          [BELIEF] Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max
+          [HALT]   Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT
+    # 2  score=0.06778  BER=0.05453  faults=0.00  len=28
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(0.5, ((sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))) - EC1) / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = (0 < [Bool.Or])
+    # 3  score=0.06828  BER=0.05852  faults=0.00  len=16
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |(old_M_up < ((new_M_up > [Int.LT]) < 0))|
+    # 4  score=0.08819  BER=0.07219  faults=0.00  len=25
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+    # 5  score=0.09572  BER=0.07273  faults=0.00  len=28
+          F_down  = tanh(([Int.Inc] + exp([Int.Inc])))
+          F_up    = layer
+          F_belief= max(|M_up|, [Int.Inc])
+          H_halt  = 0.5
+    # 6  score=0.10202  BER=0.07305  faults=0.00  len=26
+          F_down  = tanh([Int.Inc])
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = EC0
+    # 7  score=0.10634  BER=0.06258  faults=0.00  len=34
+          F_down  = (TRUE * [Mat.PeekAtIm])
+          F_up    = [Node.Pop]
+          F_belief= [Int.Pop]
+          H_halt  = noise_var
+    # 8  score=0.10809  BER=0.05859  faults=0.00  len=25
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max(M_1_up, ((sqrt(max(C_2, ([Exec.DoTimes] / [Mat.Row]))) - EC1) / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = (old_M_up < new_M_up)
+    # 9  score=0.11104  BER=0.05438  faults=0.00  len=15
+          F_down  = [Int.Inc]
+          F_up    = [Exec.DoTimes]
+          F_belief= [Int.Sub]
+          H_halt  = (new_M_up < [Node.ReadMem])
+    #10  score=0.11112  BER=0.05438  faults=0.00  len=14
+          F_down  = (C_i + [Int.Inc])
+          F_up    = log((M_1_up / (C_2 - M_2_up)))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Bool.Or] < [Node.ReadMem])
+
+[2026-04-14 01:13:12] Gen 25  Fit(BER=0.05453 ratio=0.459 FLOPs=21735 len=25 faults=0.00 gap=0.003 bp=4115.1 nlbp=0.0 bpg=0.000)
+  DOWN:[Int.Inc ; Float.Add ; Node.GetParent] | UP:[Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup] | BEL:[Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max] | HALT:[Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT] | LOGC:[0.0111,-0.4585,1.0875,-1.7998]
+  Top-10 individuals (Gen 25):
+    # 1  score=0.06730  BER=0.05453  faults=0.00  len=25
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+          [DOWN]   Int.Inc ; Float.Add ; Node.GetParent
+          [UP]     Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup
+          [BELIEF] Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max
+          [HALT]   Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT
+    # 2  score=0.06778  BER=0.05453  faults=0.00  len=28
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(0.5, ((sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))) - EC1) / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = (0 < [Bool.Or])
+    # 3  score=0.06828  BER=0.05852  faults=0.00  len=16
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |(old_M_up < ((new_M_up > [Int.LT]) < 0))|
+    # 4  score=0.08820  BER=0.07219  faults=0.00  len=23
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max((B_i - 0.5), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], EC1)
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+    # 5  score=0.09485  BER=0.06758  faults=0.00  len=35
+          F_down  = ((TRUE)^2 * [Mat.PeekAtIm])
+          F_up    = [Node.Pop]
+          F_belief= [Int.Pop]
+          H_halt  = noise_var
+    # 6  score=0.09559  BER=0.07305  faults=0.00  len=30
+          F_down  = tanh([Int.Inc])
+          F_up    = log(sqrt(([Exec.DoTimes] * [Mat.Row])))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = EC0
+    # 7  score=0.09562  BER=0.06227  faults=0.00  len=38
+          F_down  = [Node.GetParent]
+          F_up    = ((0.5 + tanh(EC1)) * sqrt(max(((([Exec.DoTimes] / [Mat.Row]) + 0.5) - EC1), ([Exec.DoTimes] / C_i))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Bool.Or] < [Node.ReadMem])
+    # 8  score=0.09573  BER=0.07531  faults=0.00  len=23
+          F_down  = sqrt((M_par_down + C_i))
+          F_up    = log(sqrt(max(((M_2_up)^2 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+    # 9  score=0.09924  BER=0.05859  faults=0.00  len=27
+          F_down  = [Node.GetParent]
+          F_up    = ([Exec.DoTimes] - log(sqrt(max(EC1, (EC1 / [Mat.Row])))))
+          F_belief= [Int.Inc]
+          H_halt  = EC3
+    #10  score=0.10048  BER=0.05859  faults=0.00  len=35
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max((M_2_up + ((0.5 - sqrt(max(max(0.5, EC1), (N_ch / [Mat.Row])))) - EC1)), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = 0.5
+
+[2026-04-14 01:14:14] Gen 26  Fit(BER=0.05453 ratio=0.459 FLOPs=21735 len=25 faults=0.00 gap=0.003 bp=4115.1 nlbp=0.0 bpg=0.000)
+  DOWN:[Int.Inc ; Float.Add ; Node.GetParent] | UP:[Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup] | BEL:[Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max] | HALT:[Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT] | LOGC:[0.0111,-0.4585,1.0875,-1.7998]
+  Top-10 individuals (Gen 26):
+    # 1  score=0.06730  BER=0.05453  faults=0.00  len=25
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+          [DOWN]   Int.Inc ; Float.Add ; Node.GetParent
+          [UP]     Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup
+          [BELIEF] Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max
+          [HALT]   Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT
+    # 2  score=0.06778  BER=0.05453  faults=0.00  len=28
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(0.5, ((sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))) - EC1) / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = (0 < [Bool.Or])
+    # 3  score=0.06794  BER=0.05367  faults=0.00  len=26
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max([Exec.DoTimes], (sqrt([Mat.Row]) / [Mat.Row]))))
+          F_belief= max([Int.Inc], [Int.Sub])
+          H_halt  = [Node.ReadMem]
+    # 4  score=0.06828  BER=0.05852  faults=0.00  len=16
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |(old_M_up < ((new_M_up > [Int.LT]) < 0))|
+    # 5  score=0.08381  BER=0.07586  faults=0.00  len=28
+          F_down  = tanh([Int.Inc])
+          F_up    = log(sqrt(([Exec.DoTimes] * [Mat.Row])))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = EC0
+    # 6  score=0.08626  BER=0.07016  faults=0.00  len=14
+          F_down  = sqrt((M_par_down + C_i))
+          F_up    = (M_2_up - max(tanh(layer), 0.5))
+          F_belief= (max(M_down, (M_up + EC1)))^2
+          H_halt  = EC0
+    # 7  score=0.09644  BER=0.06898  faults=0.00  len=16
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |((old_M_up < (new_M_up > [Int.LT])) < 0)|
+    # 8  score=0.10381  BER=0.08406  faults=0.00  len=27
+          F_down  = |(-(M_par_down - C_i))|
+          F_up    = max((layer + Sum_children([Int.Pop])), D_i)
+          F_belief= min((EC3 + [Node.SetMUp]), layer)
+          H_halt  = layer
+    # 9  score=0.10854  BER=0.07523  faults=0.00  len=31
+          F_down  = tanh([Int.Inc])
+          F_up    = M_2_up
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = EC0
+    #10  score=0.10862  BER=0.07523  faults=0.00  len=24
+          F_down  = tanh([Int.Inc])
+          F_up    = log(sqrt(max(M_2_up, ((0.5 - EC1) / [Mat.Row]))))
+          F_belief= max(EC1, [Int.Sub])
+          H_halt  = EC0
+
+[2026-04-14 01:15:15] Gen 27  Fit(BER=0.05453 ratio=0.459 FLOPs=21735 len=25 faults=0.00 gap=0.003 bp=4115.1 nlbp=0.0 bpg=0.000)
+  DOWN:[Int.Inc ; Float.Add ; Node.GetParent] | UP:[Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup] | BEL:[Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max] | HALT:[Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT] | LOGC:[0.0111,-0.4585,1.0875,-1.7998]
+  Top-10 individuals (Gen 27):
+    # 1  score=0.06730  BER=0.05453  faults=0.00  len=25
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+          [DOWN]   Int.Inc ; Float.Add ; Node.GetParent
+          [UP]     Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup
+          [BELIEF] Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max
+          [HALT]   Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT
+    # 2  score=0.06778  BER=0.05453  faults=0.00  len=28
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(0.5, ((sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))) - EC1) / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = (0 < [Bool.Or])
+    # 3  score=0.06794  BER=0.05367  faults=0.00  len=26
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max([Exec.DoTimes], (sqrt([Mat.Row]) / [Mat.Row]))))
+          F_belief= max([Int.Inc], [Int.Sub])
+          H_halt  = [Node.ReadMem]
+    # 4  score=0.09463  BER=0.06273  faults=0.00  len=20
+          F_down  = exp((C_i - M_par_down))
+          F_up    = Sum_children((M_up + EC2))
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = ([Mat.ElementAt] > noise_var)
+    # 5  score=0.09644  BER=0.06898  faults=0.00  len=15
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = (old_M_up < (new_M_up > ([Int.LT] < 0)))
+    # 6  score=0.09644  BER=0.06898  faults=0.00  len=16
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |((old_M_up > (new_M_up < [Int.LT])) < 0)|
+    # 7  score=0.09648  BER=0.06898  faults=0.00  len=16
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = ([Node.SetMUp])^2
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = |((old_M_up < (new_M_up > [Int.LT])) < 0)|
+    # 8  score=0.10217  BER=0.08406  faults=0.00  len=26
+          F_down  = |(-(M_par_down - C_i))|
+          F_up    = max([Int.Pop], (layer + Sum_children([Int.Pop])))
+          F_belief= min(max(EC3, [Node.SetMUp]), layer)
+          H_halt  = |new_M_up|
+    # 9  score=0.10304  BER=0.07523  faults=0.00  len=31
+          F_down  = tanh([Int.Inc])
+          F_up    = 0.5
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = [Node.ReadMem]
+    #10  score=0.10339  BER=0.07523  faults=0.00  len=38
+          F_down  = tanh([Int.Inc])
+          F_up    = (max(C_2, sqrt(max(M_2_up, (0.5 / sqrt(max((0.5 - tanh(EC1)), ([Exec.DoTimes] / [Mat.Row]))))))) * log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row])))))
+          F_belief= max(M_down, 0.5)
+          H_halt  = EC0
+
+[2026-04-14 01:16:15] Gen 28  Fit(BER=0.05453 ratio=0.459 FLOPs=21735 len=25 faults=0.00 gap=0.003 bp=4115.1 nlbp=0.0 bpg=0.000)
+  DOWN:[Int.Inc ; Float.Add ; Node.GetParent] | UP:[Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup] | BEL:[Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max] | HALT:[Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT] | LOGC:[0.0111,-0.4585,1.0875,-1.7998]
+  Top-10 individuals (Gen 28):
+    # 1  score=0.06730  BER=0.05453  faults=0.00  len=25
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+          [DOWN]   Int.Inc ; Float.Add ; Node.GetParent
+          [UP]     Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup
+          [BELIEF] Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max
+          [HALT]   Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT
+    # 2  score=0.06778  BER=0.05453  faults=0.00  len=28
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(0.5, ((sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))) - EC1) / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = (0 < [Bool.Or])
+    # 3  score=0.06794  BER=0.05367  faults=0.00  len=26
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max([Exec.DoTimes], (sqrt([Mat.Row]) / [Mat.Row]))))
+          F_belief= max([Int.Inc], [Int.Sub])
+          H_halt  = [Node.ReadMem]
+    # 4  score=0.06794  BER=0.05367  faults=0.00  len=23
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max([Exec.DoTimes], (sqrt([Mat.Row]) / [Mat.Row]))))
+          F_belief= max(M_up, [Int.Sub])
+          H_halt  = EC2
+    # 5  score=0.07088  BER=0.05367  faults=0.00  len=24
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(C_2, ((sqrt(max((M_2_up - 0.5), ([Exec.DoTimes] / [Mat.Row]))) - EC1) / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = (old_M_up < new_M_up)
+    # 6  score=0.08484  BER=0.07016  faults=0.00  len=27
+          F_down  = sqrt((C_i + [Node.GetParent]))
+          F_up    = (((sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))) - EC1) / [Mat.Row]) - max(layer, 0.5))
+          F_belief= (max(M_down, M_up))^2
+          H_halt  = EC0
+    # 7  score=0.08750  BER=0.07672  faults=0.00  len=28
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max(([Mat.Row] - 0.5), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max(max(M_up, EC1), M_down)
+          H_halt  = ([Node.ReadMem] < [Int.LT])
+    # 8  score=0.09463  BER=0.06273  faults=0.00  len=20
+          F_down  = exp((C_i - M_par_down))
+          F_up    = Sum_children((M_up + EC2))
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = ([Mat.ElementAt] > noise_var)
+    # 9  score=0.09644  BER=0.06898  faults=0.00  len=17
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= [Float.Swap]
+          H_halt  = (new_M_up < ([Int.LT] > ([Int.LT] < 0)))
+    #10  score=0.09644  BER=0.06898  faults=0.00  len=16
+          F_down  = ([Node.WriteMem] - |1|)
+          F_up    = [Bool.Or]
+          F_belief= (D_i + (M_down + M_up))
+          H_halt  = (new_M_up < ([Int.LT] > (FALSE < [Int.Const0])))
+
+[2026-04-14 01:17:21] Gen 29  Fit(BER=0.05453 ratio=0.459 FLOPs=21735 len=25 faults=0.00 gap=0.003 bp=4115.1 nlbp=0.0 bpg=0.000)
+  DOWN:[Int.Inc ; Float.Add ; Node.GetParent] | UP:[Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup] | BEL:[Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max] | HALT:[Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT] | LOGC:[0.0111,-0.4585,1.0875,-1.7998]
+  Top-10 individuals (Gen 29):
+    # 1  score=0.06730  BER=0.05453  faults=0.00  len=25
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+          [DOWN]   Int.Inc ; Float.Add ; Node.GetParent
+          [UP]     Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup
+          [BELIEF] Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max
+          [HALT]   Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT
+    # 2  score=0.06778  BER=0.05453  faults=0.00  len=28
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(0.5, ((sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))) - EC1) / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = (0 < [Bool.Or])
+    # 3  score=0.06794  BER=0.05367  faults=0.00  len=26
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max([Exec.DoTimes], (sqrt([Mat.Row]) / [Mat.Row]))))
+          F_belief= max([Int.Inc], [Int.Sub])
+          H_halt  = [Node.ReadMem]
+    # 4  score=0.08132  BER=0.06055  faults=0.00  len=28
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max([Exec.DoTimes], (sqrt([Mat.Row]) / [Mat.Row]))))
+          F_belief= max([Int.Inc], [Int.Sub])
+          H_halt  = (EC2 < [Bool.Or])
+    # 5  score=0.08180  BER=0.06055  faults=0.00  len=22
+          F_down  = ((C_i)^2 + [Node.GetParent])
+          F_up    = log(sqrt(max([Exec.DoTimes], ([Mat.Row] / [Mat.Row]))))
+          F_belief= max(M_down, (M_up)^2)
+          H_halt  = EC2
+    # 6  score=0.08424  BER=0.06055  faults=0.00  len=22
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max([Exec.DoTimes], (sqrt([Mat.Row]) / [Mat.Row]))))
+          F_belief= [Int.Sub]
+          H_halt  = [Float.Swap]
+    # 7  score=0.08427  BER=0.06055  faults=0.00  len=25
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max([Exec.DoTimes], (sqrt([Mat.Row]) / [Mat.Row]))))
+          F_belief= max([Int.Inc], [Int.Sub])
+          H_halt  = [Node.ReadMem]
+    # 8  score=0.08449  BER=0.06055  faults=0.00  len=25
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(C_2, ((sqrt(max((M_2_up - 0.5), ([Exec.DoTimes] / [Mat.Row]))) - EC1) / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = (old_M_up < new_M_up)
+    # 9  score=0.08453  BER=0.06055  faults=0.00  len=35
+          F_down  = [Node.GetParent]
+          F_up    = ((M_2_up + ((0.5 - sqrt((max(0.5, EC1) - (N_ch / [Mat.Row])))) - EC1)) / [Exec.DoTimes])
+          F_belief= max([Int.Inc], [Int.Sub])
+          H_halt  = [Node.ReadMem]
+    #10  score=0.09054  BER=0.06766  faults=0.00  len=26
+          F_down  = max(C_i, [Int.Inc])
+          F_up    = log(sqrt(max(max(C_2, sqrt(max((max(M_2_up, (B_i / 0.5)) - EC1), 1))), (sqrt(0.5) / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = (0.5 < new_M_up)
+
+[2026-04-14 01:18:34] Gen 30  Fit(BER=0.05453 ratio=0.459 FLOPs=21735 len=25 faults=0.00 gap=0.003 bp=4115.1 nlbp=0.0 bpg=0.000)
+  DOWN:[Int.Inc ; Float.Add ; Node.GetParent] | UP:[Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup] | BEL:[Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max] | HALT:[Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT] | LOGC:[0.0111,-0.4585,1.0875,-1.7998]
+  Top-10 individuals (Gen 30):
+    # 1  score=0.06730  BER=0.05453  faults=0.00  len=25
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+          [DOWN]   Int.Inc ; Float.Add ; Node.GetParent
+          [UP]     Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup
+          [BELIEF] Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max
+          [HALT]   Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT
+    # 2  score=0.06778  BER=0.05453  faults=0.00  len=28
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(0.5, ((sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))) - EC1) / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = (0 < [Bool.Or])
+    # 3  score=0.06794  BER=0.05367  faults=0.00  len=26
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max([Exec.DoTimes], (sqrt([Mat.Row]) / [Mat.Row]))))
+          F_belief= max([Int.Inc], [Int.Sub])
+          H_halt  = [Node.ReadMem]
+    # 4  score=0.08129  BER=0.06055  faults=0.00  len=26
+          F_down  = [Node.GetParent]
+          F_up    = log((sqrt([Mat.Row]) / max([Mat.Row], 0.5)))
+          F_belief= max([Int.Inc], [Int.Sub])
+          H_halt  = [Node.ReadMem]
+    # 5  score=0.08129  BER=0.06055  faults=0.00  len=26
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max([Exec.DoTimes], (sqrt([Mat.Row]) / [Mat.Row]))))
+          F_belief= max([Int.Inc], [Int.Sub])
+          H_halt  = [Node.ReadMem]
+    # 6  score=0.08191  BER=0.07500  faults=0.00  len=26
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+    # 7  score=0.08413  BER=0.06055  faults=0.00  len=22
+          F_down  = [Node.GetParent]
+          F_up    = log(max([Exec.DoTimes], (sqrt((-[Mat.Row])) / [Mat.Row])))
+          F_belief= max(M_up, [Int.Sub])
+          H_halt  = [Float.Swap]
+    # 8  score=0.08424  BER=0.06055  faults=0.00  len=22
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max([Mat.Row], (sqrt([Exec.DoTimes]) / [Mat.Row]))))
+          F_belief= [Int.Sub]
+          H_halt  = (old_M_up > new_M_up)
+    # 9  score=0.08424  BER=0.06055  faults=0.00  len=22
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max([Exec.DoTimes], (sqrt([Mat.Row]) / [Mat.Row]))))
+          F_belief= max(M_up, [Int.Sub])
+          H_halt  = [Float.Swap]
+    #10  score=0.08438  BER=0.06055  faults=0.00  len=28
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max([Exec.DoTimes], (sqrt([Mat.Row]) / [Mat.Row]))))
+          F_belief= [Int.Sub]
+          H_halt  = (old_M_up < (new_M_up > EC2))
+
+[2026-04-14 01:19:34] Gen 31  Fit(BER=0.05453 ratio=0.459 FLOPs=21735 len=25 faults=0.00 gap=0.003 bp=4115.1 nlbp=0.0 bpg=0.000)
+  DOWN:[Int.Inc ; Float.Add ; Node.GetParent] | UP:[Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup] | BEL:[Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max] | HALT:[Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT] | LOGC:[0.0111,-0.4585,1.0875,-1.7998]
+  Top-10 individuals (Gen 31):
+    # 1  score=0.06730  BER=0.05453  faults=0.00  len=25
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+          [DOWN]   Int.Inc ; Float.Add ; Node.GetParent
+          [UP]     Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup
+          [BELIEF] Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max
+          [HALT]   Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT
+    # 2  score=0.06778  BER=0.05453  faults=0.00  len=28
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(0.5, ((sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))) - EC1) / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = (0 < [Bool.Or])
+    # 3  score=0.06794  BER=0.05367  faults=0.00  len=26
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max([Exec.DoTimes], (sqrt([Mat.Row]) / [Mat.Row]))))
+          F_belief= max([Int.Inc], [Int.Sub])
+          H_halt  = [Node.ReadMem]
+    # 4  score=0.08129  BER=0.06055  faults=0.00  len=27
+          F_down  = [Node.GetParent]
+          F_up    = log([Exec.DoTimes])
+          F_belief= max([Int.Inc], [Int.Sub])
+          H_halt  = [Node.ReadMem]
+    # 5  score=0.08129  BER=0.06055  faults=0.00  len=24
+          F_down  = (M_par_down + (C_i)^2)
+          F_up    = log(sqrt(max([Exec.DoTimes], (sqrt([Mat.Row]) / [Mat.Row]))))
+          F_belief= max(0.5, [Int.Inc])
+          H_halt  = [Node.ReadMem]
+    # 6  score=0.08132  BER=0.06055  faults=0.00  len=28
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max([Exec.DoTimes], (sqrt(sqrt([Mat.Row])) / [Mat.Row]))))
+          F_belief= max([Int.Inc], [Int.Sub])
+          H_halt  = [Node.ReadMem]
+    # 7  score=0.08154  BER=0.06055  faults=0.00  len=26
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max((0.5 - EC1), (log(sqrt(max([Exec.DoTimes], (sqrt([Mat.Row]) / [Mat.Row])))) / [Mat.Row]))))
+          F_belief= max(M_down, M_up)
+          H_halt  = new_M_up
+    # 8  score=0.08317  BER=0.07500  faults=0.00  len=27
+          F_down  = (|C_i| + [Node.GetParent])
+          F_up    = max([Exec.DoTimes], sqrt(log((0.5 / [Mat.Row]))))
+          F_belief= MMSE_LB
+          H_halt  = [Bool.Not]
+    # 9  score=0.08427  BER=0.06055  faults=0.00  len=28
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max([Exec.DoTimes], (sqrt([Mat.Row]) / [Mat.Row]))))
+          F_belief= max([Int.Inc], [Int.Sub])
+          H_halt  = [Bool.And]
+    #10  score=0.08437  BER=0.06055  faults=0.00  len=25
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max([Exec.DoTimes], ((sqrt([Mat.Row]) / [Mat.Row]) / [Mat.Row]))))
+          F_belief= max(M_up, [Int.Inc])
+          H_halt  = (((old_M_up > new_M_up) < [Node.ReadMem]) < [Float.Swap])
+
+[2026-04-14 01:20:40] Gen 32  Fit(BER=0.05453 ratio=0.459 FLOPs=21735 len=25 faults=0.00 gap=0.003 bp=4115.1 nlbp=0.0 bpg=0.000)
+  DOWN:[Int.Inc ; Float.Add ; Node.GetParent] | UP:[Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup] | BEL:[Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max] | HALT:[Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT] | LOGC:[0.0111,-0.4585,1.0875,-1.7998]
+  Top-10 individuals (Gen 32):
+    # 1  score=0.06730  BER=0.05453  faults=0.00  len=25
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+          [DOWN]   Int.Inc ; Float.Add ; Node.GetParent
+          [UP]     Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup
+          [BELIEF] Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max
+          [HALT]   Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT
+    # 2  score=0.06778  BER=0.05453  faults=0.00  len=28
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(0.5, ((sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))) - EC1) / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = (0 < [Bool.Or])
+    # 3  score=0.06794  BER=0.05367  faults=0.00  len=26
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max([Exec.DoTimes], (sqrt([Mat.Row]) / [Mat.Row]))))
+          F_belief= max([Int.Inc], [Int.Sub])
+          H_halt  = [Node.ReadMem]
+    # 4  score=0.07294  BER=0.06477  faults=0.00  len=26
+          F_down  = (C_i + ([Node.GetParent])^2)
+          F_up    = log(sqrt(max([Exec.DoTimes], ([Mat.Row] / [Mat.Row]))))
+          F_belief= max([Int.Inc], [Int.Sub])
+          H_halt  = [Node.ReadMem]
+    # 5  score=0.07302  BER=0.06477  faults=0.00  len=28
+          F_down  = (M_par_down + (C_i)^2)
+          F_up    = log(sqrt(max([Mat.Row], (sqrt([Mat.Row]) / [Mat.Row]))))
+          F_belief= max(0.5, [Int.Inc])
+          H_halt  = [Node.ReadMem]
+    # 6  score=0.07302  BER=0.06477  faults=0.00  len=23
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(([Exec.DoTimes] / (sqrt([Mat.Row]) / [Mat.Row]))))
+          F_belief= max(M_down, [Int.Sub])
+          H_halt  = [Node.ReadMem]
+    # 7  score=0.07302  BER=0.06477  faults=0.00  len=28
+          F_down  = ((C_i)^2 + [Node.GetParent])
+          F_up    = log(sqrt(max([Exec.DoTimes], (sqrt(sqrt([Mat.Row])) / [Mat.Row]))))
+          F_belief= max(0.5, [Int.Sub])
+          H_halt  = [Node.ReadMem]
+    # 8  score=0.07323  BER=0.06477  faults=0.00  len=26
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max((EC0 - EC1), (log(sqrt(max([Exec.DoTimes], (sqrt([Mat.Row]) / [Mat.Row])))) / [Mat.Row]))))
+          F_belief= max(M_down, M_up)
+          H_halt  = new_M_up
+    # 9  score=0.07357  BER=0.06477  faults=0.00  len=25
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max([Exec.DoTimes], (sqrt(sqrt([Mat.Row])) / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = [Node.ReadMem]
+    #10  score=0.07409  BER=0.06477  faults=0.00  len=23
+          F_down  = [Node.GetParent]
+          F_up    = sqrt([Node.ForEachChild])
+          F_belief= max([Int.Inc], [Int.Sub])
+          H_halt  = [Node.ReadMem]
+
+[2026-04-14 01:21:46] Gen 33  Fit(BER=0.05453 ratio=0.459 FLOPs=21735 len=25 faults=0.00 gap=0.003 bp=4115.1 nlbp=0.0 bpg=0.000)
+  DOWN:[Int.Inc ; Float.Add ; Node.GetParent] | UP:[Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup] | BEL:[Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max] | HALT:[Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT] | LOGC:[0.0111,-0.4585,1.0875,-1.7998]
+  Top-10 individuals (Gen 33):
+    # 1  score=0.06730  BER=0.05453  faults=0.00  len=25
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+          [DOWN]   Int.Inc ; Float.Add ; Node.GetParent
+          [UP]     Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup
+          [BELIEF] Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max
+          [HALT]   Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT
+    # 2  score=0.06778  BER=0.05453  faults=0.00  len=28
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(0.5, ((sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))) - EC1) / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = (0 < [Bool.Or])
+    # 3  score=0.06794  BER=0.05367  faults=0.00  len=26
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max([Exec.DoTimes], (sqrt([Mat.Row]) / [Mat.Row]))))
+          F_belief= max([Int.Inc], [Int.Sub])
+          H_halt  = [Node.ReadMem]
+    # 4  score=0.07291  BER=0.06477  faults=0.00  len=26
+          F_down  = (C_i + ([Node.GetParent])^2)
+          F_up    = log(sqrt(max([Mat.Row], [Exec.DoTimes])))
+          F_belief= max([Int.Inc], [Int.Sub])
+          H_halt  = [Node.ReadMem]
+    # 5  score=0.07298  BER=0.06477  faults=0.00  len=25
+          F_down  = (M_par_down + (C_i)^2)
+          F_up    = log(sqrt(max([Exec.DoTimes], (sqrt([Mat.Row]) / [Mat.Row]))))
+          F_belief= max([Int.Inc], [Int.Sub])
+          H_halt  = [Node.ReadMem]
+    # 6  score=0.07302  BER=0.06477  faults=0.00  len=28
+          F_down  = ((C_i)^2 + [Node.GetParent])
+          F_up    = log(sqrt(max([Exec.DoTimes], (sqrt(sqrt([Mat.Row])) / [Mat.Row]))))
+          F_belief= max(0.5, [Int.Sub])
+          H_halt  = [Node.ReadMem]
+    # 7  score=0.07302  BER=0.06477  faults=0.00  len=28
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max([Exec.DoTimes], (sqrt(sqrt([Mat.Row])) / EC1))))
+          F_belief= max(0.5, [Int.Sub])
+          H_halt  = [Node.ReadMem]
+    # 8  score=0.07357  BER=0.06477  faults=0.00  len=28
+          F_down  = ((C_i)^2 + [Node.GetParent])
+          F_up    = log(sqrt(max([Exec.DoTimes], (sqrt(sqrt([Mat.Row])) / [Mat.Row]))))
+          F_belief= max(|M_down|, [Int.Sub])
+          H_halt  = 1
+    # 9  score=0.07378  BER=0.06477  faults=0.00  len=27
+          F_down  = ((C_i)^2 + [Node.GetParent])
+          F_up    = log(sqrt(max((EC0 - EC1), (log(sqrt(max([Exec.DoTimes], (sqrt([Mat.Row]) / [Mat.Row])))) / [Mat.Row]))))
+          F_belief= sqrt(max(M_down, M_up))
+          H_halt  = new_M_up
+    #10  score=0.07383  BER=0.06477  faults=0.00  len=24
+          F_down  = (C_i + ([Node.GetParent])^2)
+          F_up    = sqrt([Node.ForEachChild])
+          F_belief= max([Int.Inc], [Int.Sub])
+          H_halt  = [Node.ReadMem]
+
+[2026-04-14 01:22:47] Gen 34  Fit(BER=0.05453 ratio=0.459 FLOPs=21735 len=25 faults=0.00 gap=0.003 bp=4115.1 nlbp=0.0 bpg=0.000)
+  DOWN:[Int.Inc ; Float.Add ; Node.GetParent] | UP:[Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup] | BEL:[Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max] | HALT:[Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT] | LOGC:[0.0111,-0.4585,1.0875,-1.7998]
+  Top-10 individuals (Gen 34):
+    # 1  score=0.06730  BER=0.05453  faults=0.00  len=25
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+          [DOWN]   Int.Inc ; Float.Add ; Node.GetParent
+          [UP]     Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup
+          [BELIEF] Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max
+          [HALT]   Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT
+    # 2  score=0.06778  BER=0.05453  faults=0.00  len=28
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(0.5, ((sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))) - EC1) / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = (0 < [Bool.Or])
+    # 3  score=0.06794  BER=0.05367  faults=0.00  len=26
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max([Exec.DoTimes], (sqrt([Mat.Row]) / [Mat.Row]))))
+          F_belief= max([Int.Inc], [Int.Sub])
+          H_halt  = [Node.ReadMem]
+    # 4  score=0.07335  BER=0.06477  faults=0.00  len=24
+          F_down  = [Node.GetParent]
+          F_up    = sqrt([Node.ForEachChild])
+          F_belief= max(([Int.Inc])^2, [Int.Sub])
+          H_halt  = [Node.ReadMem]
+    # 5  score=0.07373  BER=0.06477  faults=0.00  len=22
+          F_down  = (C_i + ([Node.GetParent])^2)
+          F_up    = sqrt([Node.ForEachChild])
+          F_belief= max(M_down, [Int.Sub])
+          H_halt  = [Node.ReadMem]
+    # 6  score=0.07375  BER=0.06477  faults=0.00  len=26
+          F_down  = ((C_i)^2 + [Node.GetParent])
+          F_up    = log(sqrt(max((sqrt([Mat.Row]) / [Mat.Row]), (log(D_i) / [Mat.Row]))))
+          F_belief= sqrt(max(M_down, M_up))
+          H_halt  = new_M_up
+    # 7  score=0.07378  BER=0.06477  faults=0.00  len=28
+          F_down  = (((-C_i))^2 + [Node.GetParent])
+          F_up    = log(sqrt(max(EC0, (log(sqrt(max(sqrt(EC1), (([Exec.DoTimes] - [Mat.Row]) / [Mat.Row])))) / [Mat.Row]))))
+          F_belief= max(M_down, sqrt(M_up))
+          H_halt  = new_M_up
+    # 8  score=0.07383  BER=0.06477  faults=0.00  len=25
+          F_down  = (C_i + ([Node.GetParent])^2)
+          F_up    = sqrt([Node.ForEachChild])
+          F_belief= max([Int.Inc], [Int.Sub])
+          H_halt  = EC1
+    # 9  score=0.07411  BER=0.06477  faults=0.00  len=29
+          F_down  = [Node.GetParent]
+          F_up    = sqrt([Node.ForEachChild])
+          F_belief= max([Int.Inc], [Int.Sub])
+          H_halt  = [Node.ReadMem]
+    #10  score=0.07448  BER=0.06477  faults=0.00  len=30
+          F_down  = [Node.GetParent]
+          F_up    = sqrt([Node.ForEachChild])
+          F_belief= max([Int.Inc], [Int.Sub])
+          H_halt  = (EC2 < [Bool.Or])
+
+[2026-04-14 01:23:43] Gen 35  Fit(BER=0.05453 ratio=0.459 FLOPs=21735 len=25 faults=0.00 gap=0.003 bp=4115.1 nlbp=0.0 bpg=0.000)
+  DOWN:[Int.Inc ; Float.Add ; Node.GetParent] | UP:[Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup] | BEL:[Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max] | HALT:[Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT] | LOGC:[0.0111,-0.4585,1.0875,-1.7998]
+  Top-10 individuals (Gen 35):
+    # 1  score=0.06730  BER=0.05453  faults=0.00  len=25
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+          [DOWN]   Int.Inc ; Float.Add ; Node.GetParent
+          [UP]     Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup
+          [BELIEF] Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max
+          [HALT]   Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT
+    # 2  score=0.06778  BER=0.05453  faults=0.00  len=28
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(0.5, ((sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))) - EC1) / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = (0 < [Bool.Or])
+    # 3  score=0.06794  BER=0.05367  faults=0.00  len=26
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max([Exec.DoTimes], (sqrt([Mat.Row]) / [Mat.Row]))))
+          F_belief= max([Int.Inc], [Int.Sub])
+          H_halt  = [Node.ReadMem]
+    # 4  score=0.18699  BER=0.06391  faults=0.00  len=23
+          F_down  = (C_i + ([Node.GetParent])^2)
+          F_up    = sqrt([Node.ForEachChild])
+          F_belief= max(0.5, [Int.Inc])
+          H_halt  = [Node.ReadMem]
+    # 5  score=0.18702  BER=0.06391  faults=0.00  len=23
+          F_down  = ((C_i)^2 + [Node.GetParent])
+          F_up    = [Node.ForEachChild]
+          F_belief= max([Int.Inc], [Int.Sub])
+          H_halt  = [Node.ReadMem]
+    # 6  score=0.18717  BER=0.06391  faults=0.00  len=26
+          F_down  = (M_par_down + (C_i)^2)
+          F_up    = log(sqrt(max([Exec.DoTimes], (sqrt([Mat.Row]) / [Mat.Row]))))
+          F_belief= max([Int.Inc], [Int.Sub])
+          H_halt  = [Node.ReadMem]
+    # 7  score=0.18768  BER=0.06391  faults=0.00  len=31
+          F_down  = ((C_i)^2 + [Node.GetParent])
+          F_up    = log(sqrt(max(sqrt([Mat.Row]), ([Mat.Row] / sqrt([Node.ForEachChild])))))
+          F_belief= sqrt(max(M_up, [Int.Inc]))
+          H_halt  = old_M_up
+    # 8  score=0.18777  BER=0.06391  faults=0.00  len=25
+          F_down  = (M_par_down + (C_i)^2)
+          F_up    = log(sqrt(max((sqrt([Mat.Row]) / [Mat.Row]), (log(D_i) / [Mat.Row]))))
+          F_belief= sqrt(max(M_down, M_up))
+          H_halt  = new_M_up
+    # 9  score=0.18777  BER=0.06391  faults=0.00  len=26
+          F_down  = ((C_i)^2 + [Node.GetParent])
+          F_up    = log(sqrt(max((sqrt([Mat.Row]) / [Mat.Row]), (log(D_i) / [Mat.Row]))))
+          F_belief= sqrt(max(M_down, M_up))
+          H_halt  = new_M_up
+    #10  score=0.18780  BER=0.06391  faults=0.00  len=26
+          F_down  = ((C_i)^2 + [Node.GetParent])
+          F_up    = log(sqrt(max((sqrt([Mat.Row]) / [Mat.Row]), (log(D_i) / [Mat.Row]))))
+          F_belief= max(M_down, sqrt(M_up))
+          H_halt  = new_M_up
+
+[2026-04-14 01:24:36] Gen 36  Fit(BER=0.05453 ratio=0.459 FLOPs=21735 len=25 faults=0.00 gap=0.003 bp=4115.1 nlbp=0.0 bpg=0.000)
+  DOWN:[Int.Inc ; Float.Add ; Node.GetParent] | UP:[Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup] | BEL:[Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max] | HALT:[Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT] | LOGC:[0.0111,-0.4585,1.0875,-1.7998]
+  Top-10 individuals (Gen 36):
+    # 1  score=0.06730  BER=0.05453  faults=0.00  len=25
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+          [DOWN]   Int.Inc ; Float.Add ; Node.GetParent
+          [UP]     Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup
+          [BELIEF] Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max
+          [HALT]   Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT
+    # 2  score=0.06778  BER=0.05453  faults=0.00  len=28
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(0.5, ((sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))) - EC1) / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = (0 < [Bool.Or])
+    # 3  score=0.06794  BER=0.05367  faults=0.00  len=26
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max([Exec.DoTimes], (sqrt([Mat.Row]) / [Mat.Row]))))
+          F_belief= max([Int.Inc], [Int.Sub])
+          H_halt  = [Node.ReadMem]
+    # 4  score=0.16325  BER=0.07008  faults=0.00  len=19
+          F_down  = [Graph.FrontierCount]
+          F_up    = Sum_children([Float.Div])
+          F_belief= (max(M_down, M_up) + 0)
+          H_halt  = 1
+    # 5  score=0.16694  BER=0.06641  faults=0.00  len=31
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max([Exec.DoTimes], ((sqrt([Mat.Row]) - EC1) / [Exec.DoTimes]))))
+          F_belief= max(M_down, 0.5)
+          H_halt  = [Node.ReadMem]
+    # 6  score=0.16707  BER=0.08172  faults=0.00  len=14
+          F_down  = (M_par_down + log(C_i))
+          F_up    = ([Node.ChildAt] + 0)
+          F_belief= [Node.SetScore]
+          H_halt  = (1 < [Node.Swap])
+    # 7  score=0.17342  BER=0.06047  faults=0.00  len=15
+          F_down  = [Node.GetParent]
+          F_up    = sqrt([Node.ForEachChild])
+          F_belief= max(max(M_down, M_up), [Int.Sub])
+          H_halt  = [Node.ReadMem]
+    # 8  score=0.18130  BER=0.08117  faults=0.00  len=27
+          F_down  = tanh(max(M_par_down, max(C_i, noise_var)))
+          F_up    = repeat(min([Float.Square], [Int.Pop]))
+          F_belief= N_ch
+          H_halt  = EC3
+    # 9  score=0.18702  BER=0.06391  faults=0.00  len=21
+          F_down  = ((C_i)^2 + [Node.GetParent])
+          F_up    = [Node.ForEachChild]
+          F_belief= max(M_up, [Int.Inc])
+          H_halt  = [Node.ReadMem]
+    #10  score=0.18702  BER=0.06391  faults=0.00  len=23
+          F_down  = (C_i + ([Node.GetParent])^2)
+          F_up    = sqrt([Node.ForEachChild])
+          F_belief= max(0.5, [Int.Inc])
+          H_halt  = [Node.ReadMem]
+
+[2026-04-14 01:25:35] Gen 37  Fit(BER=0.05453 ratio=0.459 FLOPs=21735 len=25 faults=0.00 gap=0.003 bp=4115.1 nlbp=0.0 bpg=0.000)
+  DOWN:[Int.Inc ; Float.Add ; Node.GetParent] | UP:[Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup] | BEL:[Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max] | HALT:[Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT] | LOGC:[0.0111,-0.4585,1.0875,-1.7998]
+  Top-10 individuals (Gen 37):
+    # 1  score=0.06730  BER=0.05453  faults=0.00  len=25
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+          [DOWN]   Int.Inc ; Float.Add ; Node.GetParent
+          [UP]     Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup
+          [BELIEF] Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max
+          [HALT]   Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT
+    # 2  score=0.06778  BER=0.05453  faults=0.00  len=28
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(0.5, ((sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))) - EC1) / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = (0 < [Bool.Or])
+    # 3  score=0.06794  BER=0.05367  faults=0.00  len=26
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max([Exec.DoTimes], (sqrt([Mat.Row]) / [Mat.Row]))))
+          F_belief= max([Int.Inc], [Int.Sub])
+          H_halt  = [Node.ReadMem]
+    # 4  score=0.16444  BER=0.06641  faults=0.00  len=30
+          F_down  = (M_par_down + ((C_i)^2)^2)
+          F_up    = log(sqrt(max(0.5, ((0.5 - EC1) / sqrt(max([Exec.DoTimes], (sqrt([Mat.Row]) / [Mat.Row])))))))
+          F_belief= max(M_down, M_up)
+          H_halt  = [Node.ReadMem]
+    # 5  score=0.16595  BER=0.07008  faults=0.00  len=20
+          F_down  = [Graph.FrontierCount]
+          F_up    = Sum_children([Float.Div])
+          F_belief= (max(M_down, M_up) + 0)
+          H_halt  = 0.1
+    # 6  score=0.16689  BER=0.06641  faults=0.00  len=26
+          F_down  = (M_par_down + ((C_i)^2)^2)
+          F_up    = log(sqrt(max((sqrt(max(C_2, (M_2_up / 0.5))) - EC1), ([Mat.Row] / [Mat.Row]))))
+          F_belief= max(0.5, [Int.Inc])
+          H_halt  = [Node.ReadMem]
+    # 7  score=0.17659  BER=0.08117  faults=0.00  len=20
+          F_down  = tanh(max([Int.Inc], [Node.GetParent]))
+          F_up    = repeat(min([Float.Square], [Int.Pop]))
+          F_belief= N_ch
+          H_halt  = EC3
+    # 8  score=0.18125  BER=0.08117  faults=0.00  len=28
+          F_down  = tanh(max(M_par_down, max(C_i, noise_var)))
+          F_up    = repeat(min([Float.Square], [Int.Pop]))
+          F_belief= N_ch
+          H_halt  = EC3
+    # 9  score=0.18136  BER=0.08117  faults=0.00  len=27
+          F_down  = tanh(max(M_par_down, max(C_i, noise_var)))
+          F_up    = repeat(min([Float.Square], [Int.Pop]))
+          F_belief= N_ch
+          H_halt  = EC3
+    #10  score=0.18702  BER=0.06391  faults=0.00  len=24
+          F_down  = (C_i + ([Node.GetParent])^2)
+          F_up    = sqrt([Node.ForEachChild])
+          F_belief= max(0.5, [Int.Inc])
+          H_halt  = [Node.ReadMem]
+
+[2026-04-14 01:26:36] Gen 38  Fit(BER=0.05453 ratio=0.459 FLOPs=21735 len=25 faults=0.00 gap=0.003 bp=4115.1 nlbp=0.0 bpg=0.000)
+  DOWN:[Int.Inc ; Float.Add ; Node.GetParent] | UP:[Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup] | BEL:[Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max] | HALT:[Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT] | LOGC:[0.0111,-0.4585,1.0875,-1.7998]
+  Top-10 individuals (Gen 38):
+    # 1  score=0.06730  BER=0.05453  faults=0.00  len=25
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+          [DOWN]   Int.Inc ; Float.Add ; Node.GetParent
+          [UP]     Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup
+          [BELIEF] Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max
+          [HALT]   Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT
+    # 2  score=0.06778  BER=0.05453  faults=0.00  len=28
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(0.5, ((sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))) - EC1) / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = (0 < [Bool.Or])
+    # 3  score=0.06794  BER=0.05367  faults=0.00  len=26
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max([Exec.DoTimes], (sqrt([Mat.Row]) / [Mat.Row]))))
+          F_belief= max([Int.Inc], [Int.Sub])
+          H_halt  = [Node.ReadMem]
+    # 4  score=0.08796  BER=0.06445  faults=0.00  len=26
+          F_down  = (C_i + ([Node.GetParent])^2)
+          F_up    = sqrt([Node.ForEachChild])
+          F_belief= max(0.5, [Int.Inc])
+          H_halt  = [Node.ReadMem]
+    # 5  score=0.08819  BER=0.06445  faults=0.00  len=19
+          F_down  = (M_par_down + (C_i)^2)
+          F_up    = sqrt(max(|(max(C_2, (M_2_up / 0.5)) / 1)|, EC1))
+          F_belief= max([Int.Inc], 0.5)
+          H_halt  = (new_M_up < [Bool.Or])
+    # 6  score=0.08870  BER=0.06445  faults=0.00  len=23
+          F_down  = [Node.GetParent]
+          F_up    = sqrt(log(max([Exec.DoTimes], ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max(M_up, M_down)
+          H_halt  = ([Node.ReadMem] < ([Bool.Or] < EC2))
+    # 7  score=0.08919  BER=0.06445  faults=0.00  len=34
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(0.5, ((sqrt(max(((0.5 - EC1) - EC1), ([Exec.DoTimes] / [Mat.Row]))) - EC1) / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = (0 < new_M_up)
+    # 8  score=0.08981  BER=0.07242  faults=0.00  len=36
+          F_down  = (M_par_down + (max(C_i, noise_var))^2)
+          F_up    = log(sqrt(max((Sum_children(C_i) - 1), ([Mat.Row] / [Mat.Row]))))
+          F_belief= max((M_up + ([Node.ChildAt])^2), [Int.Inc])
+          H_halt  = [Node.ReadMem]
+    # 9  score=0.09041  BER=0.06445  faults=0.00  len=33
+          F_down  = [Node.GetParent]
+          F_up    = sqrt((([Exec.DoTimes] - max(sqrt([Mat.Row]), [Mat.Row])) / ([Exec.DoTimes] / [Mat.Row])))
+          F_belief= (0.5 / [Int.Inc])
+          H_halt  = (old_M_up > (new_M_up < [Int.LT]))
+    #10  score=0.09071  BER=0.06445  faults=0.00  len=28
+          F_down  = (M_par_down + (C_i)^2)
+          F_up    = (log(sqrt(max([Exec.DoTimes], (sqrt([Mat.Row]) / [Mat.Row])))) + (0.5 - EC1))
+          F_belief= [Node.SetScore]
+          H_halt  = EC2
+
+[2026-04-14 01:27:34] Gen 39  Fit(BER=0.05453 ratio=0.459 FLOPs=21735 len=25 faults=0.00 gap=0.003 bp=4115.1 nlbp=0.0 bpg=0.000)
+  DOWN:[Int.Inc ; Float.Add ; Node.GetParent] | UP:[Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup] | BEL:[Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max] | HALT:[Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT] | LOGC:[0.0111,-0.4585,1.0875,-1.7998]
+  Top-10 individuals (Gen 39):
+    # 1  score=0.06730  BER=0.05453  faults=0.00  len=25
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+          [DOWN]   Int.Inc ; Float.Add ; Node.GetParent
+          [UP]     Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup
+          [BELIEF] Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max
+          [HALT]   Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT
+    # 2  score=0.06778  BER=0.05453  faults=0.00  len=28
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(0.5, ((sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))) - EC1) / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = (0 < [Bool.Or])
+    # 3  score=0.06794  BER=0.05367  faults=0.00  len=26
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max([Exec.DoTimes], (sqrt([Mat.Row]) / [Mat.Row]))))
+          F_belief= max([Int.Inc], [Int.Sub])
+          H_halt  = [Node.ReadMem]
+    # 4  score=0.08546  BER=0.06445  faults=0.00  len=24
+          F_down  = [Node.GetParent]
+          F_up    = sqrt(log([Int.Pop]))
+          F_belief= max(M_up, M_down)
+          H_halt  = (([Bool.Or] < EC2) < 1)
+    # 5  score=0.08563  BER=0.06445  faults=0.00  len=34
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(0.5, ((sqrt(max(((0.5 - EC1) - EC1), ([Exec.DoTimes] / [Mat.Row]))) - EC1) / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = new_M_up
+    # 6  score=0.08647  BER=0.06445  faults=0.00  len=33
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(EC1, ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = (0 < new_M_up)
+    # 7  score=0.08672  BER=0.06445  faults=0.00  len=21
+          F_down  = (M_par_down + (C_i)^2)
+          F_up    = log(min(C_1, sqrt(max(M_1_up, (max(C_2, (M_2_up / 0.5)) / (-(1 - EC1)))))))
+          F_belief= ((M_down - M_up) / 0.5)
+          H_halt  = (old_M_up < 0.1)
+    # 8  score=0.08789  BER=0.06445  faults=0.00  len=33
+          F_down  = (M_par_down + (C_i)^2)
+          F_up    = sqrt([Node.ForEachChild])
+          F_belief= max(0.5, [Int.Inc])
+          H_halt  = [Node.ReadMem]
+    # 9  score=0.08866  BER=0.06445  faults=0.00  len=26
+          F_down  = (M_par_down + (C_i)^2)
+          F_up    = (log(sqrt(max([Exec.DoTimes], (sqrt([Mat.Row]) / [Mat.Row])))) + (0.5 - EC1))
+          F_belief= [Node.SetScore]
+          H_halt  = EC2
+    #10  score=0.08892  BER=0.06445  faults=0.00  len=24
+          F_down  = (M_par_down + (C_i)^2)
+          F_up    = log(sqrt(max((sqrt(max(0.5, (0.5 / EC1))) - EC1), ([Mat.Row] / [Mat.Row]))))
+          F_belief= max(M_down, [Int.Inc])
+          H_halt  = [Float.Swap]
+
+[2026-04-14 01:28:40] Gen 40  Fit(BER=0.05453 ratio=0.459 FLOPs=21735 len=25 faults=0.00 gap=0.003 bp=4115.1 nlbp=0.0 bpg=0.000)
+  DOWN:[Int.Inc ; Float.Add ; Node.GetParent] | UP:[Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup] | BEL:[Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max] | HALT:[Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT] | LOGC:[0.0111,-0.4585,1.0875,-1.7998]
+  Top-10 individuals (Gen 40):
+    # 1  score=0.06730  BER=0.05453  faults=0.00  len=25
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))))
+          F_belief= max([Int.Sub], [Int.Inc])
+          H_halt  = ([Node.ReadMem] < [Bool.Or])
+          [DOWN]   Int.Inc ; Float.Add ; Node.GetParent
+          [UP]     Float.ConstHalf ; Float.ConstHalf ; Float.EvoConst1 ; Float.Sub ; Exec.DoTimes([]) ; Mat.Row ; Float.Div ; Float.Max ; Float.Sqrt ; Float.Log ; Float.Dup
+          [BELIEF] Float.Swap ; Float.ConstHalf ; Float.Swap ; Float.EvoConst1 ; Int.Sub ; Int.Inc ; Float.Max
+          [HALT]   Bool.Or ; Node.ReadMem ; Float.Swap ; Float.LT
+    # 2  score=0.06778  BER=0.05453  faults=0.00  len=28
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(0.5, ((sqrt(max((0.5 - EC1), ([Exec.DoTimes] / [Mat.Row]))) - EC1) / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = (0 < [Bool.Or])
+    # 3  score=0.06794  BER=0.05367  faults=0.00  len=26
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max([Exec.DoTimes], (sqrt([Mat.Row]) / [Mat.Row]))))
+          F_belief= max([Int.Inc], [Int.Sub])
+          H_halt  = [Node.ReadMem]
+    # 4  score=0.07490  BER=0.06875  faults=0.00  len=23
+          F_down  = [Node.GetParent]
+          F_up    = log(sqrt(max([Node.WriteMem], max([Float.ConstNeg1], (D_i)^2))))
+          F_belief= max(M_up, [Node.ChildAt])
+          H_halt  = [Node.ReadMem]
+    # 5  score=0.08558  BER=0.06445  faults=0.00  len=33
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max([Exec.DoTimes], ((sqrt(max([Mat.Row], EC2)) - EC1) / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = new_M_up
+    # 6  score=0.08583  BER=0.06445  faults=0.00  len=25
+          F_down  = (M_par_down + (C_i)^2)
+          F_up    = (log(sqrt(max([Exec.DoTimes], (sqrt([Mat.Row]) / [Mat.Row])))) + (0.5 - EC1))
+          F_belief= [Node.SetScore]
+          H_halt  = 1
+    # 7  score=0.08619  BER=0.06445  faults=0.00  len=28
+          F_down  = (M_par_down + (C_i)^2)
+          F_up    = log(min(M_2_up, sqrt(max((0.5 - EC1), (max([Exec.DoTimes], (sqrt([Mat.Row]) / 0.5)) / (-(1 - EC1)))))))
+          F_belief= (M_down / 0.5)
+          H_halt  = (new_M_up < 0.1)
+    # 8  score=0.08668  BER=0.06445  faults=0.00  len=20
+          F_down  = (C_i + (layer)^2)
+          F_up    = log([Float.Min])
+          F_belief= ((0.5 - [Int.Inc]) / 0.5)
+          H_halt  = (old_M_up < 0.1)
+    # 9  score=0.08877  BER=0.06445  faults=0.00  len=30
+          F_down  = (M_par_down + (C_i)^2)
+          F_up    = sqrt([Node.ForEachChild])
+          F_belief= max([Int.Inc], [Int.Inc])
+          H_halt  = [Node.ReadMem]
+    #10  score=0.08898  BER=0.06445  faults=0.00  len=33
+          F_down  = [Int.Inc]
+          F_up    = log(sqrt(max(M_2_up, ((0.5 - sqrt(sqrt(max(((0.5 - EC1) - EC1), ([Exec.DoTimes] / [Mat.Row]))))) / [Mat.Row]))))
+          F_belief= [Int.Inc]
+          H_halt  = [Int.LT]

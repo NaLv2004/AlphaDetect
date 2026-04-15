@@ -1,0 +1,41 @@
+================================================================================
+BP-Stack-Decoder GP  started 2026-04-13 02:53:27
+================================================================================
+
+[2026-04-13 02:53:27] Configuration
+{
+  "generations": 30,
+  "population": 120,
+  "train_samples": 32,
+  "train_nt": 8,
+  "train_nr": 16,
+  "mod_order": 16,
+  "train_max_nodes": 200,
+  "train_flops_max": 3000000,
+  "step_max": 2000,
+  "eval_trials": 200,
+  "eval_max_nodes": 2000,
+  "eval_flops_max": 5000000,
+  "train_snrs": "12,14,16",
+  "eval_snrs": "8,10,12,14,16",
+  "seed": 2024,
+  "continuous": true,
+  "batch_gens": 5,
+  "log_suffix": "v4_6"
+}
+------------------------------------------------------------
+
+[2026-04-13 02:59:15] Gen 0  Fit(BER=0.05469 ratio=1.400 FLOPs=14944 len=13 faults=0.00 gap=0.000 bp=48.5)  (initial)
+  Vec.Norm2 ; Graph.NodeCount ; Node.ForEachAncestor([Node.ForEachChild([Node.GetScore]), Float.Exp, Node.SetScore]) ; IF([Vec.Add, Int.Add], [Int.GT]) ; Vec.PeekAtIm ; Float.Pop
+
+[2026-04-13 03:03:32] Gen 1  Fit(BER=0.05469 ratio=1.400 FLOPs=14944 len=13 faults=0.00 gap=0.000 bp=48.5)
+  Vec.Norm2 ; Graph.NodeCount ; Node.ForEachAncestor([Node.ForEachChild([Node.GetScore]), Float.Exp, Node.SetScore]) ; IF([Vec.Add, Int.Add], [Int.GT]) ; Vec.PeekAtIm ; Float.Pop
+
+[2026-04-13 03:07:53] Gen 2  Fit(BER=0.05469 ratio=1.400 FLOPs=14944 len=13 faults=0.00 gap=0.000 bp=48.5)
+  Vec.Norm2 ; Graph.NodeCount ; Node.ForEachAncestor([Node.ForEachChild([Node.GetScore]), Float.Exp, Node.SetScore]) ; IF([Vec.Add, Int.Add], [Int.GT]) ; Vec.PeekAtIm ; Float.Pop
+
+[2026-04-13 03:13:50] Gen 3  Fit(BER=0.05469 ratio=1.273 FLOPs=12285 len=11 faults=0.00 gap=0.000 bp=117.2)  (NEW BEST)
+  Node.IsExpanded ; Exec.DoTimes([Float.GT, Float.Sub]) ; Node.GetParent ; Node.GetParent ; Node.ForEachSibling([Float.Const1, Node.SetScore]) ; Vec.Add ; Node.GetLayer
+
+[2026-04-13 03:19:07] Gen 4  Fit(BER=0.05469 ratio=1.273 FLOPs=11959 len=10 faults=0.00 gap=0.000 bp=94.1)  (NEW BEST)
+  Vec.ElementAt ; Node.GetScore ; Node.GetParent ; Node.GetParent ; Node.ForEachSibling([Float.Const1, Node.SetScore]) ; Node.GetLocalDist ; Int.Sub ; Int.Inc

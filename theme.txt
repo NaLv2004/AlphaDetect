@@ -1,144 +1,76 @@
 
-# AI驱动的MIMO检测算法自动发现
-为了在彻底抛弃大语言模型（LLM）的前提下，单纯依靠**强化学习（RL）**与**符号推理（Symbolic Reasoning）**在一个囊括“连续代数（AMP/迭代）”与“离散控制（树搜）”的超大搜索空间中寻找 MIMO 检测算法，我们必须构建一个**极度严谨且细粒度的形式化系统**。
+# [Research Prompt: 自动化科学发现] 
+# 主题：Emergent Algorithmic Structures in MIMO Detection via Typed Stack-Based Genetic Programming
 
-这个系统的本质是一个**“图灵完备的 MIMO 特定领域语言 (MIMO-DSL) 及其自动化编译器”**。RL 负责在受限文法下生成“程序语法树（AST）”，符号系统负责“剪枝和等价性证明”，神经网络模拟器负责“评估”。
+## 1. 核心目标与研究哲学 (Core Objective & Philosophy)
+你需要从零开始编写一个极其硬核的**自动化算法发现系统（Minimum Working Example, MWE）**。
+目标是解决通信系统中的 MIMO 检测问题 ($\mathbf{y} = \mathbf{Hx} + \mathbf{n}$)。
+**核心限制（绝对不可违反）：** 
+绝对禁止在代码中硬编码或通过接口预定义任何高级算法结构（如 BP、MMSE、深度为 K 的树搜索等）。机器必须通过组合极底层的**代数算子**、**图论算子**和**抽象控制流**，在一个完全空白的“评估孔洞 (Hole)”中，自发涌现出高级计算图（例如在动态生成的搜索树上运行局部的消息传递以改进启发式度量）。
 
-以下是为您制定的**极度细化、可落地的深度研究与工程方案**：
+## 2. 外部宏观框架：带有 QR 分解的 Stack Decoder
+系统外层由一个死板的、确定性的 Best-First Search (Stack Decoder) 驱动。
+*   **物理预处理：** 给定 $\mathbf{H}$ 和 $\mathbf{y}$，执行 QR 分解 $\mathbf{H} = \mathbf{QR}$。计算 $\tilde{\mathbf{y}} = \mathbf{Q}^H\mathbf{y}$。搜索基于上三角矩阵 $\mathbf{R}$ 从底层（第 $N_t$ 层）向顶层（第 1 层）展开。
+*   **搜索树维护：** Stack Decoder 维护一个优先队列（Priority Queue）和一棵**动态生长的搜索树 (Search Tree)**。每个节点包含：当前层数 $k$、已决定的符号序列 $\mathbf{x}_{[k:N_t]}$、以及当前节点的局部累计欧氏距离。
+*   **算法孔洞 (The Hole)：** 每次从优先队列中弹出一个节点准备扩展时，如何评估其子节点的优先级（Score）是**未知**的。Stack Decoder 会调用 `emergent_metric(Environment_Snapshot)`。返回的 Float 越小，优先级越高。
 
----
+## 3. 内部微观框架：MIMO-Push 虚拟机 (The PushGP VM)
+`emergent_metric` 是由 PushGP 虚拟机执行的一段随机演化的堆栈代码。VM 不使用任何变量，只有类型化的堆栈（Stacks）。
 
-### 一、 核心基础：超细粒度 MIMO-DSL 原语设计（Primitives）
+### 3.1 堆栈定义 (The Stacks)
+系统必须维护以下数据栈（Data Stacks）和控制栈（Control Stacks）：
+*   `Float`, `Int`, `Bool` (基础标量栈)
+*   `Vector`, `Matrix` (张量栈)
+*   `Graph` (图结构栈)
+*   `Node` (图节点指针栈)
+*   `Exec`, `Code` (用于实现图灵完备控制流的指令栈)
 
-要让搜索空间足够大，原语必须拆解到最小的数学与逻辑单元，并严格定义输入输出的**数据类型（Type）**与**张量形状（Shape）**。
+### 3.2 环境快照注入 (Environment Snapshot Injection)
+每次调用 `emergent_metric` 前，清空所有栈，并将当前物理状态压入：
+*   `Matrix` 栈顶：压入 $\mathbf{R}$。
+*   `Vector` 栈顶：压入 $\tilde{\mathbf{y}}$，压入当前已假设的部分符号向量 $\mathbf{x}_{\text{partial}}$。
+*   `Graph` 栈顶：压入**整棵当前的动态搜索树 $G$**。
+*   `Node` 栈顶：压入**当前正在被评估的候选子节点 $n_{\text{cand}}$**。
+*   `Int` 栈顶：压入当前节点所处的深度 $k$。
 
-定义基础类型：
-*   `Mat_MN`: $M \times N$ 矩阵（如信道 $H$）
-*   `Mat_NN`: $N \times N$ 矩阵（如 $H^H H$）
-*   `Vec_M`: 长度为 $M$ 的向量（如接收信号 $y$）
-*   `Vec_N`: 长度为 $N$ 的向量（如发送信号 $x$）
-*   `Scalar`: 标量（如方差 $\sigma^2$、常数参数）
-*   `Graph`: 包含变量节点和校验节点的二分图结构
-*   `Tree`: 搜索树结构及当前激活节点集合（Queue）
+## 4. 极端抽象的底层算子库 (Primitive Operators)
+算子必须极其原子化。严格禁止包含特定物理意义。
 
-#### 1. 线性代数与张量原语 (Linear Algebra Primitives)
-涵盖传统线性检测、预处理和迭代算法的基础：
-*   **乘法族：** `MatMul(Mat, Mat)`, `MatVecMul(Mat, Vec)`, `DotProduct(Vec, Vec)`, `Hadamard(Vec, Vec)` (逐元素乘)
-*   **结构提取：** `Transpose(Mat)` ($H^H$), `DiagExtract(Mat)` (提取对角线为向量), `DiagMake(Vec)` (将向量变对角阵), `Trace(Mat)`
-*   **基础算术：** `Add(A, B)`, `Sub(A, B)`, `ScalarMul(Scalar, Tensor)`
-*   **范数与度量：** `L2Norm(Vec)`, `SquaredError(Vec, Vec)` (即 $\|y - Hx\|^2$)
-*   *注：刻意不提供 `Inverse(Mat)` 原语，迫使 RL 自己发现绕过矩阵求逆的迭代算法（如 Neumann 级数或 CG）。*
+*   **栈操作指令：** `Pop`, `Dup` (复制栈顶), `Swap`, `Flush` (清空某栈)。
+*   **张量代数指令：**
+    *   `Mat.Mul`, `Mat.VecMul`, `Vec.Add`, `Vec.Sub`, `Vec.Dot`, `Vec.Norm2`
+    *   `Mat.InvertSafe` (计算伪逆，若奇异则返回单位阵)
+    *   `Mat.ExtractTopLeft`: 弹出 Int $k$ 和 Matrix $\mathbf{M}$，提取 $k \times k$ 左上角子阵。
+    *   `Vec.ExtractSlice`: 弹出 Int $k$ 和 Vector $\mathbf{v}$，提取前 $k$ 个元素。
+*   **图拓扑与漫游指令：**
+    *   `Graph.GetRoot`, `Node.GetParent`, `Node.GetChildren` (将邻居节点群压入一个临时的列表或序列中执行映射)。
+    *   `Node.GetData`: 弹出 Node，将该节点上挂载的张量信息（如当前符号、累计误差）压入 `Vector` 或 `Float` 栈。
+*   **控制流与作用域指令（完全抽象的涌现源泉）：**
+    *   `Exec.If`: 弹出 Bool 栈顶，若为 True 执行 `Code` 栈顶代码块，否则执行次栈顶代码块。
+    *   `Exec.While`: 弹出 `Code` 栈顶作为循环体。只要 `Bool` 栈顶为 True，就持续在 `Exec` 栈展开循环体。
+    *   `Graph.MapReduce`: 这是一条高阶控制流。弹出 `Code` 栈的一段代码，将其独立作用于当前 `Node` 栈顶节点的所有子节点/邻居节点。将其产生的 `Float` 栈顶结果相加/相乘。**(这是机器自发产生 Message Passing / BP 的核心机制，机器需自己决定 Map 的代码块是什么，以及向多深的邻居去 Map，而不是被硬编码深度)**。
 
-#### 2. 非线性与统计原语 (Non-linear & Statistical Primitives)
-涵盖 AMP 及其变体（OAMP, VAMP）的核心机制：
-*   **非线性激活：** `SoftThreshold(Vec, Scalar)` (AMP 核心), `HardThreshold(Vec)`, `Sign(Vec)`, `Tanh(Vec)`
-*   **统计操作：** `Mean(Vec)` (提取均值), `Variance(Vec)` (计算残差方差，AMP 状态演化核心), `Max(Vec)`
-*   **标量函数：** `Exp(Scalar)`, `Log(Scalar)`, `Div(Scalar, Scalar)`
+## 5. 演化引擎与严格防爆机制 (Fitness & Constraints)
+因为控制流完全由机器利用 `Exec.While` 和图遍历动态组合，系统极易陷入死循环或遍历整个 $2^{N_t}$ 的树，导致内存或时间爆炸。必须建立极度严格的约束机制。
 
-#### 3. 图与消息传递原语 (Message Passing Primitives)
-涵盖 BP（信念传播）和因子图算法：
-*   `BuildBipartiteGraph(Mat_MN)`: 根据矩阵 $H$ 的非零元素构建因子图。
-*   `GatherMessages(Graph, Node_Type)`: 将相邻节点的消息聚合（求和或求积）。
-*   `ScatterMessages(Graph, Node_Type, Function)`: 将计算后的边缘概率分发给相邻节点。
-*   `Marginalize(Graph, Node_ID)`: 计算特定节点的边缘后验概率。
+### 5.1 硬件级 FLOPs 计数器 (The FLOPs Counter)
+*   VM 内部强制集成 `flops_count`。
+*   执行 `Vec.Add` 消耗 $O(N)$，`Mat.Mul` 消耗 $O(N^3)$。
+*   如果执行过程中 `flops_count` 超过阈值 $T_{\text{max}}$（例如 $10 \times N_t^3$），VM 立即引发 `Hardware_Fault` 中断。清空栈，强行将 `Float` 栈底置为 $\infty$（最差得分）。这种机制将**倒逼机器通过 `Exec.If` 和动态条件生成局部的树遍历（只遍历部分节点）**，而非全局遍历。
 
-#### 4. 控制流与树搜原语 (Control Flow & Tree Search Primitives)
-涵盖迭代收敛与离散组合优化（如球形解码、K-Best）：
-*   **循环类：**
-    *   `ForLoop(Num_Iters, Body_AST, State_Vars)`: 固定迭代次数（适用于 AMP/线性迭代）。
-    *   `WhileLoop(Condition, Body_AST, State_Vars)`: 基于残差或度量阈值的动态停机。
-*   **树操作类（极其关键）：**
-    *   `InitTree(Root_Node, Alphabet)`: 初始化搜索树（如 QAM 星座点）。
-    *   `ExpandNode(Node)`: 生成当前节点的所有子节点。
-    *   `ComputeMetric(Node, Function_AST)`: 计算节点的分支度量（如部分欧式距离 PED）。
-    *   **剪枝逻辑（决定了是哪种树搜算法）：**
-        *   `PruneByRadius(TreeQueue, Scalar_Radius)`: 砍掉度量 > Radius 的分支（球形解码模式）。
-        *   `SortAndRetainK(TreeQueue, Int_K)`: 按度量排序，仅保留前 K 个（K-Best 模式）。
+### 5.2 多目标适应度评估 (Lexicase / Pareto Fitness)
+给定一个小规模 MIMO 数据集（如 $4 \times 4$ QPSK，无噪声和中等噪声混合）：
+1.  **Metric 1 (Performance):** MSE = $\|\hat{\mathbf{x}}_{\text{stack}} - \mathbf{x}_{\text{ML}}\|^2$ （与最大似然解的均方误差，或者 BER）。
+2.  **Metric 2 (Complexity):** 成功解出该局部的平均耗费 FLOPs。
 
----
+在演化选择（Selection）阶段，优先淘汰触碰 FLOPs 上限的程序。在存活程序中，优先选择 MSE 最小的程序。在 MSE 相同的情况下，保留代码长度最短、FLOPs 最少的程序，以产生奥卡姆剃刀效应。
 
-### 二、 搜索空间的拓扑生成：RL 智能体设计
+## 6. 任务要求 (Deliverables)
+请用 Python（可使用 `numpy`，不依赖现成复杂 GP 库，手写轻量级框架）实现上述 MWE 的完整核心逻辑：
+1.  定义所有 Stacks 的数据结构。
+2.  实现带有 FLOPs 拦截机制的 `MIMO_Push_VM` 及其完整的原子指令集执行逻辑。
+3.  实现外围的 `StackDecoder`，其中优先级评分被代理给 `VM.run(program)`。
+4.  实现一个极简的进化引擎（初始化随机指令序列 -> 交叉/变异 -> 在 MIMO 评估器上测算 Fitness -> 优胜劣汰）。
+5.  打印出每一代的最优程序的代码序列（Instruction Sequence）和 Fitness 变化。
 
-在这个阶段，我们将算法推导转化为一个**马尔可夫决策过程 (MDP)**。智能体（Agent）的任务是逐步拼接上述原语，生成一棵抽象语法树（AST）。
-
-#### 1. 状态空间 (State Space) —— GNN 编码
-*   **状态表示：** 当前尚未构建完成的 AST。因为 AST 是一棵图，我们使用 **图神经网络 (GNN, Graph Neural Networks)** 或 **Tree-LSTM** 将当前 AST 编码为一个连续的高维向量 $s_t$。
-*   **掩码 (Action Masking)：** 根据符号推理的“静态类型检查”生成掩码。例如，如果当前叶子节点需要一个 `Vec_M`，那么所有输出 `Mat_NN` 或 `Scalar` 的原语动作都会被 Mask 掉（概率强制为 0）。
-
-#### 2. 动作空间 (Action Space)
-*   **动作：** 在合法的原语词表中选择一个原语，或者选择已存在的状态变量（如 $x_{t-1}, y, H$）作为输入。
-
-#### 3. 策略网络与搜索算法 (Policy & Search Algorithm)
-*   **算法选择：蒙特卡洛树搜索 (MCTS) + 深度强化学习 (类似于 AlphaTensor / AlphaCode 的架构)**。
-*   **为什么用 MCTS？** 因为算法生成是一个长期的序列决策过程。普通的 PPO 容易陷入局部最优（比如生成了一堆无意义的加减法）。MCTS 可以通过“前瞻模拟 (Lookahead)”探索不同的数学推导分支。
-
-#### 4. 奖励函数设计 (Reward Function) —— 极为关键
-公式的最终性能由三部分决定：
-$$ R = - \omega_1 \cdot \text{BER}(S_{\text{val}}) - \omega_2 \cdot \text{FLOPs}(\text{AST}) + \omega_3 \cdot \text{Novelty}(\text{AST}) $$
-*   **准确度 ($\text{BER}$):** 在 JAX 仿真器中运行 1000 个批量样本的误码率。
-*   **复杂度 ($\text{FLOPs}$):** AST 中每个原语都有预定义的 FLOPs 消耗（如 `MatMul` 是 $O(MN^2)$）。迫使智能体寻找低复杂度算法。
-*   **新颖度 ($\text{Novelty}$):** 计算当前 AST 与已发现有效算法的“树编辑距离 (Tree Edit Distance)”。鼓励智能体探索完全不同的代数结构。
-
----
-
-### 三、 “像人类一样”的推导机制：符号逻辑与代数化简层
-
-如果只是让 RL 瞎拼凑，搜索空间是无限且充满垃圾的（例如 $x + H^H y - x + y - y$）。人类在推导时，每一步都会进行**代数化简**和**恒等式替换**。我们必须在 RL 和 仿真器之间插入一个**符号推理引擎（基于 SymPy 或 Lean）**。
-
-#### 推导规则 1：基于符号计算的 AST 约简 (AST Reduction)
-当 RL 生成一棵完整的 AST 后，不立刻仿真，而是传入符号引擎：
-1.  **代数消除：** $A + B - A \rightarrow B$。
-2.  **矩阵恒等式：** $(H^H H)^H \rightarrow H^H H$； $\text{Trace}(A + B) \rightarrow \text{Trace}(A) + \text{Trace}(B)$。
-3.  **等效性判定 (Equivalence Check)：** 如果 RL 生成的新算法，经过符号化简后，在数学上等价于已存在的一个算法（比如仅仅是把 $H^H y$ 提出来作为预计算），直接给予 Reward = 0，避免重复造轮子。
-
-#### 推导规则 2：强制的物理与量纲约束 (Dimensional & Physical Constraints)
-人类推导时有强烈的量纲直觉。系统内置以下硬规则：
-1.  **量纲分析：** `MatMul(Mat_MN, Vec_M)` 维度不匹配，直接判定为语法错误，RL Agent 收到巨大负奖励。
-2.  **置换等变性定理证明 (Permutation Equivariance)：** 
-    *   MIMO 系统的物理特性：如果你把发射天线的顺序交换（即对 $x$ 左乘置换矩阵 $P$），那么检测结果也应该同等置换。
-    *   **自动证明过程：** 对生成的 AST 公式 $f(y, H)$，符号引擎自动验证是否满足 $f(P_r y, P_r H P_t) = P_t f(y, H)$。不满足的公式必定是物理上无意义的（例如在无先验情况下，对 $x$ 的第一根天线和第二根天线使用了不对称的处理），直接丢弃。
-
-#### 推导规则 3：残差方差追踪 (State Evolution 约束)
-对于基于 `ForLoop` 的迭代算法，引入类似“状态演化（State Evolution）”的监控机制：
-系统在预运行（Pre-run）时，记录每一次迭代的残差 $\|r_t\|^2$。如果在前 3 次迭代中，方差呈现指数发散，立即中断仿真并判定为发散算法，给予负奖励。
-
----
-
-### 四、 研究落地的 Roadmap 与实验设置
-
-要实现这个宏大的系统，必须按步骤开放搜索空间。
-
-#### Phase 1: 征服线性迭代与 Krylov 子空间 (验证期)
-*   **搜索空间受限：** 仅开放 `MatMul`, `Add/Sub`, `ScalarMul`, `ForLoop`。
-*   **人类已知的最优解：** 共轭梯度（CG）算法、最速下降法、Chebyshev 迭代。
-*   **系统验证目标：** 
-    *   检查 RL 能否自己推导出：**最优步长（Step size）的闭式解**。
-    *   检查 RL 能否自己发现：用 $H^H y$ （匹配滤波）作为迭代的初始点 $x_0$ 是最优的。
-    *   检查 RL 能否发现某种**前置滤波器（Preconditioner）**。
-
-#### Phase 2: 非线性爆发与消息传递 (核心突破期)
-*   **开放原语：** 加入 `SoftThreshold`, `HardThreshold`, `Variance`, `Mean`。
-*   **RL 必须克服的难点：** 原生的迭代收缩阈值算法（ISTA）在信道非正交时收敛极差。人类发明了 AMP，引入了 $ - \frac{N}{M} \langle \eta_t'(...) \rangle z_{t-1} $ 这个反常直觉的 Onsager 修正项。
-*   **系统验证目标：** 
-    *   RL 能否通过数万次的试错，发现**必须将上一步的状态 $z_{t-1}$ 加入当前步的计算中**以抵消相关性？
-    *   **创新点：** 针对高相关度（High Correlation）的 MIMO 信道，让 AI 寻找一种全新的非线性迭代结构（可能会打破高斯假设，找到比现有 OAMP 更优秀的结构）。
-
-#### Phase 3: 征服树搜与控制逻辑 (终极挑战)
-*   **开放原语：** 加入 `Tree`, `BranchExpand`, `PruneIf`, `WhileLoop`。
-*   **系统设计难点：** 树搜的搜索空间是离散的，且运行时间高度依赖于信噪比（SNR），如何计算 Reward？
-*   **解决方案：** 在 Reward 中极大地加重 FLOPs（特别是访问树节点的数量）的惩罚。
-*   **系统验证目标：**
-    *   AI 能否自主发现：与其盲目搜索，不如先对信道矩阵 $H$ 进行 **QR 分解** 或 **MMSE-SQRD** 排序，从而极大地加快剪枝速度？（如果 AI 能自己推导出排序法则，那将是极大的突破）。
-    *   AI 能否融合 Phase 2 的成果，发明出一种 **“在树的浅层用树搜分支，在树的深层用 AMP 进行连续松弛”** 的混合型（Hybrid）检测器？
-
-### 五、 工具链与性能优化保障
-这个项目对算力要求极高，传统的 Python/NumPy 绝对无法支撑。
-
-1.  **编译与仿真后端：JAX / XLA (核心引擎)**
-    *   必须使用 JAX。将 RL 生成的 AST 实时编译为 JAX 函数，并使用 `jax.vmap` 在 GPU 上一次性并行仿真 100,000 个信道实现，能在毫秒级得到 BER 结果。
-    *   JAX 强大的 AutoGrad（`jax.grad`）可以直接用来优化 AST 内部的标量参数（比如发现公式结构后，用梯度下降微调里面的常数系数）。
-2.  **符号引擎：SymPy + Z3 Theorem Prover**
-    *   使用 `SymPy` 做快速的代数化简。
-    *   使用微软的 `Z3` SMT 求解器来进行更复杂的逻辑等价性证明（比如证明两种剪枝条件的逻辑范围是否一致）。
-
-通过这套严格的形式化方法与强化学习闭环，你不仅在寻找 MIMO 算法，实际上是在打造一个**专注于通信物理层的自动化数学家**。这个工作一旦完成，可以直接向 *Nature Machine Intelligence*、*IEEE TIT* 或 *JSAC* 等顶刊发起冲击。
+**提示词工程师附言：** 请极其严格地遵守“零高阶先验”原则。不要给机器提供任何用于通信计算的“特权函数”。我们期待在输出的控制台中，看到指令序列从无意义的随机噪音，随着代数迭代，慢慢收敛为能够利用上三角阵 $\mathbf{R}$、自动截取子树计算局部距离的优雅结构。

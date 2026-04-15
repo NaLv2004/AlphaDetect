@@ -1,0 +1,83 @@
+在自动化算法发现的视角下，栈解码器搜索树被抽象为一个受限的数据流拓扑沙盒。框架\textbf{绝不预设}任何具体的数学算子（如加法、乘法或取最小值）或硬编码的控制流，而是仅仅定义\textbf{状态空间的维度}、\textbf{每一步操作的输入域（感知边界）}，以及\textbf{信息传递的拓扑范围（物理边界）}。具体的聚合公式与终止条件，完全作为遗传编程（GP）的演化目标。
+
+\section{节点状态空间（State Space）}
+
+树上的任意节点 $i$ 提供四个无量纲的标量内存槽位：
+
+\begin{itemize}
+    \item \textbf{$C_i$ (Edge Constraint):} 常量槽。记录节点 $i$ 被创建时的环境约束观测值（对应代码中的 \texttt{local\_dist}）。
+    \item \textbf{$M_{i \uparrow}$ (Upward Memory):} 变量槽。存储即将向父节点传递的聚合状态。
+    \item \textbf{$M_{i \downarrow}$ (Downward Memory):} 变量槽。存储从父节点继承而来的上下文状态。
+    \item \textbf{$B_i$ (Belief Score):} 变量槽。存储该节点的最终优先级标量，决定其在搜索树调度队列中的绝对位置。
+\end{itemize}
+
+\section{更新函数的感知边界（Update Input Domains）}
+
+框架将消息更新抽象为三个未知的黑盒函数映射 $\mathcal{F}$。GP 的任务就是利用图灵完备的指令集去逼近或发明这些函数。框架仅规定它们的输入域：
+
+\subsection{向下演化函数（Down-Pass Function）}
+用于生成新子节点的初始先验上下文。
+\begin{itemize}
+    \item \textbf{演化目标:} $\mathcal{F}_{down}$
+    \item \textbf{输入域约束:} 仅允许访问父节点的向下内存与自身的边约束。
+    \item \textbf{抽象映射:} 
+    \[
+    M_{i \downarrow} = \mathcal{F}_{down}\left( M_{\text{Parent}(i) \downarrow}, C_i \right)
+    \]
+\end{itemize}
+
+\subsection{向上演化函数（Up-Pass Function）}
+用于融合子树信息并生成向上传递的载荷。
+\begin{itemize}
+    \item \textbf{演化目标:} $\mathcal{F}_{up}$
+    \item \textbf{输入域约束:} 仅允许访问其直接子节点集合 $\text{Children}(i)$ 的向上内存及其对应的边约束。
+    \item \textbf{抽象映射:} 
+    \[
+    M_{i \uparrow} = \mathcal{F}_{up}\left( \{M_{j \uparrow}\}_{j \in \text{Children}(i)}, \{C_j\}_{j \in \text{Children}(i)} \right)
+    \]
+\end{itemize}
+
+\subsection{优先级评估函数（Scoring Function）}
+用于确立搜索方向。
+\begin{itemize}
+    \item \textbf{演化目标:} $\mathcal{F}_{belief}$
+    \item \textbf{输入域约束:} 仅允许访问节点 $i$ 自身的上下内存状态。
+    \item \textbf{抽象映射:} 
+    \[
+    B_i = \mathcal{F}_{belief}\left( M_{i \uparrow}, M_{i \downarrow} \right)
+    \]
+\end{itemize}
+
+\section{消息更新的物理范围与控制流（Scope \& Control Flow）}
+
+框架提供事件触发机制，但具体的传播深度和停止条件由 GP 演化出的控制流 $\mathcal{H}$ 自主决定。
+
+\subsection{向下传播的单步屏障（Down-Pass Barrier）}
+\begin{itemize}
+    \item \textbf{触发机制:} 父节点 $P$ 实例化新子节点集合。
+    \item \textbf{最大范围:} 物理强制截断为单跳（1-hop），即从 $P$ 仅至其直接子节点。
+    \item \textbf{执行动作:} 框架对每个子节点强制执行一次 $\mathcal{F}_{down}$。由于子节点尚未拥有更深层的拓扑，传播自然终结。
+\end{itemize}
+
+\subsection{向上传播的自适应路由（Up-Pass Routing）}
+\begin{itemize}
+    \item \textbf{触发机制:} 子节点集合的实例化周期结束。
+    \item \textbf{最大范围:} 沿单一路径向上，直至遇到根节点（绝对物理边界）。
+    \item \textbf{演化目标 (终止条件):} 未知布尔映射 $\mathcal{H}_{halt}$
+    \item \textbf{执行动作:} 
+    在当前节点 $k$（起始为 $P$）上，执行以下循环：
+    \begin{enumerate}
+        \item 记录执行前的旧状态：$M_{\text{old}} = M_{k \uparrow}$
+        \item 运行 $\mathcal{F}_{up}$，更新自身的 $M_{k \uparrow}$。
+        \item 运行 $\mathcal{F}_{belief}$，更新优先队列调度分 $B_k$。
+        \item 运行终止函数，判断是否退出循环：
+        \[
+        \text{Halt?} = \mathcal{H}_{halt}\left( M_{k \uparrow}, M_{\text{old}}, \text{Local Context} \right) \in \{\text{True}, \text{False}\}
+        \]
+        \item 若 $\text{Halt?} == \text{True}$ 或已达根节点，立即终止当前单轮更新。否则，将执行指针上移至 $\text{Parent}(k)$，重复步骤 1。
+    \end{enumerate}
+\end{itemize}
+
+在这一极简框架下，GP 引擎被赋予了最大的创造自由。它既可以演化出基于加法和取最小值的传统 Min-Sum 算法并设定固定阈值退出，也有可能探索出非线性的新型融合策略与自适应阻尼截断机制。
+
+\end{document}

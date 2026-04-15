@@ -1,0 +1,46 @@
+{
+  "log_suffix": "cpp_test6",
+  "best_genome": "DOWN:[Float.Max ; Mat.PeekAt ; Node.Pop ; Mat.PeekAt] | UP:[Float.EvoConst0 ; Float.Swap ; Int.GetNumSymbols ; Float.EvoConst0 ; Float.Max] | BEL:[Node.SetMDown ; Float.Min] | HALT:[Float.Const1 ; Float.GT] | LOGC:[0.3737,-0.3951,1.5414,-1.7020]",
+  "full_eval": [
+    {
+      "snr_db": 18.0,
+      "evolved_ber": 0.2555,
+      "evolved_flops": 96058.464,
+      "lmmse_ber": 0.29825,
+      "kbest16_ber": 0.09825,
+      "kbest32_ber": 0.06725
+    },
+    {
+      "snr_db": 20.0,
+      "evolved_ber": 0.097875,
+      "evolved_flops": 66398.912,
+      "lmmse_ber": 0.2195,
+      "kbest16_ber": 0.02925,
+      "kbest32_ber": 0.014875
+    },
+    {
+      "snr_db": 22.0,
+      "evolved_ber": 0.028125,
+      "evolved_flops": 45713.312,
+      "lmmse_ber": 0.164875,
+      "kbest16_ber": 0.005375,
+      "kbest32_ber": 0.001125
+    },
+    {
+      "snr_db": 24.0,
+      "evolved_ber": 0.004875,
+      "evolved_flops": 34967.04,
+      "lmmse_ber": 0.11575,
+      "kbest16_ber": 0.00325,
+      "kbest32_ber": 0.000375
+    },
+    {
+      "snr_db": 28.0,
+      "evolved_ber": 0.0,
+      "evolved_flops": 29952.448,
+      "lmmse_ber": 0.05025,
+      "kbest16_ber": 0.0,
+      "kbest32_ber": 0.0
+    }
+  ]
+}

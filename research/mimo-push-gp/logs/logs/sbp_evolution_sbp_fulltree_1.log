@@ -1,0 +1,392 @@
+================================================================================
+Structured-BP GP  started 2026-04-13 17:31:40
+================================================================================
+
+[2026-04-13 17:31:40] Configuration
+{
+  "generations": 30,
+  "population": 120,
+  "train_samples": 24,
+  "train_nt": 8,
+  "train_nr": 16,
+  "mod_order": 16,
+  "train_max_nodes": 300,
+  "train_flops_max": 5000000,
+  "step_max": 3000,
+  "eval_trials": 200,
+  "eval_max_nodes": 2000,
+  "eval_flops_max": 10000000,
+  "eval_nt": 16,
+  "eval_nr": 32,
+  "eval_step_max": 10000,
+  "train_snrs": "10,12,14",
+  "eval_snrs": "8,10,12,14,16",
+  "seed": 42,
+  "continuous": true,
+  "batch_gens": 5,
+  "log_suffix": "sbp_fulltree_1"
+}
+------------------------------------------------------------
+
+[2026-04-13 17:35:17] Gen 0  Fit(BER=0.55391 ratio=5.317 FLOPs=25007896 len=5 faults=0.78 gap=0.016 bp=0.0 nlbp=0.0 bpg=0.000)  (initial)
+  DOWN:[Float.Add] | UP:[Float.Min] | BEL:[Float.Add ; Node.GetCumDist] | HALT:[Bool.True]
+
+[2026-04-13 17:38:34] Gen 1  Fit(BER=0.54492 ratio=5.231 FLOPs=25010838 len=27 faults=0.78 gap=0.013 bp=0.0 nlbp=0.0 bpg=0.000)  (NEW BEST)
+  DOWN:[Float.Const2 ; Float.Mul ; Mat.PeekAt] | UP:[Node.ForEachChild([Node.GetCumDist]) ; Node.ForEachChild([Float.Rot, Float.Min, Float.GetNoiseVar]) ; Int.Inc ; Mat.ElementAt ; Node.NumChildren ; Exec.DoTimes([Float.Max]) ; Float.Log] | BEL:[Float.Div ; Node.Swap ; Float.Sub ; Node.GetMDown ; Float.Swap ; Float.Swap ; Float.Sqrt ; Float.Mul] | HALT:[Float.GetNoiseVar ; Float.ConstHalf ; Float.Sub ; Bool.And]
+
+[2026-04-13 17:41:31] Gen 2  Fit(BER=0.53646 ratio=3.679 FLOPs=25006643 len=7 faults=0.78 gap=0.000 bp=0.0 nlbp=0.0 bpg=0.000)  (NEW BEST)
+  DOWN:[Float.Const1 ; Float.Swap] | UP:[Float.Min] | BEL:[Float.Dup ; Node.GetCumDist ; Float.Add] | HALT:[Bool.True]
+
+[2026-04-13 17:43:45] Gen 3  Fit(BER=0.53646 ratio=3.679 FLOPs=25006643 len=7 faults=0.78 gap=0.000 bp=0.0 nlbp=0.0 bpg=0.000)
+  DOWN:[Float.Const1 ; Float.Swap] | UP:[Float.Min] | BEL:[Float.Dup ; Node.GetCumDist ; Float.Add] | HALT:[Bool.True]
+
+[2026-04-13 17:46:09] Gen 4  Fit(BER=0.53646 ratio=3.679 FLOPs=25006643 len=7 faults=0.78 gap=0.000 bp=0.0 nlbp=0.0 bpg=0.000)
+  DOWN:[Float.Const1 ; Float.Swap] | UP:[Float.Min] | BEL:[Float.Dup ; Node.GetCumDist ; Float.Add] | HALT:[Bool.True]
+
+[2026-04-13 17:47:46] Gen 5  Fit(BER=0.53125 ratio=4.857 FLOPs=25006474 len=9 faults=0.78 gap=0.000 bp=0.0 nlbp=0.0 bpg=0.000)  (NEW BEST)
+  DOWN:[Float.Const1 ; Float.Swap] | UP:[Float.Min] | BEL:[Float.Dup ; Float.Square ; Node.GetCumDist ; Float.Add] | HALT:[Bool.Not ; Bool.True]
+
+[2026-04-13 17:59:42] Full eval
+[
+  {
+    "snr_db": 8.0,
+    "evolved_ber": 0.31875,
+    "evolved_flops": 322412.62,
+    "lmmse_ber": 0.3225,
+    "kbest16_ber": 0.2890625,
+    "kbest32_ber": 0.289375
+  },
+  {
+    "snr_db": 10.0,
+    "evolved_ber": 0.1696875,
+    "evolved_flops": 250535.045,
+    "lmmse_ber": 0.2125,
+    "kbest16_ber": 0.15,
+    "kbest32_ber": 0.148125
+  },
+  {
+    "snr_db": 12.0,
+    "evolved_ber": 0.058125,
+    "evolved_flops": 138723.205,
+    "lmmse_ber": 0.101875,
+    "kbest16_ber": 0.0334375,
+    "kbest32_ber": 0.0340625
+  },
+  {
+    "snr_db": 14.0,
+    "evolved_ber": 0.0121875,
+    "evolved_flops": 62508.705,
+    "lmmse_ber": 0.04125,
+    "kbest16_ber": 0.009375,
+    "kbest32_ber": 0.0084375
+  },
+  {
+    "snr_db": 16.0,
+    "evolved_ber": 0.0003125,
+    "evolved_flops": 45480.58,
+    "lmmse_ber": 0.006875,
+    "kbest16_ber": 0.0,
+    "kbest32_ber": 0.0
+  }
+]
+------------------------------------------------------------
+
+[2026-04-13 18:01:19] Gen 6  Fit(BER=0.53125 ratio=4.857 FLOPs=25006474 len=9 faults=0.78 gap=0.000 bp=0.0 nlbp=0.0 bpg=0.000)
+  DOWN:[Float.Const1 ; Float.Swap] | UP:[Float.Min] | BEL:[Float.Dup ; Float.Square ; Node.GetCumDist ; Float.Add] | HALT:[Bool.Not ; Bool.True]
+
+[2026-04-13 18:02:49] Gen 7  Fit(BER=0.53125 ratio=4.857 FLOPs=25006474 len=9 faults=0.78 gap=0.000 bp=0.0 nlbp=0.0 bpg=0.000)
+  DOWN:[Float.Const1 ; Float.Swap] | UP:[Float.Min] | BEL:[Float.Dup ; Float.Square ; Node.GetCumDist ; Float.Add] | HALT:[Bool.Not ; Bool.True]
+
+[2026-04-13 18:04:39] Gen 8  Fit(BER=0.53125 ratio=4.857 FLOPs=25006474 len=9 faults=0.78 gap=0.000 bp=0.0 nlbp=0.0 bpg=0.000)
+  DOWN:[Float.Const1 ; Float.Swap] | UP:[Float.Min] | BEL:[Float.Dup ; Float.Square ; Node.GetCumDist ; Float.Add] | HALT:[Bool.Not ; Bool.True]
+
+[2026-04-13 18:06:56] Gen 9  Fit(BER=0.53125 ratio=4.857 FLOPs=25006474 len=9 faults=0.78 gap=0.000 bp=0.0 nlbp=0.0 bpg=0.000)
+  DOWN:[Float.Const1 ; Float.Swap] | UP:[Float.Min] | BEL:[Float.Dup ; Float.Square ; Node.GetCumDist ; Float.Add] | HALT:[Bool.Not ; Bool.True]
+
+[2026-04-13 18:09:56] Gen 10  Fit(BER=0.53125 ratio=4.857 FLOPs=25006474 len=9 faults=0.78 gap=0.000 bp=0.0 nlbp=0.0 bpg=0.000)
+  DOWN:[Float.Const1 ; Float.Swap] | UP:[Float.Min] | BEL:[Float.Dup ; Float.Square ; Node.GetCumDist ; Float.Add] | HALT:[Bool.Not ; Bool.True]
+
+[2026-04-13 18:22:31] Full eval
+[
+  {
+    "snr_db": 8.0,
+    "evolved_ber": 0.31875,
+    "evolved_flops": 322412.62,
+    "lmmse_ber": 0.3225,
+    "kbest16_ber": 0.2890625,
+    "kbest32_ber": 0.289375
+  },
+  {
+    "snr_db": 10.0,
+    "evolved_ber": 0.1696875,
+    "evolved_flops": 250535.045,
+    "lmmse_ber": 0.2125,
+    "kbest16_ber": 0.15,
+    "kbest32_ber": 0.148125
+  },
+  {
+    "snr_db": 12.0,
+    "evolved_ber": 0.058125,
+    "evolved_flops": 138723.205,
+    "lmmse_ber": 0.101875,
+    "kbest16_ber": 0.0334375,
+    "kbest32_ber": 0.0340625
+  },
+  {
+    "snr_db": 14.0,
+    "evolved_ber": 0.0121875,
+    "evolved_flops": 62508.705,
+    "lmmse_ber": 0.04125,
+    "kbest16_ber": 0.009375,
+    "kbest32_ber": 0.0084375
+  },
+  {
+    "snr_db": 16.0,
+    "evolved_ber": 0.0003125,
+    "evolved_flops": 45480.58,
+    "lmmse_ber": 0.006875,
+    "kbest16_ber": 0.0,
+    "kbest32_ber": 0.0
+  }
+]
+------------------------------------------------------------
+
+[2026-04-13 18:24:32] Gen 11  Fit(BER=0.53125 ratio=4.857 FLOPs=25006474 len=9 faults=0.78 gap=0.000 bp=0.0 nlbp=0.0 bpg=0.000)
+  DOWN:[Float.Const1 ; Float.Swap] | UP:[Float.Min] | BEL:[Float.Dup ; Float.Square ; Node.GetCumDist ; Float.Add] | HALT:[Bool.Not ; Bool.True]
+
+[2026-04-13 18:26:33] Gen 12  Fit(BER=0.53125 ratio=4.857 FLOPs=25006474 len=9 faults=0.78 gap=0.000 bp=0.0 nlbp=0.0 bpg=0.000)
+  DOWN:[Float.Const1 ; Float.Swap] | UP:[Float.Min] | BEL:[Float.Dup ; Float.Square ; Node.GetCumDist ; Float.Add] | HALT:[Bool.Not ; Bool.True]
+
+[2026-04-13 18:28:25] Gen 13  Fit(BER=0.53125 ratio=4.857 FLOPs=25006474 len=9 faults=0.78 gap=0.000 bp=0.0 nlbp=0.0 bpg=0.000)
+  DOWN:[Float.Const1 ; Float.Swap] | UP:[Float.Min] | BEL:[Float.Dup ; Float.Square ; Node.GetCumDist ; Float.Add] | HALT:[Bool.Not ; Bool.True]
+
+[2026-04-13 18:30:27] Gen 14  Fit(BER=0.53125 ratio=4.857 FLOPs=25006474 len=9 faults=0.78 gap=0.000 bp=0.0 nlbp=0.0 bpg=0.000)
+  DOWN:[Float.Const1 ; Float.Swap] | UP:[Float.Min] | BEL:[Float.Dup ; Float.Square ; Node.GetCumDist ; Float.Add] | HALT:[Bool.Not ; Bool.True]
+
+[2026-04-13 18:32:18] Gen 15  Fit(BER=0.53125 ratio=4.857 FLOPs=25006474 len=9 faults=0.78 gap=0.000 bp=0.0 nlbp=0.0 bpg=0.000)
+  DOWN:[Float.Const1 ; Float.Swap] | UP:[Float.Min] | BEL:[Float.Dup ; Float.Square ; Node.GetCumDist ; Float.Add] | HALT:[Bool.Not ; Bool.True]
+
+[2026-04-13 18:45:02] Full eval
+[
+  {
+    "snr_db": 8.0,
+    "evolved_ber": 0.31875,
+    "evolved_flops": 322412.62,
+    "lmmse_ber": 0.3225,
+    "kbest16_ber": 0.2890625,
+    "kbest32_ber": 0.289375
+  },
+  {
+    "snr_db": 10.0,
+    "evolved_ber": 0.1696875,
+    "evolved_flops": 250535.045,
+    "lmmse_ber": 0.2125,
+    "kbest16_ber": 0.15,
+    "kbest32_ber": 0.148125
+  },
+  {
+    "snr_db": 12.0,
+    "evolved_ber": 0.058125,
+    "evolved_flops": 138723.205,
+    "lmmse_ber": 0.101875,
+    "kbest16_ber": 0.0334375,
+    "kbest32_ber": 0.0340625
+  },
+  {
+    "snr_db": 14.0,
+    "evolved_ber": 0.0121875,
+    "evolved_flops": 62508.705,
+    "lmmse_ber": 0.04125,
+    "kbest16_ber": 0.009375,
+    "kbest32_ber": 0.0084375
+  },
+  {
+    "snr_db": 16.0,
+    "evolved_ber": 0.0003125,
+    "evolved_flops": 45480.58,
+    "lmmse_ber": 0.006875,
+    "kbest16_ber": 0.0,
+    "kbest32_ber": 0.0
+  }
+]
+------------------------------------------------------------
+
+[2026-04-13 18:47:43] Gen 16  Fit(BER=0.53125 ratio=4.857 FLOPs=25006474 len=9 faults=0.78 gap=0.000 bp=0.0 nlbp=0.0 bpg=0.000)
+  DOWN:[Float.Const1 ; Float.Swap] | UP:[Float.Min] | BEL:[Float.Dup ; Float.Square ; Node.GetCumDist ; Float.Add] | HALT:[Bool.Not ; Bool.True]
+
+[2026-04-13 18:49:44] Gen 17  Fit(BER=0.53125 ratio=4.857 FLOPs=25006474 len=9 faults=0.78 gap=0.000 bp=0.0 nlbp=0.0 bpg=0.000)
+  DOWN:[Float.Const1 ; Float.Swap] | UP:[Float.Min] | BEL:[Float.Dup ; Float.Square ; Node.GetCumDist ; Float.Add] | HALT:[Bool.Not ; Bool.True]
+
+[2026-04-13 18:52:12] Gen 18  Fit(BER=0.53125 ratio=4.857 FLOPs=25006474 len=9 faults=0.78 gap=0.000 bp=0.0 nlbp=0.0 bpg=0.000)
+  DOWN:[Float.Const1 ; Float.Swap] | UP:[Float.Min] | BEL:[Float.Dup ; Float.Square ; Node.GetCumDist ; Float.Add] | HALT:[Bool.Not ; Bool.True]
+
+[2026-04-13 18:55:12] Gen 19  Fit(BER=0.53125 ratio=4.857 FLOPs=25006474 len=9 faults=0.78 gap=0.000 bp=0.0 nlbp=0.0 bpg=0.000)
+  DOWN:[Float.Const1 ; Float.Swap] | UP:[Float.Min] | BEL:[Float.Dup ; Float.Square ; Node.GetCumDist ; Float.Add] | HALT:[Bool.Not ; Bool.True]
+
+[2026-04-13 18:58:38] Gen 20  Fit(BER=0.53125 ratio=4.857 FLOPs=25006474 len=9 faults=0.78 gap=0.000 bp=0.0 nlbp=0.0 bpg=0.000)
+  DOWN:[Float.Const1 ; Float.Swap] | UP:[Float.Min] | BEL:[Float.Dup ; Float.Square ; Node.GetCumDist ; Float.Add] | HALT:[Bool.Not ; Bool.True]
+
+[2026-04-13 19:17:57] Full eval
+[
+  {
+    "snr_db": 8.0,
+    "evolved_ber": 0.31875,
+    "evolved_flops": 322412.62,
+    "lmmse_ber": 0.3225,
+    "kbest16_ber": 0.2890625,
+    "kbest32_ber": 0.289375
+  },
+  {
+    "snr_db": 10.0,
+    "evolved_ber": 0.1696875,
+    "evolved_flops": 250535.045,
+    "lmmse_ber": 0.2125,
+    "kbest16_ber": 0.15,
+    "kbest32_ber": 0.148125
+  },
+  {
+    "snr_db": 12.0,
+    "evolved_ber": 0.058125,
+    "evolved_flops": 138723.205,
+    "lmmse_ber": 0.101875,
+    "kbest16_ber": 0.0334375,
+    "kbest32_ber": 0.0340625
+  },
+  {
+    "snr_db": 14.0,
+    "evolved_ber": 0.0121875,
+    "evolved_flops": 62508.705,
+    "lmmse_ber": 0.04125,
+    "kbest16_ber": 0.009375,
+    "kbest32_ber": 0.0084375
+  },
+  {
+    "snr_db": 16.0,
+    "evolved_ber": 0.0003125,
+    "evolved_flops": 45480.58,
+    "lmmse_ber": 0.006875,
+    "kbest16_ber": 0.0,
+    "kbest32_ber": 0.0
+  }
+]
+------------------------------------------------------------
+
+[2026-04-13 19:20:55] Gen 21  Fit(BER=0.53125 ratio=4.857 FLOPs=25006474 len=9 faults=0.78 gap=0.000 bp=0.0 nlbp=0.0 bpg=0.000)
+  DOWN:[Float.Const1 ; Float.Swap] | UP:[Float.Min] | BEL:[Float.Dup ; Float.Square ; Node.GetCumDist ; Float.Add] | HALT:[Bool.Not ; Bool.True]
+
+[2026-04-13 19:23:41] Gen 22  Fit(BER=0.53125 ratio=4.857 FLOPs=25006474 len=9 faults=0.78 gap=0.000 bp=0.0 nlbp=0.0 bpg=0.000)
+  DOWN:[Float.Const1 ; Float.Swap] | UP:[Float.Min] | BEL:[Float.Dup ; Float.Square ; Node.GetCumDist ; Float.Add] | HALT:[Bool.Not ; Bool.True]
+
+[2026-04-13 19:26:20] Gen 23  Fit(BER=0.53125 ratio=4.857 FLOPs=25006474 len=9 faults=0.78 gap=0.000 bp=0.0 nlbp=0.0 bpg=0.000)
+  DOWN:[Float.Const1 ; Float.Swap] | UP:[Float.Min] | BEL:[Float.Dup ; Float.Square ; Node.GetCumDist ; Float.Add] | HALT:[Bool.Not ; Bool.True]
+
+[2026-04-13 19:29:29] Gen 24  Fit(BER=0.53125 ratio=4.857 FLOPs=25006474 len=9 faults=0.78 gap=0.000 bp=0.0 nlbp=0.0 bpg=0.000)
+  DOWN:[Float.Const1 ; Float.Swap] | UP:[Float.Min] | BEL:[Float.Dup ; Float.Square ; Node.GetCumDist ; Float.Add] | HALT:[Bool.Not ; Bool.True]
+
+[2026-04-13 19:33:26] Gen 25  Fit(BER=0.53125 ratio=4.857 FLOPs=25006474 len=9 faults=0.78 gap=0.000 bp=0.0 nlbp=0.0 bpg=0.000)
+  DOWN:[Float.Const1 ; Float.Swap] | UP:[Float.Min] | BEL:[Float.Dup ; Float.Square ; Node.GetCumDist ; Float.Add] | HALT:[Bool.Not ; Bool.True]
+
+[2026-04-13 19:49:44] Full eval
+[
+  {
+    "snr_db": 8.0,
+    "evolved_ber": 0.31875,
+    "evolved_flops": 322412.62,
+    "lmmse_ber": 0.3225,
+    "kbest16_ber": 0.2890625,
+    "kbest32_ber": 0.289375
+  },
+  {
+    "snr_db": 10.0,
+    "evolved_ber": 0.1696875,
+    "evolved_flops": 250535.045,
+    "lmmse_ber": 0.2125,
+    "kbest16_ber": 0.15,
+    "kbest32_ber": 0.148125
+  },
+  {
+    "snr_db": 12.0,
+    "evolved_ber": 0.058125,
+    "evolved_flops": 138723.205,
+    "lmmse_ber": 0.101875,
+    "kbest16_ber": 0.0334375,
+    "kbest32_ber": 0.0340625
+  },
+  {
+    "snr_db": 14.0,
+    "evolved_ber": 0.0121875,
+    "evolved_flops": 62508.705,
+    "lmmse_ber": 0.04125,
+    "kbest16_ber": 0.009375,
+    "kbest32_ber": 0.0084375
+  },
+  {
+    "snr_db": 16.0,
+    "evolved_ber": 0.0003125,
+    "evolved_flops": 45480.58,
+    "lmmse_ber": 0.006875,
+    "kbest16_ber": 0.0,
+    "kbest32_ber": 0.0
+  }
+]
+------------------------------------------------------------
+
+[2026-04-13 19:52:18] Gen 26  Fit(BER=0.53125 ratio=4.857 FLOPs=25006474 len=9 faults=0.78 gap=0.000 bp=0.0 nlbp=0.0 bpg=0.000)
+  DOWN:[Float.Const1 ; Float.Swap] | UP:[Float.Min] | BEL:[Float.Dup ; Float.Square ; Node.GetCumDist ; Float.Add] | HALT:[Bool.Not ; Bool.True]
+
+[2026-04-13 19:54:25] Gen 27  Fit(BER=0.53125 ratio=4.857 FLOPs=25006474 len=9 faults=0.78 gap=0.000 bp=0.0 nlbp=0.0 bpg=0.000)
+  DOWN:[Float.Const1 ; Float.Swap] | UP:[Float.Min] | BEL:[Float.Dup ; Float.Square ; Node.GetCumDist ; Float.Add] | HALT:[Bool.Not ; Bool.True]
+
+[2026-04-13 19:56:32] Gen 28  Fit(BER=0.53125 ratio=4.857 FLOPs=25006474 len=9 faults=0.78 gap=0.000 bp=0.0 nlbp=0.0 bpg=0.000)
+  DOWN:[Float.Const1 ; Float.Swap] | UP:[Float.Min] | BEL:[Float.Dup ; Float.Square ; Node.GetCumDist ; Float.Add] | HALT:[Bool.Not ; Bool.True]
+
+[2026-04-13 19:58:30] Gen 29  Fit(BER=0.53125 ratio=4.857 FLOPs=25006474 len=9 faults=0.78 gap=0.000 bp=0.0 nlbp=0.0 bpg=0.000)
+  DOWN:[Float.Const1 ; Float.Swap] | UP:[Float.Min] | BEL:[Float.Dup ; Float.Square ; Node.GetCumDist ; Float.Add] | HALT:[Bool.Not ; Bool.True]
+
+[2026-04-13 20:01:04] Gen 30  Fit(BER=0.53125 ratio=4.857 FLOPs=25006474 len=9 faults=0.78 gap=0.000 bp=0.0 nlbp=0.0 bpg=0.000)
+  DOWN:[Float.Const1 ; Float.Swap] | UP:[Float.Min] | BEL:[Float.Dup ; Float.Square ; Node.GetCumDist ; Float.Add] | HALT:[Bool.Not ; Bool.True]
+
+[2026-04-13 20:15:37] Full eval
+[
+  {
+    "snr_db": 8.0,
+    "evolved_ber": 0.31875,
+    "evolved_flops": 322412.62,
+    "lmmse_ber": 0.3225,
+    "kbest16_ber": 0.2890625,
+    "kbest32_ber": 0.289375
+  },
+  {
+    "snr_db": 10.0,
+    "evolved_ber": 0.1696875,
+    "evolved_flops": 250535.045,
+    "lmmse_ber": 0.2125,
+    "kbest16_ber": 0.15,
+    "kbest32_ber": 0.148125
+  },
+  {
+    "snr_db": 12.0,
+    "evolved_ber": 0.058125,
+    "evolved_flops": 138723.205,
+    "lmmse_ber": 0.101875,
+    "kbest16_ber": 0.0334375,
+    "kbest32_ber": 0.0340625
+  },
+  {
+    "snr_db": 14.0,
+    "evolved_ber": 0.0121875,
+    "evolved_flops": 62508.705,
+    "lmmse_ber": 0.04125,
+    "kbest16_ber": 0.009375,
+    "kbest32_ber": 0.0084375
+  },
+  {
+    "snr_db": 16.0,
+    "evolved_ber": 0.0003125,
+    "evolved_flops": 45480.58,
+    "lmmse_ber": 0.006875,
+    "kbest16_ber": 0.0,
+    "kbest32_ber": 0.0
+  }
+]
+------------------------------------------------------------

@@ -9,21 +9,23 @@ research/
   memory/          # Persistent memory files (state, logs, experience)
   <topic-name>/    # Per-topic research folders
     papers/        # Downloaded PDFs and extracted text
-    code/          # Simulation source code (C++/Python/MATLAB)
+    code/          # Simulation source code (Python)
     results/       # Experiment outputs, data files, plots
     paper/         # LaTeX manuscript drafts
     references.bib # BibTeX for this topic
-mimo2D/            # Existing C++ simulation codebase (reference)
-manuscript/        # Existing paper (reference)
-theme.txt          # Current research theme
+project-AlphaDetect/
+  research_proposal/    # Core research proposal (LaTeX)
+  traditional-detection-algorithms/  # Reference Python implementations
+theme.txt          # Current research theme (points to active research proposal)
 ```
 
 ## Research Directory Conventions
 
-- Each research thread lives under `research/<topic-name>/` with a descriptive kebab-case name (e.g., `research/polar-mimo-idd/`).
+- Each research thread lives under `research/<topic-name>/` with a descriptive kebab-case name (e.g., `research/alphadetect-dsl/`).
 - Orchestrator creates new topic folders when starting a new research thread.
 - Multiple topics can be active simultaneously; Orchestrator tracks them in `research/memory/state.json`.
-- Never modify `mimo2D/` or `manuscript/` directly — copy and adapt into `research/<topic>/code/` when needed.
+- The canonical research vision is defined in `project-AlphaDetect/research_proposal/research_proposal.tex` — all research threads must align with it.
+- Reference implementations in `project-AlphaDetect/traditional-detection-algorithms/` may be studied but should not be modified directly; copy and adapt into `research/<topic>/code/` when needed.
 
 ## Memory System
 
@@ -68,12 +70,13 @@ Sub-agents receive structured prompts from Orchestrator and return structured re
 
 ## Code Conventions
 
-- **C++**: Follow patterns in `mimo2D/platform_1/` — Eigen3 for linear algebra, OpenMP for parallelism, structured parameter headers (see `setting.h`).
-- **Python**: Use numpy/scipy/matplotlib. Virtual environment in `.venv/`.
-- **MATLAB**: Standard function-file structure with clear parameter documentation.
+- **Python** is the **mandatory** implementation language for all simulation and experiment code.
+- Use numpy/scipy/matplotlib for numerical computation and plotting.
+- All Python scripts MUST be run inside the `AutoGenOld` conda environment: `conda run -n AutoGenOld python <script.py>` or by activating it first.
+- Reference Python implementations exist in `project-AlphaDetect/traditional-detection-algorithms/` — study them for patterns on MIMO detector implementations.
 
 ## LaTeX Conventions
 
 - IEEE two-column format for papers.
-- Notation consistency: refer to `manuscript/main.tex` for established symbols ($\mathbf{H}$, $N_h$, $N_v$, etc.).
+- Notation consistency: refer to `project-AlphaDetect/research_proposal/research_proposal.tex` for established symbols ($\mathbf{H}$, $\mathbf{x}$, $\mathbf{y}$, $\mathbf{n}$, etc.).
 - Figures via TikZ/pgfplots with data files.

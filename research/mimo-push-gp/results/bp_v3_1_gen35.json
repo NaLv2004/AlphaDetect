@@ -1,0 +1,173 @@
+{
+  "gen": 35,
+  "best_prog": "Vector.Pop ; Int.Dup ; Vec.PeekAtIm ; Node.WriteMem ; Node.GetLocalDist ; Float.GetMMSELB",
+  "best_fitness": {
+    "ber": 0.046875,
+    "flops": 10869.55,
+    "ratio": 0.5
+  },
+  "eval_results": [
+    {
+      "snr_db": 8.0,
+      "evolved_ber": 0.2825,
+      "evolved_flops": 33804.56,
+      "lmmse_ber": 0.31625,
+      "kbest16_ber": 0.27625,
+      "kbest32_ber": 0.2775
+    },
+    {
+      "snr_db": 10.0,
+      "evolved_ber": 0.145,
+      "evolved_flops": 24456.4,
+      "lmmse_ber": 0.19,
+      "kbest16_ber": 0.14,
+      "kbest32_ber": 0.14
+    },
+    {
+      "snr_db": 12.0,
+      "evolved_ber": 0.045625,
+      "evolved_flops": 14147.44,
+      "lmmse_ber": 0.105,
+      "kbest16_ber": 0.043125,
+      "kbest32_ber": 0.043125
+    },
+    {
+      "snr_db": 14.0,
+      "evolved_ber": 0.011875,
+      "evolved_flops": 9959.36,
+      "lmmse_ber": 0.04,
+      "kbest16_ber": 0.0125,
+      "kbest32_ber": 0.0125
+    },
+    {
+      "snr_db": 16.0,
+      "evolved_ber": 0.001875,
+      "evolved_flops": 8824.16,
+      "lmmse_ber": 0.016875,
+      "kbest16_ber": 0.00125,
+      "kbest32_ber": 0.00125
+    }
+  ],
+  "history": [
+    {
+      "gen": 16,
+      "ber": 0.0625,
+      "flops": 9829.5,
+      "len": 13
+    },
+    {
+      "gen": 17,
+      "ber": 0.0625,
+      "flops": 9829.5,
+      "len": 13
+    },
+    {
+      "gen": 18,
+      "ber": 0.0625,
+      "flops": 9829.5,
+      "len": 13
+    },
+    {
+      "gen": 19,
+      "ber": 0.0625,
+      "flops": 9829.5,
+      "len": 13
+    },
+    {
+      "gen": 20,
+      "ber": 0.0625,
+      "flops": 9829.5,
+      "len": 13
+    },
+    {
+      "gen": 21,
+      "ber": 0.0625,
+      "flops": 9829.5,
+      "len": 13
+    },
+    {
+      "gen": 22,
+      "ber": 0.0625,
+      "flops": 9829.5,
+      "len": 13
+    },
+    {
+      "gen": 23,
+      "ber": 0.0625,
+      "flops": 9829.5,
+      "len": 13
+    },
+    {
+      "gen": 24,
+      "ber": 0.0625,
+      "flops": 9829.5,
+      "len": 13
+    },
+    {
+      "gen": 25,
+      "ber": 0.0625,
+      "flops": 9829.5,
+      "len": 13
+    },
+    {
+      "gen": 26,
+      "ber": 0.0625,
+      "flops": 9829.5,
+      "len": 13
+    },
+    {
+      "gen": 27,
+      "ber": 0.0625,
+      "flops": 9829.5,
+      "len": 13
+    },
+    {
+      "gen": 28,
+      "ber": 0.0625,
+      "flops": 9829.5,
+      "len": 13
+    },
+    {
+      "gen": 29,
+      "ber": 0.046875,
+      "flops": 10869.55,
+      "len": 6
+    },
+    {
+      "gen": 30,
+      "ber": 0.046875,
+      "flops": 10869.55,
+      "len": 6
+    },
+    {
+      "gen": 31,
+      "ber": 0.046875,
+      "flops": 10869.55,
+      "len": 6
+    },
+    {
+      "gen": 32,
+      "ber": 0.046875,
+      "flops": 10869.55,
+      "len": 6
+    },
+    {
+      "gen": 33,
+      "ber": 0.046875,
+      "flops": 10869.55,
+      "len": 6
+    },
+    {
+      "gen": 34,
+      "ber": 0.046875,
+      "flops": 10869.55,
+      "len": 6
+    },
+    {
+      "gen": 35,
+      "ber": 0.046875,
+      "flops": 10869.55,
+      "len": 6
+    }
+  ]
+}

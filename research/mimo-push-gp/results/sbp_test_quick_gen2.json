@@ -1,0 +1,44 @@
+{
+  "gen": 2,
+  "best_genome": "DOWN:[Float.Abs ; Float.Min ; Int.LT] | UP:[Mat.Row ; Float.Add ; Int.Inc ; Float.Sub ; Float.Exp] | BEL:[Float.Div ; Node.GetCumDist ; Float.Max ; Float.Mul] | HALT:[Float.Swap ; Float.ConstNeg1 ; Float.GT ; Int.Const0 ; Float.Const0] | LOGC:[-0.8639,-0.1115,-0.2596,1.5816]",
+  "eval_results": [
+    {
+      "snr_db": 24.0,
+      "evolved_ber": 0.0,
+      "evolved_flops": 921.46,
+      "evolved_samples": 100,
+      "evolved_bit_errors": 0,
+      "lmmse_ber": 0.0025,
+      "kbest16_ber": 0.0,
+      "kbest32_ber": 0.0
+    }
+  ],
+  "baseline_results": [
+    {
+      "snr_db": 24.0,
+      "lmmse_ber": 0.0025,
+      "lmmse_bit_errors": 1,
+      "kbest16_ber": 0.0,
+      "kbest16_bit_errors": 0,
+      "kbest32_ber": 0.0,
+      "kbest32_bit_errors": 0,
+      "samples": 100
+    }
+  ],
+  "history": [
+    {
+      "gen": 1,
+      "ber": 0.0,
+      "flops": 949.8500000000001,
+      "len": 17,
+      "bp_up": 56.875
+    },
+    {
+      "gen": 2,
+      "ber": 0.0,
+      "flops": 949.8500000000001,
+      "len": 17,
+      "bp_up": 56.875
+    }
+  ]
+}

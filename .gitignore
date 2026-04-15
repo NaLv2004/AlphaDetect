@@ -25,3 +25,7 @@ Thumbs.db
 *.o
 *.exe
 *.out
+
+# MSVC toolchain / large build artifacts
+code_for_reference/automl_zero/vc_link/
+*.pdb

@@ -1,0 +1,83 @@
+{
+  "gen": 5,
+  "best_prog": "Exec.DoTimes([Vec.Len, Int.Const1]) ; Exec.While([Mat.Row, Node.GetSymRe, Float.GT]) ; Vec.Dot ; Vec.Add ; Vec.Norm2 ; Float.Log ; Node.GetParent ; Int.Const1 ; Vector.Pop ; Float.GetNoiseVar ; Node.IsExpanded ; Vec.Dot ; Float.ConstNeg1 ; Float.Add ; Int.FromFloat ; Int.Dec ; Vec.GetResidue ; Float.Const1 ; Vec.Norm2 ; Matrix.Dup ; Vec.Scale ; IF([Int.Pop, Node.ForEachChild([Float.Const1, Float.ConstHalf, Vec.Add])], [Exec.DoTimes([Int.Const0])]) ; Exec.MinOverSymbols([Matrix.Pop]) ; Int.Add ; Node.GetParent ; Mat.ElementAt ; Vec.Dot ; Node.SetScore ; Float.Neg ; Float.Mul",
+  "best_fitness": {
+    "ber": 0.1931640625,
+    "flops": 12528.234375,
+    "ratio": 1.0091836734693878
+  },
+  "eval_results": [
+    {
+      "snr_db": 8.0,
+      "evolved_ber": 0.291875,
+      "evolved_flops": 63252.64,
+      "lmmse_ber": 0.31625,
+      "kbest16_ber": 0.27625,
+      "kbest32_ber": 0.2775
+    },
+    {
+      "snr_db": 10.0,
+      "evolved_ber": 0.17875,
+      "evolved_flops": 57960.02,
+      "lmmse_ber": 0.19,
+      "kbest16_ber": 0.14,
+      "kbest32_ber": 0.14
+    },
+    {
+      "snr_db": 12.0,
+      "evolved_ber": 0.0725,
+      "evolved_flops": 38915.17,
+      "lmmse_ber": 0.105,
+      "kbest16_ber": 0.043125,
+      "kbest32_ber": 0.043125
+    },
+    {
+      "snr_db": 14.0,
+      "evolved_ber": 0.01625,
+      "evolved_flops": 28353.13,
+      "lmmse_ber": 0.04,
+      "kbest16_ber": 0.0125,
+      "kbest32_ber": 0.0125
+    },
+    {
+      "snr_db": 16.0,
+      "evolved_ber": 0.008125,
+      "evolved_flops": 23557.57,
+      "lmmse_ber": 0.016875,
+      "kbest16_ber": 0.00125,
+      "kbest32_ber": 0.00125
+    }
+  ],
+  "history": [
+    {
+      "gen": 1,
+      "ber": 0.19882812500000002,
+      "flops": 14398.993750000001,
+      "len": 12
+    },
+    {
+      "gen": 2,
+      "ber": 0.19882812500000002,
+      "flops": 14398.993750000001,
+      "len": 12
+    },
+    {
+      "gen": 3,
+      "ber": 0.1931640625,
+      "flops": 12528.234375,
+      "len": 43
+    },
+    {
+      "gen": 4,
+      "ber": 0.1931640625,
+      "flops": 12528.234375,
+      "len": 43
+    },
+    {
+      "gen": 5,
+      "ber": 0.1931640625,
+      "flops": 12528.234375,
+      "len": 43
+    }
+  ]
+}

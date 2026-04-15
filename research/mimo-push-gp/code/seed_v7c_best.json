@@ -1,0 +1,41 @@
+{
+  "prog_down": [
+    "Float.Rot",
+    "Float.Swap",
+    "Float.GetMMSELB",
+    "Float.Neg"
+  ],
+  "prog_up": [
+    "Float.ConstHalf",
+    {
+      "name": "Node.ForEachChild",
+      "body": [
+        "Node.GetMUp"
+      ]
+    }
+  ],
+  "prog_belief": [
+    "Node.GetMDown",
+    "Node.GetMDown",
+    "Float.Mul",
+    "Node.GetMUp",
+    "Node.GetCumDist",
+    "Node.GetMUp",
+    "Node.GetMDown",
+    "Float.Sub",
+    "Node.GetMDown",
+    "Float.Sub",
+    "Float.Add"
+  ],
+  "prog_halt": [
+    "Float.LT",
+    "Float.EvoConst2",
+    "Float.ConstHalf"
+  ],
+  "log_constants": [
+    -0.6441,
+    0.5239,
+    0.7773,
+    -0.5218
+  ]
+}

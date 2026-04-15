@@ -1,0 +1,96 @@
+================================================================================
+BP-Stack-Decoder GP  started 2026-04-12 20:11:28
+================================================================================
+
+[2026-04-12 20:11:28] Configuration
+{
+  "generations": 30,
+  "population": 80,
+  "train_samples": 5,
+  "train_nt": 8,
+  "train_nr": 16,
+  "mod_order": 16,
+  "train_max_nodes": 300,
+  "train_flops_max": 2000000,
+  "bp_interval": 50,
+  "bp_sweeps": 1,
+  "eval_trials": 100,
+  "eval_max_nodes": 1000,
+  "eval_flops_max": 5000000,
+  "train_snrs": "10,12,14",
+  "eval_snrs": "8,10,12,14,16",
+  "seed": 42,
+  "continuous": true,
+  "batch_gens": 5,
+  "log_suffix": "bp1"
+}
+------------------------------------------------------------
+================================================================================
+BP-Stack-Decoder GP  started 2026-04-12 20:15:07
+================================================================================
+
+[2026-04-12 20:15:07] Configuration
+{
+  "generations": 30,
+  "population": 80,
+  "train_samples": 5,
+  "train_nt": 8,
+  "train_nr": 16,
+  "mod_order": 16,
+  "train_max_nodes": 300,
+  "train_flops_max": 2000000,
+  "bp_interval": 50,
+  "bp_sweeps": 1,
+  "eval_trials": 100,
+  "eval_max_nodes": 1000,
+  "eval_flops_max": 5000000,
+  "train_snrs": "10,12,14",
+  "eval_snrs": "8,10,12,14,16",
+  "seed": 42,
+  "continuous": true,
+  "batch_gens": 5,
+  "log_suffix": "bp1"
+}
+------------------------------------------------------------
+================================================================================
+BP-Stack-Decoder GP  started 2026-04-12 20:18:20
+================================================================================
+
+[2026-04-12 20:18:20] Configuration
+{
+  "generations": 30,
+  "population": 80,
+  "train_samples": 5,
+  "train_nt": 8,
+  "train_nr": 16,
+  "mod_order": 16,
+  "train_max_nodes": 300,
+  "train_flops_max": 2000000,
+  "bp_interval": 50,
+  "bp_sweeps": 1,
+  "eval_trials": 100,
+  "eval_max_nodes": 1000,
+  "eval_flops_max": 5000000,
+  "train_snrs": "10,12,14",
+  "eval_snrs": "8,10,12,14,16",
+  "seed": 42,
+  "continuous": true,
+  "batch_gens": 5,
+  "log_suffix": "bp1"
+}
+------------------------------------------------------------
+
+[2026-04-12 20:21:12] Gen 0  Fit(BER=0.03250 ratio=0.325 FLOPs=64366 len=13 faults=0.00 gap=0.017)  (initial)
+  Node.SetScore ; Vec.SecondPeekAtIm ; Int.Pop ; IF([Bool.Not, Node.GetParent], [Vec.Len, Node.IsExpanded, Float.Sub, Node.ChildAt]) ; Bool.Or ; Float.Neg ; Bool.Pop
+
+[2026-04-12 20:24:19] Gen 1  Fit(BER=0.01375 ratio=0.138 FLOPs=15871 len=4 faults=0.00 gap=0.025)  (NEW BEST)
+  Matrix.Dup ; Bool.Pop ; Node.GetLocalDist ; Node.IsExpanded
+
+[2026-04-12 20:25:24] Gen 2  Fit(BER=0.00000 ratio=0.000 FLOPs=11784 len=19 faults=0.00 gap=0.000)  (NEW BEST)
+  Vec.Add ; Vec.PeekAtIm ; Node.ChildAt ; Mat.Row ; Vec.Norm2 ; Float.FromInt ; Node.GetParent ; Vec.Norm2 ; Vec.ElementAt ; Vec.Sub ; Vector.Dup ; Node.GetLocalDist ; Node.ChildAt ; Float.Square ; Int.GT ; Node.GetLocalDist ; Vec.Sub ; Node.NumChildren ; Float.Max
+
+[2026-04-12 20:26:48] Gen 3  Fit(BER=0.00000 ratio=0.000 FLOPs=12936 len=14 faults=0.00 gap=0.000)  (NEW BEST)
+  Float.FromInt ; Node.GetParent ; Vec.Norm2 ; Vec.ElementAt ; Vec.Sub ; Vector.Dup ; Node.GetLocalDist ; Node.ChildAt ; Float.Square ; Int.GT ; Node.GetLocalDist ; Vec.Sub ; Node.NumChildren ; Float.Max
+
+[2026-04-12 20:28:28] Gen 4  Fit(BER=0.00000 ratio=0.000 FLOPs=12936 len=13 faults=0.00 gap=0.000)  (NEW BEST)
+  Vec.Norm2 ; Node.GetParent ; Float.FromInt ; Vec.ElementAt ; Vec.Sub ; Vector.Dup ; Node.GetLocalDist ; Node.ChildAt ; Float.Square ; Node.GetLocalDist ; Vec.Sub ; Node.NumChildren ; Float.Max

@@ -1,0 +1,7 @@
+{
+  "prog_down": ["Node.GetCumDist", "Float.Tanh", "Float.Rot", "Float.Max"],
+  "prog_up": ["Float.Swap", "Node.GetCumDist", {"name":"Node.ForEachChild", "body":["Node.GetMUp"]}, "Float.Sqrt", "Float.Abs"],
+  "prog_belief": ["Float.EvoConst3", "Float.Sub", "Float.Div", "Float.Div"],
+  "prog_halt": ["Float.ConstHalf", "Float.Abs", "Float.GT"],
+  "log_constants": [-1.7786, 0.7728, 1.1035, -0.0764]
+}

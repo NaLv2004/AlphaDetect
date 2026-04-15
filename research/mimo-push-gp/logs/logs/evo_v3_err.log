@@ -1,0 +1,1 @@
+ERROR conda.cli.main_run:execute(125): `conda run python -u -B main.py --continuous --batch-gens 10 --population 150 --train-samples 8 --train-max-nodes 80 --train-flops-max 80000 --eval-trials 200 --eval-max-nodes 1500 --eval-flops-max 200000 --train-snrs 6,8,10 --eval-snrs 6,8,10,12,14,16,18,20` failed. (See above for error)

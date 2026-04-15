@@ -1,0 +1,69 @@
+{
+  "timestamp": "2026-04-11 03:25:12",
+  "best_fitness": {
+    "ber": 0.0,
+    "mse": 0.0,
+    "avg_flops": 23872.0,
+    "code_length": 6,
+    "frac_faults": 0.0
+  },
+  "best_program_oneliner": "Node.GetDistance ; Node.GetState1 ; Float.Mul ; Mat.VecMul ; Float.ConstHalf ; Float.Add",
+  "best_program_human": "Node.GetDistance\nNode.GetState1\nFloat.Mul\nMat.VecMul\nFloat.ConstHalf\nFloat.Add",
+  "history": [
+    {
+      "generation": 1,
+      "ber": 0.0,
+      "mse": 0.0,
+      "flops": 26468.800000000003,
+      "length": 6,
+      "faults": 0.0,
+      "program": "Node.GetDistance ; Node.GetState1 ; Float.ConstHalf ; Mat.VecMul ; Float.Mul ; Float.Add"
+    },
+    {
+      "generation": 2,
+      "ber": 0.0,
+      "mse": 0.0,
+      "flops": 23872.0,
+      "length": 6,
+      "faults": 0.0,
+      "program": "Node.GetDistance ; Node.GetState1 ; Float.Mul ; Mat.VecMul ; Float.ConstHalf ; Float.Add"
+    },
+    {
+      "generation": 3,
+      "ber": 0.0,
+      "mse": 0.0,
+      "flops": 23872.0,
+      "length": 6,
+      "faults": 0.0,
+      "program": "Node.GetDistance ; Node.GetState1 ; Float.Mul ; Mat.VecMul ; Float.ConstHalf ; Float.Add"
+    },
+    {
+      "generation": 4,
+      "ber": 0.0,
+      "mse": 0.0,
+      "flops": 23872.0,
+      "length": 6,
+      "faults": 0.0,
+      "program": "Node.GetDistance ; Node.GetState1 ; Float.Mul ; Mat.VecMul ; Float.ConstHalf ; Float.Add"
+    }
+  ],
+  "final_generation": 4,
+  "target_config": {
+    "nr": 32,
+    "nt": 16,
+    "mod_order": 16
+  },
+  "eval_target": [
+    {
+      "snr_db": 14.0,
+      "evo_ber": 0.0,
+      "evo_mse": 0.0,
+      "evo_flops": 23872.0,
+      "evo_dynamic_delta": 0.045749241520010496,
+      "lmmse_ber": 0.015625,
+      "lmmse_mse": 0.006249999999999998,
+      "lmmse_flops_est": 81984.0
+    }
+  ],
+  "human_log_file": "D:\\ChannelCoding\\RCOM\\AlphaDetect\\research\\mimo-push-gp\\logs\\algorithm_evolution.log"
+}

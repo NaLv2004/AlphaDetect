@@ -1,0 +1,129 @@
+================================================================================
+Structured-BP GP  started 2026-04-15 04:37:02
+================================================================================
+
+[2026-04-15 04:37:02] Configuration
+{
+  "generations": 30,
+  "population": 100,
+  "train_samples": 200,
+  "train_nt": 16,
+  "train_nr": 16,
+  "mod_order": 16,
+  "train_max_nodes": 500,
+  "train_flops_max": 3000000,
+  "step_max": 2000,
+  "eval_trials": 1000,
+  "eval_max_nodes": 1500,
+  "eval_flops_max": 5000000,
+  "eval_nt": 16,
+  "eval_nr": 16,
+  "eval_step_max": 8000,
+  "train_snrs": "22,24",
+  "eval_snrs": "16,18,20,22,24",
+  "seed": 42,
+  "continuous": true,
+  "use_cpp": true,
+  "batch_gens": 5,
+  "log_suffix": "run0416_v7b",
+  "seed_genome_json": "seed_v3_best.json"
+}
+------------------------------------------------------------
+
+[2026-04-15 04:37:15] Baseline evaluation (experiment start)
+[
+  {
+    "snr_db": 16.0,
+    "lmmse_ber": 0.3721875,
+    "lmmse_bit_errors": 5955,
+    "kbest16_ber": 0.2226875,
+    "kbest16_bit_errors": 3563,
+    "kbest32_ber": 0.1704375,
+    "kbest32_bit_errors": 2727,
+    "samples": 1000
+  },
+  {
+    "snr_db": 18.0,
+    "lmmse_ber": 0.2915,
+    "lmmse_bit_errors": 4664,
+    "kbest16_ber": 0.090875,
+    "kbest16_bit_errors": 1454,
+    "kbest32_ber": 0.0541875,
+    "kbest32_bit_errors": 867,
+    "samples": 1000
+  },
+  {
+    "snr_db": 20.0,
+    "lmmse_ber": 0.22075,
+    "lmmse_bit_errors": 3532,
+    "kbest16_ber": 0.0255,
+    "kbest16_bit_errors": 408,
+    "kbest32_ber": 0.0086875,
+    "kbest32_bit_errors": 139,
+    "samples": 1000
+  },
+  {
+    "snr_db": 22.0,
+    "lmmse_ber": 0.16095637583892616,
+    "lmmse_bit_errors": 19186,
+    "kbest16_ber": 0.005016778523489933,
+    "kbest16_bit_errors": 598,
+    "kbest32_ber": 0.00087248322147651,
+    "kbest32_bit_errors": 104,
+    "samples": 7450
+  },
+  {
+    "snr_db": 24.0,
+    "lmmse_ber": 0.1133625,
+    "lmmse_bit_errors": 18138,
+    "kbest16_ber": 0.00136875,
+    "kbest16_bit_errors": 219,
+    "kbest32_ber": 0.0003125,
+    "kbest32_bit_errors": 50,
+    "samples": 10000
+  }
+]
+------------------------------------------------------------
+
+[2026-04-15 04:37:15] Seed genome loaded
+{
+  "prog_down": [
+    "Node.GetCumDist",
+    "Float.Tanh",
+    "Float.Rot",
+    "Float.Max"
+  ],
+  "prog_up": [
+    "Float.Swap",
+    "Node.GetCumDist",
+    {
+      "name": "Node.ForEachChild",
+      "body": [
+        "Node.GetMUp"
+      ]
+    },
+    "Float.Sqrt",
+    "Float.Abs"
+  ],
+  "prog_belief": [
+    "Float.EvoConst3",
+    "Float.Sub",
+    "Float.Div",
+    "Float.Div"
+  ],
+  "prog_halt": [
+    "Float.ConstHalf",
+    "Float.Abs",
+    "Float.GT"
+  ],
+  "log_constants": [
+    -1.7786,
+    0.7728,
+    1.1035,
+    -0.0764
+  ]
+}
+------------------------------------------------------------
+
+[2026-04-15 04:40:52] Gen 0  Fit(BER=0.05614 ratio=0.451 FLOPs=65586 len=17 faults=0.00 gap=0.012 bp=4353.9 nlbp=0.0 bpg=0.000)  (initial)
+  DOWN:[Node.GetCumDist ; Float.Tanh ; Float.Rot ; Float.Max] | UP:[Float.Swap ; Node.GetCumDist ; Node.ForEachChild([Node.GetMUp]) ; Node.NumChildren ; Float.Abs] | BEL:[Float.EvoConst3 ; Float.Sub ; Float.Div ; Float.Div] | HALT:[Float.ConstHalf ; Float.Abs ; Float.GT] | LOGC:[-1.7786,0.7728,1.1035,-0.0764]

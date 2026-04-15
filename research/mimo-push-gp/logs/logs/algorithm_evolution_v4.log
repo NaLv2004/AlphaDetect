@@ -1,0 +1,160 @@
+================================================================================
+MIMO-Push GP v2  started 2026-04-12 16:16:17
+================================================================================
+
+[2026-04-12 16:16:17] Configuration
+{
+  "generations": 20,
+  "population": 150,
+  "train_samples": 20,
+  "train_nt": 8,
+  "train_nr": 16,
+  "mod_order": 16,
+  "train_max_nodes": 60,
+  "train_flops_max": 80000,
+  "eval_trials": 200,
+  "eval_max_nodes": 1500,
+  "eval_flops_max": 200000,
+  "train_snrs": "10,12,14",
+  "eval_snrs": "8,10,12,14,16,18,20",
+  "seed": 42,
+  "continuous": true,
+  "batch_gens": 10
+}
+------------------------------------------------------------
+
+[2026-04-12 16:17:33] Gen 0  Fit(BER=0.06250 ratio=0.625 FLOPs=17751 len=1 faults=0.00 gap=0.000)  (initial)
+  Node.ChildAt
+
+[2026-04-12 16:18:51] Gen 1  Fit(BER=0.06250 ratio=0.625 FLOPs=17751 len=1 faults=0.00 gap=0.000)
+  Node.ChildAt
+
+[2026-04-12 16:19:34] Gen 2  Fit(BER=0.06250 ratio=0.625 FLOPs=17751 len=1 faults=0.00 gap=0.000)
+  Node.ChildAt
+
+[2026-04-12 16:20:24] Gen 3  Fit(BER=0.06250 ratio=0.625 FLOPs=17751 len=1 faults=0.00 gap=0.000)
+  Node.ChildAt
+
+[2026-04-12 16:21:34] Gen 4  Fit(BER=0.06250 ratio=0.625 FLOPs=17751 len=1 faults=0.00 gap=0.000)
+  Node.ChildAt
+
+[2026-04-12 16:22:20] Gen 5  Fit(BER=0.06250 ratio=0.625 FLOPs=17751 len=1 faults=0.00 gap=0.000)
+  Node.ChildAt
+
+[2026-04-12 16:23:17] Gen 6  Fit(BER=0.06250 ratio=0.625 FLOPs=17751 len=1 faults=0.00 gap=0.000)
+  Node.ChildAt
+
+[2026-04-12 16:24:10] Gen 7  Fit(BER=0.06250 ratio=0.625 FLOPs=17751 len=1 faults=0.00 gap=0.000)
+  Node.ChildAt
+
+[2026-04-12 16:25:11] Gen 8  Fit(BER=0.05000 ratio=0.444 FLOPs=24066 len=20 faults=0.00 gap=0.000)  (NEW BEST)
+  Float.ConstNeg1 ; Node.Pop ; Matrix.Dup ; Mat.Rows ; Node.ForEachSibling([Node.GetCumDist, Int.Swap, Node.GetSymRe]) ; Node.ForEachChild([Float.Dup, Vector.Pop, Vec.Len, Vec.Norm2]) ; Mat.Row ; Vec.Dot ; Vec.Dot ; Vec.Add ; Node.ReadMem ; Node.GetSymIm ; Float.Neg
+
+[2026-04-12 16:26:06] Gen 9  Fit(BER=0.03750 ratio=0.333 FLOPs=14478 len=11 faults=0.00 gap=0.000)  (NEW BEST)
+  Node.GetParent ; Float.FromInt ; Node.ForEachSibling([Float.Swap, Matrix.Pop, Int.LT]) ; Vec.Sub ; Node.ForEachAncestor([Int.LT, Int.Const1, Vec.ElementAt])
+
+[2026-04-12 16:27:06] Gen 10  Fit(BER=0.03750 ratio=0.333 FLOPs=14478 len=11 faults=0.00 gap=0.000)
+  Node.GetParent ; Float.FromInt ; Node.ForEachSibling([Float.Swap, Matrix.Pop, Int.LT]) ; Vec.Sub ; Node.ForEachAncestor([Int.LT, Int.Const1, Vec.ElementAt])
+
+[2026-04-12 16:28:06] Eval gen 10
+[
+  {
+    "snr_db": 8.0,
+    "evolved_ber": 0.279375,
+    "evolved_flops": 38554.32,
+    "lmmse_ber": 0.31625,
+    "lmmse_flops": 10333.0,
+    "kbest16_ber": 0.27625,
+    "kbest16_flops": 100080.0,
+    "kbest32_ber": 0.2775,
+    "kbest32_flops": 192240.0
+  },
+  {
+    "snr_db": 10.0,
+    "evolved_ber": 0.16375,
+    "evolved_flops": 26327.68,
+    "lmmse_ber": 0.19,
+    "lmmse_flops": 10333.0,
+    "kbest16_ber": 0.14,
+    "kbest16_flops": 100080.0,
+    "kbest32_ber": 0.14,
+    "kbest32_flops": 192240.0
+  },
+  {
+    "snr_db": 12.0,
+    "evolved_ber": 0.054375,
+    "evolved_flops": 19036.48,
+    "lmmse_ber": 0.105,
+    "lmmse_flops": 10333.0,
+    "kbest16_ber": 0.043125,
+    "kbest16_flops": 100080.0,
+    "kbest32_ber": 0.043125,
+    "kbest32_flops": 192240.0
+  },
+  {
+    "snr_db": 14.0,
+    "evolved_ber": 0.013125,
+    "evolved_flops": 11091.2,
+    "lmmse_ber": 0.04,
+    "lmmse_flops": 10333.0,
+    "kbest16_ber": 0.0125,
+    "kbest16_flops": 100080.0,
+    "kbest32_ber": 0.0125,
+    "kbest32_flops": 192240.0
+  },
+  {
+    "snr_db": 16.0,
+    "evolved_ber": 0.003125,
+    "evolved_flops": 11670.24,
+    "lmmse_ber": 0.016875,
+    "lmmse_flops": 10333.0,
+    "kbest16_ber": 0.00125,
+    "kbest16_flops": 100080.0,
+    "kbest32_ber": 0.00125,
+    "kbest32_flops": 192240.0
+  },
+  {
+    "snr_db": 18.0,
+    "evolved_ber": 0.000625,
+    "evolved_flops": 10050.56,
+    "lmmse_ber": 0.0025,
+    "lmmse_flops": 10333.0,
+    "kbest16_ber": 0.0,
+    "kbest16_flops": 100080.0,
+    "kbest32_ber": 0.0,
+    "kbest32_flops": 192240.0
+  },
+  {
+    "snr_db": 20.0,
+    "evolved_ber": 0.0,
+    "evolved_flops": 9399.04,
+    "lmmse_ber": 0.0,
+    "lmmse_flops": 10333.0,
+    "kbest16_ber": 0.0,
+    "kbest16_flops": 100080.0,
+    "kbest32_ber": 0.0,
+    "kbest32_flops": 192240.0
+  }
+]
+------------------------------------------------------------
+
+[2026-04-12 16:29:12] Gen 11  Fit(BER=0.03750 ratio=0.333 FLOPs=14478 len=11 faults=0.00 gap=0.000)
+  Node.GetParent ; Float.FromInt ; Node.ForEachSibling([Float.Swap, Matrix.Pop, Int.LT]) ; Vec.Sub ; Node.ForEachAncestor([Int.LT, Int.Const1, Vec.ElementAt])
+
+[2026-04-12 16:30:14] Gen 12  Fit(BER=0.03750 ratio=0.333 FLOPs=14478 len=11 faults=0.00 gap=0.000)
+  Node.GetParent ; Float.FromInt ; Node.ForEachSibling([Float.Swap, Matrix.Pop, Int.LT]) ; Vec.Sub ; Node.ForEachAncestor([Int.LT, Int.Const1, Vec.ElementAt])
+
+[2026-04-12 16:31:40] Gen 13  Fit(BER=0.03750 ratio=0.333 FLOPs=14478 len=11 faults=0.00 gap=0.000)
+  Node.GetParent ; Float.FromInt ; Node.ForEachSibling([Float.Swap, Matrix.Pop, Int.LT]) ; Vec.Sub ; Node.ForEachAncestor([Int.LT, Int.Const1, Vec.ElementAt])
+
+[2026-04-12 16:33:28] Gen 14  Fit(BER=0.03750 ratio=0.333 FLOPs=14478 len=11 faults=0.00 gap=0.000)
+  Node.GetParent ; Float.FromInt ; Node.ForEachSibling([Float.Swap, Matrix.Pop, Int.LT]) ; Vec.Sub ; Node.ForEachAncestor([Int.LT, Int.Const1, Vec.ElementAt])
+
+[2026-04-12 16:35:04] Gen 15  Fit(BER=0.03750 ratio=0.333 FLOPs=14478 len=11 faults=0.00 gap=0.000)
+  Node.GetParent ; Float.FromInt ; Node.ForEachSibling([Float.Swap, Matrix.Pop, Int.LT]) ; Vec.Sub ; Node.ForEachAncestor([Int.LT, Int.Const1, Vec.ElementAt])
+
+[2026-04-12 16:36:57] Gen 16  Fit(BER=0.03750 ratio=0.333 FLOPs=14478 len=11 faults=0.00 gap=0.000)
+  Node.GetParent ; Float.FromInt ; Node.ForEachSibling([Float.Swap, Matrix.Pop, Int.LT]) ; Vec.Sub ; Node.ForEachAncestor([Int.LT, Int.Const1, Vec.ElementAt])
+
+[2026-04-12 16:39:03] Gen 17  Fit(BER=0.03750 ratio=0.333 FLOPs=14478 len=11 faults=0.00 gap=0.000)
+  Node.GetParent ; Float.FromInt ; Node.ForEachSibling([Float.Swap, Matrix.Pop, Int.LT]) ; Vec.Sub ; Node.ForEachAncestor([Int.LT, Int.Const1, Vec.ElementAt])

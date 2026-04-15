@@ -1,0 +1,60 @@
+================================================================================
+Structured-BP GP  started 2026-04-14 00:22:11
+================================================================================
+
+[2026-04-14 00:22:11] Configuration
+{
+  "generations": 30,
+  "population": 160,
+  "train_samples": 100,
+  "train_nt": 8,
+  "train_nr": 16,
+  "mod_order": 16,
+  "train_max_nodes": 1000,
+  "train_flops_max": 1000000,
+  "step_max": 1200,
+  "eval_trials": 500,
+  "eval_max_nodes": 1500,
+  "eval_flops_max": 5000000,
+  "eval_nt": null,
+  "eval_nr": null,
+  "eval_step_max": 8000,
+  "train_snrs": "12",
+  "eval_snrs": "8,10,12,14,16",
+  "seed": 42,
+  "continuous": false,
+  "use_cpp": true,
+  "batch_gens": 5,
+  "log_suffix": "cpp_test2"
+}
+------------------------------------------------------------
+================================================================================
+Structured-BP GP  started 2026-04-14 00:27:34
+================================================================================
+
+[2026-04-14 00:27:34] Configuration
+{
+  "generations": 30,
+  "population": 160,
+  "train_samples": 100,
+  "train_nt": 8,
+  "train_nr": 16,
+  "mod_order": 16,
+  "train_max_nodes": 1000,
+  "train_flops_max": 1000000,
+  "step_max": 1200,
+  "eval_trials": 500,
+  "eval_max_nodes": 1500,
+  "eval_flops_max": 5000000,
+  "eval_nt": null,
+  "eval_nr": null,
+  "eval_step_max": 8000,
+  "train_snrs": "12",
+  "eval_snrs": "8,10,12,14,16",
+  "seed": 42,
+  "continuous": false,
+  "use_cpp": true,
+  "batch_gens": 5,
+  "log_suffix": "cpp_test2"
+}
+------------------------------------------------------------

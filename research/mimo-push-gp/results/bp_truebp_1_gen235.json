@@ -1,0 +1,213 @@
+{
+  "gen": 235,
+  "best_prog": "Node.GetSymIm ; Matrix.Dup ; Float.Pop ; Node.NumChildren ; Float.Exp ; Vec.GetResidue ; Float.Div ; Float.GetNoiseVar ; Node.SetScore ; Node.ForEachSibling([Node.GetScore, Mat.Rows, Float.Swap, Int.GetNumSymbols]) ; Node.GetParent ; Node.ForEachChild([Float.GetMMSELB, Node.GetCumDist, Float.Inv, Node.SetScore]) ; Int.GT ; Node.GetLayer",
+  "best_fitness": {
+    "ber": 0.046875,
+    "flops": 11991.45,
+    "ratio": 0.8571428571428571
+  },
+  "eval_results": [
+    {
+      "snr_db": 8.0,
+      "evolved_ber": 0.289375,
+      "evolved_flops": 51542.56,
+      "lmmse_ber": 0.31625,
+      "kbest16_ber": 0.27625,
+      "kbest32_ber": 0.2775
+    },
+    {
+      "snr_db": 10.0,
+      "evolved_ber": 0.165625,
+      "evolved_flops": 40374.48,
+      "lmmse_ber": 0.19,
+      "kbest16_ber": 0.14,
+      "kbest32_ber": 0.14
+    },
+    {
+      "snr_db": 12.0,
+      "evolved_ber": 0.059375,
+      "evolved_flops": 26127.04,
+      "lmmse_ber": 0.105,
+      "kbest16_ber": 0.043125,
+      "kbest32_ber": 0.043125
+    },
+    {
+      "snr_db": 14.0,
+      "evolved_ber": 0.034375,
+      "evolved_flops": 23894.08,
+      "lmmse_ber": 0.04,
+      "kbest16_ber": 0.0125,
+      "kbest32_ber": 0.0125
+    },
+    {
+      "snr_db": 16.0,
+      "evolved_ber": 0.01375,
+      "evolved_flops": 18711.44,
+      "lmmse_ber": 0.016875,
+      "kbest16_ber": 0.00125,
+      "kbest32_ber": 0.00125
+    }
+  ],
+  "history": [
+    {
+      "gen": 216,
+      "ber": 0.046875,
+      "flops": 11991.45,
+      "len": 22,
+      "bp_gain": 0.46171874999999996,
+      "nonlocal_bp": 1273.125
+    },
+    {
+      "gen": 217,
+      "ber": 0.046875,
+      "flops": 11991.45,
+      "len": 22,
+      "bp_gain": 0.46171874999999996,
+      "nonlocal_bp": 1273.125
+    },
+    {
+      "gen": 218,
+      "ber": 0.046875,
+      "flops": 11991.45,
+      "len": 22,
+      "bp_gain": 0.46171874999999996,
+      "nonlocal_bp": 1273.125
+    },
+    {
+      "gen": 219,
+      "ber": 0.046875,
+      "flops": 11991.45,
+      "len": 22,
+      "bp_gain": 0.46171874999999996,
+      "nonlocal_bp": 1273.125
+    },
+    {
+      "gen": 220,
+      "ber": 0.046875,
+      "flops": 11991.45,
+      "len": 22,
+      "bp_gain": 0.46171874999999996,
+      "nonlocal_bp": 1273.125
+    },
+    {
+      "gen": 221,
+      "ber": 0.046875,
+      "flops": 11991.45,
+      "len": 22,
+      "bp_gain": 0.46171874999999996,
+      "nonlocal_bp": 1273.125
+    },
+    {
+      "gen": 222,
+      "ber": 0.046875,
+      "flops": 11991.45,
+      "len": 22,
+      "bp_gain": 0.46171874999999996,
+      "nonlocal_bp": 1273.125
+    },
+    {
+      "gen": 223,
+      "ber": 0.046875,
+      "flops": 11991.45,
+      "len": 22,
+      "bp_gain": 0.46171874999999996,
+      "nonlocal_bp": 1273.125
+    },
+    {
+      "gen": 224,
+      "ber": 0.046875,
+      "flops": 11991.45,
+      "len": 22,
+      "bp_gain": 0.46171874999999996,
+      "nonlocal_bp": 1273.125
+    },
+    {
+      "gen": 225,
+      "ber": 0.046875,
+      "flops": 11991.45,
+      "len": 22,
+      "bp_gain": 0.46171874999999996,
+      "nonlocal_bp": 1273.125
+    },
+    {
+      "gen": 226,
+      "ber": 0.046875,
+      "flops": 11991.45,
+      "len": 22,
+      "bp_gain": 0.46171874999999996,
+      "nonlocal_bp": 1273.125
+    },
+    {
+      "gen": 227,
+      "ber": 0.046875,
+      "flops": 11991.45,
+      "len": 22,
+      "bp_gain": 0.46171874999999996,
+      "nonlocal_bp": 1273.125
+    },
+    {
+      "gen": 228,
+      "ber": 0.046875,
+      "flops": 11991.45,
+      "len": 22,
+      "bp_gain": 0.46171874999999996,
+      "nonlocal_bp": 1273.125
+    },
+    {
+      "gen": 229,
+      "ber": 0.046875,
+      "flops": 11991.45,
+      "len": 22,
+      "bp_gain": 0.46171874999999996,
+      "nonlocal_bp": 1273.125
+    },
+    {
+      "gen": 230,
+      "ber": 0.046875,
+      "flops": 11991.45,
+      "len": 22,
+      "bp_gain": 0.46171874999999996,
+      "nonlocal_bp": 1273.125
+    },
+    {
+      "gen": 231,
+      "ber": 0.046875,
+      "flops": 11991.45,
+      "len": 22,
+      "bp_gain": 0.46171874999999996,
+      "nonlocal_bp": 1273.125
+    },
+    {
+      "gen": 232,
+      "ber": 0.046875,
+      "flops": 11991.45,
+      "len": 22,
+      "bp_gain": 0.46171874999999996,
+      "nonlocal_bp": 1273.125
+    },
+    {
+      "gen": 233,
+      "ber": 0.046875,
+      "flops": 11991.45,
+      "len": 22,
+      "bp_gain": 0.46171874999999996,
+      "nonlocal_bp": 1273.125
+    },
+    {
+      "gen": 234,
+      "ber": 0.046875,
+      "flops": 11991.45,
+      "len": 22,
+      "bp_gain": 0.46171874999999996,
+      "nonlocal_bp": 1273.125
+    },
+    {
+      "gen": 235,
+      "ber": 0.046875,
+      "flops": 11991.45,
+      "len": 22,
+      "bp_gain": 0.46171874999999996,
+      "nonlocal_bp": 1273.125
+    }
+  ]
+}

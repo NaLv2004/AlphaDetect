@@ -1,0 +1,58 @@
+================================================================================
+BP-Stack-Decoder GP  started 2026-04-13 03:18:51
+================================================================================
+
+[2026-04-13 03:18:51] Configuration
+{
+  "generations": 1,
+  "population": 10,
+  "train_samples": 4,
+  "train_nt": 8,
+  "train_nr": 16,
+  "mod_order": 16,
+  "train_max_nodes": 60,
+  "train_flops_max": 300000,
+  "step_max": 800,
+  "eval_trials": 10,
+  "eval_max_nodes": 200,
+  "eval_flops_max": 1000000,
+  "train_snrs": "10,12",
+  "eval_snrs": "10,12",
+  "seed": 11,
+  "continuous": false,
+  "batch_gens": 5,
+  "log_suffix": "smoke_truebp"
+}
+------------------------------------------------------------
+================================================================================
+BP-Stack-Decoder GP  started 2026-04-13 03:19:07
+================================================================================
+
+[2026-04-13 03:19:07] Configuration
+{
+  "generations": 1,
+  "population": 10,
+  "train_samples": 4,
+  "train_nt": 8,
+  "train_nr": 16,
+  "mod_order": 16,
+  "train_max_nodes": 60,
+  "train_flops_max": 300000,
+  "step_max": 800,
+  "eval_trials": 10,
+  "eval_max_nodes": 200,
+  "eval_flops_max": 1000000,
+  "train_snrs": "10,12",
+  "eval_snrs": "10,12",
+  "seed": 11,
+  "continuous": false,
+  "batch_gens": 5,
+  "log_suffix": "smoke_truebp"
+}
+------------------------------------------------------------
+
+[2026-04-13 03:19:08] Gen 0  Fit(BER=0.05156 ratio=0.413 FLOPs=9412 len=3 faults=0.00 gap=0.094 bp=0.0 nlbp=0.0 bpg=0.000)  (initial)
+  Node.IsExpanded ; Node.GetSymRe ; Bool.And
+
+[2026-04-13 03:19:08] Gen 1  Fit(BER=0.05156 ratio=0.413 FLOPs=9412 len=3 faults=0.00 gap=0.094 bp=0.0 nlbp=0.0 bpg=0.000)
+  Node.IsExpanded ; Node.GetSymRe ; Bool.And

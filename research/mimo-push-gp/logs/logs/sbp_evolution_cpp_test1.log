@@ -1,0 +1,1753 @@
+================================================================================
+Structured-BP GP  started 2026-04-13 20:58:23
+================================================================================
+
+[2026-04-13 20:58:23] Configuration
+{
+  "generations": 30,
+  "population": 160,
+  "train_samples": 100,
+  "train_nt": 8,
+  "train_nr": 16,
+  "mod_order": 16,
+  "train_max_nodes": 2000,
+  "train_flops_max": 1000000,
+  "step_max": 1200,
+  "eval_trials": 500,
+  "eval_max_nodes": 1500,
+  "eval_flops_max": 5000000,
+  "eval_nt": null,
+  "eval_nr": null,
+  "eval_step_max": 8000,
+  "train_snrs": "12",
+  "eval_snrs": "8,10,12,14,16",
+  "seed": 42,
+  "continuous": false,
+  "use_cpp": true,
+  "batch_gens": 5,
+  "log_suffix": "cpp_test1"
+}
+------------------------------------------------------------
+
+[2026-04-13 21:12:13] Gen 0  Fit(BER=0.05888 ratio=0.512 FLOPs=11463 len=24 faults=0.00 gap=0.002 bp=1441.7 nlbp=0.0 bpg=0.000)  (initial)
+  DOWN:[Float.Min ; Float.Dup ; Node.GetSymIm ; Node.GetSymRe ; Float.GetNoiseVar ; Float.Const1 ; Float.Min ; Float.Swap] | UP:[Float.Mul ; Float.Const0 ; Node.ForEachChild([Node.GetCumDist]) ; Float.Sqrt ; Graph.GetRoot ; Vec.Norm2] | BEL:[Float.Max ; Node.GetCumDist ; Node.GetMUp ; Node.NumChildren ; Node.GetMUp] | HALT:[Float.LT ; Node.SetScore ; Float.Sub ; Bool.True]
+
+[2026-04-13 21:18:24] Gen 1  Fit(BER=0.04337 ratio=0.377 FLOPs=26191 len=16 faults=0.00 gap=0.007 bp=8715.3 nlbp=0.0 bpg=0.000)  (NEW BEST)
+  DOWN:[Float.Sub ; Node.GetCumDist ; Node.GetLayer] | UP:[Node.ForEachChild([Float.Max]) ; Float.Max ; Node.GetMDown ; Float.ConstHalf] | BEL:[Float.Rot ; Node.GetLocalDist ; Node.GetMDown ; Float.Dup] | HALT:[Float.Sub ; Float.Abs ; Float.Const0_1 ; Float.LT]
+  Top-10 individuals (Gen 1):
+    # 1  score=0.06623  BER=0.04337  faults=0.00  len=16
+          F_down  = layer
+          F_up    = 0.5
+          F_belief= M_down
+          H_halt  = (|(old_M_up - new_M_up)| < 0.1)
+          [DOWN]   Float.Sub ; Node.GetCumDist ; Node.GetLayer
+          [UP]     Node.ForEachChild([Float.Max]) ; Float.Max ; Node.GetMDown ; Float.ConstHalf
+          [BELIEF] Float.Rot ; Node.GetLocalDist ; Node.GetMDown ; Float.Dup
+          [HALT]   Float.Sub ; Float.Abs ; Float.Const0_1 ; Float.LT
+    # 2  score=0.06729  BER=0.05888  faults=0.00  len=27
+          F_down  = Re(s)
+          F_up    = [Vec.Norm2]
+          F_belief= M_up
+          H_halt  = TRUE
+    # 3  score=0.06731  BER=0.05888  faults=0.00  len=24
+          F_down  = Re(s)
+          F_up    = [Vec.Norm2]
+          F_belief= M_up
+          H_halt  = TRUE
+    # 4  score=0.06731  BER=0.05888  faults=0.00  len=26
+          F_down  = Re(s)
+          F_up    = [Vec.Norm2]
+          F_belief= layer
+          H_halt  = TRUE
+    # 5  score=0.06731  BER=0.05888  faults=0.00  len=23
+          F_down  = Im(s)
+          F_up    = [Vec.Norm2]
+          F_belief= M_up
+          H_halt  = TRUE
+    # 6  score=0.06731  BER=0.05888  faults=0.00  len=23
+          F_down  = Re(s)
+          F_up    = [Vec.Norm2]
+          F_belief= M_up
+          H_halt  = TRUE
+    # 7  score=0.06734  BER=0.05888  faults=0.00  len=25
+          F_down  = Re(s)
+          F_up    = [Vec.Norm2]
+          F_belief= M_up
+          H_halt  = (|(old_M_up - new_M_up)| < 0.1)
+    # 8  score=0.06749  BER=0.05888  faults=0.00  len=20
+          F_down  = M_up
+          F_up    = exp(1)
+          F_belief= N_ch
+          H_halt  = TRUE
+    # 9  score=0.06749  BER=0.05888  faults=0.00  len=22
+          F_down  = M_up
+          F_up    = exp(1)
+          F_belief= min(M_down, N_ch)
+          H_halt  = ((new_M_up - [Bool.Or]) < |0.1|)
+    #10  score=0.06750  BER=0.05888  faults=0.00  len=20
+          F_down  = M_up
+          F_up    = exp(1)
+          F_belief= N_ch
+          H_halt  = (|(old_M_up - new_M_up)| < 0.1)
+
+[2026-04-13 21:23:09] Gen 2  Fit(BER=0.04337 ratio=0.377 FLOPs=26191 len=16 faults=0.00 gap=0.007 bp=8715.3 nlbp=0.0 bpg=0.000)
+  DOWN:[Float.Sub ; Node.GetCumDist ; Node.GetLayer] | UP:[Node.ForEachChild([Float.Max]) ; Float.Max ; Node.GetMDown ; Float.ConstHalf] | BEL:[Float.Rot ; Node.GetLocalDist ; Node.GetMDown ; Float.Dup] | HALT:[Float.Sub ; Float.Abs ; Float.Const0_1 ; Float.LT]
+  Top-10 individuals (Gen 2):
+    # 1  score=0.06623  BER=0.04337  faults=0.00  len=16
+          F_down  = layer
+          F_up    = 0.5
+          F_belief= M_down
+          H_halt  = (|(old_M_up - new_M_up)| < 0.1)
+          [DOWN]   Float.Sub ; Node.GetCumDist ; Node.GetLayer
+          [UP]     Node.ForEachChild([Float.Max]) ; Float.Max ; Node.GetMDown ; Float.ConstHalf
+          [BELIEF] Float.Rot ; Node.GetLocalDist ; Node.GetMDown ; Float.Dup
+          [HALT]   Float.Sub ; Float.Abs ; Float.Const0_1 ; Float.LT
+    # 2  score=0.06729  BER=0.05888  faults=0.00  len=27
+          F_down  = Re(s)
+          F_up    = [Vec.Norm2]
+          F_belief= M_up
+          H_halt  = TRUE
+    # 3  score=0.06731  BER=0.05888  faults=0.00  len=24
+          F_down  = Re(s)
+          F_up    = [Vec.Norm2]
+          F_belief= M_up
+          H_halt  = TRUE
+    # 4  score=0.06731  BER=0.05888  faults=0.00  len=26
+          F_down  = Re(s)
+          F_up    = [Vec.Norm2]
+          F_belief= layer
+          H_halt  = TRUE
+    # 5  score=0.06731  BER=0.05888  faults=0.00  len=23
+          F_down  = Im(s)
+          F_up    = [Vec.Norm2]
+          F_belief= M_up
+          H_halt  = TRUE
+    # 6  score=0.06731  BER=0.05888  faults=0.00  len=23
+          F_down  = Re(s)
+          F_up    = [Vec.Norm2]
+          F_belief= M_up
+          H_halt  = TRUE
+    # 7  score=0.07432  BER=0.05525  faults=0.00  len=11
+          F_down  = (M_par_down + C_i)
+          F_up    = Sum_children([Float.Min])
+          F_belief= ((M_down + M_up) + D_i)
+          H_halt  = ([Int.LT] < |0.1|)
+    # 8  score=0.08025  BER=0.05481  faults=0.00  len=16
+          F_down  = layer
+          F_up    = 0.5
+          F_belief= M_down
+          H_halt  = (|(old_M_up - new_M_up)| < 0.1)
+    # 9  score=0.08252  BER=0.05481  faults=0.00  len=19
+          F_down  = layer
+          F_up    = 0.5
+          F_belief= M_down
+          H_halt  = 0.1
+    #10  score=0.08254  BER=0.06775  faults=0.00  len=21
+          F_down  = M_up
+          F_up    = exp(1)
+          F_belief= N_ch
+          H_halt  = (|(old_M_up - new_M_up)| < 0.1)
+
+[2026-04-13 21:28:58] Gen 3  Fit(BER=0.04337 ratio=0.377 FLOPs=26191 len=16 faults=0.00 gap=0.007 bp=8715.3 nlbp=0.0 bpg=0.000)
+  DOWN:[Float.Sub ; Node.GetCumDist ; Node.GetLayer] | UP:[Node.ForEachChild([Float.Max]) ; Float.Max ; Node.GetMDown ; Float.ConstHalf] | BEL:[Float.Rot ; Node.GetLocalDist ; Node.GetMDown ; Float.Dup] | HALT:[Float.Sub ; Float.Abs ; Float.Const0_1 ; Float.LT]
+  Top-10 individuals (Gen 3):
+    # 1  score=0.06623  BER=0.04337  faults=0.00  len=16
+          F_down  = layer
+          F_up    = 0.5
+          F_belief= M_down
+          H_halt  = (|(old_M_up - new_M_up)| < 0.1)
+          [DOWN]   Float.Sub ; Node.GetCumDist ; Node.GetLayer
+          [UP]     Node.ForEachChild([Float.Max]) ; Float.Max ; Node.GetMDown ; Float.ConstHalf
+          [BELIEF] Float.Rot ; Node.GetLocalDist ; Node.GetMDown ; Float.Dup
+          [HALT]   Float.Sub ; Float.Abs ; Float.Const0_1 ; Float.LT
+    # 2  score=0.06729  BER=0.05888  faults=0.00  len=27
+          F_down  = Re(s)
+          F_up    = [Vec.Norm2]
+          F_belief= M_up
+          H_halt  = TRUE
+    # 3  score=0.06731  BER=0.05888  faults=0.00  len=24
+          F_down  = Re(s)
+          F_up    = [Vec.Norm2]
+          F_belief= M_up
+          H_halt  = TRUE
+    # 4  score=0.06731  BER=0.05888  faults=0.00  len=26
+          F_down  = Re(s)
+          F_up    = [Vec.Norm2]
+          F_belief= layer
+          H_halt  = TRUE
+    # 5  score=0.06731  BER=0.05888  faults=0.00  len=23
+          F_down  = Im(s)
+          F_up    = [Vec.Norm2]
+          F_belief= M_up
+          H_halt  = TRUE
+    # 6  score=0.06731  BER=0.05888  faults=0.00  len=23
+          F_down  = Re(s)
+          F_up    = [Vec.Norm2]
+          F_belief= M_up
+          H_halt  = TRUE
+    # 7  score=0.07432  BER=0.05525  faults=0.00  len=11
+          F_down  = (M_par_down + C_i)
+          F_up    = Sum_children([Float.Min])
+          F_belief= ((M_down + M_up) + D_i)
+          H_halt  = ([Int.LT] < |0.1|)
+    # 8  score=0.07797  BER=0.05481  faults=0.00  len=16
+          F_down  = layer
+          F_up    = 0.5
+          F_belief= M_down
+          H_halt  = (|(old_M_up - new_M_up)| < 0.1)
+    # 9  score=0.07993  BER=0.05844  faults=0.00  len=22
+          F_down  = (M_par_down + (C_i - Im(s)))
+          F_up    = Sum_children([Float.Min])
+          F_belief= (M_up + D_i)
+          H_halt  = ([Int.LT] < |0.1|)
+    #10  score=0.08003  BER=0.05481  faults=0.00  len=23
+          F_down  = Re(s)
+          F_up    = 0
+          F_belief= max(D_i, N_ch)
+          H_halt  = TRUE
+
+[2026-04-13 21:35:08] Gen 4  Fit(BER=0.04337 ratio=0.377 FLOPs=26191 len=16 faults=0.00 gap=0.007 bp=8715.3 nlbp=0.0 bpg=0.000)
+  DOWN:[Float.Sub ; Node.GetCumDist ; Node.GetLayer] | UP:[Node.ForEachChild([Float.Max]) ; Float.Max ; Node.GetMDown ; Float.ConstHalf] | BEL:[Float.Rot ; Node.GetLocalDist ; Node.GetMDown ; Float.Dup] | HALT:[Float.Sub ; Float.Abs ; Float.Const0_1 ; Float.LT]
+  Top-10 individuals (Gen 4):
+    # 1  score=0.06623  BER=0.04337  faults=0.00  len=16
+          F_down  = layer
+          F_up    = 0.5
+          F_belief= M_down
+          H_halt  = (|(old_M_up - new_M_up)| < 0.1)
+          [DOWN]   Float.Sub ; Node.GetCumDist ; Node.GetLayer
+          [UP]     Node.ForEachChild([Float.Max]) ; Float.Max ; Node.GetMDown ; Float.ConstHalf
+          [BELIEF] Float.Rot ; Node.GetLocalDist ; Node.GetMDown ; Float.Dup
+          [HALT]   Float.Sub ; Float.Abs ; Float.Const0_1 ; Float.LT
+    # 2  score=0.06729  BER=0.05888  faults=0.00  len=27
+          F_down  = Re(s)
+          F_up    = [Vec.Norm2]
+          F_belief= M_up
+          H_halt  = TRUE
+    # 3  score=0.06731  BER=0.05888  faults=0.00  len=24
+          F_down  = Re(s)
+          F_up    = [Vec.Norm2]
+          F_belief= M_up
+          H_halt  = TRUE
+    # 4  score=0.06731  BER=0.05888  faults=0.00  len=26
+          F_down  = Re(s)
+          F_up    = [Vec.Norm2]
+          F_belief= layer
+          H_halt  = TRUE
+    # 5  score=0.06731  BER=0.05888  faults=0.00  len=23
+          F_down  = Im(s)
+          F_up    = [Vec.Norm2]
+          F_belief= M_up
+          H_halt  = TRUE
+    # 6  score=0.06731  BER=0.05888  faults=0.00  len=23
+          F_down  = Re(s)
+          F_up    = [Vec.Norm2]
+          F_belief= M_up
+          H_halt  = TRUE
+    # 7  score=0.07628  BER=0.05525  faults=0.00  len=21
+          F_down  = (C_i + FALSE)
+          F_up    = Sum_children([Float.Min])
+          F_belief= ((M_down + M_up) + D_i)
+          H_halt  = ([Int.LT] < |0.1|)
+    # 8  score=0.07797  BER=0.05481  faults=0.00  len=18
+          F_down  = layer
+          F_up    = 0.5
+          F_belief= M_down
+          H_halt  = (0.1 < [Bool.Not])
+    # 9  score=0.07798  BER=0.05481  faults=0.00  len=16
+          F_down  = layer
+          F_up    = 0.5
+          F_belief= M_down
+          H_halt  = (0.1 < 0)
+    #10  score=0.07811  BER=0.05481  faults=0.00  len=21
+          F_down  = layer
+          F_up    = 0.5
+          F_belief= M_down
+          H_halt  = (|(old_M_up - new_M_up)| < 0.1)
+
+[2026-04-13 21:39:38] Gen 5  Fit(BER=0.04337 ratio=0.377 FLOPs=26191 len=16 faults=0.00 gap=0.007 bp=8715.3 nlbp=0.0 bpg=0.000)
+  DOWN:[Float.Sub ; Node.GetCumDist ; Node.GetLayer] | UP:[Node.ForEachChild([Float.Max]) ; Float.Max ; Node.GetMDown ; Float.ConstHalf] | BEL:[Float.Rot ; Node.GetLocalDist ; Node.GetMDown ; Float.Dup] | HALT:[Float.Sub ; Float.Abs ; Float.Const0_1 ; Float.LT]
+  Top-10 individuals (Gen 5):
+    # 1  score=0.06623  BER=0.04337  faults=0.00  len=16
+          F_down  = layer
+          F_up    = 0.5
+          F_belief= M_down
+          H_halt  = (|(old_M_up - new_M_up)| < 0.1)
+          [DOWN]   Float.Sub ; Node.GetCumDist ; Node.GetLayer
+          [UP]     Node.ForEachChild([Float.Max]) ; Float.Max ; Node.GetMDown ; Float.ConstHalf
+          [BELIEF] Float.Rot ; Node.GetLocalDist ; Node.GetMDown ; Float.Dup
+          [HALT]   Float.Sub ; Float.Abs ; Float.Const0_1 ; Float.LT
+    # 2  score=0.06729  BER=0.05888  faults=0.00  len=27
+          F_down  = Re(s)
+          F_up    = [Vec.Norm2]
+          F_belief= M_up
+          H_halt  = TRUE
+    # 3  score=0.06731  BER=0.05888  faults=0.00  len=24
+          F_down  = Re(s)
+          F_up    = [Vec.Norm2]
+          F_belief= M_up
+          H_halt  = TRUE
+    # 4  score=0.06731  BER=0.05888  faults=0.00  len=26
+          F_down  = Re(s)
+          F_up    = [Vec.Norm2]
+          F_belief= layer
+          H_halt  = TRUE
+    # 5  score=0.06731  BER=0.05888  faults=0.00  len=23
+          F_down  = Im(s)
+          F_up    = [Vec.Norm2]
+          F_belief= M_up
+          H_halt  = TRUE
+    # 6  score=0.06731  BER=0.05888  faults=0.00  len=23
+          F_down  = Re(s)
+          F_up    = [Vec.Norm2]
+          F_belief= M_up
+          H_halt  = TRUE
+    # 7  score=0.09581  BER=0.05462  faults=0.00  len=21
+          F_down  = layer
+          F_up    = 0.5
+          F_belief= M_down
+          H_halt  = (|(old_M_up - new_M_up)| < [Bool.Not])
+    # 8  score=0.09581  BER=0.05462  faults=0.00  len=18
+          F_down  = D_i
+          F_up    = 0.5
+          F_belief= M_down
+          H_halt  = 0.1
+    # 9  score=0.09581  BER=0.05462  faults=0.00  len=18
+          F_down  = D_i
+          F_up    = 0.5
+          F_belief= M_down
+          H_halt  = (0.1 < [Bool.Not])
+    #10  score=0.09581  BER=0.05462  faults=0.00  len=18
+          F_down  = layer
+          F_up    = 0.5
+          F_belief= M_down
+          H_halt  = (0.1 < [Bool.Not])
+
+[2026-04-13 21:45:26] Gen 6  Fit(BER=0.04337 ratio=0.377 FLOPs=26191 len=16 faults=0.00 gap=0.007 bp=8715.3 nlbp=0.0 bpg=0.000)
+  DOWN:[Float.Sub ; Node.GetCumDist ; Node.GetLayer] | UP:[Node.ForEachChild([Float.Max]) ; Float.Max ; Node.GetMDown ; Float.ConstHalf] | BEL:[Float.Rot ; Node.GetLocalDist ; Node.GetMDown ; Float.Dup] | HALT:[Float.Sub ; Float.Abs ; Float.Const0_1 ; Float.LT]
+  Top-10 individuals (Gen 6):
+    # 1  score=0.06623  BER=0.04337  faults=0.00  len=16
+          F_down  = layer
+          F_up    = 0.5
+          F_belief= M_down
+          H_halt  = (|(old_M_up - new_M_up)| < 0.1)
+          [DOWN]   Float.Sub ; Node.GetCumDist ; Node.GetLayer
+          [UP]     Node.ForEachChild([Float.Max]) ; Float.Max ; Node.GetMDown ; Float.ConstHalf
+          [BELIEF] Float.Rot ; Node.GetLocalDist ; Node.GetMDown ; Float.Dup
+          [HALT]   Float.Sub ; Float.Abs ; Float.Const0_1 ; Float.LT
+    # 2  score=0.06729  BER=0.05888  faults=0.00  len=27
+          F_down  = Re(s)
+          F_up    = [Vec.Norm2]
+          F_belief= M_up
+          H_halt  = TRUE
+    # 3  score=0.06731  BER=0.05888  faults=0.00  len=24
+          F_down  = Re(s)
+          F_up    = [Vec.Norm2]
+          F_belief= M_up
+          H_halt  = TRUE
+    # 4  score=0.06731  BER=0.05888  faults=0.00  len=26
+          F_down  = Re(s)
+          F_up    = [Vec.Norm2]
+          F_belief= layer
+          H_halt  = TRUE
+    # 5  score=0.06731  BER=0.05888  faults=0.00  len=23
+          F_down  = Im(s)
+          F_up    = [Vec.Norm2]
+          F_belief= M_up
+          H_halt  = TRUE
+    # 6  score=0.06731  BER=0.05888  faults=0.00  len=23
+          F_down  = Re(s)
+          F_up    = [Vec.Norm2]
+          F_belief= M_up
+          H_halt  = TRUE
+    # 7  score=0.09581  BER=0.05462  faults=0.00  len=18
+          F_down  = D_i
+          F_up    = 0.5
+          F_belief= M_down
+          H_halt  = 0.1
+    # 8  score=0.09581  BER=0.05462  faults=0.00  len=18
+          F_down  = D_i
+          F_up    = 0.5
+          F_belief= M_down
+          H_halt  = (0.1 < [Bool.Not])
+    # 9  score=0.09581  BER=0.05462  faults=0.00  len=20
+          F_down  = D_i
+          F_up    = 0.5
+          F_belief= M_down
+          H_halt  = ((1 - 0.1) < [Bool.Not])
+    #10  score=0.09581  BER=0.05462  faults=0.00  len=19
+          F_down  = D_i
+          F_up    = 0.5
+          F_belief= M_down
+          H_halt  = ((old_M_up - new_M_up) < [Bool.Not])
+
+[2026-04-13 21:49:37] Gen 7  Fit(BER=0.04337 ratio=0.377 FLOPs=26191 len=16 faults=0.00 gap=0.007 bp=8715.3 nlbp=0.0 bpg=0.000)
+  DOWN:[Float.Sub ; Node.GetCumDist ; Node.GetLayer] | UP:[Node.ForEachChild([Float.Max]) ; Float.Max ; Node.GetMDown ; Float.ConstHalf] | BEL:[Float.Rot ; Node.GetLocalDist ; Node.GetMDown ; Float.Dup] | HALT:[Float.Sub ; Float.Abs ; Float.Const0_1 ; Float.LT]
+  Top-10 individuals (Gen 7):
+    # 1  score=0.06623  BER=0.04337  faults=0.00  len=16
+          F_down  = layer
+          F_up    = 0.5
+          F_belief= M_down
+          H_halt  = (|(old_M_up - new_M_up)| < 0.1)
+          [DOWN]   Float.Sub ; Node.GetCumDist ; Node.GetLayer
+          [UP]     Node.ForEachChild([Float.Max]) ; Float.Max ; Node.GetMDown ; Float.ConstHalf
+          [BELIEF] Float.Rot ; Node.GetLocalDist ; Node.GetMDown ; Float.Dup
+          [HALT]   Float.Sub ; Float.Abs ; Float.Const0_1 ; Float.LT
+    # 2  score=0.06729  BER=0.05888  faults=0.00  len=27
+          F_down  = Re(s)
+          F_up    = [Vec.Norm2]
+          F_belief= M_up
+          H_halt  = TRUE
+    # 3  score=0.06731  BER=0.05888  faults=0.00  len=24
+          F_down  = Re(s)
+          F_up    = [Vec.Norm2]
+          F_belief= M_up
+          H_halt  = TRUE
+    # 4  score=0.06731  BER=0.05888  faults=0.00  len=26
+          F_down  = Re(s)
+          F_up    = [Vec.Norm2]
+          F_belief= layer
+          H_halt  = TRUE
+    # 5  score=0.06731  BER=0.05888  faults=0.00  len=23
+          F_down  = Im(s)
+          F_up    = [Vec.Norm2]
+          F_belief= M_up
+          H_halt  = TRUE
+    # 6  score=0.06731  BER=0.05888  faults=0.00  len=23
+          F_down  = Re(s)
+          F_up    = [Vec.Norm2]
+          F_belief= M_up
+          H_halt  = TRUE
+    # 7  score=0.09580  BER=0.05462  faults=0.00  len=17
+          F_down  = D_i
+          F_up    = 0.5
+          F_belief= M_down
+          H_halt  = (0.1 < [Bool.Not])
+    # 8  score=0.09580  BER=0.05462  faults=0.00  len=17
+          F_down  = D_i
+          F_up    = 0.5
+          F_belief= M_down
+          H_halt  = (old_M_up < [Bool.Not])
+    # 9  score=0.09581  BER=0.05462  faults=0.00  len=18
+          F_down  = max(D_i, Im(s))
+          F_up    = 0.5
+          F_belief= M_down
+          H_halt  = 0.1
+    #10  score=0.09581  BER=0.05462  faults=0.00  len=20
+          F_down  = D_i
+          F_up    = 0.5
+          F_belief= M_down
+          H_halt  = (0.1 < [Bool.Not])
+
+[2026-04-13 21:55:21] Gen 8  Fit(BER=0.04337 ratio=0.377 FLOPs=26191 len=16 faults=0.00 gap=0.007 bp=8715.3 nlbp=0.0 bpg=0.000)
+  DOWN:[Float.Sub ; Node.GetCumDist ; Node.GetLayer] | UP:[Node.ForEachChild([Float.Max]) ; Float.Max ; Node.GetMDown ; Float.ConstHalf] | BEL:[Float.Rot ; Node.GetLocalDist ; Node.GetMDown ; Float.Dup] | HALT:[Float.Sub ; Float.Abs ; Float.Const0_1 ; Float.LT]
+  Top-10 individuals (Gen 8):
+    # 1  score=0.06623  BER=0.04337  faults=0.00  len=16
+          F_down  = layer
+          F_up    = 0.5
+          F_belief= M_down
+          H_halt  = (|(old_M_up - new_M_up)| < 0.1)
+          [DOWN]   Float.Sub ; Node.GetCumDist ; Node.GetLayer
+          [UP]     Node.ForEachChild([Float.Max]) ; Float.Max ; Node.GetMDown ; Float.ConstHalf
+          [BELIEF] Float.Rot ; Node.GetLocalDist ; Node.GetMDown ; Float.Dup
+          [HALT]   Float.Sub ; Float.Abs ; Float.Const0_1 ; Float.LT
+    # 2  score=0.06729  BER=0.05888  faults=0.00  len=27
+          F_down  = Re(s)
+          F_up    = [Vec.Norm2]
+          F_belief= M_up
+          H_halt  = TRUE
+    # 3  score=0.06731  BER=0.05888  faults=0.00  len=24
+          F_down  = Re(s)
+          F_up    = [Vec.Norm2]
+          F_belief= M_up
+          H_halt  = TRUE
+    # 4  score=0.06731  BER=0.05888  faults=0.00  len=26
+          F_down  = Re(s)
+          F_up    = [Vec.Norm2]
+          F_belief= layer
+          H_halt  = TRUE
+    # 5  score=0.06731  BER=0.05888  faults=0.00  len=23
+          F_down  = Im(s)
+          F_up    = [Vec.Norm2]
+          F_belief= M_up
+          H_halt  = TRUE
+    # 6  score=0.06731  BER=0.05888  faults=0.00  len=23
+          F_down  = Re(s)
+          F_up    = [Vec.Norm2]
+          F_belief= M_up
+          H_halt  = TRUE
+    # 7  score=0.07279  BER=0.06044  faults=0.00  len=22
+          F_down  = D_i
+          F_up    = 0.5
+          F_belief= (D_i * C_i)
+          H_halt  = (|(old_M_up - new_M_up)| < 0.1)
+    # 8  score=0.07952  BER=0.05838  faults=0.00  len=22
+          F_down  = layer
+          F_up    = 0.5
+          F_belief= (C_i + D_i)
+          H_halt  = 0.1
+    # 9  score=0.08317  BER=0.05838  faults=0.00  len=33
+          F_down  = [Int.Sub]
+          F_up    = (1/((Sum_children(1))^2)^2)
+          F_belief= M_down
+          H_halt  = (|(old_M_up - new_M_up)| < 0.1)
+    #10  score=0.10026  BER=0.07981  faults=0.00  len=15
+          F_down  = max(noise_var, Im(s))
+          F_up    = 0.5
+          F_belief= C_i
+          H_halt  = 0.1
+
+[2026-04-13 22:00:00] Gen 9  Fit(BER=0.04337 ratio=0.377 FLOPs=26191 len=16 faults=0.00 gap=0.007 bp=8715.3 nlbp=0.0 bpg=0.000)
+  DOWN:[Float.Sub ; Node.GetCumDist ; Node.GetLayer] | UP:[Node.ForEachChild([Float.Max]) ; Float.Max ; Node.GetMDown ; Float.ConstHalf] | BEL:[Float.Rot ; Node.GetLocalDist ; Node.GetMDown ; Float.Dup] | HALT:[Float.Sub ; Float.Abs ; Float.Const0_1 ; Float.LT]
+  Top-10 individuals (Gen 9):
+    # 1  score=0.06623  BER=0.04337  faults=0.00  len=16
+          F_down  = layer
+          F_up    = 0.5
+          F_belief= M_down
+          H_halt  = (|(old_M_up - new_M_up)| < 0.1)
+          [DOWN]   Float.Sub ; Node.GetCumDist ; Node.GetLayer
+          [UP]     Node.ForEachChild([Float.Max]) ; Float.Max ; Node.GetMDown ; Float.ConstHalf
+          [BELIEF] Float.Rot ; Node.GetLocalDist ; Node.GetMDown ; Float.Dup
+          [HALT]   Float.Sub ; Float.Abs ; Float.Const0_1 ; Float.LT
+    # 2  score=0.06729  BER=0.05888  faults=0.00  len=27
+          F_down  = Re(s)
+          F_up    = [Vec.Norm2]
+          F_belief= M_up
+          H_halt  = TRUE
+    # 3  score=0.06731  BER=0.05888  faults=0.00  len=24
+          F_down  = Re(s)
+          F_up    = [Vec.Norm2]
+          F_belief= M_up
+          H_halt  = TRUE
+    # 4  score=0.06731  BER=0.05888  faults=0.00  len=26
+          F_down  = Re(s)
+          F_up    = [Vec.Norm2]
+          F_belief= layer
+          H_halt  = TRUE
+    # 5  score=0.06731  BER=0.05888  faults=0.00  len=23
+          F_down  = Im(s)
+          F_up    = [Vec.Norm2]
+          F_belief= M_up
+          H_halt  = TRUE
+    # 6  score=0.06731  BER=0.05888  faults=0.00  len=23
+          F_down  = Re(s)
+          F_up    = [Vec.Norm2]
+          F_belief= M_up
+          H_halt  = TRUE
+    # 7  score=0.07279  BER=0.06044  faults=0.00  len=23
+          F_down  = D_i
+          F_up    = 0.5
+          F_belief= (D_i * C_i)
+          H_halt  = (|(old_M_up - new_M_up)| < 0.1)
+    # 8  score=0.07279  BER=0.06044  faults=0.00  len=23
+          F_down  = max(Im(s), D_i)
+          F_up    = 0.5
+          F_belief= (C_i * M_down)
+          H_halt  = (|(old_M_up - new_M_up)| < 0.1)
+    # 9  score=0.07472  BER=0.06044  faults=0.00  len=22
+          F_down  = D_i
+          F_up    = 0.5
+          F_belief= (D_i * C_i)
+          H_halt  = (|(old_M_up < new_M_up)| - 0.1)
+    #10  score=0.07511  BER=0.06044  faults=0.00  len=31
+          F_down  = D_i
+          F_up    = 0.5
+          F_belief= (M_up * N_ch)
+          H_halt  = (|((old_M_up < new_M_up) - [Float.Sub])| < 0.1)
+
+[2026-04-13 22:04:12] Gen 10  Fit(BER=0.04337 ratio=0.377 FLOPs=26191 len=16 faults=0.00 gap=0.007 bp=8715.3 nlbp=0.0 bpg=0.000)
+  DOWN:[Float.Sub ; Node.GetCumDist ; Node.GetLayer] | UP:[Node.ForEachChild([Float.Max]) ; Float.Max ; Node.GetMDown ; Float.ConstHalf] | BEL:[Float.Rot ; Node.GetLocalDist ; Node.GetMDown ; Float.Dup] | HALT:[Float.Sub ; Float.Abs ; Float.Const0_1 ; Float.LT]
+  Top-10 individuals (Gen 10):
+    # 1  score=0.06623  BER=0.04337  faults=0.00  len=16
+          F_down  = layer
+          F_up    = 0.5
+          F_belief= M_down
+          H_halt  = (|(old_M_up - new_M_up)| < 0.1)
+          [DOWN]   Float.Sub ; Node.GetCumDist ; Node.GetLayer
+          [UP]     Node.ForEachChild([Float.Max]) ; Float.Max ; Node.GetMDown ; Float.ConstHalf
+          [BELIEF] Float.Rot ; Node.GetLocalDist ; Node.GetMDown ; Float.Dup
+          [HALT]   Float.Sub ; Float.Abs ; Float.Const0_1 ; Float.LT
+    # 2  score=0.06729  BER=0.05888  faults=0.00  len=27
+          F_down  = Re(s)
+          F_up    = [Vec.Norm2]
+          F_belief= M_up
+          H_halt  = TRUE
+    # 3  score=0.06731  BER=0.05888  faults=0.00  len=24
+          F_down  = Re(s)
+          F_up    = [Vec.Norm2]
+          F_belief= M_up
+          H_halt  = TRUE
+    # 4  score=0.06731  BER=0.05888  faults=0.00  len=26
+          F_down  = Re(s)
+          F_up    = [Vec.Norm2]
+          F_belief= layer
+          H_halt  = TRUE
+    # 5  score=0.06731  BER=0.05888  faults=0.00  len=23
+          F_down  = Im(s)
+          F_up    = [Vec.Norm2]
+          F_belief= M_up
+          H_halt  = TRUE
+    # 6  score=0.06731  BER=0.05888  faults=0.00  len=23
+          F_down  = Re(s)
+          F_up    = [Vec.Norm2]
+          F_belief= M_up
+          H_halt  = TRUE
+    # 7  score=0.07279  BER=0.06044  faults=0.00  len=23
+          F_down  = D_i
+          F_up    = C_i
+          F_belief= (D_i * C_i)
+          H_halt  = (|(old_M_up - new_M_up)| < 0.1)
+    # 8  score=0.07279  BER=0.06044  faults=0.00  len=25
+          F_down  = D_i
+          F_up    = 0.5
+          F_belief= (D_i * C_i)
+          H_halt  = (0.1 < [Int.Const0])
+    # 9  score=0.07279  BER=0.06044  faults=0.00  len=25
+          F_down  = max(Im(s), D_i)
+          F_up    = 0.5
+          F_belief= (C_i * M_down)
+          H_halt  = [Float.Sub]
+    #10  score=0.07286  BER=0.06044  faults=0.00  len=18
+          F_down  = D_i
+          F_up    = 0.5
+          F_belief= (N_ch * M_up)
+          H_halt  = (|(old_M_up - new_M_up)| < 0.1)
+================================================================================
+Structured-BP GP  started 2026-04-13 22:05:21
+================================================================================
+
+[2026-04-13 22:05:21] Configuration
+{
+  "generations": 30,
+  "population": 160,
+  "train_samples": 100,
+  "train_nt": 8,
+  "train_nr": 16,
+  "mod_order": 16,
+  "train_max_nodes": 200,
+  "train_flops_max": 1000000,
+  "step_max": 1200,
+  "eval_trials": 500,
+  "eval_max_nodes": 1500,
+  "eval_flops_max": 5000000,
+  "eval_nt": null,
+  "eval_nr": null,
+  "eval_step_max": 8000,
+  "train_snrs": "12",
+  "eval_snrs": "8,10,12,14,16",
+  "seed": 42,
+  "continuous": false,
+  "use_cpp": true,
+  "batch_gens": 5,
+  "log_suffix": "cpp_test1"
+}
+------------------------------------------------------------
+================================================================================
+Structured-BP GP  started 2026-04-13 23:12:11
+================================================================================
+
+[2026-04-13 23:12:11] Configuration
+{
+  "generations": 30,
+  "population": 160,
+  "train_samples": 100,
+  "train_nt": 8,
+  "train_nr": 16,
+  "mod_order": 16,
+  "train_max_nodes": 200,
+  "train_flops_max": 1000000,
+  "step_max": 1200,
+  "eval_trials": 500,
+  "eval_max_nodes": 1500,
+  "eval_flops_max": 5000000,
+  "eval_nt": null,
+  "eval_nr": null,
+  "eval_step_max": 8000,
+  "train_snrs": "12",
+  "eval_snrs": "8,10,12,14,16",
+  "seed": 42,
+  "continuous": false,
+  "use_cpp": true,
+  "batch_gens": 5,
+  "log_suffix": "cpp_test1"
+}
+------------------------------------------------------------
+
+[2026-04-13 23:12:38] Gen 0  Fit(BER=0.07256 ratio=0.631 FLOPs=11825 len=17 faults=0.00 gap=0.014 bp=2241.3 nlbp=0.0 bpg=0.000)  (initial)
+  DOWN:[Float.Min ; Bool.Or] | UP:[Float.ConstHalf ; Exec.DoTimes([Float.Sub, Float.Neg]) ; Node.GetLayer ; Int.Pop ; Float.Dup] | BEL:[Float.Const0 ; Node.GetMUp] | HALT:[Bool.Not ; Float.ConstHalf ; Float.GT ; Node.GetLayer ; Int.Add ; Float.GT] | LOGC:[0.5456,1.2038,0.7087,0.2935]
+
+[2026-04-13 23:13:05] Gen 1  Fit(BER=0.07256 ratio=0.631 FLOPs=11538 len=16 faults=0.00 gap=0.014 bp=868.8 nlbp=0.0 bpg=0.000)  (NEW BEST)
+  DOWN:[Float.Abs ; Float.Swap ; Node.GetSymRe ; Float.Div] | UP:[Node.ForEachChild([Float.EvoConst3]) ; Float.EvoConst2 ; Float.Rot ; Float.Square] | BEL:[Float.GetNoiseVar ; Node.GetMUp] | HALT:[Float.Const0_1 ; Bool.Not ; Float.GT ; Int.Const0 ; Bool.Dup] | LOGC:[1.5853,-2.4286,-1.6580,-1.1685]
+  Top-10 individuals (Gen 1):
+    # 1  score=0.10352  BER=0.07256  faults=0.00  len=16
+          F_down  = (M_par_down / Re(s))
+          F_up    = (M_2_up)^2
+          F_belief= M_up
+          H_halt  = [Bool.Dup]
+          [DOWN]   Float.Abs ; Float.Swap ; Node.GetSymRe ; Float.Div
+          [UP]     Node.ForEachChild([Float.EvoConst3]) ; Float.EvoConst2 ; Float.Rot ; Float.Square
+          [BELIEF] Float.GetNoiseVar ; Node.GetMUp
+          [HALT]   Float.Const0_1 ; Bool.Not ; Float.GT ; Int.Const0 ; Bool.Dup
+    # 2  score=0.10361  BER=0.07256  faults=0.00  len=17
+          F_down  = [Bool.Or]
+          F_up    = [Int.Pop]
+          F_belief= M_up
+          H_halt  = (layer > [Int.Add])
+    # 3  score=0.10361  BER=0.07256  faults=0.00  len=16
+          F_down  = min(C_i, [Bool.Or])
+          F_up    = [Int.Pop]
+          F_belief= M_up
+          H_halt  = (([Bool.Not] > 0.5) > layer)
+    # 4  score=0.10361  BER=0.07256  faults=0.00  len=28
+          F_down  = max(TRUE, 2)
+          F_up    = exp(Sum_children(M_up))
+          F_belief= ([Vec.Len])^2
+          H_halt  = (old_M_up > log(new_M_up))
+    # 5  score=0.10374  BER=0.07256  faults=0.00  len=15
+          F_down  = (|C_i| / M_par_down)
+          F_up    = M_2_up
+          F_belief= M_up
+          H_halt  = [Bool.Dup]
+    # 6  score=0.10375  BER=0.07256  faults=0.00  len=19
+          F_down  = [Vector.Dup]
+          F_up    = [Node.ChildAt]
+          F_belief= M_up
+          H_halt  = ([Float.Rot] > 0)
+    # 7  score=0.10375  BER=0.07256  faults=0.00  len=17
+          F_down  = (M_par_down / Re(s))
+          F_up    = (M_2_up)^2
+          F_belief= M_up
+          H_halt  = [Bool.Dup]
+    # 8  score=0.10376  BER=0.07256  faults=0.00  len=9
+          F_down  = min(M_par_down, C_i)
+          F_up    = N_ch
+          F_belief= (M_up + [Int.Inc])
+          H_halt  = ([Bool.Not] < 0.5)
+    # 9  score=0.10378  BER=0.07256  faults=0.00  len=20
+          F_down  = (C_i / ([Mat.PeekAt] - 2))
+          F_up    = [Int.Dup]
+          F_belief= [Matrix.Dup]
+          H_halt  = (new_M_up > (EC0 > [Mat.PeekAt]))
+    #10  score=0.10380  BER=0.07256  faults=0.00  len=29
+          F_down  = sqrt(([Matrix.Pop] + EC3))
+          F_up    = [Node.Dup]
+          F_belief= M_up
+          H_halt  = (old_M_up - ((new_M_up > EC1) - [Int.LT]))
+
+[2026-04-13 23:13:31] Gen 2  Fit(BER=0.06725 ratio=0.690 FLOPs=17693 len=34 faults=0.00 gap=0.005 bp=1218.7 nlbp=0.0 bpg=0.000)  (NEW BEST)
+  DOWN:[Float.Const0 ; Float.Sub ; Float.Const1 ; Float.Div ; Float.EvoConst2 ; Float.Add ; Float.Sub] | UP:[Float.Min ; Int.Add ; Node.ForEachChild([Float.Const1]) ; Float.EvoConst3 ; Node.ForEachChild([Float.EvoConst3, Float.Div, Node.NumChildren]) ; Node.GetScore ; Node.ForEachChild([Float.GetNoiseVar, Node.NumChildren, Float.Min]) ; Vec.Len ; Float.ConstHalf ; Float.Add ; Float.Min ; Float.Max] | BEL:[Node.GetCumDist ; Float.Mul ; Float.Div ; Int.Dec] | HALT:[Float.EvoConst2 ; Float.GT ; Float.Swap ; Float.Const0] | LOGC:[1.3835,0.5537,1.0794,-1.3127]
+  Top-10 individuals (Gen 2):
+    # 1  score=0.08256  BER=0.06725  faults=0.00  len=34
+          F_down  = (M_par_down - (((C_i - 0) / 1) + EC2))
+          F_up    = max(B_i, min(Sum_children(min(noise_var, N_ch)), ([Vec.Len] + 0.5)))
+          F_belief= [Int.Dec]
+          H_halt  = 0
+          [DOWN]   Float.Const0 ; Float.Sub ; Float.Const1 ; Float.Div ; Float.EvoConst2 ; Float.Add ; Float.Sub
+          [UP]     Float.Min ; Int.Add ; Node.ForEachChild([Float.Const1]) ; Float.EvoConst3 ; Node.ForEachChild([Float.EvoConst3, Float.Div, Node.NumChildren]) ; Node.GetScore ; Node.ForEachChild([Float.GetNoiseVar, Node.NumChildren, Float.Min]) ; Vec.Len ; Float.ConstHalf ; Float.Add ; Float.Min ; Float.Max
+          [BELIEF] Node.GetCumDist ; Float.Mul ; Float.Div ; Int.Dec
+          [HALT]   Float.EvoConst2 ; Float.GT ; Float.Swap ; Float.Const0
+    # 2  score=0.08344  BER=0.07025  faults=0.00  len=18
+          F_down  = [Bool.Or]
+          F_up    = [Int.Pop]
+          F_belief= M_up
+          H_halt  = (layer > [Int.Add])
+    # 3  score=0.08345  BER=0.07025  faults=0.00  len=17
+          F_down  = [Bool.Or]
+          F_up    = repeat((-[Float.Sub]))
+          F_belief= M_up
+          H_halt  = |[Int.Add]|
+    # 4  score=0.08346  BER=0.07025  faults=0.00  len=18
+          F_down  = [Bool.Or]
+          F_up    = [Int.Pop]
+          F_belief= M_up
+          H_halt  = [Bool.Not]
+    # 5  score=0.08354  BER=0.07025  faults=0.00  len=16
+          F_down  = (M_par_down / Re(s))
+          F_up    = (N_ch)^2
+          F_belief= M_up
+          H_halt  = [Bool.Dup]
+    # 6  score=0.08360  BER=0.07025  faults=0.00  len=17
+          F_down  = (M_par_down / C_i)
+          F_up    = Sum_children([Float.Neg])
+          F_belief= [Int.Dec]
+          H_halt  = [Matrix.Pop]
+    # 7  score=0.08370  BER=0.07025  faults=0.00  len=20
+          F_down  = [Node.SetMDown]
+          F_up    = Sum_children([Float.Max])
+          F_belief= (M_up - M_down)
+          H_halt  = ([Vector.Dup] / [Vec.Sub])
+    # 8  score=0.08373  BER=0.07025  faults=0.00  len=23
+          F_down  = (layer)^2
+          F_up    = [Node.ChildAt]
+          F_belief= [Bool.And]
+          H_halt  = [Node.SetMUp]
+    # 9  score=0.08375  BER=0.07025  faults=0.00  len=24
+          F_down  = [Graph.GetRoot]
+          F_up    = N_ch
+          F_belief= |M_up|
+          H_halt  = ([Bool.Not] * layer)
+    #10  score=0.08378  BER=0.07025  faults=0.00  len=20
+          F_down  = [Bool.Or]
+          F_up    = [Int.Pop]
+          F_belief= M_up
+          H_halt  = (layer > [Int.Add])
+
+[2026-04-13 23:13:53] Gen 3  Fit(BER=0.06725 ratio=0.690 FLOPs=13816 len=29 faults=0.00 gap=0.005 bp=781.7 nlbp=0.0 bpg=0.000)  (NEW BEST)
+  DOWN:[Float.Const0 ; Float.Sub ; Float.Const1 ; Float.Div ; Float.EvoConst2 ; Float.Add ; Float.Sub] | UP:[Float.Min ; Int.Add ; Node.ForEachChild([Float.Const1]) ; Float.EvoConst3 ; Node.GetScore ; Node.ForEachChild([Float.GetNoiseVar, Node.NumChildren, Float.Min]) ; Float.Add ; Float.Min ; Float.Max] | BEL:[Node.GetCumDist ; Float.Mul ; Float.Div ; Int.Dec] | HALT:[Float.EvoConst2 ; Float.GT ; Float.Swap ; Float.Const0 ; Float.GT] | LOGC:[1.3835,0.5537,1.0794,-1.3127]
+  Top-10 individuals (Gen 3):
+    # 1  score=0.08139  BER=0.06725  faults=0.00  len=29
+          F_down  = (M_par_down - (((C_i - 0) / 1) + EC2))
+          F_up    = max(Sum_children(1), min(EC3, (B_i + Sum_children(min(noise_var, N_ch)))))
+          F_belief= [Int.Dec]
+          H_halt  = (old_M_up > 0)
+          [DOWN]   Float.Const0 ; Float.Sub ; Float.Const1 ; Float.Div ; Float.EvoConst2 ; Float.Add ; Float.Sub
+          [UP]     Float.Min ; Int.Add ; Node.ForEachChild([Float.Const1]) ; Float.EvoConst3 ; Node.GetScore ; Node.ForEachChild([Float.GetNoiseVar, Node.NumChildren, Float.Min]) ; Float.Add ; Float.Min ; Float.Max
+          [BELIEF] Node.GetCumDist ; Float.Mul ; Float.Div ; Int.Dec
+          [HALT]   Float.EvoConst2 ; Float.GT ; Float.Swap ; Float.Const0 ; Float.GT
+    # 2  score=0.08249  BER=0.06725  faults=0.00  len=34
+          F_down  = (M_par_down - (((C_i - 0) / 1) + EC2))
+          F_up    = max(([Vec.Len] + 0.5), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = 0
+    # 3  score=0.08256  BER=0.06725  faults=0.00  len=34
+          F_down  = (M_par_down - (((C_i - 0) / 1) + EC2))
+          F_up    = max(B_i, min(Sum_children(min(noise_var, N_ch)), ([Vec.Len] + 0.5)))
+          F_belief= [Int.Dec]
+          H_halt  = 0
+    # 4  score=0.08256  BER=0.06725  faults=0.00  len=34
+          F_down  = (M_par_down - (((C_i - 0) / 1) + EC2))
+          F_up    = max(B_i, min(Sum_children(min(noise_var, N_ch)), ([Vec.Len] + 0.5)))
+          F_belief= [Int.Dec]
+          H_halt  = 0
+    # 5  score=0.08321  BER=0.07025  faults=0.00  len=13
+          F_down  = [Bool.Or]
+          F_up    = [Int.Pop]
+          F_belief= M_up
+          H_halt  = [Int.Const0]
+    # 6  score=0.08326  BER=0.07025  faults=0.00  len=13
+          F_down  = [Vector.Dup]
+          F_up    = [Node.ChildAt]
+          F_belief= M_up
+          H_halt  = ([Float.Rot] > 0)
+    # 7  score=0.08344  BER=0.07025  faults=0.00  len=15
+          F_down  = [Bool.Or]
+          F_up    = layer
+          F_belief= M_up
+          H_halt  = [Int.Const0]
+    # 8  score=0.08344  BER=0.07025  faults=0.00  len=18
+          F_down  = [Bool.Or]
+          F_up    = [Int.Pop]
+          F_belief= M_up
+          H_halt  = (layer > [Int.Add])
+    # 9  score=0.08345  BER=0.07025  faults=0.00  len=17
+          F_down  = [Bool.Or]
+          F_up    = repeat((-[Float.Sub]))
+          F_belief= M_up
+          H_halt  = |[Int.Add]|
+    #10  score=0.08345  BER=0.07025  faults=0.00  len=17
+          F_down  = [Bool.Or]
+          F_up    = repeat((-[Float.Sub]))
+          F_belief= M_up
+          H_halt  = EC3
+
+[2026-04-13 23:14:13] Gen 4  Fit(BER=0.06725 ratio=0.690 FLOPs=13216 len=26 faults=0.00 gap=0.005 bp=764.7 nlbp=0.0 bpg=0.000)  (NEW BEST)
+  DOWN:[Mat.PeekAt ; Float.Const2 ; Float.Div ; Float.EvoConst2 ; Float.Add ; Float.Sub] | UP:[Node.NumChildren ; Vec.Scale ; Node.NumChildren ; Node.ForEachChild([Float.GetNoiseVar, Node.NumChildren, Float.Min]) ; Vec.Len ; Float.ConstHalf ; Float.Add ; Int.Add ; Float.Max] | BEL:[Node.GetCumDist ; Float.Mul ; Float.Div ; Int.Dec] | HALT:[Float.Const0 ; Float.GT ; Float.Swap ; Float.Const0] | LOGC:[1.5974,0.7728,1.2024,-0.6242]
+  Top-10 individuals (Gen 4):
+    # 1  score=0.08121  BER=0.06725  faults=0.00  len=26
+          F_down  = (C_i - (([Mat.PeekAt] / 2) + EC2))
+          F_up    = max(([Vec.Len] + 0.5), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = 0
+          [DOWN]   Mat.PeekAt ; Float.Const2 ; Float.Div ; Float.EvoConst2 ; Float.Add ; Float.Sub
+          [UP]     Node.NumChildren ; Vec.Scale ; Node.NumChildren ; Node.ForEachChild([Float.GetNoiseVar, Node.NumChildren, Float.Min]) ; Vec.Len ; Float.ConstHalf ; Float.Add ; Int.Add ; Float.Max
+          [BELIEF] Node.GetCumDist ; Float.Mul ; Float.Div ; Int.Dec
+          [HALT]   Float.Const0 ; Float.GT ; Float.Swap ; Float.Const0
+    # 2  score=0.08137  BER=0.06725  faults=0.00  len=28
+          F_down  = (M_par_down - (((C_i - 0) / 1) + EC2))
+          F_up    = max(Sum_children(1), min(EC3, (B_i + Sum_children(min(noise_var, N_ch)))))
+          F_belief= [Int.Dec]
+          H_halt  = (new_M_up > 0)
+    # 3  score=0.08137  BER=0.06725  faults=0.00  len=28
+          F_down  = (M_par_down - (((C_i - 0) / 1) + EC2))
+          F_up    = max(Sum_children(1), min(EC3, (B_i + Sum_children(min(noise_var, N_ch)))))
+          F_belief= [Int.Dec]
+          H_halt  = (new_M_up > 0)
+    # 4  score=0.08139  BER=0.06725  faults=0.00  len=29
+          F_down  = (M_par_down - (((C_i - 0) / 1) + EC2))
+          F_up    = max(Sum_children(1), min(EC3, (B_i + Sum_children(min(noise_var, N_ch)))))
+          F_belief= [Int.Dec]
+          H_halt  = (old_M_up > 0)
+    # 5  score=0.08139  BER=0.06725  faults=0.00  len=29
+          F_down  = (M_par_down - (((C_i - 0) / 1) + EC2))
+          F_up    = max(B_i, min([Int.Add], (min(Sum_children(1), EC3) + Sum_children(min(noise_var, N_ch)))))
+          F_belief= [Int.Dec]
+          H_halt  = (old_M_up > 0)
+    # 6  score=0.08139  BER=0.06725  faults=0.00  len=29
+          F_down  = (M_par_down - (((C_i - 0) / 1) + EC2))
+          F_up    = max(Sum_children(1), min(EC3, (B_i + Sum_children(min(noise_var, N_ch)))))
+          F_belief= [Int.Dec]
+          H_halt  = (old_M_up > 0)
+    # 7  score=0.08158  BER=0.06725  faults=0.00  len=34
+          F_down  = (M_par_down - (((C_i - 0) / 1) + EC2))
+          F_up    = max(([Vec.Len] + 0.5), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = EC2
+    # 8  score=0.08160  BER=0.06725  faults=0.00  len=34
+          F_down  = (M_par_down - (((C_i - 0) / 1) + EC2))
+          F_up    = max(Sum_children(min(noise_var, N_ch)), sqrt(([Vec.Len] + 0.5)))
+          F_belief= [Int.Dec]
+          H_halt  = 0
+    # 9  score=0.08249  BER=0.06725  faults=0.00  len=34
+          F_down  = (M_par_down - (((C_i - 0) / 1) + EC2))
+          F_up    = max(([Vec.Len] + 0.5), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = 0
+    #10  score=0.08249  BER=0.06725  faults=0.00  len=34
+          F_down  = (M_par_down - (((C_i - 0) / 1) + EC2))
+          F_up    = max(([Vec.Len] + 0.5), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = (new_M_up > EC2)
+
+[2026-04-13 23:14:35] Gen 5  Fit(BER=0.06725 ratio=0.690 FLOPs=13216 len=26 faults=0.00 gap=0.005 bp=764.7 nlbp=0.0 bpg=0.000)
+  DOWN:[Mat.PeekAt ; Float.Const2 ; Float.Div ; Float.EvoConst2 ; Float.Add ; Float.Sub] | UP:[Node.NumChildren ; Vec.Scale ; Node.NumChildren ; Node.ForEachChild([Float.GetNoiseVar, Node.NumChildren, Float.Min]) ; Vec.Len ; Float.ConstHalf ; Float.Add ; Int.Add ; Float.Max] | BEL:[Node.GetCumDist ; Float.Mul ; Float.Div ; Int.Dec] | HALT:[Float.Const0 ; Float.GT ; Float.Swap ; Float.Const0] | LOGC:[1.5974,0.7728,1.2024,-0.6242]
+  Top-10 individuals (Gen 5):
+    # 1  score=0.08121  BER=0.06725  faults=0.00  len=26
+          F_down  = (C_i - (([Mat.PeekAt] / 2) + EC2))
+          F_up    = max(([Vec.Len] + 0.5), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = 0
+          [DOWN]   Mat.PeekAt ; Float.Const2 ; Float.Div ; Float.EvoConst2 ; Float.Add ; Float.Sub
+          [UP]     Node.NumChildren ; Vec.Scale ; Node.NumChildren ; Node.ForEachChild([Float.GetNoiseVar, Node.NumChildren, Float.Min]) ; Vec.Len ; Float.ConstHalf ; Float.Add ; Int.Add ; Float.Max
+          [BELIEF] Node.GetCumDist ; Float.Mul ; Float.Div ; Int.Dec
+          [HALT]   Float.Const0 ; Float.GT ; Float.Swap ; Float.Const0
+    # 2  score=0.08137  BER=0.06725  faults=0.00  len=28
+          F_down  = (M_par_down - (((C_i - 0) / 1) + EC2))
+          F_up    = max(Sum_children(1), min(EC3, (B_i + Sum_children(min(noise_var, N_ch)))))
+          F_belief= [Int.Dec]
+          H_halt  = (new_M_up > 0)
+    # 3  score=0.08137  BER=0.06725  faults=0.00  len=28
+          F_down  = (M_par_down - (((C_i - 0) / 1) + EC2))
+          F_up    = max(Sum_children(1), min(EC3, (B_i + Sum_children(min(noise_var, N_ch)))))
+          F_belief= [Int.Dec]
+          H_halt  = (new_M_up > 0)
+    # 4  score=0.08139  BER=0.06725  faults=0.00  len=29
+          F_down  = (M_par_down - (((C_i - 0) / 1) + EC2))
+          F_up    = max(Sum_children(1), min(EC3, (B_i + Sum_children(min(noise_var, N_ch)))))
+          F_belief= [Int.Dec]
+          H_halt  = (old_M_up > 0)
+    # 5  score=0.08139  BER=0.06725  faults=0.00  len=29
+          F_down  = (M_par_down - (((C_i - 0) / 1) + EC2))
+          F_up    = max(B_i, min([Int.Add], (min(Sum_children(1), EC3) + Sum_children(min(noise_var, N_ch)))))
+          F_belief= [Int.Dec]
+          H_halt  = (old_M_up > 0)
+    # 6  score=0.08139  BER=0.06725  faults=0.00  len=29
+          F_down  = (M_par_down - (((C_i - 0) / 1) + EC2))
+          F_up    = max(Sum_children(1), min(EC3, (B_i + Sum_children(min(noise_var, N_ch)))))
+          F_belief= [Int.Dec]
+          H_halt  = (old_M_up > 0)
+    # 7  score=0.10097  BER=0.09431  faults=0.00  len=28
+          F_down  = (M_par_down - (([Mat.PeekAt] / 2) + EC2))
+          F_up    = max(([Vec.Len] + 0.5), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = 0
+    # 8  score=0.10585  BER=0.06894  faults=0.00  len=34
+          F_down  = (M_par_down - ((C_i / 1) + EC2))
+          F_up    = max(([Vec.Len] + 0.5), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = 0
+    # 9  score=0.11148  BER=0.07575  faults=0.00  len=25
+          F_down  = (2 - min(([Bool.Dup])^2, (-[Int.Const2])))
+          F_up    = [Int.Dec]
+          F_belief= min(M_up, [Node.WriteMem])
+          H_halt  = EC3
+    #10  score=0.11684  BER=0.07713  faults=0.00  len=35
+          F_down  = (M_par_down - ((C_i - 0) + (1 / EC2)))
+          F_up    = max(Sum_children(min(noise_var, N_ch)), sqrt(([Vec.Len] + 0.5)))
+          F_belief= [Int.Dec]
+          H_halt  = 0
+
+[2026-04-13 23:14:54] Gen 6  Fit(BER=0.06725 ratio=0.690 FLOPs=13216 len=26 faults=0.00 gap=0.005 bp=764.7 nlbp=0.0 bpg=0.000)
+  DOWN:[Mat.PeekAt ; Float.Const2 ; Float.Div ; Float.EvoConst2 ; Float.Add ; Float.Sub] | UP:[Node.NumChildren ; Vec.Scale ; Node.NumChildren ; Node.ForEachChild([Float.GetNoiseVar, Node.NumChildren, Float.Min]) ; Vec.Len ; Float.ConstHalf ; Float.Add ; Int.Add ; Float.Max] | BEL:[Node.GetCumDist ; Float.Mul ; Float.Div ; Int.Dec] | HALT:[Float.Const0 ; Float.GT ; Float.Swap ; Float.Const0] | LOGC:[1.5974,0.7728,1.2024,-0.6242]
+  Top-10 individuals (Gen 6):
+    # 1  score=0.08121  BER=0.06725  faults=0.00  len=26
+          F_down  = (C_i - (([Mat.PeekAt] / 2) + EC2))
+          F_up    = max(([Vec.Len] + 0.5), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = 0
+          [DOWN]   Mat.PeekAt ; Float.Const2 ; Float.Div ; Float.EvoConst2 ; Float.Add ; Float.Sub
+          [UP]     Node.NumChildren ; Vec.Scale ; Node.NumChildren ; Node.ForEachChild([Float.GetNoiseVar, Node.NumChildren, Float.Min]) ; Vec.Len ; Float.ConstHalf ; Float.Add ; Int.Add ; Float.Max
+          [BELIEF] Node.GetCumDist ; Float.Mul ; Float.Div ; Int.Dec
+          [HALT]   Float.Const0 ; Float.GT ; Float.Swap ; Float.Const0
+    # 2  score=0.08137  BER=0.06725  faults=0.00  len=28
+          F_down  = (M_par_down - (((C_i - 0) / 1) + EC2))
+          F_up    = max(Sum_children(1), min(EC3, (B_i + Sum_children(min(noise_var, N_ch)))))
+          F_belief= [Int.Dec]
+          H_halt  = (new_M_up > 0)
+    # 3  score=0.08137  BER=0.06725  faults=0.00  len=28
+          F_down  = (M_par_down - (((C_i - 0) / 1) + EC2))
+          F_up    = max(Sum_children(1), min(EC3, (B_i + Sum_children(min(noise_var, N_ch)))))
+          F_belief= [Int.Dec]
+          H_halt  = (new_M_up > 0)
+    # 4  score=0.08139  BER=0.06725  faults=0.00  len=29
+          F_down  = (M_par_down - (((C_i - 0) / 1) + EC2))
+          F_up    = max(Sum_children(1), min(EC3, (B_i + Sum_children(min(noise_var, N_ch)))))
+          F_belief= [Int.Dec]
+          H_halt  = (old_M_up > 0)
+    # 5  score=0.08139  BER=0.06725  faults=0.00  len=29
+          F_down  = (M_par_down - (((C_i - 0) / 1) + EC2))
+          F_up    = max(B_i, min([Int.Add], (min(Sum_children(1), EC3) + Sum_children(min(noise_var, N_ch)))))
+          F_belief= [Int.Dec]
+          H_halt  = (old_M_up > 0)
+    # 6  score=0.08139  BER=0.06725  faults=0.00  len=29
+          F_down  = (M_par_down - (((C_i - 0) / 1) + EC2))
+          F_up    = max(Sum_children(1), min(EC3, (B_i + Sum_children(min(noise_var, N_ch)))))
+          F_belief= [Int.Dec]
+          H_halt  = (old_M_up > 0)
+    # 7  score=0.09977  BER=0.08456  faults=0.00  len=30
+          F_down  = (M_par_down - (C_i + (1 / EC2)))
+          F_up    = max(Sum_children(min(noise_var, N_ch)), sqrt(([Vec.Len] + 0.5)))
+          F_belief= [Int.Dec]
+          H_halt  = 0
+    # 8  score=0.10097  BER=0.09431  faults=0.00  len=28
+          F_down  = (M_par_down - (([Mat.PeekAt] / 2) + EC2))
+          F_up    = max(([Vec.Len] + 0.5), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = 0
+    # 9  score=0.10097  BER=0.09431  faults=0.00  len=27
+          F_down  = (M_par_down - (([Mat.PeekAt] / 2) + EC2))
+          F_up    = max(([Vec.Len] + 0.5), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = 0
+    #10  score=0.10097  BER=0.09431  faults=0.00  len=28
+          F_down  = (M_par_down - (([Mat.PeekAt] / 2) + EC2))
+          F_up    = max(([Vec.Len] + N_ch), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = 0
+
+[2026-04-13 23:15:13] Gen 7  Fit(BER=0.06725 ratio=0.690 FLOPs=13216 len=26 faults=0.00 gap=0.005 bp=764.7 nlbp=0.0 bpg=0.000)
+  DOWN:[Mat.PeekAt ; Float.Const2 ; Float.Div ; Float.EvoConst2 ; Float.Add ; Float.Sub] | UP:[Node.NumChildren ; Vec.Scale ; Node.NumChildren ; Node.ForEachChild([Float.GetNoiseVar, Node.NumChildren, Float.Min]) ; Vec.Len ; Float.ConstHalf ; Float.Add ; Int.Add ; Float.Max] | BEL:[Node.GetCumDist ; Float.Mul ; Float.Div ; Int.Dec] | HALT:[Float.Const0 ; Float.GT ; Float.Swap ; Float.Const0] | LOGC:[1.5974,0.7728,1.2024,-0.6242]
+  Top-10 individuals (Gen 7):
+    # 1  score=0.08121  BER=0.06725  faults=0.00  len=26
+          F_down  = (C_i - (([Mat.PeekAt] / 2) + EC2))
+          F_up    = max(([Vec.Len] + 0.5), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = 0
+          [DOWN]   Mat.PeekAt ; Float.Const2 ; Float.Div ; Float.EvoConst2 ; Float.Add ; Float.Sub
+          [UP]     Node.NumChildren ; Vec.Scale ; Node.NumChildren ; Node.ForEachChild([Float.GetNoiseVar, Node.NumChildren, Float.Min]) ; Vec.Len ; Float.ConstHalf ; Float.Add ; Int.Add ; Float.Max
+          [BELIEF] Node.GetCumDist ; Float.Mul ; Float.Div ; Int.Dec
+          [HALT]   Float.Const0 ; Float.GT ; Float.Swap ; Float.Const0
+    # 2  score=0.08137  BER=0.06725  faults=0.00  len=28
+          F_down  = (M_par_down - (((C_i - 0) / 1) + EC2))
+          F_up    = max(Sum_children(1), min(EC3, (B_i + Sum_children(min(noise_var, N_ch)))))
+          F_belief= [Int.Dec]
+          H_halt  = (new_M_up > 0)
+    # 3  score=0.08137  BER=0.06725  faults=0.00  len=28
+          F_down  = (M_par_down - (((C_i - 0) / 1) + EC2))
+          F_up    = max(Sum_children(1), min(EC3, (B_i + Sum_children(min(noise_var, N_ch)))))
+          F_belief= [Int.Dec]
+          H_halt  = (new_M_up > 0)
+    # 4  score=0.08139  BER=0.06725  faults=0.00  len=29
+          F_down  = (M_par_down - (((C_i - 0) / 1) + EC2))
+          F_up    = max(Sum_children(1), min(EC3, (B_i + Sum_children(min(noise_var, N_ch)))))
+          F_belief= [Int.Dec]
+          H_halt  = (old_M_up > 0)
+    # 5  score=0.08139  BER=0.06725  faults=0.00  len=29
+          F_down  = (M_par_down - (((C_i - 0) / 1) + EC2))
+          F_up    = max(B_i, min([Int.Add], (min(Sum_children(1), EC3) + Sum_children(min(noise_var, N_ch)))))
+          F_belief= [Int.Dec]
+          H_halt  = (old_M_up > 0)
+    # 6  score=0.08139  BER=0.06725  faults=0.00  len=29
+          F_down  = (M_par_down - (((C_i - 0) / 1) + EC2))
+          F_up    = max(Sum_children(1), min(EC3, (B_i + Sum_children(min(noise_var, N_ch)))))
+          F_belief= [Int.Dec]
+          H_halt  = (old_M_up > 0)
+    # 7  score=0.08856  BER=0.07706  faults=0.00  len=26
+          F_down  = (M_par_down - ((C_i / 1) + (EC2 / EC2)))
+          F_up    = max(TRUE, min(|M_up|, (B_i + Sum_children(min(noise_var, N_ch)))))
+          F_belief= [Int.Dec]
+          H_halt  = (old_M_up > log(new_M_up))
+    # 8  score=0.09270  BER=0.08206  faults=0.00  len=11
+          F_down  = max(C_i, [Bool.Or])
+          F_up    = [Int.Pop]
+          F_belief= (M_up < M_up)
+          H_halt  = [Int.Const0]
+    # 9  score=0.09977  BER=0.08456  faults=0.00  len=30
+          F_down  = (M_par_down - (C_i + (1 / EC2)))
+          F_up    = max(Sum_children(min(noise_var, N_ch)), sqrt(([Vec.Len] + 0.5)))
+          F_belief= ((M_down * M_up) / [Int.Dec])
+          H_halt  = 0
+    #10  score=0.10097  BER=0.09431  faults=0.00  len=26
+          F_down  = (M_par_down - (([Mat.PeekAt] / 2) + EC2))
+          F_up    = max(([Vec.Len] + 0.5), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = 0
+
+[2026-04-13 23:15:37] Gen 8  Fit(BER=0.07138 ratio=0.688 FLOPs=12354 len=27 faults=0.00 gap=0.002 bp=782.9 nlbp=0.0 bpg=0.000)  (NEW BEST)
+  DOWN:[Float.Swap ; Mat.PeekAt ; Float.Const2 ; Float.Div ; Float.Div ; Float.EvoConst2 ; Float.Sub] | UP:[Node.ForEachChild([Float.EvoConst3]) ; Float.EvoConst2 ; Node.NumChildren ; Node.ForEachChild([Float.GetNoiseVar, Node.NumChildren, Float.Min]) ; Vec.Len ; Float.ConstHalf ; Float.ConstHalf ; Float.Add ; Int.Add ; Float.Max] | BEL:[Float.Div ; Int.Dec] | HALT:[Float.GT ; Bool.Not ; Float.Const0_1 ; Float.Swap] | LOGC:[1.8768,-1.8156,0.6256,-0.4543]
+  Top-10 individuals (Gen 8):
+    # 1  score=0.08008  BER=0.07138  faults=0.00  len=27
+          F_down  = ((M_par_down / ([Mat.PeekAt] / 2)) - EC2)
+          F_up    = max((0.5 + 0.5), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = [Bool.Not]
+          [DOWN]   Float.Swap ; Mat.PeekAt ; Float.Const2 ; Float.Div ; Float.Div ; Float.EvoConst2 ; Float.Sub
+          [UP]     Node.ForEachChild([Float.EvoConst3]) ; Float.EvoConst2 ; Node.NumChildren ; Node.ForEachChild([Float.GetNoiseVar, Node.NumChildren, Float.Min]) ; Vec.Len ; Float.ConstHalf ; Float.ConstHalf ; Float.Add ; Int.Add ; Float.Max
+          [BELIEF] Float.Div ; Int.Dec
+          [HALT]   Float.GT ; Bool.Not ; Float.Const0_1 ; Float.Swap
+    # 2  score=0.08121  BER=0.06725  faults=0.00  len=26
+          F_down  = (C_i - (([Mat.PeekAt] / 2) + EC2))
+          F_up    = max(([Vec.Len] + 0.5), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = 0
+    # 3  score=0.08137  BER=0.06725  faults=0.00  len=28
+          F_down  = (M_par_down - (((C_i - 0) / 1) + EC2))
+          F_up    = max(Sum_children(1), min(EC3, (B_i + Sum_children(min(noise_var, N_ch)))))
+          F_belief= [Int.Dec]
+          H_halt  = (new_M_up > 0)
+    # 4  score=0.08137  BER=0.06725  faults=0.00  len=28
+          F_down  = (M_par_down - (((C_i - 0) / 1) + EC2))
+          F_up    = max(Sum_children(1), min(EC3, (B_i + Sum_children(min(noise_var, N_ch)))))
+          F_belief= [Int.Dec]
+          H_halt  = (new_M_up > 0)
+    # 5  score=0.08139  BER=0.06725  faults=0.00  len=29
+          F_down  = (M_par_down - (((C_i - 0) / 1) + EC2))
+          F_up    = max(Sum_children(1), min(EC3, (B_i + Sum_children(min(noise_var, N_ch)))))
+          F_belief= [Int.Dec]
+          H_halt  = (old_M_up > 0)
+    # 6  score=0.08139  BER=0.06725  faults=0.00  len=29
+          F_down  = (M_par_down - (((C_i - 0) / 1) + EC2))
+          F_up    = max(B_i, min([Int.Add], (min(Sum_children(1), EC3) + Sum_children(min(noise_var, N_ch)))))
+          F_belief= [Int.Dec]
+          H_halt  = (old_M_up > 0)
+    # 7  score=0.08139  BER=0.06725  faults=0.00  len=29
+          F_down  = (M_par_down - (((C_i - 0) / 1) + EC2))
+          F_up    = max(Sum_children(1), min(EC3, (B_i + Sum_children(min(noise_var, N_ch)))))
+          F_belief= [Int.Dec]
+          H_halt  = (old_M_up > 0)
+    # 8  score=0.08353  BER=0.07681  faults=0.00  len=29
+          F_down  = (M_par_down - ((C_i - 0) + (1 / EC2)))
+          F_up    = max(Sum_children(1), min(0, (B_i + Sum_children(min(noise_var, N_ch)))))
+          F_belief= [Int.Dec]
+          H_halt  = (old_M_up > 0)
+    # 9  score=0.08630  BER=0.07456  faults=0.00  len=32
+          F_down  = (M_par_down - ((C_i / 1) + EC2))
+          F_up    = |([Vec.Len] + 0.5)|
+          F_belief= [Int.Dec]
+          H_halt  = [Float.Swap]
+    #10  score=0.08771  BER=0.07456  faults=0.00  len=35
+          F_down  = (M_par_down - ((C_i / 1) + EC2))
+          F_up    = max(([Vec.Len] + 0.5), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = (0 > log(new_M_up))
+
+[2026-04-13 23:15:56] Gen 9  Fit(BER=0.07138 ratio=0.688 FLOPs=12354 len=27 faults=0.00 gap=0.002 bp=782.9 nlbp=0.0 bpg=0.000)
+  DOWN:[Float.Swap ; Mat.PeekAt ; Float.Const2 ; Float.Div ; Float.Div ; Float.EvoConst2 ; Float.Sub] | UP:[Node.ForEachChild([Float.EvoConst3]) ; Float.EvoConst2 ; Node.NumChildren ; Node.ForEachChild([Float.GetNoiseVar, Node.NumChildren, Float.Min]) ; Vec.Len ; Float.ConstHalf ; Float.ConstHalf ; Float.Add ; Int.Add ; Float.Max] | BEL:[Float.Div ; Int.Dec] | HALT:[Float.GT ; Bool.Not ; Float.Const0_1 ; Float.Swap] | LOGC:[1.8768,-1.8156,0.6256,-0.4543]
+  Top-10 individuals (Gen 9):
+    # 1  score=0.08008  BER=0.07138  faults=0.00  len=27
+          F_down  = ((M_par_down / ([Mat.PeekAt] / 2)) - EC2)
+          F_up    = max((0.5 + 0.5), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = [Bool.Not]
+          [DOWN]   Float.Swap ; Mat.PeekAt ; Float.Const2 ; Float.Div ; Float.Div ; Float.EvoConst2 ; Float.Sub
+          [UP]     Node.ForEachChild([Float.EvoConst3]) ; Float.EvoConst2 ; Node.NumChildren ; Node.ForEachChild([Float.GetNoiseVar, Node.NumChildren, Float.Min]) ; Vec.Len ; Float.ConstHalf ; Float.ConstHalf ; Float.Add ; Int.Add ; Float.Max
+          [BELIEF] Float.Div ; Int.Dec
+          [HALT]   Float.GT ; Bool.Not ; Float.Const0_1 ; Float.Swap
+    # 2  score=0.08010  BER=0.07138  faults=0.00  len=27
+          F_down  = ((M_par_down / ([Mat.PeekAt] / 2)) - EC2)
+          F_up    = max((0.5 + 0.5), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = ([Bool.Not] > 0.1)
+    # 3  score=0.08121  BER=0.06725  faults=0.00  len=26
+          F_down  = (C_i - (([Mat.PeekAt] / 2) + EC2))
+          F_up    = max(([Vec.Len] + 0.5), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = 0
+    # 4  score=0.08137  BER=0.06725  faults=0.00  len=28
+          F_down  = (M_par_down - (((C_i - 0) / 1) + EC2))
+          F_up    = max(Sum_children(1), min(EC3, (B_i + Sum_children(min(noise_var, N_ch)))))
+          F_belief= [Int.Dec]
+          H_halt  = (new_M_up > 0)
+    # 5  score=0.08137  BER=0.06725  faults=0.00  len=28
+          F_down  = (M_par_down - (((C_i - 0) / 1) + EC2))
+          F_up    = max(Sum_children(1), min(EC3, (B_i + Sum_children(min(noise_var, N_ch)))))
+          F_belief= [Int.Dec]
+          H_halt  = (new_M_up > 0)
+    # 6  score=0.08139  BER=0.06725  faults=0.00  len=29
+          F_down  = (M_par_down - (((C_i - 0) / 1) + EC2))
+          F_up    = max(Sum_children(1), min(EC3, (B_i + Sum_children(min(noise_var, N_ch)))))
+          F_belief= [Int.Dec]
+          H_halt  = (old_M_up > 0)
+    # 7  score=0.08139  BER=0.06725  faults=0.00  len=29
+          F_down  = (M_par_down - (((C_i - 0) / 1) + EC2))
+          F_up    = max(B_i, min([Int.Add], (min(Sum_children(1), EC3) + Sum_children(min(noise_var, N_ch)))))
+          F_belief= [Int.Dec]
+          H_halt  = (old_M_up > 0)
+    # 8  score=0.08353  BER=0.07681  faults=0.00  len=29
+          F_down  = (M_par_down - ((C_i - 0) + (1 / EC2)))
+          F_up    = max(Sum_children(1), min(0, (B_i + Sum_children(min(noise_var, N_ch)))))
+          F_belief= [Int.Dec]
+          H_halt  = (old_M_up > 0)
+    # 9  score=0.08585  BER=0.07456  faults=0.00  len=20
+          F_down  = (M_par_down - (C_i + EC2))
+          F_up    = max((B_i + TRUE), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = (old_M_up > 0)
+    #10  score=0.08586  BER=0.07456  faults=0.00  len=21
+          F_down  = (M_par_down - (C_i + EC2))
+          F_up    = max((B_i + TRUE), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = 0
+
+[2026-04-13 23:16:17] Gen 10  Fit(BER=0.07138 ratio=0.688 FLOPs=12354 len=27 faults=0.00 gap=0.002 bp=782.9 nlbp=0.0 bpg=0.000)
+  DOWN:[Float.Swap ; Mat.PeekAt ; Float.Const2 ; Float.Div ; Float.Div ; Float.EvoConst2 ; Float.Sub] | UP:[Node.ForEachChild([Float.EvoConst3]) ; Float.EvoConst2 ; Node.NumChildren ; Node.ForEachChild([Float.GetNoiseVar, Node.NumChildren, Float.Min]) ; Vec.Len ; Float.ConstHalf ; Float.ConstHalf ; Float.Add ; Int.Add ; Float.Max] | BEL:[Float.Div ; Int.Dec] | HALT:[Float.GT ; Bool.Not ; Float.Const0_1 ; Float.Swap] | LOGC:[1.8768,-1.8156,0.6256,-0.4543]
+  Top-10 individuals (Gen 10):
+    # 1  score=0.08008  BER=0.07138  faults=0.00  len=27
+          F_down  = ((M_par_down / ([Mat.PeekAt] / 2)) - EC2)
+          F_up    = max((0.5 + 0.5), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = [Bool.Not]
+          [DOWN]   Float.Swap ; Mat.PeekAt ; Float.Const2 ; Float.Div ; Float.Div ; Float.EvoConst2 ; Float.Sub
+          [UP]     Node.ForEachChild([Float.EvoConst3]) ; Float.EvoConst2 ; Node.NumChildren ; Node.ForEachChild([Float.GetNoiseVar, Node.NumChildren, Float.Min]) ; Vec.Len ; Float.ConstHalf ; Float.ConstHalf ; Float.Add ; Int.Add ; Float.Max
+          [BELIEF] Float.Div ; Int.Dec
+          [HALT]   Float.GT ; Bool.Not ; Float.Const0_1 ; Float.Swap
+    # 2  score=0.08008  BER=0.07138  faults=0.00  len=27
+          F_down  = ((M_par_down / ([Mat.PeekAt] / 2)) - EC2)
+          F_up    = max((0.5 + 0.5), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = 0.1
+    # 3  score=0.08010  BER=0.07138  faults=0.00  len=27
+          F_down  = ((M_par_down / ([Mat.PeekAt] / 2)) - EC2)
+          F_up    = max((0.5 + 0.5), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = ([Bool.Not] > 0.1)
+    # 4  score=0.08010  BER=0.07138  faults=0.00  len=26
+          F_down  = ((M_par_down / ([Mat.PeekAt] / 2)) - EC2)
+          F_up    = max((0.5 + 0.5), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = ([Bool.Not] > 0.1)
+    # 5  score=0.08011  BER=0.07138  faults=0.00  len=28
+          F_down  = ((M_par_down / ([Mat.PeekAt] / 2)) - EC2)
+          F_up    = max((0.5 + 0.5), |[Int.Add]|)
+          F_belief= [Int.Dec]
+          H_halt  = ([Bool.Not] > 0.1)
+    # 6  score=0.08094  BER=0.07138  faults=0.00  len=27
+          F_down  = (tanh(([Mat.PeekAt] / 2)) - EC2)
+          F_up    = max(0.5, [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = [Bool.Not]
+    # 7  score=0.08121  BER=0.06725  faults=0.00  len=26
+          F_down  = (C_i - (([Mat.PeekAt] / 2) + EC2))
+          F_up    = max(([Vec.Len] + 0.5), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = 0
+    # 8  score=0.08137  BER=0.06725  faults=0.00  len=28
+          F_down  = (M_par_down - (((C_i - 0) / 1) + EC2))
+          F_up    = max(Sum_children(1), min(EC3, (B_i + Sum_children(min(noise_var, N_ch)))))
+          F_belief= [Int.Dec]
+          H_halt  = (new_M_up > 0)
+    # 9  score=0.08137  BER=0.06725  faults=0.00  len=28
+          F_down  = (M_par_down - (((C_i - 0) / 1) + EC2))
+          F_up    = max(Sum_children(1), min(EC3, (B_i + Sum_children(min(noise_var, N_ch)))))
+          F_belief= [Int.Dec]
+          H_halt  = (new_M_up > 0)
+    #10  score=0.08139  BER=0.06725  faults=0.00  len=29
+          F_down  = (M_par_down - (((C_i - 0) / 1) + EC2))
+          F_up    = max(Sum_children(1), min(EC3, (B_i + Sum_children(min(noise_var, N_ch)))))
+          F_belief= [Int.Dec]
+          H_halt  = (old_M_up > 0)
+
+[2026-04-13 23:16:38] Gen 11  Fit(BER=0.07138 ratio=0.688 FLOPs=12354 len=27 faults=0.00 gap=0.002 bp=782.9 nlbp=0.0 bpg=0.000)
+  DOWN:[Float.Swap ; Mat.PeekAt ; Float.Const2 ; Float.Div ; Float.Div ; Float.EvoConst2 ; Float.Sub] | UP:[Node.ForEachChild([Float.EvoConst3]) ; Float.EvoConst2 ; Node.NumChildren ; Node.ForEachChild([Float.GetNoiseVar, Node.NumChildren, Float.Min]) ; Vec.Len ; Float.ConstHalf ; Float.ConstHalf ; Float.Add ; Int.Add ; Float.Max] | BEL:[Float.Div ; Int.Dec] | HALT:[Float.GT ; Bool.Not ; Float.Const0_1 ; Float.Swap] | LOGC:[1.8768,-1.8156,0.6256,-0.4543]
+  Top-10 individuals (Gen 11):
+    # 1  score=0.08008  BER=0.07138  faults=0.00  len=27
+          F_down  = ((M_par_down / ([Mat.PeekAt] / 2)) - EC2)
+          F_up    = max((0.5 + 0.5), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = [Bool.Not]
+          [DOWN]   Float.Swap ; Mat.PeekAt ; Float.Const2 ; Float.Div ; Float.Div ; Float.EvoConst2 ; Float.Sub
+          [UP]     Node.ForEachChild([Float.EvoConst3]) ; Float.EvoConst2 ; Node.NumChildren ; Node.ForEachChild([Float.GetNoiseVar, Node.NumChildren, Float.Min]) ; Vec.Len ; Float.ConstHalf ; Float.ConstHalf ; Float.Add ; Int.Add ; Float.Max
+          [BELIEF] Float.Div ; Int.Dec
+          [HALT]   Float.GT ; Bool.Not ; Float.Const0_1 ; Float.Swap
+    # 2  score=0.08008  BER=0.07138  faults=0.00  len=27
+          F_down  = ((M_par_down / ([Mat.PeekAt] / 2)) - EC2)
+          F_up    = max((0.5 + 0.5), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = 0.1
+    # 3  score=0.08010  BER=0.07138  faults=0.00  len=27
+          F_down  = ((M_par_down / ([Mat.PeekAt] / 2)) - EC2)
+          F_up    = max((0.5 + 0.5), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = ([Bool.Not] > 0.1)
+    # 4  score=0.08010  BER=0.07138  faults=0.00  len=26
+          F_down  = ((M_par_down / ([Mat.PeekAt] / 2)) - EC2)
+          F_up    = max((0.5 + 0.5), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = ([Bool.Not] > 0.1)
+    # 5  score=0.08011  BER=0.07138  faults=0.00  len=28
+          F_down  = ((M_par_down / ([Mat.PeekAt] / 2)) - EC2)
+          F_up    = max((0.5 + 0.5), |[Int.Add]|)
+          F_belief= [Int.Dec]
+          H_halt  = ([Bool.Not] > 0.1)
+    # 6  score=0.08022  BER=0.07319  faults=0.00  len=28
+          F_down  = ((M_par_down / ([Mat.PeekAt] / 2)) - EC2)
+          F_up    = max((0.5 + 0.5), [Int.Add])
+          F_belief= (M_down + (M_up / [Int.Dec]))
+          H_halt  = ([Bool.Not] > 0.1)
+    # 7  score=0.08094  BER=0.07138  faults=0.00  len=27
+          F_down  = (tanh(([Mat.PeekAt] / 2)) - EC2)
+          F_up    = max(0.5, [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = [Bool.Not]
+    # 8  score=0.09310  BER=0.07412  faults=0.00  len=26
+          F_down  = (((C_i / M_par_down) / 2) - EC2)
+          F_up    = max((0.5 + 0.5), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = 0.1
+    # 9  score=0.10931  BER=0.07756  faults=0.00  len=28
+          F_down  = ((M_par_down / (([Mat.PeekAt] / 2))^2) - EC2)
+          F_up    = (0.5 + 0.5)
+          F_belief= (M_up / [Int.Dec])
+          H_halt  = [Bool.Not]
+    #10  score=0.10980  BER=0.07575  faults=0.00  len=28
+          F_down  = ((M_par_down / ([Mat.PeekAt] / 2)) - EC2)
+          F_up    = max((0.5 + 0.5), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = 0.1
+
+[2026-04-13 23:16:58] Gen 12  Fit(BER=0.07138 ratio=0.688 FLOPs=12354 len=27 faults=0.00 gap=0.002 bp=782.9 nlbp=0.0 bpg=0.000)
+  DOWN:[Float.Swap ; Mat.PeekAt ; Float.Const2 ; Float.Div ; Float.Div ; Float.EvoConst2 ; Float.Sub] | UP:[Node.ForEachChild([Float.EvoConst3]) ; Float.EvoConst2 ; Node.NumChildren ; Node.ForEachChild([Float.GetNoiseVar, Node.NumChildren, Float.Min]) ; Vec.Len ; Float.ConstHalf ; Float.ConstHalf ; Float.Add ; Int.Add ; Float.Max] | BEL:[Float.Div ; Int.Dec] | HALT:[Float.GT ; Bool.Not ; Float.Const0_1 ; Float.Swap] | LOGC:[1.8768,-1.8156,0.6256,-0.4543]
+  Top-10 individuals (Gen 12):
+    # 1  score=0.08008  BER=0.07138  faults=0.00  len=27
+          F_down  = ((M_par_down / ([Mat.PeekAt] / 2)) - EC2)
+          F_up    = max((0.5 + 0.5), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = [Bool.Not]
+          [DOWN]   Float.Swap ; Mat.PeekAt ; Float.Const2 ; Float.Div ; Float.Div ; Float.EvoConst2 ; Float.Sub
+          [UP]     Node.ForEachChild([Float.EvoConst3]) ; Float.EvoConst2 ; Node.NumChildren ; Node.ForEachChild([Float.GetNoiseVar, Node.NumChildren, Float.Min]) ; Vec.Len ; Float.ConstHalf ; Float.ConstHalf ; Float.Add ; Int.Add ; Float.Max
+          [BELIEF] Float.Div ; Int.Dec
+          [HALT]   Float.GT ; Bool.Not ; Float.Const0_1 ; Float.Swap
+    # 2  score=0.08008  BER=0.07138  faults=0.00  len=27
+          F_down  = ((M_par_down / ([Mat.PeekAt] / 2)) - EC2)
+          F_up    = max((0.5 + 0.5), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = 0.1
+    # 3  score=0.08010  BER=0.07138  faults=0.00  len=27
+          F_down  = ((M_par_down / ([Mat.PeekAt] / 2)) - EC2)
+          F_up    = max((0.5 + 0.5), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = ([Bool.Not] > 0.1)
+    # 4  score=0.08010  BER=0.07138  faults=0.00  len=26
+          F_down  = ((M_par_down / ([Mat.PeekAt] / 2)) - EC2)
+          F_up    = max((0.5 + 0.5), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = ([Bool.Not] > 0.1)
+    # 5  score=0.08011  BER=0.07138  faults=0.00  len=28
+          F_down  = ((M_par_down / ([Mat.PeekAt] / 2)) - EC2)
+          F_up    = max((0.5 + 0.5), |[Int.Add]|)
+          F_belief= [Int.Dec]
+          H_halt  = ([Bool.Not] > 0.1)
+    # 6  score=0.08022  BER=0.07319  faults=0.00  len=28
+          F_down  = ((M_par_down / ([Mat.PeekAt] / 2)) - EC2)
+          F_up    = max((0.5 + 0.5), [Int.Add])
+          F_belief= (M_down + (M_up / [Int.Dec]))
+          H_halt  = ([Bool.Not] > 0.1)
+    # 7  score=0.08053  BER=0.07750  faults=0.00  len=19
+          F_down  = [Bool.Or]
+          F_up    = [Int.Pop]
+          F_belief= max(0.5, M_up)
+          H_halt  = 0.1
+    # 8  score=0.08530  BER=0.07819  faults=0.00  len=27
+          F_down  = ((C_i / (M_par_down / 2)) - EC2)
+          F_up    = max((0.5 + 0.5), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = [Bool.Not]
+    # 9  score=0.08924  BER=0.07456  faults=0.00  len=23
+          F_down  = ((M_par_down / ([Mat.PeekAt] / 2)) - EC2)
+          F_up    = max((0.5 + 0.5), [Int.Add])
+          F_belief= (D_i + (M_down / M_up))
+          H_halt  = ((([Int.LT] > [Bool.Not]) > [Int.Const0]) > (([Int.LT] > [Bool.Not]) > [Int.Const0]))
+    #10  score=0.09310  BER=0.07412  faults=0.00  len=25
+          F_down  = (((C_i / M_par_down) / 2) - EC2)
+          F_up    = max([Vec.Len], (0.5 + 0.5))
+          F_belief= [Int.Dec]
+          H_halt  = 0.1
+
+[2026-04-13 23:17:20] Gen 13  Fit(BER=0.07138 ratio=0.688 FLOPs=12354 len=27 faults=0.00 gap=0.002 bp=782.9 nlbp=0.0 bpg=0.000)
+  DOWN:[Float.Swap ; Mat.PeekAt ; Float.Const2 ; Float.Div ; Float.Div ; Float.EvoConst2 ; Float.Sub] | UP:[Node.ForEachChild([Float.EvoConst3]) ; Float.EvoConst2 ; Node.NumChildren ; Node.ForEachChild([Float.GetNoiseVar, Node.NumChildren, Float.Min]) ; Vec.Len ; Float.ConstHalf ; Float.ConstHalf ; Float.Add ; Int.Add ; Float.Max] | BEL:[Float.Div ; Int.Dec] | HALT:[Float.GT ; Bool.Not ; Float.Const0_1 ; Float.Swap] | LOGC:[1.8768,-1.8156,0.6256,-0.4543]
+  Top-10 individuals (Gen 13):
+    # 1  score=0.08008  BER=0.07138  faults=0.00  len=27
+          F_down  = ((M_par_down / ([Mat.PeekAt] / 2)) - EC2)
+          F_up    = max((0.5 + 0.5), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = [Bool.Not]
+          [DOWN]   Float.Swap ; Mat.PeekAt ; Float.Const2 ; Float.Div ; Float.Div ; Float.EvoConst2 ; Float.Sub
+          [UP]     Node.ForEachChild([Float.EvoConst3]) ; Float.EvoConst2 ; Node.NumChildren ; Node.ForEachChild([Float.GetNoiseVar, Node.NumChildren, Float.Min]) ; Vec.Len ; Float.ConstHalf ; Float.ConstHalf ; Float.Add ; Int.Add ; Float.Max
+          [BELIEF] Float.Div ; Int.Dec
+          [HALT]   Float.GT ; Bool.Not ; Float.Const0_1 ; Float.Swap
+    # 2  score=0.08008  BER=0.07138  faults=0.00  len=27
+          F_down  = ((M_par_down / ([Mat.PeekAt] / 2)) - EC2)
+          F_up    = max((0.5 + 0.5), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = 0.1
+    # 3  score=0.08010  BER=0.07138  faults=0.00  len=27
+          F_down  = ((M_par_down / ([Mat.PeekAt] / 2)) - EC2)
+          F_up    = max((0.5 + 0.5), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = ([Bool.Not] > 0.1)
+    # 4  score=0.08010  BER=0.07138  faults=0.00  len=26
+          F_down  = ((M_par_down / ([Mat.PeekAt] / 2)) - EC2)
+          F_up    = max((0.5 + 0.5), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = ([Bool.Not] > 0.1)
+    # 5  score=0.08011  BER=0.07138  faults=0.00  len=28
+          F_down  = ((M_par_down / ([Mat.PeekAt] / 2)) - EC2)
+          F_up    = max((0.5 + 0.5), |[Int.Add]|)
+          F_belief= [Int.Dec]
+          H_halt  = ([Bool.Not] > 0.1)
+    # 6  score=0.08022  BER=0.07319  faults=0.00  len=28
+          F_down  = ((M_par_down / ([Mat.PeekAt] / 2)) - EC2)
+          F_up    = max((0.5 + 0.5), [Int.Add])
+          F_belief= (M_down + (M_up / [Int.Dec]))
+          H_halt  = ([Bool.Not] > 0.1)
+    # 7  score=0.08022  BER=0.07319  faults=0.00  len=28
+          F_down  = ((M_par_down / ([Mat.PeekAt] / 2)) - EC2)
+          F_up    = [Int.Add]
+          F_belief= (M_down + (M_up / [Int.Dec]))
+          H_halt  = ([Bool.Not] > 0.1)
+    # 8  score=0.08053  BER=0.07750  faults=0.00  len=19
+          F_down  = [Bool.Or]
+          F_up    = [Int.Pop]
+          F_belief= max(0.5, M_up)
+          H_halt  = 0.1
+    # 9  score=0.08058  BER=0.07750  faults=0.00  len=20
+          F_down  = [Bool.Or]
+          F_up    = [Int.Pop]
+          F_belief= max(0.5, M_up)
+          H_halt  = 0.1
+    #10  score=0.08332  BER=0.07750  faults=0.00  len=24
+          F_down  = layer
+          F_up    = Sum_children(|(-layer)|)
+          F_belief= max(M_down, (M_up + 1))
+          H_halt  = 0.5
+
+[2026-04-13 23:17:38] Gen 14  Fit(BER=0.07138 ratio=0.688 FLOPs=12354 len=27 faults=0.00 gap=0.002 bp=782.9 nlbp=0.0 bpg=0.000)
+  DOWN:[Float.Swap ; Mat.PeekAt ; Float.Const2 ; Float.Div ; Float.Div ; Float.EvoConst2 ; Float.Sub] | UP:[Node.ForEachChild([Float.EvoConst3]) ; Float.EvoConst2 ; Node.NumChildren ; Node.ForEachChild([Float.GetNoiseVar, Node.NumChildren, Float.Min]) ; Vec.Len ; Float.ConstHalf ; Float.ConstHalf ; Float.Add ; Int.Add ; Float.Max] | BEL:[Float.Div ; Int.Dec] | HALT:[Float.GT ; Bool.Not ; Float.Const0_1 ; Float.Swap] | LOGC:[1.8768,-1.8156,0.6256,-0.4543]
+  Top-10 individuals (Gen 14):
+    # 1  score=0.08008  BER=0.07138  faults=0.00  len=27
+          F_down  = ((M_par_down / ([Mat.PeekAt] / 2)) - EC2)
+          F_up    = max((0.5 + 0.5), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = [Bool.Not]
+          [DOWN]   Float.Swap ; Mat.PeekAt ; Float.Const2 ; Float.Div ; Float.Div ; Float.EvoConst2 ; Float.Sub
+          [UP]     Node.ForEachChild([Float.EvoConst3]) ; Float.EvoConst2 ; Node.NumChildren ; Node.ForEachChild([Float.GetNoiseVar, Node.NumChildren, Float.Min]) ; Vec.Len ; Float.ConstHalf ; Float.ConstHalf ; Float.Add ; Int.Add ; Float.Max
+          [BELIEF] Float.Div ; Int.Dec
+          [HALT]   Float.GT ; Bool.Not ; Float.Const0_1 ; Float.Swap
+    # 2  score=0.08008  BER=0.07138  faults=0.00  len=27
+          F_down  = ((M_par_down / ([Mat.PeekAt] / 2)) - EC2)
+          F_up    = max((0.5 + 0.5), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = 0.1
+    # 3  score=0.08010  BER=0.07138  faults=0.00  len=27
+          F_down  = ((M_par_down / ([Mat.PeekAt] / 2)) - EC2)
+          F_up    = max((0.5 + 0.5), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = ([Bool.Not] > 0.1)
+    # 4  score=0.08010  BER=0.07138  faults=0.00  len=26
+          F_down  = ((M_par_down / ([Mat.PeekAt] / 2)) - EC2)
+          F_up    = max((0.5 + 0.5), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = ([Bool.Not] > 0.1)
+    # 5  score=0.08011  BER=0.07138  faults=0.00  len=28
+          F_down  = ((M_par_down / ([Mat.PeekAt] / 2)) - EC2)
+          F_up    = max((0.5 + 0.5), |[Int.Add]|)
+          F_belief= [Int.Dec]
+          H_halt  = ([Bool.Not] > 0.1)
+    # 6  score=0.08022  BER=0.07319  faults=0.00  len=28
+          F_down  = ((M_par_down / ([Mat.PeekAt] / 2)) - EC2)
+          F_up    = max((0.5 + 0.5), [Int.Add])
+          F_belief= (M_down + (M_up / [Int.Dec]))
+          H_halt  = ([Bool.Not] > 0.1)
+    # 7  score=0.12384  BER=0.07900  faults=0.00  len=27
+          F_down  = ((C_i / (M_par_down / 2)) - EC2)
+          F_up    = max((0.5 + 0.5), [Int.Add])
+          F_belief= ((M_down / M_up) + [Int.Dec])
+          H_halt  = [Bool.Not]
+    # 8  score=0.13253  BER=0.09606  faults=0.00  len=28
+          F_down  = ((M_par_down / ([Mat.PeekAt] / 2)) - EC2)
+          F_up    = max((([Vec.Len])^2 + 0.5), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = ((old_M_up > new_M_up) > 0.1)
+    # 9  score=0.13396  BER=0.08581  faults=0.00  len=11
+          F_down  = (M_par_down - C_i)
+          F_up    = max((0.5 + 0.5), [Int.Add])
+          F_belief= (D_i + (M_down / M_up))
+          H_halt  = ((old_M_up > new_M_up) > (old_M_up > new_M_up))
+    #10  score=0.13973  BER=0.08694  faults=0.00  len=27
+          F_down  = ((C_i / (M_par_down / 2)) - sqrt(EC2))
+          F_up    = max((0.5 + N_ch), [Int.Add])
+          F_belief= (D_i + (M_down / M_up))
+          H_halt  = ([Bool.Not] > 0.1)
+
+[2026-04-13 23:17:58] Gen 15  Fit(BER=0.07138 ratio=0.688 FLOPs=12354 len=27 faults=0.00 gap=0.002 bp=782.9 nlbp=0.0 bpg=0.000)
+  DOWN:[Float.Swap ; Mat.PeekAt ; Float.Const2 ; Float.Div ; Float.Div ; Float.EvoConst2 ; Float.Sub] | UP:[Node.ForEachChild([Float.EvoConst3]) ; Float.EvoConst2 ; Node.NumChildren ; Node.ForEachChild([Float.GetNoiseVar, Node.NumChildren, Float.Min]) ; Vec.Len ; Float.ConstHalf ; Float.ConstHalf ; Float.Add ; Int.Add ; Float.Max] | BEL:[Float.Div ; Int.Dec] | HALT:[Float.GT ; Bool.Not ; Float.Const0_1 ; Float.Swap] | LOGC:[1.8768,-1.8156,0.6256,-0.4543]
+  Top-10 individuals (Gen 15):
+    # 1  score=0.08008  BER=0.07138  faults=0.00  len=27
+          F_down  = ((M_par_down / ([Mat.PeekAt] / 2)) - EC2)
+          F_up    = max((0.5 + 0.5), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = [Bool.Not]
+          [DOWN]   Float.Swap ; Mat.PeekAt ; Float.Const2 ; Float.Div ; Float.Div ; Float.EvoConst2 ; Float.Sub
+          [UP]     Node.ForEachChild([Float.EvoConst3]) ; Float.EvoConst2 ; Node.NumChildren ; Node.ForEachChild([Float.GetNoiseVar, Node.NumChildren, Float.Min]) ; Vec.Len ; Float.ConstHalf ; Float.ConstHalf ; Float.Add ; Int.Add ; Float.Max
+          [BELIEF] Float.Div ; Int.Dec
+          [HALT]   Float.GT ; Bool.Not ; Float.Const0_1 ; Float.Swap
+    # 2  score=0.08008  BER=0.07138  faults=0.00  len=27
+          F_down  = ((M_par_down / ([Mat.PeekAt] / 2)) - EC2)
+          F_up    = max((0.5 + 0.5), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = 0.1
+    # 3  score=0.08010  BER=0.07138  faults=0.00  len=27
+          F_down  = ((M_par_down / ([Mat.PeekAt] / 2)) - EC2)
+          F_up    = max((0.5 + 0.5), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = ([Bool.Not] > 0.1)
+    # 4  score=0.08010  BER=0.07138  faults=0.00  len=26
+          F_down  = ((M_par_down / ([Mat.PeekAt] / 2)) - EC2)
+          F_up    = max((0.5 + 0.5), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = ([Bool.Not] > 0.1)
+    # 5  score=0.08011  BER=0.07138  faults=0.00  len=28
+          F_down  = ((M_par_down / ([Mat.PeekAt] / 2)) - EC2)
+          F_up    = max((0.5 + 0.5), |[Int.Add]|)
+          F_belief= [Int.Dec]
+          H_halt  = ([Bool.Not] > 0.1)
+    # 6  score=0.08022  BER=0.07319  faults=0.00  len=28
+          F_down  = ((M_par_down / ([Mat.PeekAt] / 2)) - EC2)
+          F_up    = max((0.5 + 0.5), [Int.Add])
+          F_belief= (M_down + (M_up / [Int.Dec]))
+          H_halt  = ([Bool.Not] > 0.1)
+    # 7  score=0.09054  BER=0.08431  faults=0.00  len=37
+          F_down  = (M_par_down - ([Mat.PeekAt] / 2))
+          F_up    = max((0.5 + 0.5), [Int.Add])
+          F_belief= (M_down + M_up)
+          H_halt  = [Bool.Not]
+    # 8  score=0.09136  BER=0.08750  faults=0.00  len=28
+          F_down  = ((M_par_down / ([Mat.PeekAt] / 2)) - EC2)
+          F_up    = max(([Vec.Len] + 0.5), [Int.Add])
+          F_belief= (M_up / [Int.Dec])
+          H_halt  = [Bool.Not]
+    # 9  score=0.12384  BER=0.07900  faults=0.00  len=27
+          F_down  = ((C_i / (M_par_down / 2)) - EC2)
+          F_up    = max((0.5 + 0.5), [Int.Add])
+          F_belief= ((M_down / M_up) + [Int.Dec])
+          H_halt  = [Bool.Not]
+    #10  score=0.12607  BER=0.07444  faults=0.00  len=25
+          F_down  = ((M_par_down / 2) - EC2)
+          F_up    = max((0.5 + 0.5), [Int.Add])
+          F_belief= ((M_down / M_up) + [Int.Dec])
+          H_halt  = [Bool.Not]
+
+[2026-04-13 23:18:19] Gen 16  Fit(BER=0.07138 ratio=0.688 FLOPs=12354 len=27 faults=0.00 gap=0.002 bp=782.9 nlbp=0.0 bpg=0.000)
+  DOWN:[Float.Swap ; Mat.PeekAt ; Float.Const2 ; Float.Div ; Float.Div ; Float.EvoConst2 ; Float.Sub] | UP:[Node.ForEachChild([Float.EvoConst3]) ; Float.EvoConst2 ; Node.NumChildren ; Node.ForEachChild([Float.GetNoiseVar, Node.NumChildren, Float.Min]) ; Vec.Len ; Float.ConstHalf ; Float.ConstHalf ; Float.Add ; Int.Add ; Float.Max] | BEL:[Float.Div ; Int.Dec] | HALT:[Float.GT ; Bool.Not ; Float.Const0_1 ; Float.Swap] | LOGC:[1.8768,-1.8156,0.6256,-0.4543]
+  Top-10 individuals (Gen 16):
+    # 1  score=0.08008  BER=0.07138  faults=0.00  len=27
+          F_down  = ((M_par_down / ([Mat.PeekAt] / 2)) - EC2)
+          F_up    = max((0.5 + 0.5), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = [Bool.Not]
+          [DOWN]   Float.Swap ; Mat.PeekAt ; Float.Const2 ; Float.Div ; Float.Div ; Float.EvoConst2 ; Float.Sub
+          [UP]     Node.ForEachChild([Float.EvoConst3]) ; Float.EvoConst2 ; Node.NumChildren ; Node.ForEachChild([Float.GetNoiseVar, Node.NumChildren, Float.Min]) ; Vec.Len ; Float.ConstHalf ; Float.ConstHalf ; Float.Add ; Int.Add ; Float.Max
+          [BELIEF] Float.Div ; Int.Dec
+          [HALT]   Float.GT ; Bool.Not ; Float.Const0_1 ; Float.Swap
+    # 2  score=0.08008  BER=0.07138  faults=0.00  len=27
+          F_down  = ((M_par_down / ([Mat.PeekAt] / 2)) - EC2)
+          F_up    = max((0.5 + 0.5), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = 0.1
+    # 3  score=0.08010  BER=0.07138  faults=0.00  len=27
+          F_down  = ((M_par_down / ([Mat.PeekAt] / 2)) - EC2)
+          F_up    = max((0.5 + 0.5), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = ([Bool.Not] > 0.1)
+    # 4  score=0.08010  BER=0.07138  faults=0.00  len=26
+          F_down  = ((M_par_down / ([Mat.PeekAt] / 2)) - EC2)
+          F_up    = max((0.5 + 0.5), [Int.Add])
+          F_belief= [Int.Dec]
+          H_halt  = ([Bool.Not] > 0.1)
+    # 5  score=0.08011  BER=0.07138  faults=0.00  len=28
+          F_down  = ((M_par_down / ([Mat.PeekAt] / 2)) - EC2)
+          F_up    = max((0.5 + 0.5), |[Int.Add]|)
+          F_belief= [Int.Dec]
+          H_halt  = ([Bool.Not] > 0.1)
+    # 6  score=0.08022  BER=0.07319  faults=0.00  len=28
+          F_down  = ((M_par_down / ([Mat.PeekAt] / 2)) - EC2)
+          F_up    = max((0.5 + 0.5), [Int.Add])
+          F_belief= (M_down + (M_up / [Int.Dec]))
+          H_halt  = ([Bool.Not] > 0.1)
+    # 7  score=0.08342  BER=0.07319  faults=0.00  len=28
+          F_down  = ((2 / (M_par_down / 2)) - EC2)
+          F_up    = max(Sum_children(min(noise_var, N_ch)), [Vec.Len])
+          F_belief= ((M_down / M_up) + [Int.Dec])
+          H_halt  = [Bool.Not]
+    # 8  score=0.09054  BER=0.08431  faults=0.00  len=38
+          F_down  = (M_par_down - ([Mat.PeekAt] / 2))
+          F_up    = max((0.5 + 0.5), [Int.Add])
+          F_belief= (M_down + M_up)
+          H_halt  = [Bool.Not]
+    # 9  score=0.09136  BER=0.08750  faults=0.00  len=28
+          F_down  = ((M_par_down / ([Mat.PeekAt] / 2)) - EC2)
+          F_up    = max(([Vec.Len] + 0.5), [Int.Add])
+          F_belief= (M_up / [Int.Dec])
+          H_halt  = [Bool.Not]
+    #10  score=0.09160  BER=0.08750  faults=0.00  len=29
+          F_down  = ((M_par_down / ([Mat.PeekAt] / 2)) - EC2)
+          F_up    = max(([Vec.Len] + 0.5), N_ch)
+          F_belief= (M_up / [Int.Dec])
+          H_halt  = 0.1
+================================================================================
+Structured-BP GP  started 2026-04-13 23:18:49
+================================================================================
+
+[2026-04-13 23:18:49] Configuration
+{
+  "generations": 30,
+  "population": 160,
+  "train_samples": 100,
+  "train_nt": 8,
+  "train_nr": 16,
+  "mod_order": 16,
+  "train_max_nodes": 1000,
+  "train_flops_max": 1000000,
+  "step_max": 1200,
+  "eval_trials": 500,
+  "eval_max_nodes": 1500,
+  "eval_flops_max": 5000000,
+  "eval_nt": null,
+  "eval_nr": null,
+  "eval_step_max": 8000,
+  "train_snrs": "12",
+  "eval_snrs": "8,10,12,14,16",
+  "seed": 42,
+  "continuous": false,
+  "use_cpp": true,
+  "batch_gens": 5,
+  "log_suffix": "cpp_test1"
+}
+------------------------------------------------------------
+
+[2026-04-13 23:23:04] Gen 0  Fit(BER=0.05888 ratio=0.512 FLOPs=13350 len=17 faults=0.00 gap=0.002 bp=3638.1 nlbp=0.0 bpg=0.000)  (initial)
+  DOWN:[Float.Min ; Bool.Or] | UP:[Float.ConstHalf ; Exec.DoTimes([Float.Sub, Float.Neg]) ; Node.GetLayer ; Int.Pop ; Float.Dup] | BEL:[Float.Const0 ; Node.GetMUp] | HALT:[Bool.Not ; Float.ConstHalf ; Float.GT ; Node.GetLayer ; Int.Add ; Float.GT] | LOGC:[0.5456,1.2038,0.7087,0.2935]
+
+[2026-04-13 23:25:17] Gen 1  Fit(BER=0.05888 ratio=0.512 FLOPs=11599 len=17 faults=0.00 gap=0.002 bp=1497.7 nlbp=0.0 bpg=0.000)  (NEW BEST)
+  DOWN:[Float.Min ; Bool.Or] | UP:[Float.ConstHalf ; Exec.DoTimes([Float.Sub, Float.Neg]) ; Node.GetLayer ; Int.Pop ; Float.Dup] | BEL:[Float.Const0 ; Node.GetMUp] | HALT:[Int.Add ; Node.GetLayer ; Float.GT ; Float.GT ; Bool.Not ; Float.ConstHalf] | LOGC:[0.5456,1.2038,0.7087,0.9162]
+  Top-10 individuals (Gen 1):
+    # 1  score=0.06735  BER=0.05888  faults=0.00  len=17
+          F_down  = [Bool.Or]
+          F_up    = [Int.Pop]
+          F_belief= M_up
+          H_halt  = 0.5
+          [DOWN]   Float.Min ; Bool.Or
+          [UP]     Float.ConstHalf ; Exec.DoTimes([Float.Sub, Float.Neg]) ; Node.GetLayer ; Int.Pop ; Float.Dup
+          [BELIEF] Float.Const0 ; Node.GetMUp
+          [HALT]   Int.Add ; Node.GetLayer ; Float.GT ; Float.GT ; Bool.Not ; Float.ConstHalf
+    # 2  score=0.06741  BER=0.05888  faults=0.00  len=19
+          F_down  = (M_par_down / Re(s))
+          F_up    = ((C_2 + M_2_up))^2
+          F_belief= M_up
+          H_halt  = [Bool.Dup]
+    # 3  score=0.06788  BER=0.05888  faults=0.00  len=17
+          F_down  = [Bool.Or]
+          F_up    = [Int.Pop]
+          F_belief= M_up
+          H_halt  = (layer > [Int.Add])
+    # 4  score=0.06791  BER=0.05888  faults=0.00  len=28
+          F_down  = max(TRUE, 2)
+          F_up    = exp(Sum_children(M_up))
+          F_belief= ([Vec.Len])^2
+          H_halt  = (old_M_up > log(new_M_up))
+    # 5  score=0.06805  BER=0.05888  faults=0.00  len=17
+          F_down  = [Bool.Or]
+          F_up    = [Int.Pop]
+          F_belief= M_up
+          H_halt  = (0.5 > ([Int.Add] > layer))
+    # 6  score=0.06806  BER=0.05888  faults=0.00  len=19
+          F_down  = (C_i / ([Mat.PeekAt] - 2))
+          F_up    = [Int.Dup]
+          F_belief= [Matrix.Dup]
+          H_halt  = ([Mat.PeekAt] > EC1)
+    # 7  score=0.06807  BER=0.05888  faults=0.00  len=11
+          F_down  = [Vector.Pop]
+          F_up    = (M_2_up > FALSE)
+          F_belief= M_up
+          H_halt  = [Int.GT]
+    # 8  score=0.06807  BER=0.05888  faults=0.00  len=9
+          F_down  = [Int.FromFloat]
+          F_up    = [Bool.Or]
+          F_belief= (max(M_down, M_up) + 0.5)
+          H_halt  = ([Int.Const0] < [Bool.Not])
+    # 9  score=0.06807  BER=0.05888  faults=0.00  len=17
+          F_down  = [Graph.NodeCount]
+          F_up    = (-[Int.Const2])
+          F_belief= sqrt(M_up)
+          H_halt  = [Float.GT]
+    #10  score=0.06813  BER=0.05888  faults=0.00  len=18
+          F_down  = ([Float.Swap] / Re(s))
+          F_up    = (repeat((-[Float.Sub])))^2
+          F_belief= M_up
+          H_halt  = [Bool.Dup]
+
+[2026-04-13 23:26:54] Gen 2  Fit(BER=0.05888 ratio=0.512 FLOPs=11599 len=17 faults=0.00 gap=0.002 bp=1497.7 nlbp=0.0 bpg=0.000)
+  DOWN:[Float.Min ; Bool.Or] | UP:[Float.ConstHalf ; Exec.DoTimes([Float.Sub, Float.Neg]) ; Node.GetLayer ; Int.Pop ; Float.Dup] | BEL:[Float.Const0 ; Node.GetMUp] | HALT:[Int.Add ; Node.GetLayer ; Float.GT ; Float.GT ; Bool.Not ; Float.ConstHalf] | LOGC:[0.5456,1.2038,0.7087,0.9162]
+  Top-10 individuals (Gen 2):
+    # 1  score=0.06735  BER=0.05888  faults=0.00  len=17
+          F_down  = [Bool.Or]
+          F_up    = [Int.Pop]
+          F_belief= M_up
+          H_halt  = 0.5
+          [DOWN]   Float.Min ; Bool.Or
+          [UP]     Float.ConstHalf ; Exec.DoTimes([Float.Sub, Float.Neg]) ; Node.GetLayer ; Int.Pop ; Float.Dup
+          [BELIEF] Float.Const0 ; Node.GetMUp
+          [HALT]   Int.Add ; Node.GetLayer ; Float.GT ; Float.GT ; Bool.Not ; Float.ConstHalf
+    # 2  score=0.06741  BER=0.05888  faults=0.00  len=19
+          F_down  = (M_par_down / Re(s))
+          F_up    = ((C_2 + M_2_up))^2
+          F_belief= M_up
+          H_halt  = [Bool.Dup]
+    # 3  score=0.06788  BER=0.05888  faults=0.00  len=17
+          F_down  = [Bool.Or]
+          F_up    = [Int.Pop]
+          F_belief= M_up
+          H_halt  = (layer > [Int.Add])
+    # 4  score=0.06791  BER=0.05888  faults=0.00  len=28
+          F_down  = max(TRUE, 2)
+          F_up    = exp(Sum_children(M_up))
+          F_belief= ([Vec.Len])^2
+          H_halt  = (old_M_up > log(new_M_up))
+    # 5  score=0.06805  BER=0.05888  faults=0.00  len=17
+          F_down  = [Bool.Or]
+          F_up    = [Int.Pop]
+          F_belief= M_up
+          H_halt  = (0.5 > ([Int.Add] > layer))
+    # 6  score=0.06806  BER=0.05888  faults=0.00  len=19
+          F_down  = (C_i / ([Mat.PeekAt] - 2))
+          F_up    = [Int.Dup]
+          F_belief= [Matrix.Dup]
+          H_halt  = ([Mat.PeekAt] > EC1)
+    # 7  score=0.07746  BER=0.05481  faults=0.00  len=14
+          F_down  = [Node.IsExpanded]
+          F_up    = max(M_2_up, (-[Node.Pop]))
+          F_belief= (D_i + max(M_down, M_up))
+          H_halt  = [Int.Const0]
+    # 8  score=0.07746  BER=0.05481  faults=0.00  len=15
+          F_down  = [Node.IsExpanded]
+          F_up    = max(M_2_up, (-[Node.Pop]))
+          F_belief= (D_i + max(M_down, M_up))
+          H_halt  = [Int.Const0]
+    # 9  score=0.07746  BER=0.05481  faults=0.00  len=15
+          F_down  = [Node.IsExpanded]
+          F_up    = max((-M_2_up), [Node.Pop])
+          F_belief= (D_i + max(M_down, M_up))
+          H_halt  = [Int.Const0]
+    #10  score=0.07928  BER=0.05481  faults=0.00  len=16
+          F_down  = [Node.IsExpanded]
+          F_up    = max(M_2_up, (-[Node.Pop]))
+          F_belief= (D_i + max(M_down, M_up))
+          H_halt  = [Int.Const0]

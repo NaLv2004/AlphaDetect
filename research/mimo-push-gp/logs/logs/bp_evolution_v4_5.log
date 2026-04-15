@@ -1,0 +1,92 @@
+================================================================================
+BP-Stack-Decoder GP  started 2026-04-13 02:46:55
+================================================================================
+
+[2026-04-13 02:46:55] Configuration
+{
+  "generations": 30,
+  "population": 120,
+  "train_samples": 32,
+  "train_nt": 8,
+  "train_nr": 16,
+  "mod_order": 16,
+  "train_max_nodes": 200,
+  "train_flops_max": 3000000,
+  "step_max": 2000,
+  "eval_trials": 200,
+  "eval_max_nodes": 2000,
+  "eval_flops_max": 5000000,
+  "train_snrs": "8,10,12",
+  "eval_snrs": "8,10,12,14,16",
+  "seed": 137,
+  "continuous": true,
+  "batch_gens": 5,
+  "log_suffix": "v4_5"
+}
+------------------------------------------------------------
+
+[2026-04-13 02:50:02] Gen 0  Fit(BER=0.20879 ratio=1.091 FLOPs=12205 len=18 faults=0.00 gap=0.004 bp=228.8)  (initial)
+  Float.Sqrt ; Graph.NodeCount ; Graph.GetRoot ; Vec.Scale ; Float.Exp ; Node.GetParent ; Node.GetParent ; Node.ForEachSibling([Node.GetCumDist, Node.SetScore]) ; IF([Bool.Or, Node.Dup, Float.GetNoiseVar, Node.ChildAt], [Float.Square, Matrix.Dup]) ; Float.GetNoiseVar
+
+[2026-04-13 02:53:32] Gen 1  Fit(BER=0.20879 ratio=1.091 FLOPs=12205 len=18 faults=0.00 gap=0.004 bp=228.8)
+  Float.Sqrt ; Graph.NodeCount ; Graph.GetRoot ; Vec.Scale ; Float.Exp ; Node.GetParent ; Node.GetParent ; Node.ForEachSibling([Node.GetCumDist, Node.SetScore]) ; IF([Bool.Or, Node.Dup, Float.GetNoiseVar, Node.ChildAt], [Float.Square, Matrix.Dup]) ; Float.GetNoiseVar
+
+[2026-04-13 02:56:02] Gen 2  Fit(BER=0.20879 ratio=1.091 FLOPs=12205 len=18 faults=0.00 gap=0.004 bp=228.8)
+  Float.Sqrt ; Graph.NodeCount ; Graph.GetRoot ; Vec.Scale ; Float.Exp ; Node.GetParent ; Node.GetParent ; Node.ForEachSibling([Node.GetCumDist, Node.SetScore]) ; IF([Bool.Or, Node.Dup, Float.GetNoiseVar, Node.ChildAt], [Float.Square, Matrix.Dup]) ; Float.GetNoiseVar
+
+[2026-04-13 03:01:01] Gen 3  Fit(BER=0.20879 ratio=1.091 FLOPs=12205 len=18 faults=0.00 gap=0.004 bp=228.8)
+  Float.Sqrt ; Graph.NodeCount ; Graph.GetRoot ; Vec.Scale ; Float.Exp ; Node.GetParent ; Node.GetParent ; Node.ForEachSibling([Node.GetCumDist, Node.SetScore]) ; IF([Bool.Or, Node.Dup, Float.GetNoiseVar, Node.ChildAt], [Float.Square, Matrix.Dup]) ; Float.GetNoiseVar
+
+[2026-04-13 03:04:06] Gen 4  Fit(BER=0.20879 ratio=1.091 FLOPs=12205 len=18 faults=0.00 gap=0.004 bp=228.8)
+  Float.Sqrt ; Graph.NodeCount ; Graph.GetRoot ; Vec.Scale ; Float.Exp ; Node.GetParent ; Node.GetParent ; Node.ForEachSibling([Node.GetCumDist, Node.SetScore]) ; IF([Bool.Or, Node.Dup, Float.GetNoiseVar, Node.ChildAt], [Float.Square, Matrix.Dup]) ; Float.GetNoiseVar
+
+[2026-04-13 03:08:06] Gen 5  Fit(BER=0.20527 ratio=0.973 FLOPs=12257 len=20 faults=0.00 gap=0.004 bp=244.1)  (NEW BEST)
+  Float.Sqrt ; Graph.NodeCount ; Int.Const0 ; Vec.Scale ; Float.FromInt ; Node.GetParent ; Vec.ElementAt ; Exec.MinOverSymbols([]) ; Float.GetMMSELB ; Node.ForEachSibling([Node.GetCumDist, Node.SetScore]) ; IF([Bool.Or, Node.Dup, Float.GetNoiseVar, Node.ChildAt], [Float.Square, Matrix.Dup]) ; Node.NumChildren
+
+[2026-04-13 03:11:13] Full eval
+[
+  {
+    "snr_db": 8.0,
+    "evolved_ber": 0.31625,
+    "evolved_flops": 49798.4,
+    "lmmse_ber": 0.31625,
+    "kbest16_ber": 0.27625,
+    "kbest32_ber": 0.2775
+  },
+  {
+    "snr_db": 10.0,
+    "evolved_ber": 0.198125,
+    "evolved_flops": 38778.08,
+    "lmmse_ber": 0.19,
+    "kbest16_ber": 0.14,
+    "kbest32_ber": 0.14
+  },
+  {
+    "snr_db": 12.0,
+    "evolved_ber": 0.1075,
+    "evolved_flops": 30269.36,
+    "lmmse_ber": 0.105,
+    "kbest16_ber": 0.043125,
+    "kbest32_ber": 0.043125
+  },
+  {
+    "snr_db": 14.0,
+    "evolved_ber": 0.04875,
+    "evolved_flops": 20202.4,
+    "lmmse_ber": 0.04,
+    "kbest16_ber": 0.0125,
+    "kbest32_ber": 0.0125
+  },
+  {
+    "snr_db": 16.0,
+    "evolved_ber": 0.043125,
+    "evolved_flops": 17992.24,
+    "lmmse_ber": 0.016875,
+    "kbest16_ber": 0.00125,
+    "kbest32_ber": 0.00125
+  }
+]
+------------------------------------------------------------
+
+[2026-04-13 03:16:10] Gen 6  Fit(BER=0.21875 ratio=1.037 FLOPs=15982 len=9 faults=0.00 gap=0.000 bp=19.7)  (NEW BEST)
+  Node.Dup ; Bool.True ; Node.GetParent ; Node.ForEachChild([Vec.Norm2, Vec.Norm2, Float.Abs, Node.SetScore]) ; Mat.PeekAtIm
