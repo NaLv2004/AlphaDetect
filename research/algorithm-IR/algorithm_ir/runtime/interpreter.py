@@ -29,6 +29,9 @@ def _literal_copy(value):
         return value
     if callable(value):
         return value
+    import types as _types
+    if isinstance(value, _types.ModuleType):
+        return value
     return copy.deepcopy(value)
 
 

@@ -385,37 +385,464 @@ code_review/test_end_to_end.py              9 passed
 2. **修复函数参数类型推断**  
    解析 `ast.arg.annotation`，将简单类型注解映射为 `type_hint`。
 
+3. **定义正式的 `alg` Dialect，替代 `UnregisteredOp`**  
+   这是所有后续改进的前提。使用 xDSL IRDL 定义每个 op 的操作数和结果类型，让 xDSL SSA 系统接管 def-use 维护。详见第六节。
+
 ### P1 — 强烈建议
 
-3. **将 grafting 从硬编码 dispatch 重构为数据驱动**  
-   设计一个 transform rule 解释器，让 `transform_rules` 能描述通用的 "select ops → remove → build new ops → reconnect" 流程。
+4. **引入 `AlgSlot` op，实现通用的骨架填充机制**  
+   `AlgSlot` 是 IR 中的可替换占位符。GP 的交叉、变异、skeleton 填充都通过 `fill_slot()` 接口完成，底层使用 xDSL `PatternRewriter`。详见 6.4 节。
 
-4. **实现 Python 源码再生**  
+5. **用 xDSL Pattern Rewriting 替代硬编码的 `graft_skeleton()`**  
+   每种嫁接逻辑写成一个 `RewritePattern` 子类，新 skeleton 不需要修改 dispatch 逻辑。
+
+6. **实现 Python 源码再生**  
    让 `codegen.py` 能将 IR 转回可读的 Python 函数，这对调试和验证至关重要。
 
-5. **修复 `match_skeleton()` 的匹配范围**  
+7. **修复 `match_skeleton()` 的匹配范围**  
    只在 `region.entry_values + region.exit_values` 中搜索 `var_name`，而非全局搜索。
 
 ### P2 — 建议改进
 
-6. **让 Projection 的 score 数据驱动**  
-   至少基于区域大小、边界复杂度等指标计算，而非硬编码常数。
+8. **实现 GP 原语操作** (`crossover()`, `mutate_op()`, `extract_subgraph()`)  
+   基于 `AlgSlot` + xDSL PatternRewriter 实现，为后续遗传编程框架提供接口。详见 6.4 节。
 
-7. **利用 FactGraph**  
-   当前 FactGraph 构建了丰富的边但几乎不被使用。应在 skeleton 匹配或区域推荐中使用它。
-
-8. **支持 module-level 函数调用 (`math.sqrt` 等)**  
+9. **支持 module-level 函数调用 (`math.sqrt` 等)**  
    在前端中特殊处理 `ast.Attribute` 形式的函数调用。
 
-9. **加强 `_next_prefixed_id` 的鲁棒性**  
-   使用正则匹配而非简单 split，避免非数字 ID 导致 crash。
-
-10. **让 `OverridePlan` 驱动行为而非事后记录**  
-    先构造 plan，再执行 plan，而非重写完成后才生成 plan。
+10. **加强 `_next_prefixed_id` 的鲁棒性**  
+    使用正则匹配而非简单 split，避免非数字 ID 导致 crash。
 
 ---
 
-## 六、测试脚本清单
+## 六、xDSL 使用现状分析与改进方案
+
+### 6.1 xDSL 当前实际发挥的作用
+
+当前代码使用 xDSL v0.62.0，但仅将其用作**不透明的存储容器**，核心编译器能力完全未被利用。
+
+#### 6.1.1 当前使用方式一览
+
+| 使用场景 | 如何使用 xDSL | 实际效果 |
+|----------|-------------|---------|
+| IR 存储 | `UnregisteredOp.with_name("alg.xxx")` + `payload` 字符串 | xDSL 看不懂 payload，只是透传 |
+| 类型标注 | `_type_to_xdsl_attr()` 映射 int→i64, float→f64 | 由于 bug 参数全是 `"object"`，映射形同虚设 |
+| Clone | `ModuleOp.clone()` → `FunctionIR.from_xdsl()` | 有效，但仅利用了通用对象克隆 |
+| 嫁接变异 | `Block.insert_ops_before()` / `Block.erase_op()` | 有效，利用了 xDSL Block 操作 API |
+| 文本输出 | `Printer` 渲染 xDSL 文本 | 输出中有意义的信息全在 payload 字符串里 |
+
+#### 6.1.2 详细问题
+
+**问题 1: 所有 op 使用 `UnregisteredOp`，xDSL 无法理解 IR 语义**
+
+```python
+# xdsl_bridge.py
+op_cls = UnregisteredOp.with_name(f"alg.{op.opcode}")
+xdsl_op = op_cls.create(
+    attributes={"payload": StringAttr(repr(_normalize_payload(op_payload)))},
+    successors=successors,
+)
+```
+
+每个 op 的全部语义信息（inputs、outputs、opcode、attrs）被序列化为 Python `repr()` 字符串，塞进一个 `StringAttr("payload")` 中。xDSL 完全不知道这个 op 有几个操作数、结果类型是什么、def-use 关系如何。
+
+**问题 2: Python 层维护了一套完整的冗余 IR 基础设施**
+
+`ir/model.py` 中的 `Value.use_ops`、`Value.def_op`、`Op.inputs`、`Op.outputs` 构成了一套完整的 def-use 图，与 xDSL 的原生 SSA value 系统**完全重复**。代码在两套系统之间通过 `from_xdsl()` 同步，增加了复杂度和出错风险。
+
+**问题 3: xDSL 的 SSA value 系统未被使用**
+
+xDSL 的 `OpResult` 和 `BlockArgument` 是真正的 SSA value，它们自动追踪 def-use 关系。当前代码中：
+- op 的 `inputs` 是**字符串 ID 列表** (`["v_0", "v_1"]`)，不是 xDSL SSA value 引用
+- 要查找某个 value 的所有使用者，需要遍历 `value.use_ops` 列表（Python 层手动维护）
+- xDSL 层面，所有 op 都是零操作数的 `UnregisteredOp`，没有 SSA 连接
+
+**问题 4: xDSL 类型系统完全未生效**
+
+`_type_to_xdsl_attr()` 存在 int→i64、float→f64、bool→i1 的映射，但由于前端 bug，所有函数参数类型都是 `"object"`。xDSL 的 result types 全是 `StringAttr("object")`，没有任何类型检查。
+
+#### 6.1.3 核心能力未被利用
+
+| xDSL 能力 | 当前状态 | 说明 |
+|-----------|---------|------|
+| **自定义 Dialect（方言）** | ❌ 未使用 | 用 `UnregisteredOp` 代替 |
+| **SSA Value 系统** | ❌ 未使用 | def-use 关系在 Python dict 层维护 |
+| **IRDL 类型约束** | ❌ 未使用 | 无类型验证 |
+| **Pattern Rewriting** | ❌ 未使用 | 嫁接逻辑硬编码在 Python 函数中 |
+| **PatternRewriteWalker** | ❌ 未使用 | 无自动 pattern 遍历 |
+| **Pass 基础设施** | ❌ 未使用 | 无 xDSL pass pipeline |
+| **Verification** | ❌ 未使用 | 自定义 `validate_function_ir()` 代替 |
+| **Region 嵌套** | ❌ 未使用 | 平铺 Block + branch/jump |
+
+---
+
+### 6.2 xDSL 应该发挥什么作用
+
+xDSL 是一个 Python-native 的 MLIR 实现，其核心价值不是"存储"，而是**编译器基础设施**。以下是 xDSL 应该为 algorithm-IR 提供的能力层次：
+
+#### 层次 1: IR 表示层 — 自定义 `alg` Dialect
+
+使用 `irdl_op_definition` 定义正式的操作类型，让 xDSL 理解每个 op 的结构：
+
+```python
+from xdsl.irdl import (
+    irdl_op_definition, IRDLOperation, AnyAttr,
+    operand_def, result_def, attr_def, var_operand_def,
+    opt_attr_def, region_def, successor_def,
+)
+from xdsl.dialects.builtin import StringAttr, i64, f64
+from xdsl.ir import Dialect
+
+@irdl_op_definition
+class AlgConst(IRDLOperation):
+    """常量定义"""
+    name = "alg.const"
+    res = result_def(AnyAttr())
+    value = attr_def(StringAttr)  # 常量值的字符串表示
+
+@irdl_op_definition
+class AlgBinary(IRDLOperation):
+    """二元运算: Add, Sub, Mul, Div, ..."""
+    name = "alg.binary"
+    lhs = operand_def(AnyAttr())    # ← xDSL SSA operand
+    rhs = operand_def(AnyAttr())    # ← xDSL SSA operand
+    res = result_def(AnyAttr())     # ← xDSL SSA result
+    operator = attr_def(StringAttr) # "Add", "Sub", "Mul", ...
+
+@irdl_op_definition
+class AlgCall(IRDLOperation):
+    """函数调用"""
+    name = "alg.call"
+    callee = operand_def(AnyAttr())
+    args = var_operand_def(AnyAttr())
+    res = result_def(AnyAttr())
+    func_name = attr_def(StringAttr)
+
+@irdl_op_definition
+class AlgBranch(IRDLOperation):
+    """条件分支"""
+    name = "alg.branch"
+    cond = operand_def(AnyAttr())
+    true_dest = successor_def()
+    false_dest = successor_def()
+
+@irdl_op_definition
+class AlgPhi(IRDLOperation):
+    """SSA phi 节点"""
+    name = "alg.phi"
+    incoming = var_operand_def(AnyAttr())
+    res = result_def(AnyAttr())
+
+AlgDialect = Dialect("alg", [AlgConst, AlgBinary, AlgCall, AlgBranch, AlgPhi, ...])
+```
+
+**效果**: xDSL 理解每个 op 有几个操作数、几个结果；def-use 图由 xDSL SSA 自动维护；不再需要 Python 层的 `values` / `use_ops` / `def_op`。
+
+#### 层次 2: 变换层 — Pattern Rewriting
+
+使用 xDSL 的 `RewritePattern` + `PatternRewriteWalker` 替代硬编码的嫁接逻辑。
+
+#### 层次 3: 验证层 — IRDL 约束 + 自定义 Verifier
+
+利用 xDSL 的类型系统对 IR 进行构造时验证，减少运行时错误。
+
+---
+
+### 6.3 xDSL Pattern Rewriter 能否替代当前的 skeleton 替换？— 实验验证
+
+**回答: 能。** 以下是已验证的实验。
+
+我们用 xDSL v0.62.0 构建了一个最小的 `alg` dialect，并使用 `PatternRewriteWalker` + `op_type_rewrite_pattern` 成功实现了 skeleton 注入：
+
+```python
+# 定义 RewritePattern: 找到 AlgBinary(Add)，注入 BP summary 调用
+class InjectBPSummaryPattern(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: AlgBinary, rewriter: PatternRewriter):
+        if op.operator.data != "Add":
+            return  # 不匹配
+        # 构建 donor 常量
+        bp_const = AlgConst.build(result_types=[f64],
+                                  attributes={"value": StringAttr("bp_fn")})
+        # 构建调用: bp_result = call bp_fn(lhs)
+        bp_call = AlgCall.build(operands=[bp_const.res, [op.lhs]],
+                                result_types=[f64],
+                                attributes={"func_name": StringAttr("bp_summary")})
+        # 构建新加法: new_score = lhs + bp_result
+        new_add = AlgBinary.build(operands=[op.lhs, bp_call.res],
+                                  result_types=[f64],
+                                  attributes={"operator": StringAttr("Add")})
+        rewriter.replace_op(op, [bp_const, bp_call, new_add])
+
+# 执行
+walker = PatternRewriteWalker(
+    GreedyRewritePatternApplier([InjectBPSummaryPattern()]),
+    apply_recursively=False,
+)
+walker.rewrite_module(module)
+```
+
+**实验结果** (已在 AutoGenOld 环境中运行验证):
+
+```
+BEFORE: %2 = "alg.binary"(%0, %1) {operator = "Add"} : (f64, f64) -> f64
+AFTER:  %2 = "alg.const"() {value = "bp_fn"} : () -> f64
+        %3 = "alg.call"(%2, %0) {func_name = "bp_summary"} : (f64, f64) -> f64
+        %4 = "alg.binary"(%0, %3) {operator = "Add"} : (f64, f64) -> f64
+```
+
+xDSL 的 `rewriter.replace_op()` 自动完成了：
+1. 在原 op 之前插入新 ops
+2. 将原 op 结果的所有使用者重连到新 op 的结果
+3. 安全删除原 op
+4. SSA def-use 链自动更新
+
+**结论**: `PatternRewriter` 完全能做到当前 `_graft_bp_summary()` 手工编排的所有操作，而且更安全（自动管理 SSA 连接）、更可扩展（新 pattern 只需写新类）。
+
+#### 6.3.1 Pattern Rewriter 与当前硬编码方式的对比
+
+| 维度 | 当前硬编码 | xDSL Pattern Rewriter |
+|------|-----------|---------------------|
+| 添加新 skeleton | 需在 `rewriter.py` 中写新的 `_graft_xxx()` 函数 + 修改 dispatch | 只需写新的 `RewritePattern` 子类 |
+| SSA 重连接 | 手动调用 `_rebuild_from_xdsl()` 重建整个 IR | `rewriter.replace_op()` 自动重连 |
+| 匹配逻辑 | 按 `skeleton.name` 字符串分派 | 按 op 类型 + 属性值匹配 |
+| 可组合性 | 不可组合 | 多个 pattern 可组合为 `GreedyRewritePatternApplier` |
+| 安全性 | 无安全检查，可能产生悬挂引用 | `safe_erase=True` 自动检查残留使用 |
+
+---
+
+### 6.4 面向遗传编程的 Skeleton/IR 操作接口设计
+
+当前框架声称支持"灵活的嫁接移植"，但如果后续框架采用**遗传编程 (GP)** 来发现新算法，则 IR 操作接口需要支持以下核心操作：
+
+1. **交叉 (Crossover)**: 从两个父代 IR 中各选一个子图，交换子图得到两个子代
+2. **变异 (Mutation)**: 随机修改 IR 中的某个操作（替换 opcode、修改常量、添加/删除 op）
+3. **骨架填充 (Skeleton Filling)**: 给定一个带"洞"的算法骨架，填入具体的计算子图
+4. **子图提取 (Subgraph Extraction)**: 从完整 IR 中提取一个可独立运行的子图作为 skeleton
+
+当前设计对以上操作的支持度：
+
+| GP 操作 | 当前支持 | 需要的接口 |
+|---------|---------|-----------|
+| Crossover | ❌ 无接口 | 子图交换 + SSA 重连 |
+| Mutation | ❌ 无接口 | 单 op 替换/属性修改 |
+| Skeleton Filling | ⚠️ 仅两种硬编码 | 通用的"洞→子图"替换 |
+| Subgraph Extraction | ⚠️ Region 选择可用 | Region → 独立 FunctionIR |
+
+#### 6.4.1 推荐的接口设计
+
+##### 核心概念: `Slot` — IR 中的可替换位置
+
+在 GP 中，"skeleton" 不应该是一个固定名称的硬编码对象，而应该是一段**带有 Slot（槽位）标记的 IR 片段**。Slot 是 IR 中可以被替换的位置，类似于模板中的占位符。
+
+```python
+@irdl_op_definition
+class AlgSlot(IRDLOperation):
+    """
+    Slot: IR 中可被 GP 操作替换的占位符。
+    
+    一个 Slot 代表"这里应该有一段计算，但具体是什么由 GP 决定"。
+    Slot 声明了它接受的输入和产出的输出的类型签名，
+    GP 操作只需要保证填充进去的子图满足这个类型签名即可。
+    """
+    name = "alg.slot"
+    slot_inputs = var_operand_def(AnyAttr())   # Slot 接受的输入
+    res = result_def(AnyAttr())                # Slot 的输出
+    slot_id = attr_def(StringAttr)             # 唯一标识符
+    slot_kind = opt_attr_def(StringAttr)       # "score", "update", "metric", ...
+    # slot_kind 是语义标签，GP 可以用它来引导匹配，但不是硬性约束
+```
+
+**设计理念**: `AlgSlot` 是一个合法的 xDSL op，可以参与正常的 SSA 图。在解释执行时，slot 可以有默认行为（如直接返回第一个输入）；在 GP 操作时，slot 是可以被整体替换的单元。
+
+##### 接口 1: `fill_slot()` — 骨架填充
+
+```python
+def fill_slot(
+    module: ModuleOp,
+    slot_id: str,
+    filler: Region | list[Operation],
+) -> ModuleOp:
+    """
+    将 slot_id 对应的 AlgSlot 替换为 filler 中的操作序列。
+    
+    filler 的最后一个 op 的结果将替代 AlgSlot 的结果（SSA 自动重连）。
+    filler 中可以引用 AlgSlot 的 slot_inputs（通过 BlockArgument 映射）。
+    
+    底层使用 xDSL PatternRewriter 实现。
+    """
+```
+
+**实现方式**: 写一个 `FillSlotPattern(RewritePattern)`，它匹配 `AlgSlot`，检查 `slot_id` 是否匹配，然后用 `rewriter.replace_op()` 替换。
+
+##### 接口 2: `crossover()` — 子图交叉
+
+```python
+def crossover(
+    parent_a: ModuleOp,
+    parent_b: ModuleOp,
+    region_a: Region,  # parent_a 中选定的子图区域
+    region_b: Region,  # parent_b 中选定的子图区域
+) -> tuple[ModuleOp, ModuleOp]:
+    """
+    交换两个父代 IR 中的选定子图区域，产生两个子代。
+    
+    要求:
+    1. region_a 和 region_b 的边界签名兼容
+       （输入数量和类型匹配，输出数量和类型匹配）
+    2. 交换后的子图能正确连接到宿主的 SSA 图中
+    
+    实现步骤:
+    1. clone 两个父代
+    2. 从 clone_a 中提取 region_a 对应的 ops
+    3. 从 clone_b 中提取 region_b 对应的 ops
+    4. 用 PatternRewriter 将 clone_a 中的 region_a 替换为 region_b 的 ops
+    5. 反向操作得到第二个子代
+    """
+```
+
+**关键设计**: 交叉操作需要**类型兼容性检查**。如果 region_a 的边界签名是 `(f64, f64) → f64`，那么 region_b 也必须是 `(f64, f64) → f64`。这正是 xDSL 类型系统可以发挥作用的地方。
+
+为了方便交叉，建议将可交叉的区域包装为 Slot：
+
+```python
+def wrap_region_as_slot(
+    module: ModuleOp,
+    op_ids: list[str],
+    slot_id: str,
+) -> ModuleOp:
+    """
+    将选定的 ops 替换为一个 AlgSlot，内部保存原始 ops 作为默认实现。
+    这样交叉操作就变成了: 提取 slot 的内容 + 填充另一个 slot 的内容。
+    """
+```
+
+##### 接口 3: `mutate_op()` — 单点变异
+
+```python
+def mutate_op(
+    module: ModuleOp,
+    target_op: Operation,
+    mutation_kind: str,  # "replace_opcode", "modify_const", "swap_operands", ...
+    **kwargs,
+) -> ModuleOp:
+    """
+    对单个 op 进行变异。支持的变异类型:
+    
+    - "replace_opcode": 将 AlgBinary 的 operator 从 Add 改为 Mul 等
+    - "modify_const": 修改 AlgConst 的 value
+    - "swap_operands": 交换 AlgBinary 的 lhs 和 rhs
+    - "insert_identity": 在某个 value 的 def-use 链中插入 identity op
+    - "delete_op": 删除一个 op，将其输出直接连到其某个输入
+    - "replace_with_slot": 将一个 op 替换为 AlgSlot
+    
+    底层每种变异对应一个 RewritePattern。
+    """
+```
+
+##### 接口 4: `extract_subgraph()` — 子图提取
+
+```python
+def extract_subgraph(
+    module: ModuleOp,
+    op_ids: list[str],
+) -> tuple[ModuleOp, list[Attribute], list[Attribute]]:
+    """
+    从 module 中提取指定 ops 组成的子图，返回:
+    1. 包含子图的新 ModuleOp（子图被包装为一个函数）
+    2. 子图的输入类型签名
+    3. 子图的输出类型签名
+    
+    提取后的子图可以作为交叉或填充的素材。
+    
+    实现: 
+    - 计算 op_ids 的闭包（所有需要的 ops）
+    - 识别 entry values（子图需要但不在子图内定义的值）→ 函数参数
+    - 识别 exit values（子图定义且在子图外使用的值）→ 函数返回值
+    - 利用 xDSL Rewriter 将子图移动到新的 Region 中
+    """
+```
+
+#### 6.4.2 完整的 GP 工作流示例
+
+```python
+# 1. 编译两个 Python 算法为 xDSL IR
+ir_a = compile_to_xdsl(stack_decoder)
+ir_b = compile_to_xdsl(bp_decoder)
+
+# 2. 在 ir_a 中选择一个区域，包装为 slot
+ir_a_slotted = wrap_region_as_slot(ir_a, 
+    op_ids=find_score_computation(ir_a),
+    slot_id="score_slot")
+
+# 3. 从 ir_b 中提取一个子图
+subgraph_b, input_sig, output_sig = extract_subgraph(ir_b,
+    op_ids=find_message_passing(ir_b))
+
+# 4. GP 交叉: 用 ir_b 的子图填充 ir_a 的 slot
+child = fill_slot(ir_a_slotted, "score_slot", subgraph_b)
+
+# 5. GP 变异: 随机修改一个常量
+child = mutate_op(child, pick_random_const(child), "modify_const", 
+    new_value=0.95)
+
+# 6. 评估: 直接执行变异后的 IR
+result = execute_xdsl_ir(child, test_input)
+fitness = evaluate_ber(result)
+```
+
+#### 6.4.3 为什么 xDSL 原生功能对 GP 至关重要
+
+| GP 需求 | 不用 xDSL 原生功能的问题 | 用 xDSL 原生功能的优势 |
+|---------|----------------------|---------------------|
+| SSA 重连接 | 每次操作后都要 `_rebuild_from_xdsl()` 全量重建 | `rewriter.replace_op()` 自动重连，O(1) |
+| 类型检查 | 交叉后可能产生类型不匹配的 IR，要到解释执行时才会崩溃 | xDSL 在构造时即验证类型兼容性 |
+| 子图提取 | 需要手动计算 entry/exit values 和维护 value ID 映射 | xDSL SSA 的 `uses` 属性直接可查 |
+| 变异安全 | 删除 op 后可能留下悬挂引用 | `safe_erase=True` 自动检查 |
+| 可组合性 | 每种操作是独立函数，无法链式执行 | 多个 RewritePattern 可组合为 pass pipeline |
+
+#### 6.4.4 `AlgSlot` 与当前 `Skeleton` 的关系
+
+当前的 `Skeleton` dataclass 试图描述"一段要被注入的计算"，但它不是 IR 的一部分——它是一个外部的 Python 对象，通过硬编码的 `_graft_xxx()` 函数被"翻译"为 IR ops。
+
+改进后的设计中，skeleton 本身就是 IR：
+
+```
+当前设计:
+  Skeleton (Python dataclass)  ──硬编码翻译──→  IR ops
+  
+改进设计:
+  Skeleton = 包含 AlgSlot 的 IR fragment（本身就是 xDSL ops）
+  fill_slot() 用 PatternRewriter 替换 AlgSlot → 完成注入
+```
+
+这意味着：
+- Skeleton 不再是一个特殊的 Python 对象，而是一段普通的 IR
+- `fill_slot()` 不需要知道 skeleton 的"名字"——它只需要知道 slot_id
+- 新的 skeleton 类型不需要任何代码改动——只需要构造新的 IR fragment
+- GP 的交叉操作自然等价于"从 parent_a 提取 slot 的内容，填入 parent_b 的 slot"
+
+#### 6.4.5 实现路径建议
+
+**Phase 1**: 定义 `alg` Dialect（最高优先级）
+- 定义 `AlgConst`, `AlgBinary`, `AlgUnary`, `AlgCompare`, `AlgCall`, `AlgPhi`, `AlgBranch`, `AlgJump`, `AlgReturn`, `AlgGetItem`, `AlgSetItem`, `AlgSlot` 等所有 op 类型
+- 修改 `ir_builder.py`，编译时直接生成 xDSL typed ops 而非 `UnregisteredOp`
+- 删除 Python 层的 `Value.use_ops` / `Value.def_op` 等冗余数据结构，直接使用 xDSL 的 SSA
+- 保留 `FunctionIR` 作为轻量包装器，但内部数据全部委托给 xDSL
+
+**Phase 2**: 实现 GP 原语操作
+- 实现 `fill_slot()`：基于 `RewritePattern` 的 slot 填充
+- 实现 `mutate_op()`：基于 `PatternRewriter` 的单点变异
+- 实现 `extract_subgraph()`：基于 xDSL Region/Block 操作的子图提取
+- 实现 `crossover()`：基于 slot 的子图交换
+
+**Phase 3**: 重构解释器
+- 解释器直接遍历 xDSL ops（`for op in block.ops:`），读取 typed op 的属性
+- 不再需要从 payload 字符串中反序列化
+
+---
+
+## 七、测试脚本清单
 
 所有测试脚本位于 `research/algorithm-IR/code_review/` 目录：
 
