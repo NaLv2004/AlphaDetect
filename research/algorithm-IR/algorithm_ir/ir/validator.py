@@ -16,6 +16,7 @@ ALLOWED_OPCODES = {
     "get_item",
     "set_item",
     "build_list",
+    "build_tuple",
     "build_dict",
     "append",
     "pop",
@@ -60,4 +61,3 @@ def validate_function_ir(func_ir: FunctionIR) -> list[str]:
                 errors.append(f"Value {value_id} references missing use op {use_op}")
 
     return errors
-

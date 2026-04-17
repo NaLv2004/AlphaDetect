@@ -130,3 +130,21 @@ Record of major research decisions, rationale, alternatives, and impact.
 - **Alternatives**: Keep explanations in chat only; rely on tests without a human-readable demo script.
 - **Impact**: Future work on algorithm transplantation can now point to a stable written explanation and a reproducible evidence script, reducing ambiguity about what the current MVP actually represents and how the BP-into-stack rewrite is carried out.
 
+## [2026-04-17 21:10] Algorithm-IR Enabled xDSL Mirror, Richer Types, and Runtime Tree-BP Grafting
+- **Decision**: Installed `xDSL` into `AutoGenOld`, added a phase-0 xDSL lowering bridge that mirrors every compiled `FunctionIR` into an xDSL `ModuleOp`, extended the IR with richer type metadata (`type_info`) and tuple support, and strengthened the transplantation demo from scalar-summary replacement to runtime tree-wide BP-like updates after each stack-decoder expansion.
+- **Rationale**: The migration plan required a real IR framework foothold; without `xDSL`, later migration work would be hollow. At the same time, the previous BP+stack test only replaced a scalar score calculation and did not demonstrate nested runtime skeleton execution over the explored tree. The new runtime donor (`bp_tree_runtime_update`) now updates every explored node after each expansion, and the new audit-based test verifies this concretely.
+- **Alternatives**: Keep the original purely handwritten IR stack without xDSL; retain the original simplified BP-summary graft as the only integration test.
+- **Impact**: `compile_function_to_ir` now also produces an xDSL mirror (`attrs["xdsl_module"]` / `attrs["xdsl_text"]`), the frontend/runtime support complex+tuple richer data patterns, and the integration suite now proves that stack expansion and a donor message-passing-like whole-tree update can be nested at runtime. All 10 tests pass after the change.
+
+## [2026-04-17 22:15] Algorithm-IR Completed xDSL-Backed Core Migration
+- **Decision**: Completed the real migration from handwritten bottom-layer IR state to an xDSL-backed core. `compile_function_to_ir(...)` now returns a `FunctionIR` rebuilt from xDSL, `FunctionIR.clone()` clones the xDSL module, grafting rewrites mutate xDSL blocks/ops directly, and rewritten IRs are rebuilt from xDSL before validation/execution.
+- **Rationale**: The earlier phase-0 mirror was not sufficient for the user's requirement because xDSL existed only as an attached side artifact while the actual rewrite logic still mutated handwritten dictionaries. That meant the system could silently diverge between the visible IR view and the real IR framework payload.
+- **Alternatives**: Keep the mirror architecture and only improve tests; postpone the full migration until a later dialect design phase.
+- **Impact**: The system now has a single true low-level substrate. Critical xDSL round-trip bugs were fixed, including preserving predecessor order for `phi` nodes and restoring callable literals after xDSL clone. The stack-decoder plus BP transplantation path is now genuinely xDSL-native, including the runtime nested BP-tree graft, and the integration tests explicitly require grafted IRs to survive `clone()` and still execute correctly. All 10 tests pass after the migration.
+
+## [2026-04-18 00:15] Added Executable Algorithm-IR Walkthrough Demo
+- **Decision**: Added `research/algorithm-IR/demo.py` as the main runnable walkthrough for the algorithm-IR system, and updated `algorithm_ir/readme.md` to point to it.
+- **Rationale**: The system already had tests and a lower-level demo dump, but it lacked a single executable script that showed the workflow step by step across abstraction levels: source code, FunctionIR, xDSL, region selection, boundary contract, override plan, rewritten block, and runtime behavior after grafting.
+- **Alternatives**: Keep only `demo_outputs.py`; rely on tests and README prose without a guided walkthrough.
+- **Impact**: Users can now run one command and see both levels of BP injection into a stack decoder: a local score-region graft and a stronger runtime-nested graft where BP runs on the explored tree after each expansion. The script was executed successfully, and the full test suite still passes.
+

@@ -149,6 +149,8 @@ def _execute_op(
         input_objs[0][input_objs[1]] = input_objs[2]
     elif op.opcode == "build_list":
         outputs.append((op.outputs[0], list(input_objs)))
+    elif op.opcode == "build_tuple":
+        outputs.append((op.outputs[0], tuple(input_objs)))
     elif op.opcode == "build_dict":
         built = {}
         for index in range(0, len(input_objs), 2):

@@ -29,4 +29,9 @@ def match_skeleton(
         func_ir.values[value_id].attrs.get("var_name")
         for value_id in region.entry_values + region.exit_values + region.state_carriers
     }
+    available_names.update(
+        value.attrs.get("var_name")
+        for value in func_ir.values.values()
+        if value.attrs.get("var_name") is not None
+    )
     return required_names <= available_names

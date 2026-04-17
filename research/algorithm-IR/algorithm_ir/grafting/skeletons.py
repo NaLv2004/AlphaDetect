@@ -46,3 +46,18 @@ def make_bp_summary_skeleton(bp_fn: FunctionType, damping: float = 0.1) -> Skele
         donor_ir=compile_function_to_ir(bp_fn),
     )
 
+
+def make_bp_tree_runtime_skeleton(bp_fn: FunctionType, damping: float = 0.1) -> Skeleton:
+    return Skeleton(
+        skel_id=f"skel_{bp_fn.__name__}",
+        name="bp_tree_runtime_update",
+        required_contract={
+            "needs_inputs": ["explored", "frontier", "costs"],
+            "requires_scalar_output": False,
+        },
+        transform_rules=[{"kind": "run_bp_after_expansion"}],
+        lowering_template={"damping": damping},
+        optional_projection_hints={"preferred_family": "scheduling"},
+        donor_callable=bp_fn,
+        donor_ir=compile_function_to_ir(bp_fn),
+    )

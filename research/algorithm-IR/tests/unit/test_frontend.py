@@ -13,7 +13,7 @@ if str(TESTS_ROOT) not in sys.path:
 
 from algorithm_ir.frontend import compile_function_to_ir
 from algorithm_ir.ir import render_function_ir, validate_function_ir
-from examples.algorithms import simple_branch_loop, stack_decoder_host
+from examples.algorithms import complex_tuple_kernel, simple_branch_loop, stack_decoder_host
 
 
 class FrontendTests(unittest.TestCase):
@@ -34,6 +34,18 @@ class FrontendTests(unittest.TestCase):
         self.assertIn("build_dict", rendered)
         self.assertIn("call", rendered)
         self.assertIn("get_item", rendered)
+        self.assertIn("xdsl_module", func_ir.attrs)
+        self.assertIn("func.func @stack_decoder_host", func_ir.attrs["xdsl_text"])
+
+    def test_compile_complex_tuple_kernel(self) -> None:
+        func_ir = compile_function_to_ir(complex_tuple_kernel)
+        errors = validate_function_ir(func_ir)
+        self.assertEqual(errors, [], msg="\n".join(errors))
+        rendered = render_function_ir(func_ir)
+        self.assertIn("build_tuple", rendered)
+        tuple_values = [value for value in func_ir.values.values() if value.type_hint == "tuple"]
+        self.assertGreaterEqual(len(tuple_values), 1)
+        self.assertTrue(any(value.attrs.get("type_info", {}).get("kind") == "tuple" for value in tuple_values))
 
 
 if __name__ == "__main__":

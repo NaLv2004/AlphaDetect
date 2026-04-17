@@ -14,7 +14,7 @@ if str(TESTS_ROOT) not in sys.path:
 from algorithm_ir.factgraph import build_factgraph
 from algorithm_ir.frontend import compile_function_to_ir
 from algorithm_ir.runtime import execute_ir
-from examples.algorithms import simple_branch_loop, stack_decoder_host
+from examples.algorithms import complex_tuple_kernel, simple_branch_loop, stack_decoder_host
 
 
 class RuntimeFactGraphTests(unittest.TestCase):
@@ -37,6 +37,14 @@ class RuntimeFactGraphTests(unittest.TestCase):
         self.assertIn("event_input", factgraph.dynamic_edges)
         self.assertGreater(len(factgraph.dynamic_edges["temporal"]), 0)
         self.assertGreater(len(factgraph.alignment_edges["instantiates_op"]), 0)
+
+    def test_execute_complex_tuple_kernel(self) -> None:
+        func_ir = compile_function_to_ir(complex_tuple_kernel)
+        expected = complex_tuple_kernel(0.5)
+        actual, trace, runtime_values = execute_ir(func_ir, [0.5])
+        self.assertEqual(actual, expected)
+        self.assertGreater(len(trace), 0)
+        self.assertGreater(len(runtime_values), 0)
 
 
 if __name__ == "__main__":

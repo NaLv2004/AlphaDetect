@@ -4,12 +4,20 @@ import ast
 import builtins
 import itertools
 from dataclasses import dataclass
+from types import SimpleNamespace
 from types import FunctionType
 from typing import Any
 
 from algorithm_ir.frontend.ast_parser import ParsedFunction, parse_function, source_span
 from algorithm_ir.frontend.cfg_builder import CFGBlock, link_blocks
 from algorithm_ir.ir.model import Block, FunctionIR, Op, Value
+from algorithm_ir.ir.type_info import (
+    combine_binary_type_info,
+    type_hint_from_info,
+    type_info_for_python_value,
+    unify_type_infos,
+)
+from algorithm_ir.ir.xdsl_bridge import lower_legacy_function_to_xdsl
 
 
 SUPPORTED_AST = (
@@ -30,6 +38,7 @@ SUPPORTED_AST = (
     ast.Attribute,
     ast.Subscript,
     ast.List,
+    ast.Tuple,
     ast.Dict,
     ast.BinOp,
     ast.UnaryOp,
@@ -81,7 +90,7 @@ class IRBuilder:
                 name_hint=arg.arg,
                 type_hint="object",
                 source=source_span(arg),
-                attrs={"role": "arg"},
+                attrs={"role": "arg", "type_info": {"kind": "object"}},
             )
             self.state.name_versions[arg.arg] = 0
             self.state.name_env[arg.arg] = value_id
@@ -113,8 +122,8 @@ class IRBuilder:
             for block_id, cfg_block in self.state.cfg.items()
         }
 
-        return FunctionIR(
-            id=self.function_id,
+        xdsl_module = lower_legacy_function_to_xdsl(
+            function_id=self.function_id,
             name=self.parsed.tree.name,
             arg_values=arg_values,
             return_values=self.state.return_values,
@@ -124,6 +133,7 @@ class IRBuilder:
             entry_block=self.state.entry_block,
             attrs={"filename": self.parsed.filename, "source": self.parsed.source},
         )
+        return FunctionIR.from_xdsl(xdsl_module)
 
     def _assert_supported(self, node: ast.AST) -> None:
         for child in ast.walk(node):
@@ -208,7 +218,13 @@ class IRBuilder:
             t_val = then_env.get(key, before_env.get(key))
             e_val = else_env.get(key, before_env.get(key))
             if t_val != e_val and t_val is not None and e_val is not None:
-                phi_value = self._new_versioned_name(key, stmt)
+                phi_type = unify_type_infos(self._value_type_info(t_val), self._value_type_info(e_val))
+                phi_value = self._new_versioned_name(
+                    key,
+                    stmt,
+                    type_hint=type_hint_from_info(phi_type),
+                    attrs={"type_info": phi_type.to_dict()},
+                )
                 self._emit("phi", [t_val, e_val], [phi_value], stmt, attrs={"sources": [then_end, else_end]})
                 merged[key] = phi_value
             elif t_val is not None:
@@ -229,7 +245,13 @@ class IRBuilder:
         loop_phi_inputs: dict[str, tuple[str, str]] = {}
         self.state.name_env = dict(before_env)
         for name, incoming_value in before_env.items():
-            phi_out = self._new_versioned_name(name, stmt)
+            phi_type = unify_type_infos(self._value_type_info(incoming_value))
+            phi_out = self._new_versioned_name(
+                name,
+                stmt,
+                type_hint=type_hint_from_info(phi_type),
+                attrs={"type_info": phi_type.to_dict()},
+            )
             phi_op_id = self._emit(
                 "phi",
                 [incoming_value, incoming_value],
@@ -293,7 +315,16 @@ class IRBuilder:
 
     def _assign_target(self, target: ast.AST, value_id: str) -> None:
         if isinstance(target, ast.Name):
-            new_value = self._new_versioned_name(target.id, target)
+            source_value = self.state.values[value_id]
+            propagated_attrs: dict[str, Any] = {}
+            if "type_info" in source_value.attrs:
+                propagated_attrs["type_info"] = source_value.attrs["type_info"]
+            new_value = self._new_versioned_name(
+                target.id,
+                target,
+                type_hint=source_value.type_hint or "object",
+                attrs=propagated_attrs,
+            )
             self._emit("assign", [value_id], [new_value], target, attrs={"target": target.id})
             self.state.name_env[target.id] = new_value
         elif isinstance(target, ast.Attribute):
@@ -316,10 +347,28 @@ class IRBuilder:
         if isinstance(expr, ast.BinOp):
             lhs = self._compile_expr(expr.left)
             rhs = self._compile_expr(expr.right)
-            return self._emit_expr_op("binary", [lhs, rhs], expr, {"operator": type(expr.op).__name__})
+            result_type = combine_binary_type_info(
+                type(expr.op).__name__,
+                self._value_type_info(lhs),
+                self._value_type_info(rhs),
+            )
+            return self._emit_expr_op(
+                "binary",
+                [lhs, rhs],
+                expr,
+                {"operator": type(expr.op).__name__, "type_info": result_type.to_dict()},
+                type_hint_from_info(result_type),
+            )
         if isinstance(expr, ast.UnaryOp):
             operand = self._compile_expr(expr.operand)
-            return self._emit_expr_op("unary", [operand], expr, {"operator": type(expr.op).__name__})
+            operand_type = self._value_type_info(operand)
+            return self._emit_expr_op(
+                "unary",
+                [operand],
+                expr,
+                {"operator": type(expr.op).__name__, "type_info": operand_type.to_dict()},
+                type_hint_from_info(operand_type),
+            )
         if isinstance(expr, ast.Compare):
             left = self._compile_expr(expr.left)
             rights = [self._compile_expr(comp) for comp in expr.comparators]
@@ -338,22 +387,70 @@ class IRBuilder:
             return self._emit_expr_op("get_item", [owner, index], expr, {})
         if isinstance(expr, ast.List):
             items = [self._compile_expr(item) for item in expr.elts]
-            return self._emit_expr_op("build_list", items, expr, {"n_items": len(items)}, "list")
+            elem_type = unify_type_infos(*(self._value_type_info(item) for item in items))
+            return self._emit_expr_op(
+                "build_list",
+                items,
+                expr,
+                {"n_items": len(items), "type_info": {"kind": "list", "elem": elem_type.to_dict(), "shape": [len(items)]}},
+                "list",
+            )
+        if isinstance(expr, ast.Tuple):
+            items = [self._compile_expr(item) for item in expr.elts]
+            elem_type = unify_type_infos(*(self._value_type_info(item) for item in items))
+            return self._emit_expr_op(
+                "build_tuple",
+                items,
+                expr,
+                {
+                    "n_items": len(items),
+                    "type_info": {
+                        "kind": "tuple",
+                        "elem": elem_type.to_dict(),
+                        "arity": len(items),
+                        "shape": [len(items)],
+                    },
+                },
+                "tuple",
+            )
         if isinstance(expr, ast.Dict):
             inputs: list[str] = []
+            key_types = []
+            value_types = []
             for key, value in zip(expr.keys, expr.values):
-                inputs.append(self._compile_expr(key))
-                inputs.append(self._compile_expr(value))
-            return self._emit_expr_op("build_dict", inputs, expr, {"n_items": len(expr.keys)}, "dict")
+                key_id = self._compile_expr(key)
+                value_id = self._compile_expr(value)
+                inputs.append(key_id)
+                inputs.append(value_id)
+                key_types.append(self._value_type_info(key_id))
+                value_types.append(self._value_type_info(value_id))
+            key_type = unify_type_infos(*key_types)
+            value_type = unify_type_infos(*value_types)
+            return self._emit_expr_op(
+                "build_dict",
+                inputs,
+                expr,
+                {
+                    "n_items": len(expr.keys),
+                    "type_info": {
+                        "kind": "dict",
+                        "key": key_type.to_dict(),
+                        "value": value_type.to_dict(),
+                        "shape": [len(expr.keys)],
+                    },
+                },
+                "dict",
+            )
         raise NotImplementedError(f"Unsupported expression {type(expr).__name__}")
 
     def _compile_constant(self, value: Any, node: ast.AST) -> str:
-        type_name = type(value).__name__ if value is not None else "NoneType"
+        type_info = type_info_for_python_value(value)
+        type_name = type_hint_from_info(type_info)
         out = self._new_value(
             name_hint=f"const_{type_name}",
             type_hint=type_name,
             source=source_span(node),
-            attrs={"literal": value},
+            attrs={"literal": value, "type_info": type_info.to_dict()},
         )
         self._emit("const", [], [out], node, attrs={"literal": value})
         return out
@@ -370,7 +467,7 @@ class IRBuilder:
             name_hint=opcode,
             type_hint=type_hint,
             source=source_span(node),
-            attrs={},
+            attrs={"type_info": attrs["type_info"]} if "type_info" in attrs else {},
         )
         self._emit(opcode, inputs, [out], node, attrs=attrs)
         return out
@@ -417,15 +514,38 @@ class IRBuilder:
         )
         return value_id
 
-    def _new_versioned_name(self, name: str, node: ast.AST) -> str:
+    def _new_versioned_name(
+        self,
+        name: str,
+        node: ast.AST,
+        *,
+        type_hint: str = "object",
+        attrs: dict[str, Any] | None = None,
+    ) -> str:
         version = self.state.name_versions.get(name, -1) + 1
         self.state.name_versions[name] = version
+        payload = {"var_name": name, "version": version}
+        if attrs:
+            payload.update(attrs)
         return self._new_value(
             name_hint=f"{name}_{version}",
-            type_hint="object",
+            type_hint=type_hint,
             source=source_span(node),
-            attrs={"var_name": name, "version": version},
+            attrs=payload,
         )
+
+    def _value_type_info(self, value_id: str):
+        value = self.state.values[value_id]
+        payload = value.attrs.get("type_info")
+        if isinstance(payload, dict):
+            from algorithm_ir.ir.type_info import type_info_from_dict
+
+            return type_info_from_dict(payload)
+        if value.type_hint in _TYPE_SENTINELS:
+            return type_info_for_python_value(_TYPE_SENTINELS[value.type_hint])
+        from algorithm_ir.ir.type_info import TypeInfo
+
+        return TypeInfo("object")
 
     def _load_global(self, name: str, node: ast.AST) -> str:
         if name in self.state.global_constants:
@@ -464,3 +584,16 @@ class IRBuilder:
 def compile_function_to_ir(fn: FunctionType) -> FunctionIR:
     parsed = parse_function(fn)
     return IRBuilder(parsed).build()
+
+
+_TYPE_SENTINELS = {
+    "bool": False,
+    "int": 0,
+    "float": 0.0,
+    "complex": 0j,
+    "str": "",
+    "list": [],
+    "dict": {},
+    "tuple": (),
+    "none": None,
+}
