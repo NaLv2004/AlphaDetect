@@ -90,21 +90,33 @@ class TestXDSLBackend(unittest.TestCase):
 
 
 class TestXDSLTypeMapping(unittest.TestCase):
-    """Test type mapping between Python types and xDSL types."""
+    """Test type mapping between Python types and xDSL types.
+
+    Note: After the typed AlgDialect refactoring, type information is stored
+    in Value.type_hint and Value.attrs["type_info"], not in xDSL result types
+    (which use the generic !alg.type). These tests verify that the type info
+    is correctly captured and propagated.
+    """
 
     def test_int_maps_to_i64(self):
         def fn(x: int) -> int:
             return x
         ir = compile_function_to_ir(fn)
+        # Type info is stored in Value attrs, not xDSL types
+        arg_value = ir.values[ir.arg_values[0]]
+        self.assertEqual(arg_value.type_hint, "int")
+        # xdsl_text should contain the type_hint in metadata
         xdsl_text = ir.attrs["xdsl_text"]
-        self.assertIn("i64", xdsl_text)
+        self.assertIn("'type_hint': 'int'", xdsl_text)
 
     def test_float_maps_to_f64(self):
         def fn(x: float) -> float:
             return x
         ir = compile_function_to_ir(fn)
+        arg_value = ir.values[ir.arg_values[0]]
+        self.assertEqual(arg_value.type_hint, "float")
         xdsl_text = ir.attrs["xdsl_text"]
-        self.assertIn("f64", xdsl_text)
+        self.assertIn("'type_hint': 'float'", xdsl_text)
 
 
 if __name__ == "__main__":

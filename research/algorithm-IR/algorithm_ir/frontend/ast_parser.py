@@ -25,11 +25,21 @@ def parse_function(fn: FunctionType) -> ParsedFunction:
             break
     if func_node is None:
         raise ValueError(f"Could not locate function AST for {fn.__name__}")
+
+    # Build globals_dict including closure variables
+    globals_dict = dict(fn.__globals__)
+    if fn.__closure__ and fn.__code__.co_freevars:
+        for name, cell in zip(fn.__code__.co_freevars, fn.__closure__):
+            try:
+                globals_dict[name] = cell.cell_contents
+            except ValueError:
+                pass
+
     return ParsedFunction(
         tree=func_node,
         source=source,
         filename=inspect.getsourcefile(fn) or "<unknown>",
-        globals_dict=fn.__globals__,
+        globals_dict=globals_dict,
     )
 
 
