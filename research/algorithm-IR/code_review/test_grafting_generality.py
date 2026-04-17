@@ -150,9 +150,8 @@ class TestCodegenQuality(unittest.TestCase):
         artifact = graft_skeleton(ir, region, contract, skel)
         self.assertGreater(len(artifact.source_code), 0)
 
-    def test_artifact_source_is_not_python(self):
-        """The codegen only emits IR text, NOT executable Python.
-        This tests whether emit_artifact_source produces real code or just IR dumps."""
+    def test_artifact_source_is_python(self):
+        """The codegen emits readable Python source, not IR dumps."""
         costs = [0.5, 0.25, 0.75]
         ir = compile_function_to_ir(stack_decoder_host)
         _, trace, rv = execute_ir(ir, [costs, 4])
@@ -162,9 +161,9 @@ class TestCodegenQuality(unittest.TestCase):
         artifact = graft_skeleton(ir, region, contract, skel)
         from algorithm_ir.regeneration.codegen import emit_artifact_source
         source = emit_artifact_source(artifact)
-        # It should be IR text, not Python
-        self.assertIn("FunctionIR", source)
-        self.assertNotIn("def stack_decoder", source)
+        # Should be Python code, not IR text
+        self.assertIn("def stack_decoder_host", source)
+        self.assertNotIn("FunctionIR", source)
 
     def test_provenance_tracking(self):
         """Provenance should record host, donor, region, contract."""
