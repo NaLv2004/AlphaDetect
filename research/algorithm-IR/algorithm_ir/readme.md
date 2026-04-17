@@ -81,16 +81,16 @@ This gives us a representation that is:
 
 The main pipeline is:
 
-`Python function -> AST -> neutral op/block/value description -> xDSL ModuleOp -> FunctionIR view -> execution/analysis/rewrite`
+`Python function -> AST -> typed AlgDialect ops -> xDSL ModuleOp -> FunctionIR view -> execution/analysis/rewrite -> Python source regeneration`
 
 More concretely:
 
 1. `frontend/ast_parser.py`
    Parses Python source into a Python AST and records source spans.
 2. `frontend/ir_builder.py`
-   Lowers the restricted Python AST into neutral values, ops, and blocks.
-3. `ir/xdsl_bridge.py`
-   Converts that neutral representation into xDSL `ModuleOp`.
+   Lowers the restricted Python AST into typed AlgDialect operations in an xDSL ModuleOp.
+3. `ir/dialect.py`
+   Defines the `alg` dialect with 22 IRDL-typed operations and `AlgType`.
 4. `ir/model.py`
    Rebuilds a `FunctionIR` view from xDSL so analysis and the interpreter can work on a simple API.
 5. `runtime/interpreter.py`
@@ -102,7 +102,7 @@ More concretely:
 8. `grafting/`
    Matches a donor skeleton and rewrites the xDSL program.
 9. `regeneration/`
-   Packs the rewritten result as an `AlgorithmArtifact`.
+   Packs the rewritten result as an `AlgorithmArtifact` and regenerates Python source.
 
 ## 4. Core Objects You Need to Understand
 
@@ -270,16 +270,19 @@ This is what makes partial replacement possible.
 
 ## 7. What the xDSL Layer Stores
 
-The xDSL layer currently uses unregistered operations with payloads.
-This is deliberate.
+The xDSL layer now uses a **formal IRDL-defined dialect** (`alg`).
 
-We are not yet trying to encode algorithm meaning into a high-level typed dialect.
-Instead, we use xDSL as a robust IR host:
+The dialect is defined in `ir/dialect.py` and includes 22 typed operations:
 
-- blocks are real xDSL blocks
-- the function is a real xDSL `FuncOp`
-- the program is a real xDSL `ModuleOp`
-- neutral op metadata is stored in op payload attributes
+- `AlgConst`, `AlgAssign`, `AlgBinary`, `AlgUnary`, `AlgCompare`
+- `AlgPhi`, `AlgCall`, `AlgGetAttr`, `AlgSetAttr`
+- `AlgGetItem`, `AlgSetItem`, `AlgBuildList`, `AlgBuildTuple`, `AlgBuildDict`
+- `AlgAppend`, `AlgPop`, `AlgIterInit`, `AlgIterNext`
+- `AlgBranch`, `AlgJump`, `AlgReturn`, `AlgSlot`
+
+All operations use a custom `AlgType` (`!alg.type`) for operands and results.
+Metadata (op ID, block ID, input/output mappings, source spans) is stored as
+xDSL string attributes on each operation.
 
 The block label operation stores:
 
@@ -475,7 +478,7 @@ But it is enough to make the IR and grafting pipeline much less brittle.
 
 ## 16. Current Tests and What They Prove
 
-The test suite currently has 10 tests.
+The test suite currently has 163 tests (62 main + 101 code-review).
 
 ### Frontend tests
 
@@ -534,15 +537,20 @@ That means the donor really ran over all explored nodes at each step, not just a
 
 ## 17. What Changed in This Refactor
 
-The major changes in this migration are:
+The major changes in the latest refactoring round are:
 
-- `compile_function_to_ir(...)` now produces an xDSL-backed `FunctionIR`.
-- `FunctionIR.clone()` clones xDSL and rebuilds the public view.
-- block predecessor order is preserved in xDSL payload so `phi` works correctly.
-- payload round-tripping now restores callables correctly after xDSL clone.
-- `grafting/rewriter.py` now mutates xDSL blocks and xDSL ops directly.
-- integration tests now require grafted IR to survive `clone()` and still execute correctly.
-- runtime tree-BP grafting remains supported and tested.
+- **Formal `alg` dialect**: 22 IRDL-defined typed operations replace `UnregisteredOp` payloads.
+- **Custom `AlgType`**: `ParametrizedAttribute + TypeAttribute` renders as `!alg.type`.
+- **New frontend (`ir_builder.py`)**: emits typed AlgDialect ops directly.
+  - Fixed: for-loop creates phi nodes for modified variables.
+  - Fixed: function parameter type annotations are parsed.
+  - Fixed: module-level calls (`math.sqrt`) are resolved at compile time.
+- **Dual-path `model.py`**: detects new-style (typed) vs legacy (payload) ops via `alg_id` attribute.
+- **Python source regeneration**: `codegen.py` reconstructs readable Python from IR (control flow, expressions, method calls).
+- **`match_skeleton()` scoped**: searches region boundary + co-block values + function parameters instead of entire IR.
+- **`_next_prefixed_id` robust**: uses regex matching to avoid crashes on non-numeric IDs.
+- **Closure variable capture**: `ast_parser.py` captures `fn.__closure__` for method-local imports.
+- **163 tests**: 32 dialect, 20 regression, 10 original, 101 code-review.
 
 ## 18. Current Limitations
 
@@ -551,10 +559,11 @@ The system is much stronger now, but still intentionally limited.
 Current limitations include:
 
 - restricted Python frontend rather than full Python support
-- neutral payload-based xDSL ops rather than a dedicated dialect
 - lightweight static types instead of a stronger typed effect system
 - no automatic structure discovery yet
 - no NN-guided region ranking yet
+- GP primitives (`crossover`, `mutate_op`, `extract_subgraph`) not yet implemented
+- grafting dispatch is still hardcoded rather than xDSL PatternRewriter-based
 
 These are acceptable for the current research phase because the immediate goal is:
 
