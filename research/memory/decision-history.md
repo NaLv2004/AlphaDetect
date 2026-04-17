@@ -112,3 +112,21 @@ Record of major research decisions, rationale, alternatives, and impact.
 - **Alternatives**: (1) Start from scratch — but would likely rediscover clamped A* again; (2) Change the architecture — premature until we know if the current GP space can't escape this attractor.
 - **Impact**: If test5 finds programs beyond clamped A* (using R matrix, real multi-pass BP, etc.), it validates the architecture. If it stagnates at clamped A* again, we need architectural changes (e.g., force min 2 BP iterations, add MMSE-LB instruction to F_belief).
 
+## [2026-04-17 18:50] Algorithm IR: Make RewriteRegion Primary, Projection Optional
+- **Decision**: Updated `research/algorithm-IR/ir_plan.md` so the core manipulation object is `RewriteRegion` with an inferred `BoundaryContract`, while `Projection` is explicitly optional and treated as an interpretation / matching layer rather than the primary rewrite target.
+- **Rationale**: The intended workflow is not "IR automatically discovers the true structure" but "the IR remains structure-neutral while users or upper-layer analysis peel off a computation region, preserve its executable boundary, and override it with a donor skeleton." A projection-first design made the role of projection unclear and risked confusing "view" with "rewrite object."
+- **Alternatives**: Keep projection as the central object for grafting; adopt a typed high-level skeleton IR that encodes search-tree / message-passing semantics directly in the core IR.
+- **Impact**: The plan now centers on region slicing, boundary inference, override plans, and donor lowering back into structure-free IR. This better supports skeleton transplantation without baking in host-side semantic bias, while still allowing optional structural annotations for later matching or NN guidance.
+
+## [2026-04-17 19:25] Algorithm-IR MVP Implemented End-to-End with Stack/BP Grafting Demo
+- **Decision**: Implemented the `research/algorithm-IR/algorithm_ir/` package and tests as a structure-neutral, executable MiniIR stack with frontend, interpreter, runtime tracing, shadow store, factgraph, RewriteRegion selection, BoundaryContract inference, optional Projection annotations, and a minimal BP-summary donor grafting pipeline.
+- **Rationale**: The plan was intentionally made region-first rather than projection-first. The implementation therefore prioritizes the rewrite closure: compile restricted Python to IR, execute IR, select a rewrite region on a real host algorithm, infer its boundary, graft a donor skeleton, regenerate IR, and execute the rewritten algorithm again.
+- **Alternatives**: Stop at static IR / CFG; implement projection discovery before rewrite; postpone grafting until a larger typed semantic layer existed.
+- **Impact**: The repository now contains a working `stack_decoder_host` IR, a `bp_summary_update` IR, and an integration test that grafts the BP-like donor into the stack-decoder score region to produce a new executable IR. This creates a concrete substrate for future NN-guided region ranking, richer donor skeletons, and more realistic MIMO detector examples.
+
+## [2026-04-17 20:05] Algorithm-IR README and Demo Outputs Added
+- **Decision**: Added a detailed architecture guide at `research/algorithm-IR/algorithm_ir/readme.md` and a reproducible demonstration script at `research/algorithm-IR/demo_outputs.py`.
+- **Rationale**: The codebase had become executable, but the architecture was still difficult to understand for non-compiler readers. The README now explains the system in region-first terms, and the demo script prints concrete IR, region, contract, projection, override-plan, and graft-before/after evidence.
+- **Alternatives**: Keep explanations in chat only; rely on tests without a human-readable demo script.
+- **Impact**: Future work on algorithm transplantation can now point to a stable written explanation and a reproducible evidence script, reducing ambiguity about what the current MVP actually represents and how the BP-into-stack rewrite is carried out.
+

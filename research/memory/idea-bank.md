@@ -104,3 +104,22 @@ Research ideas with status tracking. Ideas progress through:
 - **Connection to AlphaDetect vision**: This is the "formal reasoning about message passing" that the research proposal envisions.
 - **Risk**: Large search space, may need guided search or grammar constraints.
 
+## [ID-012] Recursive Skeleton Transplantation Benchmark and IR
+- **Status**: proposed
+- **Created**: 2026-04-17 02:35
+- **Updated**: 2026-04-17 02:35
+- **Summary**: Elevate the current mimo-push-gp work from a fixed 4-slot structured-BP search into a general AlphaDetect benchmark for recursive algorithm-skeleton transplantation. Treat the current StackDecoder+BP system as one benchmark instance, then build a typed intermediate representation with explicit host skeletons, donor skeletons, holes, adapters, schedulers, and leaf formulas. Stage the work as:
+  1. Define a typed skeleton IR and legality checker for host/donor composition.
+  2. Encode known detectors and hybrids in that IR as a benchmark set.
+  3. Search one-hole transplants first, then two-level recursive transplants.
+  4. Add neural guidance only for transplant-site and donor-skeleton ranking, not end-to-end formula generation.
+  5. Train a surrogate model to predict BER/complexity for candidate transplants before expensive Monte Carlo validation.
+- **Related**: Proposal sections on DSL composition and transformation witnesses; mimo-push-gp structured BP prototype; bp_stack_design skeleton-first formulation.
+
+## [ID-013] Two-Layer IR: FactIR Below, Projection/Skeleton IR Above
+- **Status**: proposed
+- **Created**: 2026-04-17 18:22
+- **Updated**: 2026-04-17 18:22
+- **Summary**: Review of `research/algorithm-IR/ir_plan.md` suggests a useful split: keep a structure-free executable fact layer for tracing and post-hoc structure recovery, but do NOT force the entire AlphaDetect system to remain structure-free. Above FactIR, introduce a Projection/Skeleton layer with explicit roles, interfaces, and abstraction/refinement relations so recursive skeleton transplantation remains representable. This reconciles the no-structure discovery philosophy with the typed DSL direction in the research proposal.
+- **Related**: algorithm-IR/ir_plan.md no-structure principle; research proposal typed DSL and adapters; recursive skeleton transplantation goal.
+
