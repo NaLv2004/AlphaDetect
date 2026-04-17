@@ -494,11 +494,14 @@ def _new_value(func_ir: FunctionIR, name_hint: str, type_hint: str, attrs: dict[
 
 
 def _next_prefixed_id(existing: dict[str, Any], prefix: str) -> str:
-    next_id = max(
-        (int(item_id.split("_", maxsplit=1)[1]) for item_id in existing if item_id.startswith(prefix)),
-        default=-1,
-    ) + 1
-    return f"{prefix}{next_id}"
+    import re
+    pattern = re.compile(rf"^{re.escape(prefix)}(\d+)$")
+    max_id = -1
+    for item_id in existing:
+        m = pattern.match(item_id)
+        if m:
+            max_id = max(max_id, int(m.group(1)))
+    return f"{prefix}{max_id + 1}"
 
 
 def _value_payload(value: Value) -> dict[str, Any]:
