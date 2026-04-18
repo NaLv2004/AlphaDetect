@@ -25,6 +25,7 @@ ALLOWED_OPCODES = {
     "branch",
     "jump",
     "return",
+    "slot",
 }
 
 

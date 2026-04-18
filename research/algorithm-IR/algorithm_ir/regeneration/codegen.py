@@ -20,6 +20,7 @@ def emit_artifact_source(artifact: AlgorithmArtifact) -> str:
 _BINARY_OPS = {
     "Add": "+", "Sub": "-", "Mult": "*", "Div": "/",
     "FloorDiv": "//", "Mod": "%", "Pow": "**",
+    "MatMult": "@",
     "BitAnd": "&", "BitOr": "|", "BitXor": "^",
     "LShift": "<<", "RShift": ">>",
 }
@@ -261,8 +262,20 @@ def _emit_op(ctx: _ExprCtx, op: Op, indent: int) -> None:
         return
 
     if op.opcode == "slot":
+        # Render slot as a function call placeholder with arguments
+        args = [ctx.expr(v) for v in op.inputs]
+        placeholder = f"__slot_{op.id}__"
+        expr = f"{placeholder}({', '.join(args)})"
         if op.outputs:
-            ctx.register(op.outputs[0], f"__slot_{op.id}__")
+            out_val = func_ir.values.get(op.outputs[0])
+            var = out_val.attrs.get("var_name") if out_val else None
+            if var:
+                ctx.emit(indent, f"{var} = {expr}")
+                ctx.register(op.outputs[0], var)
+            else:
+                ctx.register(op.outputs[0], expr)
+        else:
+            ctx.emit(indent, expr)
         return
 
     # Fallback: emit as comment

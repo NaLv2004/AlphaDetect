@@ -21,6 +21,7 @@ class BoundaryContract:
     reconnect_points: dict[str, list[str]]
     invariants: dict[str, Any]
     evidence: dict[str, Any] = field(default_factory=dict)
+    dependency_overrides: list[Any] = field(default_factory=list)
 
 
 def infer_boundary_contract(
