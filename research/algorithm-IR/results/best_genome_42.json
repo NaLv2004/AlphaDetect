@@ -1,0 +1,17 @@
+{
+  "genome_id": "g_5de40e1f",
+  "generation": 0,
+  "parent_ids": [],
+  "constants": [
+    -1.0105860159446869,
+    0.12403441482922695,
+    -0.36653123816971966,
+    -2.8703275207180177
+  ],
+  "programs": {
+    "f_down": "def f_down(parent_m_down, local_dist):\n    return -abs(local_dist + local_dist)",
+    "f_up": "def f_up(sum_child_ld, sum_child_m_up, n_children):\n    return _safe_log(sum_child_ld)",
+    "f_belief": "def f_belief(cum_dist, m_down, m_up):\n    return -_safe_log(cum_dist) - -m_up",
+    "h_halt": "def h_halt(old_root_m_up, new_root_m_up):\n    return new_root_m_up"
+  }
+}

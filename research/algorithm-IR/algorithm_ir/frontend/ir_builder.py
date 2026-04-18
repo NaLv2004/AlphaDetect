@@ -1118,6 +1118,36 @@ def compile_function_to_ir(fn: pytypes.FunctionType) -> FunctionIR:
     return IRBuilder(parsed).build()
 
 
+def compile_source_to_ir(
+    source: str,
+    func_name: str | None = None,
+    globals_dict: dict | None = None,
+) -> FunctionIR:
+    """Compile a Python source string to FunctionIR.
+
+    Unlike ``compile_function_to_ir``, this does not call ``inspect.getsource``
+    and works for dynamically generated code.
+    """
+    tree = ast.parse(source)
+    func_node = None
+    for node in tree.body:
+        if isinstance(node, ast.FunctionDef):
+            if func_name is None or node.name == func_name:
+                func_node = node
+                break
+    if func_node is None:
+        raise ValueError(
+            f"No function '{func_name or '<any>'}' found in source."
+        )
+    parsed = ParsedFunction(
+        tree=func_node,
+        source=source,
+        filename=f"<dynamic_{func_node.name}>",
+        globals_dict=globals_dict or {},
+    )
+    return IRBuilder(parsed).build()
+
+
 def _filter_extra_attrs(op: Op) -> dict[str, Any]:
     """
     Extract attrs that need to be stored in alg_attrs but aren't part

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import struct
 from collections import defaultdict
 from typing import Any
 
@@ -435,4 +436,236 @@ def emit_python_source(func_ir: FunctionIR) -> str:
         ctx.emit(1, "pass")
 
     return "\n".join(ctx.lines)
+
+
+# ---------------------------------------------------------------------------
+# C++ opcode emission
+# ---------------------------------------------------------------------------
+
+# Opcode constants — must match C++ ir_eval.h
+class CppOp:
+    CONST_F64     = 0
+    LOAD_ARG      = 1
+    ADD           = 2
+    SUB           = 3
+    MUL           = 4
+    DIV           = 5
+    SQRT          = 6
+    ABS           = 7
+    NEG           = 8
+    EXP           = 9
+    LOG           = 10
+    TANH          = 11
+    MIN           = 12
+    MAX           = 13
+    LT            = 14
+    GT            = 15
+    LE            = 16
+    GE            = 17
+    EQ            = 18
+    IF_START      = 19
+    ELSE          = 20
+    ENDIF         = 21
+    WHILE_START   = 22
+    WHILE_END     = 23
+    RETURN        = 24
+    SAFE_DIV      = 25
+    SAFE_LOG      = 26
+    SAFE_SQRT     = 27
+    NE            = 28
+    NOT           = 29
+    DUP           = 30
+    POP           = 31
+    NOP           = 32
+
+
+_BINARY_TO_CPP = {
+    "Add": CppOp.ADD,
+    "Sub": CppOp.SUB,
+    "Mult": CppOp.MUL,
+    "Div": CppOp.SAFE_DIV,
+    "FloorDiv": CppOp.SAFE_DIV,
+    "Mod": CppOp.NOP,
+    "Pow": CppOp.NOP,
+}
+
+_COMPARE_TO_CPP = {
+    "Lt": CppOp.LT,
+    "Gt": CppOp.GT,
+    "LtE": CppOp.LE,
+    "GtE": CppOp.GE,
+    "Eq": CppOp.EQ,
+    "NotEq": CppOp.NE,
+}
+
+_UNARY_TO_CPP = {
+    "USub": CppOp.NEG,
+    "Not": CppOp.NOT,
+}
+
+
+def _encode_f64(value: float) -> tuple[int, int]:
+    """Encode a float64 as two int32 words (little-endian)."""
+    raw = struct.pack("<d", value)
+    lo, hi = struct.unpack("<ii", raw)
+    return lo, hi
+
+
+def emit_cpp_ops(func_ir: FunctionIR) -> list[int]:
+    """Serialize a FunctionIR to a flat C++ opcode array.
+
+    Uses a recursive tree-walk from return ops: each value is emitted by
+    recursively emitting its defining operation. This ensures correct
+    stack ordering for the stack-based C++ evaluator (ir_eval.h).
+    """
+    ops: list[int] = []
+    arg_index = {vid: i for i, vid in enumerate(func_ir.arg_values)}
+    visited_blocks: set[str] = set()
+
+    def _emit_block(bid: str) -> None:
+        if bid in visited_blocks:
+            return
+        visited_blocks.add(bid)
+        block = func_ir.blocks[bid]
+        for op_id in block.op_ids:
+            op = func_ir.ops.get(op_id)
+            if not op:
+                continue
+            if op.opcode == "return":
+                if op.inputs:
+                    _push_value(func_ir, op.inputs[0], arg_index, ops)
+                else:
+                    lo, hi = _encode_f64(0.0)
+                    ops.extend([CppOp.CONST_F64, lo, hi])
+                ops.append(CppOp.RETURN)
+            elif op.opcode == "branch":
+                if (op.inputs
+                        and op.attrs.get("true")
+                        and op.attrs.get("false")):
+                    _push_value(func_ir, op.inputs[0], arg_index, ops)
+                    ops.append(CppOp.IF_START)
+                    _emit_block(op.attrs["true"])
+                    ops.append(CppOp.ELSE)
+                    _emit_block(op.attrs["false"])
+                    ops.append(CppOp.ENDIF)
+            elif op.opcode == "jump":
+                target = op.attrs.get("target")
+                if target:
+                    _emit_block(target)
+            # All other ops are pulled in recursively by _push_value
+
+    _emit_block(func_ir.entry_block)
+
+    if not ops or ops[-1] != CppOp.RETURN:
+        lo, hi = _encode_f64(0.0)
+        ops.extend([CppOp.CONST_F64, lo, hi, CppOp.RETURN])
+
+    return ops
+
+
+def _push_value(
+    func_ir: FunctionIR,
+    vid: str,
+    arg_index: dict[str, int],
+    ops: list[int],
+) -> None:
+    """Recursively push a value onto the C++ stack.
+
+    For function arguments: emits LOAD_ARG.
+    For constants: emits CONST_F64.
+    For computed values: recursively emits the defining operation
+    (which in turn pushes *its* inputs first).
+    """
+    # Function argument
+    if vid in arg_index:
+        ops.extend([CppOp.LOAD_ARG, arg_index[vid]])
+        return
+
+    # Look up the defining operation
+    v = func_ir.values.get(vid)
+    if not (v and v.def_op):
+        lo, hi = _encode_f64(0.0)
+        ops.extend([CppOp.CONST_F64, lo, hi])
+        return
+
+    def_op = func_ir.ops.get(v.def_op)
+    if def_op is None:
+        lo, hi = _encode_f64(0.0)
+        ops.extend([CppOp.CONST_F64, lo, hi])
+        return
+
+    # --- Dispatch on defining op type ---
+
+    if def_op.opcode == "const":
+        lit = def_op.attrs.get("literal")
+        if lit is not None:
+            val = float(lit) if not isinstance(lit, bool) else (1.0 if lit else 0.0)
+            lo, hi = _encode_f64(val)
+            ops.extend([CppOp.CONST_F64, lo, hi])
+        return
+
+    if def_op.opcode == "binary":
+        operator = def_op.attrs.get("operator", "Add")
+        _push_value(func_ir, def_op.inputs[0], arg_index, ops)
+        _push_value(func_ir, def_op.inputs[1], arg_index, ops)
+        ops.append(_BINARY_TO_CPP.get(operator, CppOp.ADD))
+        return
+
+    if def_op.opcode == "compare":
+        operators = def_op.attrs.get("operators", ["Lt"])
+        operator = operators[0] if operators else "Lt"
+        _push_value(func_ir, def_op.inputs[0], arg_index, ops)
+        _push_value(func_ir, def_op.inputs[1], arg_index, ops)
+        ops.append(_COMPARE_TO_CPP.get(operator, CppOp.LT))
+        return
+
+    if def_op.opcode == "unary":
+        operator = def_op.attrs.get("operator", "USub")
+        _push_value(func_ir, def_op.inputs[0], arg_index, ops)
+        ops.append(_UNARY_TO_CPP.get(operator, CppOp.NEG))
+        return
+
+    if def_op.opcode == "call":
+        name = def_op.attrs.get("name", "")
+        if name in ("abs", "fabs"):
+            _push_value(func_ir, def_op.inputs[0], arg_index, ops)
+            ops.append(CppOp.ABS)
+        elif name in ("sqrt", "math.sqrt"):
+            _push_value(func_ir, def_op.inputs[0], arg_index, ops)
+            ops.append(CppOp.SAFE_SQRT)
+        elif name in ("log", "math.log"):
+            _push_value(func_ir, def_op.inputs[0], arg_index, ops)
+            ops.append(CppOp.SAFE_LOG)
+        elif name in ("exp", "math.exp"):
+            _push_value(func_ir, def_op.inputs[0], arg_index, ops)
+            ops.append(CppOp.EXP)
+        elif name in ("tanh", "math.tanh"):
+            _push_value(func_ir, def_op.inputs[0], arg_index, ops)
+            ops.append(CppOp.TANH)
+        elif name in ("min",):
+            _push_value(func_ir, def_op.inputs[0], arg_index, ops)
+            _push_value(func_ir, def_op.inputs[1], arg_index, ops)
+            ops.append(CppOp.MIN)
+        elif name in ("max",):
+            _push_value(func_ir, def_op.inputs[0], arg_index, ops)
+            _push_value(func_ir, def_op.inputs[1], arg_index, ops)
+            ops.append(CppOp.MAX)
+        elif name in ("_safe_div",):
+            _push_value(func_ir, def_op.inputs[0], arg_index, ops)
+            _push_value(func_ir, def_op.inputs[1], arg_index, ops)
+            ops.append(CppOp.SAFE_DIV)
+        elif name in ("_safe_log",):
+            _push_value(func_ir, def_op.inputs[0], arg_index, ops)
+            ops.append(CppOp.SAFE_LOG)
+        elif name in ("_safe_sqrt",):
+            _push_value(func_ir, def_op.inputs[0], arg_index, ops)
+            ops.append(CppOp.SAFE_SQRT)
+        else:
+            lo, hi = _encode_f64(0.0)
+            ops.extend([CppOp.CONST_F64, lo, hi])
+        return
+
+    # Unknown defining op → push 0.0
+    lo, hi = _encode_f64(0.0)
+    ops.extend([CppOp.CONST_F64, lo, hi])
 
