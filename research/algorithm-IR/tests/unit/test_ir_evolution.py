@@ -740,6 +740,88 @@ def _make_graft_test_ir():
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# Phase 5: PatternMatcher implementations
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestPatternMatchers:
+    """Test the three PatternMatcher implementations."""
+
+    def test_import_all_matchers(self):
+        from evolution.pattern_matchers import (
+            RandomGraftPatternMatcher,
+            ExpertPatternMatcher,
+            StaticStructurePatternMatcher,
+            CompositePatternMatcher,
+        )
+
+    def test_random_matcher_produces_proposals(self):
+        from evolution.pattern_matchers import RandomGraftPatternMatcher
+        from evolution.ir_pool import build_ir_pool
+
+        pool = build_ir_pool()
+        entries = [g.to_entry() for g in pool[:4]]
+        matcher = RandomGraftPatternMatcher(proposals_per_gen=2, seed=42)
+        proposals = matcher(entries, generation=0)
+        assert isinstance(proposals, list)
+        # May produce 0-2 proposals depending on IR structure
+        for p in proposals:
+            assert p.host_algo_id in {e.algo_id for e in entries}
+            assert p.donor_algo_id in {e.algo_id for e in entries}
+            assert len(p.region.op_ids) > 0
+
+    def test_expert_matcher_produces_proposals(self):
+        from evolution.pattern_matchers import ExpertPatternMatcher
+        from evolution.ir_pool import build_ir_pool
+
+        pool = build_ir_pool()
+        entries = [g.to_entry() for g in pool]
+        matcher = ExpertPatternMatcher(max_proposals_per_gen=5)
+        proposals = matcher(entries, generation=0)
+        assert isinstance(proposals, list)
+        # Expert rules should find some matches in the 8-detector pool
+        for p in proposals:
+            assert p.rationale  # Should have description
+
+    def test_static_matcher_produces_proposals(self):
+        from evolution.pattern_matchers import StaticStructurePatternMatcher
+        from evolution.ir_pool import build_ir_pool
+
+        pool = build_ir_pool()
+        entries = [g.to_entry() for g in pool[:4]]
+        matcher = StaticStructurePatternMatcher(max_proposals_per_gen=3)
+        proposals = matcher(entries, generation=0)
+        assert isinstance(proposals, list)
+
+    def test_composite_matcher(self):
+        from evolution.pattern_matchers import (
+            RandomGraftPatternMatcher,
+            ExpertPatternMatcher,
+            CompositePatternMatcher,
+        )
+        from evolution.ir_pool import build_ir_pool
+
+        pool = build_ir_pool()
+        entries = [g.to_entry() for g in pool[:4]]
+        composite = CompositePatternMatcher([
+            RandomGraftPatternMatcher(proposals_per_gen=1, seed=42),
+            ExpertPatternMatcher(max_proposals_per_gen=1),
+        ])
+        proposals = composite(entries, generation=0)
+        assert isinstance(proposals, list)
+
+    def test_random_matcher_empty_pool(self):
+        from evolution.pattern_matchers import RandomGraftPatternMatcher
+        matcher = RandomGraftPatternMatcher()
+        # Empty pool should return no proposals
+        assert matcher([], 0) == []
+        # Single entry should return no proposals (needs 2)
+        from evolution.ir_pool import build_ir_pool
+        pool = build_ir_pool()
+        assert matcher([pool[0].to_entry()], 0) == []
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # Phase 5: runner test
 # ═══════════════════════════════════════════════════════════════════════════
 

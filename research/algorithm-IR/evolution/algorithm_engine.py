@@ -183,6 +183,10 @@ class AlgorithmEvolutionEngine:
             self._update_best()
             elapsed = time.perf_counter() - t0
 
+            # ---- Trace collection for PatternMatcher ----
+            if self.pattern_matcher is not None and self.generation % 3 == 0:
+                self._collect_traces(top_k=min(3, len(self.population)))
+
             # ---- Grafting: cross-pollinate slots ----
             if self.generation % 5 == 0:
                 self._graft_pass()
@@ -530,6 +534,63 @@ class AlgorithmEvolutionEngine:
                 )
 
         return child
+
+    # ------------------------------------------------------------------
+    # Runtime trace collection
+    # ------------------------------------------------------------------
+
+    def _collect_traces(self, top_k: int = 3) -> None:
+        """Collect runtime traces for top-K individuals via interpreter path.
+
+        Traces are stored in genome.metadata and later exposed via to_entry().
+        Uses a small number of sample inputs (not full Monte Carlo).
+        """
+        from algorithm_ir.runtime.interpreter import execute_ir
+        from algorithm_ir.factgraph.builder import build_factgraph
+        from evolution.materialize import materialize
+
+        ranked_indices = sorted(
+            range(len(self.population)),
+            key=lambda i: self.fitness[i].composite_score(),
+        )
+        top_indices = ranked_indices[:top_k]
+
+        for idx in top_indices:
+            genome = self.population[idx]
+            try:
+                # Materialize the genome to get a FunctionIR with slots filled
+                mat_ir = materialize(genome)
+                if mat_ir is None:
+                    continue
+
+                # Generate a single sample input for trace collection
+                Nr = getattr(self.evaluator, 'eval_config', None)
+                if Nr and hasattr(Nr, 'Nr'):
+                    nr, nt = Nr.Nr, Nr.Nt
+                else:
+                    nr, nt = 4, 4
+
+                from evolution.mimo_evaluator import generate_mimo_sample, qam16_constellation
+                H, y, x_true, sigma2 = generate_mimo_sample(
+                    nr, nt, 15.0, qam16_constellation(), self.rng,
+                )
+                constellation = qam16_constellation()
+
+                # Execute via interpreter path
+                result, trace, runtime_values = execute_ir(
+                    mat_ir, [H, y, sigma2, constellation],
+                )
+
+                # Build FactGraph
+                factgraph = build_factgraph(mat_ir, trace, runtime_values)
+
+                # Cache in genome metadata
+                genome.metadata["_cached_trace"] = trace
+                genome.metadata["_cached_runtime_values"] = runtime_values
+                genome.metadata["_cached_factgraph"] = factgraph
+
+            except Exception as exc:
+                logger.debug("Trace collection failed for %s: %s", genome.algo_id, exc)
 
     # ------------------------------------------------------------------
     # Utility
