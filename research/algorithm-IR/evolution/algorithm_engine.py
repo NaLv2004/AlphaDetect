@@ -564,17 +564,17 @@ class AlgorithmEvolutionEngine:
                     continue
 
                 # Generate a single sample input for trace collection
-                Nr = getattr(self.evaluator, 'eval_config', None)
-                if Nr and hasattr(Nr, 'Nr'):
-                    nr, nt = Nr.Nr, Nr.Nt
+                cfg = getattr(self.evaluator, 'config', None)
+                if cfg and hasattr(cfg, 'Nr'):
+                    nr, nt = cfg.Nr, cfg.Nt
                 else:
                     nr, nt = 4, 4
 
                 from evolution.mimo_evaluator import generate_mimo_sample, qam16_constellation
-                H, y, x_true, sigma2 = generate_mimo_sample(
-                    nr, nt, 15.0, qam16_constellation(), self.rng,
-                )
                 constellation = qam16_constellation()
+                H, x_true, y, sigma2 = generate_mimo_sample(
+                    nr, nt, constellation, 15.0, self.rng,
+                )
 
                 # Execute via interpreter path
                 result, trace, runtime_values = execute_ir(

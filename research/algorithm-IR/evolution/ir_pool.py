@@ -124,6 +124,31 @@ def _template_globals() -> dict[str, Any]:
     def _col(H, j):
         return H[:, j]
 
+    def _reverse_syms(symbols, Nt):
+        """Reverse detection-order symbols to column-order."""
+        result = np.zeros(Nt, dtype=complex)
+        for si in range(len(symbols)):
+            result[Nt - 1 - si] = symbols[si]
+        return result
+
+    def _row(mat, i):
+        """Get row i of a 2D array."""
+        return mat[i, :]
+
+    def _row_set(mat, i, row_vals):
+        """Set row i of a 2D array."""
+        mat[i, :] = row_vals
+
+    def _argmax_row(mat, i):
+        """argmax of row i."""
+        return int(np.argmax(mat[i, :]))
+
+    def _row_normalize(mat, i):
+        """Normalize row i to sum to 1."""
+        s = np.sum(np.abs(mat[i, :]))
+        if s > 1e-30:
+            mat[i, :] = mat[i, :] / s
+
     return {
         "np": np,
         "math": math,
@@ -146,6 +171,11 @@ def _template_globals() -> dict[str, Any]:
         "_delete_col": _delete_col,
         "_make_tree_node": _make_tree_node,
         "_col": _col,
+        "_reverse_syms": _reverse_syms,
+        "_row": _row,
+        "_row_set": _row_set,
+        "_argmax_row": _argmax_row,
+        "_row_normalize": _row_normalize,
     }
 
 
@@ -226,7 +256,7 @@ SLOT_DEFAULTS: dict[str, str] = {
             interf = 0.0 + 0.0j
             j_rel = 0
             while j_rel < len(node.symbols):
-                j = Nt - len(node.symbols) + j_rel
+                j = Nt - 1 - j_rel
                 interf = interf + R[level, j] * node.symbols[j_rel]
                 j_rel = j_rel + 1
             ci = 0
@@ -272,53 +302,111 @@ SLOT_DEFAULTS: dict[str, str] = {
 
     # ----- BP -----
     "bp_sweep": textwrap.dedent("""\
-        def bp_sweep(H, y, sigma2, mu, var, constellation, max_iters):
+        def bp_sweep(H, y, sigma2, Px, constellation, max_iters):
             Nr = H.shape[0]
             Nt = H.shape[1]
+            M = len(constellation)
             damping = 0.5
-            messages_mu = _czeros2(Nr, Nt)
-            messages_var = np.ones((Nr, Nt))
             it = 0
             while it < max_iters:
-                mu_old = mu.copy()
+                Muz = _czeros2(Nr, Nt)
+                sigmaz2 = np.zeros((Nr, Nt))
                 a = 0
                 while a < Nr:
                     j = 0
                     while j < Nt:
-                        s = sigma2
-                        k = 0
-                        while k < Nt:
-                            if k != j:
-                                s = s + np.abs(H[a, k]) ** 2 * var[k]
-                            k = k + 1
-                        s_inv = 1.0 / max(s, 1e-30)
-                        messages_var[a, j] = 1.0 / max(np.abs(H[a, j]) ** 2 * s_inv, 1e-30)
-                        r = y[a]
-                        k = 0
-                        while k < Nt:
-                            if k != j:
-                                r = r - H[a, k] * mu[k]
-                            k = k + 1
-                        messages_mu[a, j] = r * np.conj(H[a, j]) * s_inv * messages_var[a, j]
+                        mu_j = 0.0 + 0.0j
+                        var_j = 0.0
+                        m = 0
+                        while m < M:
+                            mu_j = mu_j + Px[j, m] * constellation[m]
+                            m = m + 1
+                        m = 0
+                        while m < M:
+                            var_j = var_j + float(np.real(Px[j, m])) * float(np.abs(constellation[m] - mu_j) ** 2)
+                            m = m + 1
+                        Muz[a, j] = H[a, j] * mu_j
+                        sigmaz2[a, j] = float(np.abs(H[a, j]) ** 2) * var_j
                         j = j + 1
                     a = a + 1
+                Beta = np.zeros((Nr, Nt, M))
+                a = 0
+                while a < Nr:
+                    j = 0
+                    while j < Nt:
+                        mu_sum = 0.0 + 0.0j
+                        var_sum = sigma2
+                        k = 0
+                        while k < Nt:
+                            if k != j:
+                                mu_sum = mu_sum + Muz[a, k]
+                                var_sum = var_sum + sigmaz2[a, k]
+                            k = k + 1
+                        var_sum = max(var_sum, 1e-30)
+                        residual = y[a] - mu_sum
+                        m = 0
+                        while m < M:
+                            beta_val = float(np.real(2.0 * np.conj(residual) * H[a, j] * (constellation[m] - constellation[0]) - np.abs(H[a, j]) ** 2 * (np.abs(constellation[m]) ** 2 - np.abs(constellation[0]) ** 2)))
+                            Beta[a, j, m] = beta_val / (2.0 * var_sum)
+                            m = m + 1
+                        j = j + 1
+                    a = a + 1
+                Alpha = np.zeros((Nt, M))
                 j = 0
                 while j < Nt:
-                    prec = 0.0
-                    wm = 0.0 + 0.0j
-                    a = 0
-                    while a < Nr:
-                        p = 1.0 / max(messages_var[a, j], 1e-30)
-                        prec = prec + p
-                        wm = wm + messages_mu[a, j] * p
-                        a = a + 1
-                    new_var = 1.0 / max(prec, 1e-30)
-                    new_mu = wm * new_var
-                    var[j] = damping * float(new_var) + (1.0 - damping) * var[j]
-                    mu[j] = damping * new_mu + (1.0 - damping) * mu[j]
+                    m = 0
+                    while m < M:
+                        s = 0.0
+                        a = 0
+                        while a < Nr:
+                            s = s + Beta[a, j, m]
+                            a = a + 1
+                        Alpha[j, m] = s
+                        m = m + 1
+                    j = j + 1
+                Px_new = np.zeros((Nt, M))
+                j = 0
+                while j < Nt:
+                    max_alpha = -1e30
+                    m = 0
+                    while m < M:
+                        if Alpha[j, m] > max_alpha:
+                            max_alpha = Alpha[j, m]
+                        m = m + 1
+                    m = 0
+                    s = 0.0
+                    while m < M:
+                        Px_new[j, m] = np.exp(Alpha[j, m] - max_alpha)
+                        s = s + Px_new[j, m]
+                        m = m + 1
+                    s = max(s, 1e-30)
+                    m = 0
+                    while m < M:
+                        Px_new[j, m] = Px_new[j, m] / s
+                        m = m + 1
+                    j = j + 1
+                j = 0
+                while j < Nt:
+                    m = 0
+                    while m < M:
+                        Px[j, m] = (1.0 - damping) * Px_new[j, m] + damping * float(np.real(Px[j, m]))
+                        m = m + 1
                     j = j + 1
                 it = it + 1
-            return mu, var
+            gamma = np.zeros((Nt, M))
+            j = 0
+            while j < Nt:
+                m = 0
+                while m < M:
+                    s = 0.0
+                    a = 0
+                    while a < Nr:
+                        s = s + Beta[a, j, m]
+                        a = a + 1
+                    gamma[j, m] = s
+                    m = m + 1
+                j = j + 1
+            return gamma, Px
     """),
     "final_decision": textwrap.dedent("""\
         def final_decision(mu, constellation):
@@ -330,46 +418,50 @@ SLOT_DEFAULTS: dict[str, str] = {
                 i = i + 1
             return x_hat
     """),
+    "bp_final_decision": textwrap.dedent("""\
+        def bp_final_decision(gamma, constellation):
+            Nt = gamma.shape[0]
+            x_hat = _czeros(Nt)
+            i = 0
+            while i < Nt:
+                best_idx = _argmax_row(gamma, i)
+                x_hat[i] = constellation[best_idx]
+                i = i + 1
+            return x_hat
+    """),
 
     # ----- EP -----
     "cavity": textwrap.dedent("""\
-        def cavity(g_mu, g_var, s_mu, s_var):
-            cav_var = 1.0 / max(1.0 / max(g_var, 1e-30) - 1.0 / max(s_var, 1e-30), 1e-30)
-            cav_mu = cav_var * (g_mu / max(g_var, 1e-30) - s_mu / max(s_var, 1e-30))
-            return cav_mu, cav_var
+        def cavity(t, h2, gamma_i, alpha_i):
+            return t, h2
     """),
     "site_update": textwrap.dedent("""\
-        def site_update(cav_mu, cav_var, constellation, s_mu, s_var):
-            diffs = constellation - cav_mu
-            exponents = -np.abs(diffs) ** 2 / max(2.0 * cav_var, 1e-30)
-            max_exp = np.max(np.real(exponents))
+        def site_update(t, h2, constellation, gamma_i, alpha_i):
+            diffs = constellation - t
+            exponents = -np.abs(diffs) ** 2 / max(2.0 * h2, 1e-30)
+            max_exp = float(np.max(np.real(exponents)))
             weights = np.exp(np.real(exponents) - max_exp)
-            w_sum = max(np.sum(weights), 1e-30)
+            w_sum = max(float(np.sum(weights)), 1e-30)
             weights = weights / w_sum
-            post_mu = np.sum(weights * constellation)
-            post_var = max(float(np.real(np.sum(weights * np.abs(constellation - post_mu) ** 2))), 1e-30)
-            new_var = 1.0 / max(1.0 / max(post_var, 1e-30) - 1.0 / max(cav_var, 1e-30), 1e-30)
-            new_mu = new_var * (post_mu / max(post_var, 1e-30) - cav_mu / max(cav_var, 1e-30))
-            return new_mu, new_var
+            mu_p = np.sum(weights * constellation)
+            sigma2_p = float(np.real(np.sum(weights * np.abs(constellation) ** 2))) - float(np.abs(mu_p) ** 2)
+            sigma2_p = max(sigma2_p, 5e-7)
+            new_alpha = 1.0 / sigma2_p - 1.0 / max(h2, 1e-30)
+            new_gamma = mu_p / sigma2_p - t / max(h2, 1e-30)
+            return new_alpha, new_gamma
     """),
-    "damping": textwrap.dedent("""\
-        def damping(old, new, iteration):
-            alpha = 0.5
-            return (alpha * new[0] + (1 - alpha) * old[0],
-                    alpha * new[1] + (1 - alpha) * old[1])
-    """),
-
     # ----- AMP -----
     "amp_iterate": textwrap.dedent("""\
-        def amp_iterate(H, y, sigma2, x_hat, s_hat, z_prev, constellation):
-            Nr = H.shape[0]
-            Nt = H.shape[1]
-            z = y - H @ x_hat
-            onsager_scale = np.mean(s_hat) / max(Nr, 1)
-            z = z + onsager_scale * z_prev
-            r = x_hat + H.conj().T @ z
-            tau = sigma2 * Nt / max(Nr, 1)
+        def amp_iterate(G, Gtilde, g_scale, gtilde, yMFtilde, sigma2, x_hat, tau_s, z, constellation):
+            Nt = len(x_hat)
             M = len(constellation)
+            tau_p = g_scale @ tau_s
+            theta_s = 0.5
+            theta_z = 0.5
+            tau_p_safe = np.maximum(tau_p, 1e-30)
+            tau_p_plus_s2 = tau_p_safe + sigma2
+            tau_z = tau_p_plus_s2 * gtilde
+            tau_z = np.maximum(tau_z, 1e-30)
             x_new = _czeros(Nt)
             x_var = np.zeros(Nt)
             i = 0
@@ -378,7 +470,8 @@ SLOT_DEFAULTS: dict[str, str] = {
                 j = 0
                 max_e = -1e30
                 while j < M:
-                    e = -float(np.abs(constellation[j] - r[i]) ** 2) / max(2.0 * tau, 1e-30)
+                    dist_j = float(np.abs(z[i] - constellation[j]) ** 2)
+                    e = 0.0 - dist_j / max(float(tau_z[i]), 1e-30)
                     if e > max_e:
                         max_e = e
                     w[j] = e
@@ -407,7 +500,20 @@ SLOT_DEFAULTS: dict[str, str] = {
                     j = j + 1
                 x_var[i] = v_i
                 i = i + 1
-            return x_new, x_var, z
+            shat_old = x_hat.copy()
+            one_m_ts = 1.0 - theta_s
+            tau_s_new = theta_s * x_var + one_m_ts * tau_s
+            tau_p_new = g_scale @ tau_s_new
+            tau_p_old_safe = np.maximum(tau_p, 1e-30)
+            tp_denom = tau_p_old_safe + sigma2
+            v_scale = tau_p_new / tp_denom
+            z_diff = z - shat_old
+            v = v_scale * z_diff
+            one_m_tz = 1.0 - theta_z
+            tp_new_plus_s2 = tau_p_new + sigma2
+            tau_z_new = theta_z * tp_new_plus_s2 * gtilde + one_m_tz * tau_z
+            z_new = yMFtilde + Gtilde @ x_new + v
+            return x_new, tau_s_new, z_new
     """),
 }
 
@@ -489,7 +595,7 @@ KBEST_TEMPLATE = textwrap.dedent("""\
             if candidates[bi].cost < best.cost:
                 best = candidates[bi]
             bi = bi + 1
-        return _carray(best.symbols)
+        return _reverse_syms(best.symbols, Nt)
 """)
 
 STACK_TEMPLATE = textwrap.dedent("""\
@@ -502,7 +608,9 @@ STACK_TEMPLATE = textwrap.dedent("""\
         root = _make_tree_node(Nt - 1, [], 0.0)
         open_set = [root]
         nodes_expanded = 0
-        max_nodes = 500
+        max_nodes = 10000
+        best_complete = root
+        found = 0
         _done = 0
         while _done == 0:
             if len(open_set) == 0:
@@ -514,9 +622,14 @@ STACK_TEMPLATE = textwrap.dedent("""\
                 node = open_set.pop(best_idx)
                 nodes_expanded = nodes_expanded + 1
                 if len(node.symbols) == Nt:
-                    return _carray(node.symbols)
-                children = slot_expand(node, y_tilde, R, constellation)
-                open_set = open_set + children
+                    best_complete = node
+                    found = 1
+                    _done = 1
+                if _done == 0:
+                    children = slot_expand(node, y_tilde, R, constellation)
+                    open_set = open_set + children
+        if found == 1:
+            return _reverse_syms(best_complete.symbols, Nt)
         if len(open_set) > 0:
             best = open_set[0]
             i = 1
@@ -525,7 +638,7 @@ STACK_TEMPLATE = textwrap.dedent("""\
                     best = open_set[i]
                 i = i + 1
             if len(best.symbols) == Nt:
-                return _carray(best.symbols)
+                return _reverse_syms(best.symbols, Nt)
         return _czeros(Nt)
 """)
 
@@ -533,14 +646,24 @@ BP_TEMPLATE = textwrap.dedent("""\
     def bp(H, y, sigma2, constellation, slot_bp_sweep, slot_final_decision):
         Nr = H.shape[0]
         Nt = H.shape[1]
-        x_mf = H.conj().T @ y
-        G_diag = np.real(_sum0(np.abs(H) ** 2))
-        G_diag = np.maximum(G_diag, 1e-30)
-        init_mu = x_mf / G_diag
-        init_var = sigma2 / G_diag
-        result = slot_bp_sweep(H, y, sigma2, init_mu, init_var, constellation, 20)
-        mu = result[0]
-        x_hat = slot_final_decision(mu, constellation)
+        M = len(constellation)
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        x_mmse = np.linalg.solve(G, H.conj().T @ y)
+        Px = _czeros2(Nt, M)
+        i = 0
+        while i < Nt:
+            dists = np.abs(constellation - x_mmse[i]) ** 2
+            min_d = np.min(dists)
+            j = 0
+            while j < M:
+                if float(np.real(dists[j] - min_d)) < 1e-10:
+                    Px[i, j] = 1.0
+                j = j + 1
+            _row_normalize(Px, i)
+            i = i + 1
+        result = slot_bp_sweep(H, y, sigma2, Px, constellation, 20)
+        gamma = result[0]
+        x_hat = slot_final_decision(gamma, constellation)
         return x_hat
 """)
 
@@ -548,32 +671,45 @@ EP_TEMPLATE = textwrap.dedent("""\
     def ep(H, y, sigma2, constellation, slot_cavity, slot_site_update, slot_final_decision):
         Nr = H.shape[0]
         Nt = H.shape[1]
-        site_mu = _czeros(Nt)
-        site_var = _cfull(Nt, 1e6)
+        alpha = np.ones(Nt) * 2.0
+        gamma_ep = _czeros(Nt)
         HtH = H.conj().T @ H
         Hty = H.conj().T @ y
+        s2inv = 1.0 / max(sigma2, 1e-30)
+        Hty_scaled = Hty * s2inv
+        HtH_scaled = HtH * s2inv
+        rhs = Hty_scaled + gamma_ep
+        Sigma_q = np.linalg.inv(HtH_scaled + np.diag(alpha))
+        mu_q = Sigma_q @ rhs
+        damping = 0.5
+        one_m_damp = 1.0 - damping
         it = 0
         while it < 20:
-            site_prec = 1.0 / np.maximum(site_var, 1e-30)
-            Sigma_inv = HtH / max(sigma2, 1e-30) + np.diag(site_prec)
-            Sigma = np.linalg.inv(Sigma_inv + 1e-10 * np.eye(Nt))
-            global_mu = Sigma @ (Hty / max(sigma2, 1e-30) + site_mu * site_prec)
-            global_var = np.real(np.diag(Sigma))
+            sig = np.real(np.diag(Sigma_q))
             i = 0
             while i < Nt:
-                cav_result = slot_cavity(global_mu[i], float(global_var[i]),
-                                          site_mu[i], float(site_var[i]))
-                upd_result = slot_site_update(cav_result[0], cav_result[1], constellation,
-                                               site_mu[i], float(site_var[i]))
-                site_mu[i] = 0.5 * upd_result[0] + 0.5 * site_mu[i]
-                site_var[i] = 0.5 * upd_result[1] + 0.5 * site_var[i]
+                sig_i = float(sig[i])
+                alpha_i = float(alpha[i])
+                denom = 1.0 - sig_i * alpha_i
+                denom = max(denom, 1e-30)
+                h2 = sig_i / denom
+                h2 = max(h2, 1e-30)
+                sig_inv = 1.0 / max(sig_i, 1e-30)
+                ratio = mu_q[i] * sig_inv - gamma_ep[i]
+                t = h2 * ratio
+                cav_result = slot_cavity(t, h2, gamma_ep[i], alpha_i)
+                upd_result = slot_site_update(cav_result[0], cav_result[1], constellation, gamma_ep[i], alpha_i)
+                new_alpha = float(np.real(upd_result[0]))
+                new_gamma = upd_result[1]
+                if new_alpha > 1e-6:
+                    alpha[i] = damping * new_alpha + one_m_damp * alpha_i
+                    gamma_ep[i] = damping * new_gamma + one_m_damp * gamma_ep[i]
                 i = i + 1
+            rhs = Hty_scaled + gamma_ep
+            Sigma_q = np.linalg.inv(HtH_scaled + np.diag(alpha))
+            mu_q = Sigma_q @ rhs
             it = it + 1
-        site_prec = 1.0 / np.maximum(site_var, 1e-30)
-        Sigma_inv = HtH / max(sigma2, 1e-30) + np.diag(site_prec)
-        Sigma = np.linalg.inv(Sigma_inv + 1e-10 * np.eye(Nt))
-        final_mu = Sigma @ (Hty / max(sigma2, 1e-30) + site_mu * site_prec)
-        x_hat = slot_final_decision(final_mu, constellation)
+        x_hat = slot_final_decision(mu_q, constellation)
         return x_hat
 """)
 
@@ -581,17 +717,25 @@ AMP_TEMPLATE = textwrap.dedent("""\
     def amp(H, y, sigma2, constellation, slot_amp_iterate, slot_final_decision):
         Nr = H.shape[0]
         Nt = H.shape[1]
+        G = H.conj().T @ H
+        g_diag = np.real(np.diag(G))
+        g_diag = np.maximum(g_diag, 1e-30)
+        Gtilde = np.eye(Nt) - np.diag(1.0 / g_diag) @ G
+        g_scale = g_diag / max(float(Nr), 1.0)
+        gtilde = 1.0 / g_diag
+        yMF = H.conj().T @ y
+        yMFtilde = gtilde * yMF
         x_hat = _czeros(Nt)
-        s_hat = np.ones(Nt)
-        z = _czeros(Nr)
+        tau_s = np.ones(Nt)
+        z = yMFtilde.copy()
         it = 0
         while it < 20:
-            result = slot_amp_iterate(H, y, sigma2, x_hat, s_hat, z, constellation)
+            result = slot_amp_iterate(G, Gtilde, g_scale, gtilde, yMFtilde, sigma2, x_hat, tau_s, z, constellation)
             x_hat = result[0]
-            s_hat = result[1]
+            tau_s = result[1]
             z = result[2]
             it = it + 1
-        x_out = slot_final_decision(x_hat, constellation)
+        x_out = slot_final_decision(z, constellation)
         return x_out
 """)
 
@@ -681,7 +825,7 @@ _DETECTOR_SPECS: list[_DetectorSpec] = [
         slot_defs_fn=_bp_slots,
         slot_default_keys={
             "slot_bp_sweep": "bp_sweep",
-            "slot_final_decision": "final_decision",
+            "slot_final_decision": "bp_final_decision",
         },
         tags={"original", "message_passing"},
     ),
@@ -1027,20 +1171,54 @@ def build_ir_pool(
         ir_slot_ids = set(get_slot_ids(structural_ir))
         populations: dict[str, SlotPopulation] = {}
 
+        # Build a lookup: slot_arg_name (minus "slot_" prefix) → slot_arg_name
+        # e.g. "bp_sweep" → "slot_bp_sweep"
+        arg_name_to_ir_slot = {}
+        for arg_name in spec.slot_arg_names:
+            ir_sid = arg_name.removeprefix("slot_")
+            arg_name_to_ir_slot[arg_name] = ir_sid
+
         for slot_id, desc in slot_tree.items():
-            # Find matching slot_id in IR
-            # The IR slot_id is the slot_arg_name minus "slot_" prefix.
-            # The SlotDescriptor slot_id is e.g. "lmmse.regularizer"
-            # We need to match: short_name == IR slot_id
-            if desc.short_name not in ir_slot_ids:
-                # Check for exact slot_id match too
-                if slot_id not in ir_slot_ids:
-                    continue
+            # Match descriptor to IR slot_id.
+            # The IR slot_id = slot_arg_name minus "slot_" prefix (e.g. "bp_sweep")
+            # The descriptor short_name might be a suffix (e.g. "sweep").
+            # We match via the slot_default_keys mapping: arg_name → default_key.
+            matched_ir_sid = None
+            matched_arg_name = None
+
+            # Strategy 1: direct short_name match
+            if desc.short_name in ir_slot_ids:
+                matched_ir_sid = desc.short_name
+            # Strategy 2: exact slot_id match
+            elif slot_id in ir_slot_ids:
+                matched_ir_sid = slot_id
+            else:
+                # Strategy 3: find via slot_default_keys mapping
+                for arg_name, dk in spec.slot_default_keys.items():
+                    ir_sid = arg_name.removeprefix("slot_")
+                    if ir_sid in ir_slot_ids:
+                        # Check if this arg_name's default_key matches desc
+                        if dk == desc.short_name or slot_id.endswith(f".{dk}"):
+                            matched_ir_sid = ir_sid
+                            matched_arg_name = arg_name
+                            break
+                        # Also check: the arg_name itself ends with desc.short_name
+                        if ir_sid.endswith(desc.short_name) or ir_sid.endswith(f"_{desc.short_name}"):
+                            matched_ir_sid = ir_sid
+                            matched_arg_name = arg_name
+                            break
+
+            if matched_ir_sid is None:
+                continue
 
             # Determine the key for the default implementation
             default_key = None
             for arg_name, dk in spec.slot_default_keys.items():
-                # arg_name = "slot_regularizer", short_name = "regularizer"
+                ir_sid = arg_name.removeprefix("slot_")
+                # Match via IR slot_id or short_name
+                if ir_sid == matched_ir_sid:
+                    default_key = dk
+                    break
                 if arg_name == f"slot_{desc.short_name}":
                     default_key = dk
                     break

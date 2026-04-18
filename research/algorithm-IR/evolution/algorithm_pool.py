@@ -308,18 +308,18 @@ def _kbest_slots() -> dict[str, SlotDescriptor]:
 
 def _bp_slots() -> dict[str, SlotDescriptor]:
     return {
-        "bp.sweep": SlotDescriptor(
-            slot_id="bp.sweep",
-            short_name="sweep",
+        "bp.bp_sweep": SlotDescriptor(
+            slot_id="bp.bp_sweep",
+            short_name="bp_sweep",
             level=2, depth=0,
             parent_slot_id=None,
             spec=ProgramSpec(
-                name="sweep",
-                param_names=["H", "y", "sigma2", "mu", "var", "const", "iters"],
-                param_types=["mat", "vec_cx", "float", "vec_cx", "vec_f", "vec_cx", "int"],
+                name="bp_sweep",
+                param_names=["H", "y", "sigma2", "Px", "constellation", "max_iters"],
+                param_types=["mat", "vec_cx", "float", "mat", "vec_cx", "int"],
                 return_type="tuple",
             ),
-            description="Full BP message-passing sweep",
+            description="Full BP message-passing sweep (probability-domain)",
             domain_tags={"message_passing"},
         ),
         "bp.final_decision": SlotDescriptor(
@@ -346,14 +346,14 @@ def _ep_slots() -> dict[str, SlotDescriptor]:
             short_name="cavity",
             level=1, depth=0,
             parent_slot_id=None,
-            child_slot_ids=["ep.cavity.var", "ep.cavity.mu"],
+            child_slot_ids=[],
             spec=ProgramSpec(
                 name="cavity",
-                param_names=["g_mu", "g_var", "s_mu", "s_var"],
+                param_names=["t", "h2", "gamma_i", "alpha_i"],
                 param_types=["cx", "float", "cx", "float"],
                 return_type="tuple",
             ),
-            description="Cavity distribution computation",
+            description="Cavity distribution (pass-through in precision parameterization)",
             domain_tags={"distribution"},
         ),
         "ep.cavity.var": SlotDescriptor(
@@ -363,25 +363,11 @@ def _ep_slots() -> dict[str, SlotDescriptor]:
             parent_slot_id="ep.cavity",
             spec=ProgramSpec(
                 name="cavity_var",
-                param_names=["g_var", "s_var"],
+                param_names=["h2", "alpha_i"],
                 param_types=["float", "float"],
                 return_type="float",
             ),
             description="Cavity variance computation",
-            domain_tags={"distribution"},
-        ),
-        "ep.cavity.mu": SlotDescriptor(
-            slot_id="ep.cavity.mu",
-            short_name="cavity_mu",
-            level=0, depth=1,
-            parent_slot_id="ep.cavity",
-            spec=ProgramSpec(
-                name="cavity_mu",
-                param_names=["g_mu", "g_var", "s_mu", "s_var"],
-                param_types=["cx", "float", "cx", "float"],
-                return_type="cx",
-            ),
-            description="Cavity mean computation",
             domain_tags={"distribution"},
         ),
         "ep.site_update": SlotDescriptor(
@@ -389,90 +375,15 @@ def _ep_slots() -> dict[str, SlotDescriptor]:
             short_name="site_update",
             level=2, depth=0,
             parent_slot_id=None,
-            child_slot_ids=[
-                "ep.site_update.tilted",
-                "ep.site_update.moment_match",
-                "ep.site_update.prec_update",
-                "ep.site_update.mean_update",
-            ],
+            child_slot_ids=[],
             spec=ProgramSpec(
                 name="site_update",
-                param_names=["cav_mu", "cav_var", "const", "s_mu", "s_var"],
+                param_names=["t", "h2", "const", "gamma_i", "alpha_i"],
                 param_types=["cx", "float", "vec_cx", "cx", "float"],
                 return_type="tuple",
             ),
-            description="EP site approximation update",
+            description="EP site approximation update (precision domain)",
             domain_tags={"inference"},
-        ),
-        "ep.site_update.tilted": SlotDescriptor(
-            slot_id="ep.site_update.tilted",
-            short_name="tilted",
-            level=1, depth=1,
-            parent_slot_id="ep.site_update",
-            spec=ProgramSpec(
-                name="tilted",
-                param_names=["cav_mu", "cav_var", "constellation"],
-                param_types=["cx", "float", "vec_cx"],
-                return_type="vec_f",
-            ),
-            description="Tilted distribution likelihoods",
-            domain_tags={"distribution"},
-        ),
-        "ep.site_update.moment_match": SlotDescriptor(
-            slot_id="ep.site_update.moment_match",
-            short_name="moment_match",
-            level=1, depth=1,
-            parent_slot_id="ep.site_update",
-            spec=ProgramSpec(
-                name="moment_match",
-                param_names=["tilted", "constellation"],
-                param_types=["vec_f", "vec_cx"],
-                return_type="tuple",
-            ),
-            description="Moment matching to Gaussian",
-            domain_tags={"distribution"},
-        ),
-        "ep.site_update.prec_update": SlotDescriptor(
-            slot_id="ep.site_update.prec_update",
-            short_name="prec_update",
-            level=0, depth=1,
-            parent_slot_id="ep.site_update",
-            spec=ProgramSpec(
-                name="prec_update",
-                param_names=["post_var", "cav_var"],
-                param_types=["float", "float"],
-                return_type="float",
-            ),
-            description="Site precision update rule",
-            domain_tags={"inference"},
-        ),
-        "ep.site_update.mean_update": SlotDescriptor(
-            slot_id="ep.site_update.mean_update",
-            short_name="mean_update",
-            level=0, depth=1,
-            parent_slot_id="ep.site_update",
-            spec=ProgramSpec(
-                name="mean_update",
-                param_names=["post_mu", "post_var", "cav_mu", "cav_var"],
-                param_types=["cx", "float", "cx", "float"],
-                return_type="cx",
-            ),
-            description="Site mean update rule",
-            domain_tags={"inference"},
-        ),
-        "ep.damping": SlotDescriptor(
-            slot_id="ep.damping",
-            short_name="damping",
-            level=0, depth=0,
-            parent_slot_id=None,
-            spec=ProgramSpec(
-                name="damping",
-                param_names=["old", "new", "iteration"],
-                param_types=["tuple", "tuple", "int"],
-                return_type="tuple",
-            ),
-            description="EP damping strategy",
-            domain_tags={"iterative"},
         ),
         "ep.final_decision": SlotDescriptor(
             slot_id="ep.final_decision",
@@ -493,9 +404,9 @@ def _ep_slots() -> dict[str, SlotDescriptor]:
 
 def _amp_slots() -> dict[str, SlotDescriptor]:
     return {
-        "amp.iterate": SlotDescriptor(
-            slot_id="amp.iterate",
-            short_name="iterate",
+        "amp.amp_iterate": SlotDescriptor(
+            slot_id="amp.amp_iterate",
+            short_name="amp_iterate",
             level=2, depth=0,
             parent_slot_id=None,
             child_slot_ids=[
@@ -506,19 +417,19 @@ def _amp_slots() -> dict[str, SlotDescriptor]:
                 "amp.iterate.divergence",
             ],
             spec=ProgramSpec(
-                name="iterate",
-                param_names=["H", "y", "sigma2", "x", "s", "z", "const"],
-                param_types=["mat", "vec_cx", "float", "vec_cx", "vec_f", "vec_cx", "vec_cx"],
+                name="amp_iterate",
+                param_names=["G", "Gtilde", "g_scale", "gtilde", "yMFtilde", "sigma2", "x", "tau_s", "z", "const"],
+                param_types=["mat", "mat", "vec_f", "vec_f", "vec_cx", "float", "vec_cx", "vec_f", "vec_cx", "vec_cx"],
                 return_type="tuple",
             ),
-            description="One AMP iteration step",
+            description="One AMP iteration step (LAMA-style)",
             domain_tags={"inference"},
         ),
         "amp.iterate.residual": SlotDescriptor(
             slot_id="amp.iterate.residual",
             short_name="residual",
             level=0, depth=1,
-            parent_slot_id="amp.iterate",
+            parent_slot_id="amp.amp_iterate",
             spec=ProgramSpec(
                 name="residual",
                 param_names=["y", "H", "x_hat"],
@@ -532,7 +443,7 @@ def _amp_slots() -> dict[str, SlotDescriptor]:
             slot_id="amp.iterate.onsager",
             short_name="onsager",
             level=1, depth=1,
-            parent_slot_id="amp.iterate",
+            parent_slot_id="amp.amp_iterate",
             spec=ProgramSpec(
                 name="onsager",
                 param_names=["z_new", "z_old", "s_hat", "Nr"],
@@ -546,7 +457,7 @@ def _amp_slots() -> dict[str, SlotDescriptor]:
             slot_id="amp.iterate.effective_obs",
             short_name="effective_obs",
             level=0, depth=1,
-            parent_slot_id="amp.iterate",
+            parent_slot_id="amp.amp_iterate",
             spec=ProgramSpec(
                 name="effective_obs",
                 param_names=["x_hat", "H", "z"],
@@ -560,7 +471,7 @@ def _amp_slots() -> dict[str, SlotDescriptor]:
             slot_id="amp.iterate.denoiser",
             short_name="denoiser",
             level=1, depth=1,
-            parent_slot_id="amp.iterate",
+            parent_slot_id="amp.amp_iterate",
             spec=ProgramSpec(
                 name="denoiser",
                 param_names=["r", "tau", "constellation"],
@@ -574,7 +485,7 @@ def _amp_slots() -> dict[str, SlotDescriptor]:
             slot_id="amp.iterate.divergence",
             short_name="divergence",
             level=0, depth=1,
-            parent_slot_id="amp.iterate",
+            parent_slot_id="amp.amp_iterate",
             spec=ProgramSpec(
                 name="divergence",
                 param_names=["x_new", "r", "tau"],

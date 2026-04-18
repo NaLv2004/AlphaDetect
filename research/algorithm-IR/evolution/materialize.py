@@ -129,7 +129,8 @@ def _find_population_for_slot(
     """Find the SlotPopulation matching a slot_id.
 
     Tries exact match on the population key, then matches by the
-    short name at the end of the key.
+    short name at the end of the key, then checks if slot_id is a
+    suffix of the pop key's last segment (e.g. "bp_sweep" ends with "sweep").
     """
     for pop_key, pop in genome.slot_populations.items():
         if pop.slot_id == slot_id:
@@ -139,7 +140,11 @@ def _find_population_for_slot(
             return pop
         # Check short_name extracted from key
         parts = pop_key.split(".")
-        if parts[-1] == slot_id:
+        short = parts[-1] if parts else ""
+        if short == slot_id:
+            return pop
+        # Check if slot_id ends with the short_name (e.g. "bp_sweep" ends with "sweep")
+        if slot_id.endswith(short) or slot_id.endswith(f"_{short}"):
             return pop
     return None
 
