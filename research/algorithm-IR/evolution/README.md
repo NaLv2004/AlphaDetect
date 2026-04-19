@@ -1,10 +1,446 @@
-# Evolution 模块实现原理（Algorithm-IR 版）
+# `evolution/` — 双层算法进化引擎
 
-本文面向 `research/algorithm-IR/evolution/` 目录，解释三个核心问题：
+> 基于 `FunctionIR` 的 MIMO 检测器自动进化框架。宏观层执行骨架嫁接（structural grafting），微观层在每个算法的槽位子种群内做变异/交叉。
 
-1. `evolution` 框架整体是如何工作的。
-2. 它和 `algorithm_ir` 的关系是什么（为什么必须绑定 IR）。
-3. 进化引擎 `EvolutionEngine` 的接口与内部机制细节。
+---
+
+## 模块结构
+
+```
+evolution/
+│
+├── 核心引擎 ──────────────────────────────────────────
+│   ├── algorithm_engine.py       # ★ AlgorithmEvolutionEngine — 双层进化主循环
+│   ├── pool_types.py             #   AlgorithmGenome, AlgorithmEntry, GraftProposal,
+│   │                             #   SlotPopulation, SlotDescriptor, PatternMatcherFn
+│   ├── mimo_evaluator.py         #   MIMOFitnessEvaluator — Monte Carlo 评估 (BER + 复杂度)
+│   ├── materialize.py            #   materialize(), materialize_to_callable() — IR → 可执行代码
+│   └── ir_pool.py                #   build_ir_pool() — 8 个基线检测器的 IR + 槽位初始化
+│
+├── 骨架嫁接 ──────────────────────────────────────────
+│   └── pattern_matchers.py       # ★ ExpertPatternMatcher, RandomGraftPatternMatcher,
+│                                 #   StaticStructurePatternMatcher, CompositePatternMatcher
+│
+├── IR 操作算子 ────────────────────────────────────────
+│   ├── operators.py              #   mutate_ir(), crossover_ir(), mutate_genome(), crossover_genome()
+│   ├── random_program.py         #   random_ir_program(), random_loop_program()
+│   └── slot_discovery.py         #   discover_slots() — 自动发现可进化槽位
+│
+├── 操作原语库（四层） ─────────────────────────────────
+│   ├── pool_ops_l0.py            #   L0: 标量/复数/向量/矩阵/统计原子操作 (~80 个)
+│   ├── pool_ops_l1.py            #   L1: 信号处理模块 (regularized_solve, matched_filter, ...)
+│   ├── pool_ops_l2.py            #   L2: 算法组件 (expand_node, bp_sweep, ep_site_update, ...)
+│   └── pool_ops_l3.py            #   L3: 完整检测器 (lmmse, zf, osic, kbest, stack, bp, ep, amp)
+│
+├── 旧版单层引擎（保留兼容） ──────────────────────────
+│   ├── engine.py                 #   EvolutionEngine (单层 IRGenome 进化)
+│   ├── config.py                 #   EvolutionConfig (单层配置)
+│   ├── genome.py                 #   IRGenome (单层基因组)
+│   ├── fitness.py                #   FitnessResult, FitnessEvaluator (通用适应度接口)
+│   ├── skeleton_registry.py      #   ProgramSpec, SkeletonSpec, SkeletonRegistry
+│   ├── algorithm_pool.py         #   build_initial_pool() — 多层级池 (L1/L2/L3)
+│   └── run_evolution.py          #   旧版进化入口脚本
+│
+└── __init__.py
+```
+
+---
+
+## 架构概览：双层进化
+
+```
+                     AlgorithmEvolutionEngine
+                     ═══════════════════════
+                              │
+              ┌───────────────┼───────────────┐
+              ▼               ▼               ▼
+        宏观层 (Macro)   微观层 (Micro)    评估层 (Eval)
+        ──────────────   ──────────────    ──────────────
+        • 锦标赛选择     • 槽位子种群      • materialize()
+        • 骨架交叉        变异/交叉        • Monte Carlo
+        • PatternMatcher • mutate_ir()     • BER + 复杂度
+          → graft_general • crossover_ir()  • 合成评分
+        • Gene Bank       • 适应度排序
+
+                              │
+                              ▼
+                     AlgorithmGenome
+                     ═══════════════
+                     structural_ir: FunctionIR  ← 骨架模板 (含 AlgSlot 占位)
+                     slot_populations: {
+                       "slot_regularizer": SlotPopulation(variants=[IR₁, IR₂, ...]),
+                       "slot_hard_decision": SlotPopulation(variants=[IR₃, IR₄, ...]),
+                     }
+                     tags: {"tree_search", "grafted"}
+                     metadata: {"_donor_sources": {...}}
+```
+
+---
+
+## 核心数据类型
+
+### AlgorithmGenome (`pool_types.py`)
+
+一个进化个体 = 结构模板 + 槽位子种群：
+
+```python
+@dataclass
+class AlgorithmGenome:
+    algo_id: str                          # 唯一标识 (例: "algo_a181c995")
+    structural_ir: FunctionIR             # 骨架 IR (含 AlgSlot 占位操作)
+    slot_populations: dict[str, SlotPopulation]  # 每个槽位的实现变体种群
+    constants: np.ndarray                 # 可进化常量向量
+    generation: int                       # 被创建的代数
+    parent_ids: list[str]                 # 亲代 ID
+    graft_history: list[GraftRecord]      # 嫁接历史
+    tags: set[str]                        # 标签 {"original", "grafted", "tree_search", ...}
+    metadata: dict[str, Any]              # _donor_sources, _cached_trace 等
+```
+
+关键方法：
+- `clone()` — 深拷贝（生成新 algo_id）
+- `to_entry(fitness)` — 转为 `AlgorithmEntry` 供 PatternMatcher 使用
+
+### SlotPopulation (`pool_types.py`)
+
+一个槽位的子种群：
+
+```python
+@dataclass
+class SlotPopulation:
+    slot_id: str                    # 槽位名 (例: "slot_regularizer")
+    spec: ProgramSpec | None        # 参数签名
+    variants: list[FunctionIR]      # 实现变体列表
+    fitness: list[float]            # 对应适应度
+    best_idx: int                   # 最佳变体索引
+    source_variants: list[str|None] # Python 源码缓存
+```
+
+### GraftProposal (`pool_types.py`)
+
+PatternMatcher 生成的嫁接提议：
+
+```python
+@dataclass
+class GraftProposal:
+    proposal_id: str
+    host_algo_id: str         # 宿主算法 ID
+    region: RewriteRegion     # 宿主中被替换的区域
+    contract: BoundaryContract | None
+    donor_algo_id: str | None # 供体算法 ID
+    donor_ir: FunctionIR | None
+    dependency_overrides: list[DependencyOverride]
+    confidence: float         # 置信度 (0~1)
+    rationale: str            # 人类可读原因
+```
+
+### FitnessResult (`fitness.py`)
+
+```python
+@dataclass
+class FitnessResult:
+    score: float          # 合成评分 (越低越好)
+    valid: bool
+    metrics: dict[str, float]  # ser, complexity, eval_time, ser_24dB, ser_26dB 等
+```
+
+`composite_score()` 返回加权合成分：score 越低越好。
+
+---
+
+## 进化引擎详解
+
+### AlgorithmEvolutionEngine (`algorithm_engine.py`)
+
+```python
+engine = AlgorithmEvolutionEngine(
+    evaluator=MIMOFitnessEvaluator(eval_cfg),
+    config=AlgorithmEvolutionConfig(pool_size=8, n_generations=30, ...),
+    rng=np.random.default_rng(42),
+    pattern_matcher=CompositePatternMatcher([
+        ExpertPatternMatcher(max_proposals_per_gen=2),
+        RandomGraftPatternMatcher(proposals_per_gen=1),
+    ]),
+)
+best = engine.run(callback=my_callback)
+```
+
+**每代执行流程：**
+
+1. **微观进化**：对种群中每个 genome，在其每个 slot_population 内做 `mutate_ir()` / `crossover_ir()`
+2. **重新评估**：`evaluator.evaluate_batch(population)`
+3. **宏观繁殖**：锦标赛选择 → 骨架交叉 → 槽位变异 → 生成子代
+4. **骨架嫁接**：PatternMatcher 生成 GraftProposal → `graft_general()` 执行 IR 手术 → 生成嫁接子代
+5. **合并选择**：父代 + 子代 + 嫁接子代合并，按 composite_score 排序，截断到 pool_size
+6. **基因库**（Gene Bank）：原始 8 个基线检测器永远保留，不会被选择淘汰，确保嫁接规则始终能找到供体
+7. **停滞重启**：连续 10 代无改善 → 重启底部 1/4 的种群
+
+### Gene Bank 机制
+
+```python
+# init_population() 时填充
+self.gene_bank = list(pool)  # 永久保留 8 个原始检测器
+
+# 每代嫁接时，将基因库条目也传给 PatternMatcher
+all_entries = entries + bank_entries
+proposals = self.pattern_matcher(all_entries, self.generation)
+
+# _execute_graft() 在种群和基因库中查找宿主/供体
+for g in self.population + self.gene_bank:
+    ...
+```
+
+---
+
+## 骨架嫁接系统
+
+### PatternMatcher 类型
+
+| 类 | 策略 | 置信度 |
+|---|------|--------|
+| `ExpertPatternMatcher` | 5 条硬编码专家规则 | 0.6–0.9 |
+| `RandomGraftPatternMatcher` | 随机宿主/供体/区域 | 0.1 |
+| `StaticStructurePatternMatcher` | IR 结构指纹匹配 | 0.4–0.5 |
+| `CompositePatternMatcher` | 组合多个 matcher | — |
+
+### 5 条专家嫁接规则
+
+| 规则 | 宿主 | 供体 | 描述 |
+|------|------|------|------|
+| `mmse_init_for_kbest` | kbest | lmmse | 用 MMSE 预滤波替换 K-Best 初始估计 |
+| `bp_sweep_for_ep` | ep | bp | 用 BP 消息传递替换 EP 腔计算 |
+| `amp_denoise_for_ep` | ep | amp | 用 AMP 去噪器替换 EP 站点更新 |
+| `osic_ordering_for_kbest` | kbest | osic | 在 K-Best 中使用 OSIC 排序策略 |
+| `lmmse_regularizer_for_zf` | zf | lmmse | 为 ZF 添加 LMMSE 正则化 |
+
+### 嫁接执行流程 (`_execute_graft`)
+
+```
+PatternMatcher.propose(entries) → GraftProposal
+         │
+         ▼
+graft_general(host_ir, proposal) → GraftArtifact
+         │
+         ▼
+materialize(donor_genome) → donor_source
+         │
+         ▼
+AlgorithmGenome(
+    structural_ir = artifact.ir,
+    slot_populations = deepcopy(host.slot_populations),
+    metadata = {"_donor_sources": {donor_name: donor_source}},
+    tags = host.tags | {"grafted"},
+)
+```
+
+**供体代码注入**：`materialize.py` 在物化时将 `_donor_sources` 前置到生成的 Python 代码中，确保嫁接的 `call` 操作能找到供体函数。
+
+---
+
+## 8 个基线检测器 (`ir_pool.py`)
+
+| algo_id | 算法 | 标签 | 槽位 |
+|---------|------|------|------|
+| `lmmse` | LMMSE 检测 | `linear` | `slot_regularizer`, `slot_hard_decision` |
+| `zf` | Zero-Forcing | `linear` | `slot_hard_decision` |
+| `osic` | OSIC (SIC) | `sic` | `slot_ordering`, `slot_sic_step` |
+| `kbest` | K-Best 树搜索 | `tree_search` | `slot_expand`, `slot_prune` |
+| `stack` | Stack 解码器 | `tree_search` | `slot_expand`, `slot_prune` |
+| `bp` | Belief Propagation | `message_passing` | `slot_bp_sweep`, `slot_bp_final` |
+| `ep` | Expectation Propagation | `inference` | `slot_ep_site`, `slot_ep_final` |
+| `amp` | AMP | `inference` | `slot_amp_denoise`, `slot_amp_final` |
+
+每个检测器由以下组件构成：
+1. **结构模板** (`structural_ir`)：算法主体 Python 源码编译为 FunctionIR，其中对槽位函数的调用被转为 `AlgSlot` 操作
+2. **槽位实现** (`slot_populations`)：每个槽位有默认实现 + 可进化变体
+
+---
+
+## 四层操作原语库
+
+```
+L0: pool_ops_l0.py — 标量/向量/矩阵/统计原子操作 (~80 个)
+    s_add, s_mul, v_dot, m_solve, m_qr, stat_softmax, ...
+
+L1: pool_ops_l1.py — 信号处理模块 (10 个)
+    regularized_solve, whitening_transform, matched_filter,
+    symbol_distance, log_likelihood_distance, linear_equalize, ...
+
+L2: pool_ops_l2.py — 算法组件 (13 个)
+    expand_node, frontier_scoring, prune_kbest, best_first_step,
+    message_up/down, gaussian_bp_message, full_bp_sweep,
+    ep_site_update, amp_iteration_step, sic_detect_one, ...
+
+L3: pool_ops_l3.py — 完整检测器 (8 个)
+    lmmse_detector, zf_detector, osic_detector, kbest_detector,
+    stack_detector, bp_detector, ep_detector, amp_detector
+```
+
+---
+
+## MIMO 适应度评估 (`mimo_evaluator.py`)
+
+```python
+eval_cfg = MIMOEvalConfig(
+    Nr=16, Nt=16, mod_order=16,           # 16×16 16QAM
+    snr_db_list=[20.0, 22.0, 24.0, 26.0], # 多个 SNR 点
+    n_trials=10,                           # Monte Carlo 试验数
+    timeout_sec=8.0,                       # 超时 (秒)
+    complexity_weight=0.001,               # 复杂度惩罚
+    seed=42,
+)
+evaluator = MIMOFitnessEvaluator(eval_cfg)
+```
+
+评估流程：
+1. `materialize_to_callable(genome)` → 可执行 Python 函数
+2. 对每个 SNR 点，生成随机 MIMO 信道 + 发送信号
+3. 调用检测器函数，计算 SER
+4. 每次试验有独立线程超时保护（`shutdown(wait=False)` 避免 Windows 死锁）
+5. 合成评分 = Σ SER_per_snr + complexity_weight × eval_time
+
+---
+
+## 物化系统 (`materialize.py`)
+
+将 `AlgorithmGenome` 转为可执行代码的过程：
+
+```python
+source = materialize(genome)
+# 1. 从 structural_ir 生成 Python 源码
+# 2. 对每个 AlgSlot 操作，取 best_variant 生成辅助函数
+# 3. 前置 donor_sources (嫁接供体代码)
+# 4. 拼接: donor_sources + slot_helpers + main_function
+
+fn = materialize_to_callable(genome)
+# 在 exec namespace 中编译上述代码，返回可调用函数
+x_hat = fn(H, y, sigma2, constellation)
+```
+
+---
+
+## 使用示例
+
+### 最小端到端实验
+
+```python
+import numpy as np
+from evolution.ir_pool import build_ir_pool
+from evolution.pool_types import AlgorithmEvolutionConfig
+from evolution.algorithm_engine import AlgorithmEvolutionEngine
+from evolution.mimo_evaluator import MIMOEvalConfig, MIMOFitnessEvaluator
+from evolution.pattern_matchers import (
+    ExpertPatternMatcher, RandomGraftPatternMatcher, CompositePatternMatcher,
+)
+
+# 评估配置
+eval_cfg = MIMOEvalConfig(
+    Nr=4, Nt=4, mod_order=4,
+    snr_db_list=[15.0, 20.0],
+    n_trials=5, timeout_sec=5.0,
+    complexity_weight=0.001, seed=42,
+)
+
+# 进化配置
+evo_cfg = AlgorithmEvolutionConfig(
+    pool_size=8, n_generations=10,
+    micro_generations=1, micro_pop_size=4,
+    micro_mutation_rate=0.5, seed=42,
+)
+
+# 组合嫁接策略
+matcher = CompositePatternMatcher([
+    ExpertPatternMatcher(max_proposals_per_gen=2),
+    RandomGraftPatternMatcher(proposals_per_gen=1, seed=42),
+])
+
+# 创建引擎并运行
+engine = AlgorithmEvolutionEngine(
+    evaluator=MIMOFitnessEvaluator(eval_cfg),
+    config=evo_cfg,
+    rng=np.random.default_rng(42),
+    pattern_matcher=matcher,
+)
+
+def callback(gen, best_fit, pop):
+    print(f"Gen {gen}: score={best_fit.composite_score():.6f}")
+
+best = engine.run(callback=callback)
+print(f"Best: {best.algo_id}, tags={best.tags}")
+```
+
+### 自定义 PatternMatcher
+
+```python
+from evolution.pool_types import AlgorithmEntry, GraftProposal
+
+class MyMatcher:
+    def __call__(self, entries: list[AlgorithmEntry], generation: int) -> list[GraftProposal]:
+        # 分析 entries 的 IR 结构、适应度、标签
+        # 返回 GraftProposal 列表
+        ...
+```
+
+### 手动物化并测试
+
+```python
+from evolution.materialize import materialize, materialize_to_callable
+
+pool = build_ir_pool()
+genome = pool[0]  # lmmse
+
+source = materialize(genome)      # Python 源码
+fn = materialize_to_callable(genome)  # 可调用函数
+
+import numpy as np
+H = (np.random.randn(4, 4) + 1j * np.random.randn(4, 4)) / np.sqrt(2)
+x = np.array([1+1j, 1-1j, -1+1j, -1-1j]) / np.sqrt(2)
+y = H @ x + 0.1 * (np.random.randn(4) + 1j * np.random.randn(4))
+x_hat = fn(H, y, 0.01, np.array([1+1j, 1-1j, -1+1j, -1-1j]) / np.sqrt(2))
+```
+
+---
+
+## 旧版单层引擎
+
+`engine.py` + `genome.py` + `config.py` 保留了原始的单层进化接口（基于 `IRGenome`）：
+
+```python
+from evolution.config import EvolutionConfig
+from evolution.engine import EvolutionEngine
+from evolution.fitness import FitnessEvaluator, FitnessResult
+from evolution.skeleton_registry import ProgramSpec, SkeletonSpec, SkeletonRegistry
+
+# 这套接口用于 applications/mimo_bp/ 中的 BP 子程序进化
+# 新的 MIMO 全检测器进化请使用 AlgorithmEvolutionEngine
+```
+
+---
+
+## 测试
+
+```bash
+cd research/algorithm-IR
+conda activate AutoGenOld
+
+# 进化框架测试
+python -m pytest tests/unit/test_evolution.py -v
+
+# 算法池 + 两层基因组测试
+python -m pytest tests/unit/test_algorithm_pool.py -v
+
+# IR 变异/交叉测试
+python -m pytest tests/unit/test_ir_evolution.py -v
+
+# 嫁接集成测试
+python -m pytest tests/integration/test_grafting_demo.py -v
+
+# 全部 242 个测试
+python -m pytest tests/ -v
+```
+# `evolution/` — 双层算法进化引擎
+
+> 基于 `FunctionIR` 的 MIMO 检测器自动进化框架。宏观层执行骨架嫁接（structural grafting），微观层在每个算法的槽位子种群内做变异/交叉。
 
 ---
 

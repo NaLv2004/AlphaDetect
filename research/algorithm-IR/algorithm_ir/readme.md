@@ -1,580 +1,292 @@
-# Algorithm IR Architecture Guide
+# `algorithm_ir` — 结构中立的算法中间表示
 
-This package implements a structure-neutral algorithm IR for algorithm discovery and skeleton transplantation.
-It is written for readers who do not have a compiler background, so this document explains the system from first principles.
+> 将 Python 算法函数编译为 SSA 形式的 IR，支持区域切片、边界推导、骨架嫁接与 Python/C++ 代码再生。
 
-The most important architectural fact is this:
+---
 
-`xDSL is now the real low-level substrate of the system.`
+## 模块结构
 
-That means:
-
-- `compile_function_to_ir(...)` first lowers a restricted Python function into a legacy neutral op/block/value description.
-- That description is immediately lowered into an xDSL `ModuleOp`.
-- The public `FunctionIR` object you work with is reconstructed from that xDSL module.
-- When we graft a donor skeleton, we mutate xDSL blocks and xDSL operations directly.
-- After mutation, we rebuild `FunctionIR` from xDSL again.
-
-## Quick Demo
-
-To see the system step through BP injection into a stack decoder, run:
-
-```powershell
-conda run --no-capture-output -n AutoGenOld python research/algorithm-IR/demo.py
+```
+algorithm_ir/
+├── ir/                         # 核心 IR 数据模型
+│   ├── model.py                #   Value, Op, Block, FunctionIR, ModuleIR
+│   ├── dialect.py              #   22 个 IRDL 操作定义 (AlgConst, AlgBinary, ..., AlgSlot)
+│   ├── types.py                #   AlgType — 统一类型包装
+│   ├── type_info.py            #   TypeInfo — 类型推导辅助
+│   ├── printer.py              #   render_function_ir() — IR 可读文本
+│   ├── validator.py            #   validate_function_ir() — 结构验证
+│   └── xdsl_bridge.py          #   xDSL ↔ dict-IR 双向桥接
+│
+├── frontend/                   # 编译前端：Python → IR
+│   ├── ast_parser.py           #   parse_function() — AST 解析 + 源码位置
+│   ├── ir_builder.py           #   compile_function_to_ir(), compile_source_to_ir()
+│   └── cfg_builder.py          #   CFGBlock, link_blocks() — 控制流图构建
+│
+├── regeneration/               # 代码生成后端：IR → Python/C++
+│   ├── codegen.py              #   emit_python_source(), emit_cpp_ops(), CppOp
+│   └── artifact.py             #   AlgorithmArtifact — 嫁接产物
+│
+├── grafting/                   # 骨架嫁接（核心创新）
+│   ├── graft_general.py        #   ★ graft_general() — 通用区域替换 + 调用注入
+│   ├── rewriter.py             #   graft_skeleton() — xDSL 级嫁接 (BP 专用)
+│   ├── matcher.py              #   match_skeleton() — 骨架模式匹配
+│   └── skeletons.py            #   Skeleton, OverridePlan — 骨架描述
+│
+├── region/                     # 可重写区域
+│   ├── selector.py             #   RewriteRegion, define_rewrite_region()
+│   ├── contract.py             #   BoundaryContract, infer_boundary_contract()
+│   └── slicer.py               #   backward_slice_by_values(), forward_slice_from_values()
+│
+├── runtime/                    # IR 解释执行 + 动态追踪
+│   ├── interpreter.py          #   execute_ir() — 执行 FunctionIR
+│   ├── tracer.py               #   RuntimeValue, RuntimeEvent
+│   ├── frames.py               #   RuntimeFrame
+│   └── shadow_store.py         #   ShadowStore — 可变对象追踪
+│
+├── analysis/                   # 静态/动态分析
+│   ├── static_analysis.py      #   def_use_edges(), block_uses()
+│   ├── dynamic_analysis.py     #   runtime_values_for_static()
+│   └── fingerprints.py         #   fingerprint_runtime_value()
+│
+├── factgraph/                  # 因子图（静态 IR + 动态执行对齐）
+│   ├── model.py                #   FactGraph
+│   ├── builder.py              #   build_factgraph()
+│   └── aligner.py              #   静态-动态对齐
+│
+├── projection/                 # 区域投影（可选语义标注）
+│   ├── base.py                 #   Projection
+│   ├── scorer.py               #   annotate_region()
+│   ├── scheduling.py           #   detect_scheduling_projection()
+│   └── local_interaction.py    #   detect_local_interaction_projection()
+│
+└── __init__.py
 ```
 
-The demo shows two levels of transplantation:
-
-- local score-region injection with `bp_summary_update`
-- runtime-nested injection where `bp_tree_runtime_update` runs after each stack expansion
-
-So the dictionaries `func_ir.values`, `func_ir.ops`, and `func_ir.blocks` are no longer the hidden source of truth.
-They are a convenient analysis and interpreter view rebuilt from xDSL.
-
-## 1. What Problem This System Solves
-
-The system is designed for this workflow:
-
-1. Take a Python algorithm and lower it into a uniform executable IR.
-2. Run that IR and collect runtime facts.
-3. Select a local computation region to override.
-4. Infer the boundary of that region.
-5. Insert a donor algorithm skeleton into that region.
-6. Produce a new executable IR and run it again.
-
-The IR is intentionally structure-neutral.
-It does not hardcode that some region "is a search tree" or "is BP".
-It only records executable facts such as:
-
-- read an item from a dictionary
-- call a function
-- append to a list
-- compare two values
-- branch to another block
-
-Higher-level interpretations are optional and live above the core IR.
-
-## 2. Why We Do Not Rewrite Python Source Directly
-
-If we tried to graft donor skeletons directly on Python source code, several things would be fragile:
-
-- It would be hard to define the exact region being replaced.
-- It would be hard to state the inputs and outputs of that region precisely.
-- It would be hard to preserve control flow and dataflow after rewriting.
-- It would be hard to compare host and donor algorithms in one common representation.
-
-The IR solves this by turning a Python function into:
-
-- explicit values
-- explicit operations
-- explicit blocks
-- explicit control-flow edges
-
-This gives us a representation that is:
-
-- executable
-- sliceable
-- rewriteable
-- regenerable
-
-## 3. The Current Architecture in One Picture
-
-The main pipeline is:
-
-`Python function -> AST -> typed AlgDialect ops -> xDSL ModuleOp -> FunctionIR view -> execution/analysis/rewrite -> Python source regeneration`
-
-More concretely:
-
-1. `frontend/ast_parser.py`
-   Parses Python source into a Python AST and records source spans.
-2. `frontend/ir_builder.py`
-   Lowers the restricted Python AST into typed AlgDialect operations in an xDSL ModuleOp.
-3. `ir/dialect.py`
-   Defines the `alg` dialect with 22 IRDL-typed operations and `AlgType`.
-4. `ir/model.py`
-   Rebuilds a `FunctionIR` view from xDSL so analysis and the interpreter can work on a simple API.
-5. `runtime/interpreter.py`
-   Executes the rebuilt `FunctionIR` and records runtime events and runtime values.
-6. `factgraph/`
-   Builds a graph that aligns static IR and dynamic execution.
-7. `region/`
-   Defines the rewrite region and infers its boundary contract.
-8. `grafting/`
-   Matches a donor skeleton and rewrites the xDSL program.
-9. `regeneration/`
-   Packs the rewritten result as an `AlgorithmArtifact` and regenerates Python source.
-
-## 4. Core Objects You Need to Understand
-
-### 4.1 `Value`
-
-A `Value` is a static value slot in the IR.
-It is not a runtime Python object.
-
-You can think of it as:
-
-- a wire in a circuit
-- a variable version
-- the output slot of an operation
-
-Important fields:
-
-- `id`: internal id such as `v_64`
-- `name_hint`: readable hint such as `score_0`
-- `type_hint`: coarse static type such as `float`, `list`, `dict`, `tuple`, `complex`
-- `def_op`: which op defines it
-- `use_ops`: which ops consume it
-- `attrs`: extra metadata such as source variable name and type info
-
-### 4.2 `Op`
-
-An `Op` is a single low-level action.
-
-Examples:
-
-- `const`
-- `assign`
-- `binary`
-- `compare`
-- `call`
-- `get_item`
-- `set_item`
-- `append`
-- `pop`
-- `branch`
-- `jump`
-- `return`
-
-Important fields:
-
-- `opcode`
-- `inputs`
-- `outputs`
-- `block_id`
-- `attrs`
-
-### 4.3 `Block`
-
-A `Block` is a straight-line sequence of operations with no internal branch target.
-
-It has:
-
-- `op_ids`
-- `preds`
-- `succs`
-
-Blocks are what make control flow explicit.
-This is especially important for:
-
-- `if/else`
-- `while`
-- loop backedges
-- returns
-
-### 4.4 `FunctionIR`
-
-`FunctionIR` is the public function-level object used by the rest of the system.
-
-Today it has two roles:
-
-- it exposes a friendly analysis/execution view
-- it keeps the xDSL-backed representation attached
-
-Important fields:
-
-- `values`
-- `ops`
-- `blocks`
-- `arg_values`
-- `return_values`
-- `entry_block`
-- `xdsl_module`
-- `xdsl_func`
-- `xdsl_op_map`
-- `xdsl_block_map`
-
-The critical point is:
-
-`FunctionIR.clone()` clones the xDSL module first, then rebuilds the public view from the clone.
-
-That is the mechanism that makes xDSL the actual substrate instead of a mirror.
-
-## 5. xDSL Is the Source of Truth
-
-This section is the architectural change that matters most.
-
-### Before
-
-Earlier, the project used a handwritten op/block/value graph as the real internal state.
-xDSL was only attached as a side mirror.
-That was not a real migration.
-
-### Now
-
-Now the workflow is:
-
-1. Build a neutral temporary representation.
-2. Lower it to xDSL.
-3. Rebuild `FunctionIR` from xDSL.
-4. Perform skeleton grafting by mutating xDSL blocks and operations.
-5. Rebuild `FunctionIR` from xDSL again.
-
-This means that if an edit is not reflected in xDSL, it is not part of the real rewritten program.
-
-### Why This Matters
-
-Because it gives us:
-
-- stable cloning
-- a proper IR host framework
-- structured blocks and regions
-- operation insertion and erasure APIs
-- a foundation for richer types and future passes
-
-## 6. How Python Is Lowered
-
-The frontend currently supports a restricted but useful subset of Python:
-
-- assignments
-- `if/else`
-- `while`
-- `for`
-- comparisons
-- unary and binary arithmetic
-- function calls
-- attribute access
-- item access
-- list, tuple, and dict literals
-- list mutation via `append` and `pop`
-
-The lowering is intentionally low-level.
-
-For example, a source statement like:
+---
+
+## 核心概念
+
+### FunctionIR
+
+`FunctionIR` 是一个函数的完整 SSA 中间表示，由三类对象组成：
+
+| 对象 | 类 | 含义 |
+|------|------|------|
+| **Value** | `Value(id, name_hint, type_hint, def_op, use_ops, attrs)` | 数据值（变量/常量/中间结果） |
+| **Op** | `Op(id, opcode, inputs, outputs, block_id, attrs)` | 操作（加法/调用/跳转/返回…） |
+| **Block** | `Block(id, op_ids, preds, succs)` | 基本块（顺序执行的操作序列） |
+
+SSA 规则：每个 Value 只被一个 Op 定义（`def_op`），可被多个 Op 使用（`use_ops`）。
+
+关键字段：
+- `values: dict[str, Value]` — 所有值
+- `ops: dict[str, Op]` — 所有操作
+- `blocks: dict[str, Block]` — 所有块
+- `arg_values: list[str]` — 函数参数的 value ID
+- `return_values: list[str]` — 返回值的 value ID
+- `entry_block: str` — 入口块 ID
+- `name: str` — 函数名
+
+### 操作码 (Opcodes)
+
+| 操作码 | 含义 | 示例 |
+|--------|------|------|
+| `const` | 常量 | `3.14`, `True` |
+| `assign` | SSA 赋值 | `x_1 = x_0` |
+| `binary` | 二元运算 | `a + b`, `x * y` |
+| `unary` | 一元运算 | `-x`, `not flag` |
+| `compare` | 比较 | `a < b` |
+| `call` | 函数调用 | `np.linalg.solve(A, b)` |
+| `get_item` / `set_item` | 索引 | `x[i]`, `x[i] = v` |
+| `get_attr` / `set_attr` | 属性 | `x.real` |
+| `build_list` / `build_tuple` / `build_dict` | 构造 | `[a, b]`, `(x, y)` |
+| `append` / `pop` | 列表操作 | `lst.append(x)` |
+| `iter_init` / `iter_next` | 迭代 | `for x in range(n)` |
+| `phi` | φ 节点 | 控制流合并 |
+| `branch` | 条件跳转 | `if cond: goto A else goto B` |
+| `jump` | 无条件跳转 | `goto C` |
+| `return` | 返回 | `return result` |
+| `algslot` | 可进化槽位 | `slot_regularizer(...)` |
+
+### RewriteRegion 与 BoundaryContract
+
+**RewriteRegion** 定义"宿主算法中要被替换的局部区域"：
+- `op_ids` — 区域内的操作 ID
+- `entry_values` — 从外部流入的值
+- `exit_values` — 流出到外部的值
+
+**BoundaryContract** 定义"替换者必须满足的接口契约"：
+- 输入/输出端口
+- 读写集合
+- 不变量
+
+### graft_general() — 通用骨架嫁接
+
+`graft_general()` 是骨架迁移的核心函数，执行 IR 级手术：
+
+1. 克隆宿主 IR
+2. 分析区域边界 (`find_region_boundary`)
+3. 创建 `call` 操作调用供体函数 (`create_call_op`)
+4. 重新绑定原区域输出的使用者 (`rebind_uses`)
+5. 移除被替换的操作 (`remove_ops`)
+6. 拓扑排序确保新操作位置正确 (`topological_sort_block`)
+7. 返回 `GraftArtifact`（包含新 IR、新增槽位等元信息）
+
+---
+
+## 使用示例
+
+### 1. Python → IR 编译
 
 ```python
-score = candidate["metric"] + costs[candidate["depth"]]
+from algorithm_ir.frontend import compile_source_to_ir
+
+source = """
+def detector(H, y, sigma2, constellation):
+    x_hat = np.linalg.solve(H.conj().T @ H + sigma2 * np.eye(H.shape[1]), H.conj().T @ y)
+    return x_hat
+"""
+func_ir = compile_source_to_ir(source, "detector")
+print(f"函数: {func_ir.name}, 参数: {len(func_ir.arg_values)}, "
+      f"操作: {len(func_ir.ops)}, 块: {len(func_ir.blocks)}")
 ```
 
-does not remain a single high-level node.
-It becomes several explicit IR ops:
-
-- load key `"metric"`
-- load `candidate["metric"]`
-- load key `"depth"`
-- load `candidate["depth"]`
-- load `costs[...]`
-- do the `Add`
-- assign to `score`
-
-This is what makes partial replacement possible.
-
-## 7. What the xDSL Layer Stores
-
-The xDSL layer now uses a **formal IRDL-defined dialect** (`alg`).
-
-The dialect is defined in `ir/dialect.py` and includes 22 typed operations:
-
-- `AlgConst`, `AlgAssign`, `AlgBinary`, `AlgUnary`, `AlgCompare`
-- `AlgPhi`, `AlgCall`, `AlgGetAttr`, `AlgSetAttr`
-- `AlgGetItem`, `AlgSetItem`, `AlgBuildList`, `AlgBuildTuple`, `AlgBuildDict`
-- `AlgAppend`, `AlgPop`, `AlgIterInit`, `AlgIterNext`
-- `AlgBranch`, `AlgJump`, `AlgReturn`, `AlgSlot`
-
-All operations use a custom `AlgType` (`!alg.type`) for operands and results.
-Metadata (op ID, block ID, input/output mappings, source spans) is stored as
-xDSL string attributes on each operation.
-
-The block label operation stores:
-
-- block id
-- block attrs
-- predecessor order
-- successor order
-
-The predecessor order matters because `phi` selection depends on it.
-
-## 8. Why the Public View Still Exists
-
-A natural question is:
-
-If xDSL is the substrate, why keep `Value`, `Op`, and `Block` dataclasses at all?
-
-Because they are still convenient for:
-
-- runtime interpretation
-- region slicing
-- boundary inference
-- factgraph construction
-- debugging
-- readable tests
-
-But these views are now regenerated from xDSL.
-They are not the hidden program state that rewriting mutates directly.
-
-## 9. Runtime Layer
-
-The runtime system executes `FunctionIR` and records dynamic evidence.
-
-The key runtime objects are:
-
-### `RuntimeValue`
-
-A concrete runtime instance of a static IR value.
-
-### `RuntimeEvent`
-
-A concrete execution of one static op.
-It records:
-
-- which static op ran
-- which runtime values entered
-- which runtime values exited
-- control context
-
-### `ShadowStore`
-
-Tracks mutable object behavior across runtime execution:
-
-- attribute writes
-- item writes
-- list membership
-- object version history
-
-This matters because many algorithms use mutable Python containers and dictionaries.
-
-## 10. FactGraph
-
-`factgraph/` merges:
-
-- static IR facts
-- dynamic execution facts
-- alignment edges between static and dynamic objects
-
-This is useful for:
-
-- runtime-aware region analysis
-- later structure mining
-- future NN guidance
-
-The current system does not require automatic structure discovery to do rewriting.
-But FactGraph preserves the evidence needed for later work.
-
-## 11. RewriteRegion and BoundaryContract
-
-These are the real rewrite-centered abstractions of the system.
-
-### `RewriteRegion`
-
-A region says:
-
-- which ops belong to the region
-- which blocks belong to the region
-- which values enter from outside
-- which values leave to outside
-- which state carriers are involved
-- which schedule anchors matter
-
-It is the answer to:
-
-`What exact part of the host algorithm are we going to peel off or override?`
-
-### `BoundaryContract`
-
-A contract says:
-
-- what the input ports are
-- what the output ports are
-- what can be read
-- what can be written
-- whether new state is allowed
-- where the rewritten outputs reconnect
-- which invariants must be preserved
-
-It is the answer to:
-
-`What shape must a donor satisfy to fit here safely?`
-
-## 12. Projection Is Optional
-
-Projection is no longer the primary rewrite object.
-
-A projection is only an optional interpretation layer.
-It can describe a region as:
-
-- scheduling-like
-- local-interaction-like
-- candidate-pool-like
-
-But rewriting does not require projection.
-The central rewrite objects are still:
-
-- `RewriteRegion`
-- `BoundaryContract`
-- donor skeleton
-
-## 13. Skeleton Grafting
-
-The current package implements two donor styles.
-
-### 13.1 `bp_summary_update`
-
-This donor replaces a scalar score computation.
-
-In the stack-decoder host, the original region is roughly:
+也可编译函数对象：
 
 ```python
-score = candidate["metric"] + costs[candidate["depth"]]
+from algorithm_ir.frontend import compile_function_to_ir
+
+def my_func(a, b):
+    return a * b + a
+
+func_ir = compile_function_to_ir(my_func)
 ```
 
-The donor-based version computes a BP-like summary and then reconnects the result back into `score`.
+### 2. 查看 IR
 
-### 13.2 `bp_tree_runtime_update`
+```python
+from algorithm_ir.ir.printer import render_function_ir
 
-This donor is the more important one.
-
-It is a runtime-nested graft:
-
-- host algorithm expands one layer of the stack decoder
-- donor runs on the current explored tree
-- donor updates every explored node
-- donor writes back runtime state such as `bp_bias` and `metric`
-- host continues search
-
-This is the current demonstration that the system can support:
-
-`host schedule contains donor schedule`
-
-which is the beginning of true nested skeleton transplantation.
-
-## 14. How Grafting Works Now
-
-The implementation in `grafting/rewriter.py` now works like this:
-
-1. Clone the host `FunctionIR`.
-   This clones the xDSL module, not just a Python dict.
-2. Resolve the region and contract.
-3. Build donor lowering ops as new xDSL operations.
-4. Insert those xDSL ops into the chosen xDSL block.
-5. Erase removed xDSL ops if needed.
-6. Rebuild a fresh `FunctionIR` view from xDSL.
-7. Validate and execute the rewritten result.
-
-This is the exact point where the migration became real.
-
-## 15. Richer Type Support
-
-The system now supports richer type metadata than the earliest MVP.
-
-Examples already covered in tests:
-
-- `tuple`
-- `complex`
-- `list`
-- `dict`
-- scalar types such as `int`, `float`, `bool`
-
-This is still a lightweight type system, not a full theorem-proving type discipline.
-But it is enough to make the IR and grafting pipeline much less brittle.
-
-## 16. Current Tests and What They Prove
-
-The test suite currently has 163 tests (62 main + 101 code-review).
-
-### Frontend tests
-
-- compile a branch-and-loop example
-- compile a stack-decoder-like host
-- compile a tuple and complex example
-
-These prove:
-
-- control flow lowering works
-- container-heavy host code lowers correctly
-- richer value kinds are preserved
-
-### Runtime and FactGraph tests
-
-- execute the branch-and-loop example
-- execute the stack decoder and build factgraph
-- execute the complex tuple example
-
-These prove:
-
-- the xDSL-backed rebuild is executable
-- the interpreter still matches Python behavior
-- dynamic fact collection still works
-
-### Region and Projection tests
-
-- define a region
-- infer a boundary contract
-- optionally annotate projections
-
-These prove:
-
-- the rewrite-centered abstractions still work on the xDSL-backed IR
-
-### Integration tests
-
-- graft `bp_summary_update` into `stack_decoder_host`
-- graft `bp_tree_runtime_update` into `stack_decoder_runtime_host`
-
-These prove:
-
-- xDSL-native rewriting works
-- rewritten IR is executable
-- runtime donor nesting works
-- `clone()` preserves the grafted program
-
-The second integration test is especially important.
-It checks that after each expansion, the runtime BP donor runs over the current explored tree and records:
-
-```text
-[3, 5, 7]
+print(render_function_ir(func_ir))
+# FunctionIR(name=detector, entry=b_entry)
+#   Block b_entry preds=[] succs=[]
+#     o_0: call  in=[...] out=[v_5] attrs={'callee': 'np.linalg.solve'}
+#     o_1: return in=[v_5] out=[v_6]
 ```
 
-That means the donor really ran over all explored nodes at each step, not just a trivial scalar replacement.
+### 3. IR → Python 源码再生
 
-## 17. What Changed in This Refactor
+```python
+from algorithm_ir.regeneration.codegen import emit_python_source
 
-The major changes in the latest refactoring round are:
+source = emit_python_source(func_ir)
+print(source)
+# def detector(H, y, sigma2, constellation):
+#     ...
+#     return x_hat
+```
 
-- **Formal `alg` dialect**: 22 IRDL-defined typed operations replace `UnregisteredOp` payloads.
-- **Custom `AlgType`**: `ParametrizedAttribute + TypeAttribute` renders as `!alg.type`.
-- **New frontend (`ir_builder.py`)**: emits typed AlgDialect ops directly.
-  - Fixed: for-loop creates phi nodes for modified variables.
-  - Fixed: function parameter type annotations are parsed.
-  - Fixed: module-level calls (`math.sqrt`) are resolved at compile time.
-- **Dual-path `model.py`**: detects new-style (typed) vs legacy (payload) ops via `alg_id` attribute.
-- **Python source regeneration**: `codegen.py` reconstructs readable Python from IR (control flow, expressions, method calls).
-- **`match_skeleton()` scoped**: searches region boundary + co-block values + function parameters instead of entire IR.
-- **`_next_prefixed_id` robust**: uses regex matching to avoid crashes on non-numeric IDs.
-- **Closure variable capture**: `ast_parser.py` captures `fn.__closure__` for method-local imports.
-- **163 tests**: 32 dialect, 20 regression, 10 original, 101 code-review.
+### 4. IR → C++ 操作码
 
-## 18. Current Limitations
+```python
+from algorithm_ir.regeneration.codegen import emit_cpp_ops
 
-The system is much stronger now, but still intentionally limited.
+cpp_ops = emit_cpp_ops(func_ir)  # list[int] — 栈式求值器操作码
+```
 
-Current limitations include:
+### 5. 结构验证
 
-- restricted Python frontend rather than full Python support
-- lightweight static types instead of a stronger typed effect system
-- no automatic structure discovery yet
-- no NN-guided region ranking yet
-- GP primitives (`crossover`, `mutate_op`, `extract_subgraph`) not yet implemented
-- grafting dispatch is still hardcoded rather than xDSL PatternRewriter-based
+```python
+from algorithm_ir.ir.validator import validate_function_ir
 
-These are acceptable for the current research phase because the immediate goal is:
+errors = validate_function_ir(func_ir)
+assert not errors, f"验证失败: {errors}"
+```
 
-`robust region-based executable skeleton transplantation`
+### 6. 运行时解释执行
 
-and that goal is now supported by an xDSL-backed core.
+```python
+from algorithm_ir.runtime.interpreter import execute_ir
 
-## 19. Recommended Mental Model
+result, trace, runtime_values = execute_ir(func_ir, args=[H, y, sigma2, constellation])
+# result: 函数返回值
+# trace: list[RuntimeEvent] — 执行轨迹
+# runtime_values: dict[str, RuntimeValue] — 每个值的运行时快照
+```
 
-If you want one sentence to remember the whole system, use this:
+### 7. 区域切片与契约推导
 
-`We compile Python algorithms into a structure-neutral xDSL-backed executable IR, slice out a local computation region, attach a contract to it, graft a donor skeleton there, and then rebuild and execute the new algorithm.`
+```python
+from algorithm_ir.region.selector import define_rewrite_region
+from algorithm_ir.region.contract import infer_boundary_contract
+from algorithm_ir.region.slicer import backward_slice_by_values
 
-That is the present architecture.
+# 后向切片：找出生成某个值所需的所有操作
+slice_ops = backward_slice_by_values(func_ir, target_values=["v_5"])
+
+# 定义可重写区域
+region = define_rewrite_region(func_ir, slice_ops)
+
+# 推导边界契约
+contract = infer_boundary_contract(func_ir, region)
+print(f"输入: {contract.input_ports}, 输出: {contract.output_ports}")
+```
+
+### 8. 通用骨架嫁接
+
+```python
+from algorithm_ir.grafting.graft_general import graft_general
+
+# proposal 由 PatternMatcher 生成，包含：
+#   - host_algo_id, region, donor_ir, donor_algo_id 等
+artifact = graft_general(host_ir, proposal)
+
+# artifact.ir: 嫁接后的新 FunctionIR
+# artifact.new_slot_ids: 新引入的槽位列表
+new_source = emit_python_source(artifact.ir)
+```
+
+### 9. 因子图构建
+
+```python
+from algorithm_ir.factgraph.builder import build_factgraph
+
+factgraph = build_factgraph(func_ir, trace, runtime_values)
+# FactGraph 对齐静态 IR 和动态执行，用于后续的结构发现和 NN 引导
+```
+
+---
+
+## 设计原则
+
+1. **结构中立**：IR 不预设算法类别（不区分"树搜索""消息传递"），只记录可执行事实
+2. **SSA 形式**：每个值只赋值一次，数据流显式表达
+3. **可切片**：任意操作子集可定义为 RewriteRegion，自动推导边界
+4. **可嫁接**：`graft_general()` 将供体函数注入宿主区域，通过 `call` 操作实现骨架迁移
+5. **可再生**：修改后的 IR 可重新生成可执行的 Python 源码
+
+---
+
+## 测试
+
+相关测试位于 `tests/` 目录：
+
+```bash
+cd research/algorithm-IR
+conda activate AutoGenOld
+
+# IR 编译、方言、回归测试
+python -m pytest tests/unit/test_frontend.py tests/unit/test_dialect.py tests/unit/test_regression_p0.py -v
+
+# 区域投影测试
+python -m pytest tests/unit/test_region_projection.py -v
+
+# 运行时 + 因子图测试
+python -m pytest tests/unit/test_runtime_factgraph.py -v
+
+# 嫁接集成测试
+python -m pytest tests/integration/test_grafting_demo.py -v
+
+# 全部 242 个测试
+python -m pytest tests/ -v
+```
