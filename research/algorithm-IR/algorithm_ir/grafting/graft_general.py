@@ -269,26 +269,43 @@ def remove_ops(ir: FunctionIR, op_ids: set[str]) -> None:
         del ir.ops[oid]
 
 
+_TERMINATOR_OPCODES = frozenset({"branch", "jump", "return"})
+
+
 def topological_sort_block(ir: FunctionIR, block_id: str) -> None:
-    """Reorder ops within *block_id* so that defs precede uses."""
+    """Reorder ops within *block_id* so that defs precede uses.
+
+    Terminators (branch/jump/return) are always placed last to preserve
+    correct block structure after grafting inserts new ops.
+    """
     block = ir.blocks.get(block_id)
     if block is None:
         return
 
-    op_ids_set = set(block.op_ids)
+    # Separate terminators from regular ops — terminators must be last
+    terminators = [
+        oid for oid in block.op_ids
+        if ir.ops.get(oid) and ir.ops[oid].opcode in _TERMINATOR_OPCODES
+    ]
+    non_term = [
+        oid for oid in block.op_ids
+        if oid not in set(terminators)
+    ]
+
+    op_ids_set = set(non_term)
     # Build adjacency: op A must come before op B if A defines a value B uses
     value_to_def_op: dict[str, str] = {}
-    for oid in block.op_ids:
+    for oid in non_term:
         op = ir.ops.get(oid)
         if op:
             for vid in op.outputs:
                 value_to_def_op[vid] = oid
 
-    # Kahn's algorithm
-    in_degree: dict[str, int] = {oid: 0 for oid in block.op_ids}
-    adj: dict[str, list[str]] = {oid: [] for oid in block.op_ids}
+    # Kahn's algorithm on non-terminators only
+    in_degree: dict[str, int] = {oid: 0 for oid in non_term}
+    adj: dict[str, list[str]] = {oid: [] for oid in non_term}
 
-    for oid in block.op_ids:
+    for oid in non_term:
         op = ir.ops.get(oid)
         if op is None:
             continue
@@ -298,7 +315,7 @@ def topological_sort_block(ir: FunctionIR, block_id: str) -> None:
                 adj[dep_op].append(oid)
                 in_degree[oid] += 1
 
-    queue = [oid for oid in block.op_ids if in_degree[oid] == 0]
+    queue = [oid for oid in non_term if in_degree[oid] == 0]
     sorted_ops: list[str] = []
     while queue:
         oid = queue.pop(0)
@@ -308,9 +325,11 @@ def topological_sort_block(ir: FunctionIR, block_id: str) -> None:
             if in_degree[nxt] == 0:
                 queue.append(nxt)
 
-    # Append any remaining (cycle or terminator)
-    remaining = [oid for oid in block.op_ids if oid not in set(sorted_ops)]
+    # Append any remaining non-terminators (e.g. cycles — preserve order)
+    remaining = [oid for oid in non_term if oid not in set(sorted_ops)]
     sorted_ops.extend(remaining)
+    # Always append terminators last
+    sorted_ops.extend(terminators)
     block.op_ids = sorted_ops
 
 
@@ -423,15 +442,6 @@ def graft_general(
     # 3. Boundary analysis
     entry_values, exit_values = find_region_boundary(new_ir, region_op_ids)
 
-    # Use port_mapping to reorder entry_values if provided
-    if proposal.port_mapping:
-        mapped_entries: list[str] = []
-        for host_vid in entry_values:
-            mapped_entries.append(
-                proposal.port_mapping.get(host_vid, host_vid)
-            )
-        # Keep entry_values as-is for the call args (they reference host values)
-
     # 4. Determine donor callable name
     donor_ir = proposal.donor_ir
     if donor_ir and hasattr(donor_ir, "name"):
@@ -441,17 +451,38 @@ def graft_general(
     else:
         donor_name = f"donor_{_fresh_id('anon')}"
 
+    # Determine call arguments:
+    # - If port_mapping is provided, apply it to entry_values
+    # - Otherwise map by position from the host function's own arg_values
+    #   so the donor receives the full host context (H, y, sigma2, constellation).
+    # - Fall back to entry_values only if the donor has no known arg list.
+    if proposal.port_mapping:
+        call_arg_vids = [
+            proposal.port_mapping.get(v, v) for v in entry_values
+        ]
+    elif donor_ir and donor_ir.arg_values:
+        n_donor = len(donor_ir.arg_values)
+        n_host = len(new_ir.arg_values)
+        # Map donor arg i → host function arg i (positional)
+        call_arg_vids = list(new_ir.arg_values[:min(n_donor, n_host)])
+    else:
+        call_arg_vids = list(entry_values)
+
     # Determine the insertion block: use the block containing the first
     # region op (or entry_block of the schedule_anchors)
     first_region_op = new_ir.ops.get(region.op_ids[0]) if region.op_ids else None
     insertion_block = first_region_op.block_id if first_region_op else new_ir.entry_block
 
     # 5. Create call op
-    n_results = max(1, len(exit_values))
+    # A grafted algorithm call always returns exactly one result —
+    # the donor's computed output (e.g. x_hat for a MIMO detector).
+    # Multi-exit regions rebind only the first exit value; the rest
+    # become dead code which the evaluator will penalise via bad fitness.
+    n_results = 1
     call_op_id, out_vids = create_call_op(
         new_ir,
         callee_name=donor_name,
-        arg_vids=entry_values,
+        arg_vids=call_arg_vids,
         result_count=n_results,
         block_id=insertion_block,
         attrs={"graft_donor": donor_name, "grafted": True},

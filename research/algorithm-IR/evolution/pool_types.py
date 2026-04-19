@@ -156,6 +156,7 @@ class AlgorithmGenome:
                     variants=[deepcopy(ir) for ir in v.variants],
                     fitness=list(v.fitness),
                     best_idx=v.best_idx,
+                    source_variants=list(v.source_variants) if v.source_variants else [],
                 )
                 for k, v in self.slot_populations.items()
             },

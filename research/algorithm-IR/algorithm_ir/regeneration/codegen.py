@@ -151,16 +151,37 @@ def _emit_op(ctx: _ExprCtx, op: Op, indent: int) -> None:
             func_name = ctx.expr(callable_vid)
             expr = f"{func_name}({', '.join(args)})"
         if op.outputs:
-            out_val = func_ir.values.get(op.outputs[0])
-            var = out_val.attrs.get("var_name") if out_val else None
-            used = bool(out_val and out_val.use_ops)
-            if var:
-                ctx.emit(indent, f"{var} = {expr}")
-                ctx.register(op.outputs[0], var)
-            elif used:
-                ctx.register(op.outputs[0], expr)
+            if len(op.outputs) > 1:
+                # Multi-output call: assign each output to a named variable.
+                # Outputs with use_ops get an auto-name; unused ones get `_`.
+                lhs_parts: list[str] = []
+                any_used = False
+                for i, vid in enumerate(op.outputs):
+                    out_val = func_ir.values.get(vid)
+                    used = bool(out_val and out_val.use_ops)
+                    if used:
+                        vname = (out_val.attrs.get("var_name") if out_val else None) or \
+                                (out_val.name_hint if out_val else None) or f"_call_r{i}"
+                        ctx.register(vid, vname)
+                        lhs_parts.append(vname)
+                        any_used = True
+                    else:
+                        lhs_parts.append("_")
+                if any_used:
+                    ctx.emit(indent, f"{', '.join(lhs_parts)} = {expr}")
+                else:
+                    ctx.emit(indent, expr)
             else:
-                ctx.emit(indent, expr)
+                out_val = func_ir.values.get(op.outputs[0])
+                var = out_val.attrs.get("var_name") if out_val else None
+                used = bool(out_val and out_val.use_ops)
+                if var:
+                    ctx.emit(indent, f"{var} = {expr}")
+                    ctx.register(op.outputs[0], var)
+                elif used:
+                    ctx.register(op.outputs[0], expr)
+                else:
+                    ctx.emit(indent, expr)
         else:
             ctx.emit(indent, expr)
         return

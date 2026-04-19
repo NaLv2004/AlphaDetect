@@ -339,10 +339,15 @@ class FunctionIR:
         )
 
     def clone(self) -> "FunctionIR":
-        return FunctionIR.from_xdsl(self.xdsl_module.clone())
+        cloned = FunctionIR.from_xdsl(self.xdsl_module.clone())
+        # Preserve the arg_values list (may have had slot args removed manually)
+        cloned.arg_values = list(self.arg_values)
+        return cloned
 
     def __deepcopy__(self, memo):
-        return self.clone()
+        cloned = FunctionIR.from_xdsl(self.xdsl_module.clone())
+        cloned.arg_values = list(self.arg_values)
+        return cloned
 
 
 @dataclass

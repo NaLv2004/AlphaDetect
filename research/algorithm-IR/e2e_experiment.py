@@ -73,22 +73,23 @@ def main():
     print("=" * 70)
 
     # ----- Configuration -----
+    # Fast eval config for evolution (few trials, quick timeout)
     eval_cfg = MIMOEvalConfig(
         Nr=Nr,
         Nt=Nt,
         mod_order=16,
-        snr_db_list=[18.0, 22.0, 24.0],
-        n_trials=100,          # trials per SNR during evolution
-        timeout_sec=10.0,
-        complexity_weight=0.01,
+        snr_db_list=[20.0, 22.0, 24.0, 26.0],  # include lower SNRs for selection gradient
+        n_trials=10,               # fast: 10 trials per SNR for evolution
+        timeout_sec=8.0,           # kill slow algorithms quickly
+        complexity_weight=0.001,
         seed=42,
     )
     evo_cfg = AlgorithmEvolutionConfig(
-        pool_size=12,
+        pool_size=8,
         n_generations=30,
-        micro_generations=5,
-        micro_pop_size=8,
-        micro_mutation_rate=0.8,
+        micro_generations=1,       # 1 micro-gen per macro-gen (faster)
+        micro_pop_size=4,
+        micro_mutation_rate=0.5,
         seed=42,
     )
 
@@ -133,11 +134,27 @@ def main():
     constellation = qam16_constellation()
     rng = np.random.default_rng(123)
 
+    # Try to materialize best genome; fallback to pool baselines if it fails
+    fn = None
     try:
         fn = materialize_to_callable(best_genome)
+        # Quick sanity check
+        H, x_true, y, sigma2 = generate_mimo_sample(Nr, Nt, constellation, 24.0, rng)
+        x_hat = fn(H, y, sigma2, constellation)
+        if x_hat is None or len(x_hat) != Nt:
+            fn = None
     except Exception as e:
-        print(f"MATERIALIZE FAILED: {e}")
-        return
+        print(f"MATERIALIZE FAILED for best_genome: {e}")
+        fn = None
+
+    if fn is None:
+        print("Falling back to OSIC baseline for final eval")
+        pool = build_ir_pool()
+        for g in pool:
+            if g.algo_id == "osic":
+                fn = materialize_to_callable(g)
+                best_genome = g
+                break
 
     for snr_db in [18, 20, 22, 24, 26, 28]:
         errs, tot = evaluate_detector(fn, Nr, Nt, snr_db, constellation, 5000, rng)
@@ -162,7 +179,8 @@ def main():
     # ----- Hall of fame -----
     print("\n--- Hall of Fame ---")
     for entry in engine.hall_of_fame[:5]:
-        print(f"  {entry.algo_id} (gen={entry.generation}, tags={entry.tags})")
+        genome, fitness = entry
+        print(f"  {genome.algo_id} (gen={genome.generation}, tags={genome.tags}, score={fitness.composite_score():.4f})")
 
 
 if __name__ == "__main__":

@@ -608,7 +608,7 @@ STACK_TEMPLATE = textwrap.dedent("""\
         root = _make_tree_node(Nt - 1, [], 0.0)
         open_set = [root]
         nodes_expanded = 0
-        max_nodes = 10000
+        max_nodes = 2000
         best_complete = root
         found = 0
         _done = 0
@@ -661,7 +661,7 @@ BP_TEMPLATE = textwrap.dedent("""\
                 j = j + 1
             _row_normalize(Px, i)
             i = i + 1
-        result = slot_bp_sweep(H, y, sigma2, Px, constellation, 20)
+        result = slot_bp_sweep(H, y, sigma2, Px, constellation, 8)
         gamma = result[0]
         x_hat = slot_final_decision(gamma, constellation)
         return x_hat

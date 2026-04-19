@@ -140,31 +140,42 @@ class MIMOFitnessEvaluator(AlgorithmFitnessEvaluator):
         ser_per_snr: dict[float, float] = {}
         total_time = 0.0
 
+        # Per-trial timeout using a thread executor (works on Windows).
+        # NOTE: We create a new single-use executor per trial because
+        # `executor.shutdown(wait=True)` would block if a thread is stuck.
+        import concurrent.futures
+        _trial_timeout = max(1.0, cfg.timeout_sec / max(cfg.n_trials, 1) * 3)
+
         for snr_db in cfg.snr_db_list:
             errors = 0
             total = 0
             t0 = time.perf_counter()
 
-            for _ in range(cfg.n_trials):
+            for trial_idx in range(cfg.n_trials):
                 H, x_true, y, sigma2 = generate_mimo_sample(
                     cfg.Nr, cfg.Nt, self.constellation, snr_db, rng,
                 )
+                _ex = concurrent.futures.ThreadPoolExecutor(max_workers=1)
                 try:
-                    x_hat = fn(H, y, sigma2, self.constellation)
+                    future = _ex.submit(fn, H, y, sigma2, self.constellation)
+                    x_hat = future.result(timeout=_trial_timeout)
                     if x_hat is None or len(x_hat) != cfg.Nt:
                         errors += cfg.Nt
                     else:
-                        # Hard-decide if soft output
                         x_hat = _nearest_symbols(x_hat, self.constellation)
                         errors += int(np.sum(np.abs(x_true - x_hat) > 1e-6))
+                except concurrent.futures.TimeoutError:
+                    future.cancel()
+                    errors += cfg.Nt
                 except Exception:
                     errors += cfg.Nt
+                finally:
+                    _ex.shutdown(wait=False)
 
                 total += cfg.Nt
                 elapsed = time.perf_counter() - t0
                 if elapsed > cfg.timeout_sec:
-                    # Timeout: penalize remaining trials
-                    remaining = cfg.n_trials - (_ + 1)
+                    remaining = cfg.n_trials - (trial_idx + 1)
                     errors += remaining * cfg.Nt
                     total += remaining * cfg.Nt
                     break
@@ -184,10 +195,14 @@ class MIMOFitnessEvaluator(AlgorithmFitnessEvaluator):
         for snr, ser in ser_per_snr.items():
             metrics[f"ser_{snr:.0f}dB"] = ser
 
+        # Only ser and complexity contribute to fitness; per-snr and time are informational
         weights = {
             "ser": 1.0,
             "complexity": cfg.complexity_weight,
+            "eval_time": 0.0,
         }
+        for snr in ser_per_snr:
+            weights[f"ser_{snr:.0f}dB"] = 0.0
 
         return FitnessResult(metrics=metrics, is_valid=True, weights=weights)
 

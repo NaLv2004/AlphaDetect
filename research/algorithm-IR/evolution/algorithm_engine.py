@@ -66,6 +66,8 @@ class AlgorithmEvolutionEngine:
         self.hall_of_fame: list[tuple[AlgorithmGenome, FitnessResult]] = []
         self.stagnation_count = 0
         self._history: list[dict[str, Any]] = []
+        # Gene bank: original pool genomes kept permanently for donor lookup
+        self.gene_bank: list[AlgorithmGenome] = []
 
     # ------------------------------------------------------------------
     # Initialization
@@ -78,6 +80,8 @@ class AlgorithmEvolutionEngine:
         """Build initial population from IR pool + optional seeds."""
         pool = build_ir_pool(self.rng)
         self.population = []
+        # Populate gene bank with original pool genomes (permanent donor source)
+        self.gene_bank = list(pool)
 
         if seed_genomes:
             for g in seed_genomes:
@@ -156,15 +160,32 @@ class AlgorithmEvolutionEngine:
                     g.to_entry(f)
                     for g, f in zip(self.population, self.fitness)
                 ]
-                proposals = self.pattern_matcher(entries, self.generation)
+                # Always include gene bank entries so expert rules can find
+                # original algorithm donors even if they've been eliminated
+                # from the current population.
+                pop_ids = {g.algo_id for g in self.population}
+                bank_entries = [
+                    g.to_entry(None)
+                    for g in self.gene_bank
+                    if g.algo_id not in pop_ids
+                ]
+                all_entries = entries + bank_entries
+                proposals = self.pattern_matcher(all_entries, self.generation)
+                n_graft_ok = 0
                 for proposal in proposals:
                     try:
                         child = self._execute_graft(proposal)
                         if child is not None:
                             child.generation = self.generation
                             graft_offspring.append(child)
+                            n_graft_ok += 1
                     except Exception as exc:
                         logger.debug("Graft failed: %s", exc)
+                if proposals:
+                    logger.info(
+                        "  Structural grafts: %d/%d succeeded",
+                        n_graft_ok, len(proposals),
+                    )
 
             # Evaluate offspring
             all_offspring = offspring + graft_offspring
@@ -333,22 +354,35 @@ class AlgorithmEvolutionEngine:
         if cfg and cfg.snr_db_list:
             snr_db = cfg.snr_db_list[len(cfg.snr_db_list) // 2]
 
-        # Run a few quick trials
+        # Run a few quick trials with per-trial timeout
+        import concurrent.futures as _cf
         n_quick = 5
         total_err = 0
         total_sym = 0
+        _timeout = getattr(cfg, "timeout_sec", 5.0) / max(n_quick, 1) * 2 if cfg else 2.0
+
         for trial in range(n_quick):
             try:
                 H, x_true, y, sigma2 = generate_mimo_sample(
                     Nr, Nt, constellation, snr_db, rng,
                 )
-                x_hat = fn(H, y, sigma2, constellation)
-                if x_hat is None or len(x_hat) != Nt:
+                _ex = _cf.ThreadPoolExecutor(max_workers=1)
+                try:
+                    fut = _ex.submit(fn, H, y, sigma2, constellation)
+                    x_hat = fut.result(timeout=_timeout)
+                    if x_hat is None or len(x_hat) != Nt:
+                        total_err += Nt
+                    else:
+                        from evolution.mimo_evaluator import _nearest_symbols
+                        x_hat = _nearest_symbols(x_hat, constellation)
+                        total_err += int(np.sum(np.abs(x_true - x_hat) > 1e-6))
+                except _cf.TimeoutError:
+                    fut.cancel()
                     total_err += Nt
-                else:
-                    from evolution.mimo_evaluator import _nearest_symbols
-                    x_hat = _nearest_symbols(x_hat, constellation)
-                    total_err += int(np.sum(np.abs(x_true - x_hat) > 1e-6))
+                except Exception:
+                    total_err += Nt
+                finally:
+                    _ex.shutdown(wait=False)
                 total_sym += Nt
             except Exception:
                 total_err += Nt
@@ -474,18 +508,52 @@ class AlgorithmEvolutionEngine:
         from algorithm_ir.grafting.graft_general import graft_general
         from evolution.ir_pool import find_algslot_ops
 
-        # Find the host genome
+        # Find the host genome (current population first, then gene bank)
         host_genome: AlgorithmGenome | None = None
         for g in self.population:
             if g.algo_id == proposal.host_algo_id:
                 host_genome = g
                 break
         if host_genome is None:
+            for g in self.gene_bank:
+                if g.algo_id == proposal.host_algo_id:
+                    host_genome = g
+                    break
+        if host_genome is None:
             logger.warning("Host genome %s not found", proposal.host_algo_id)
             return None
 
+        # Find donor genome (current population first, then gene bank)
+        donor_genome: AlgorithmGenome | None = None
+        for g in self.population:
+            if g.algo_id == proposal.donor_algo_id:
+                donor_genome = g
+                break
+        if donor_genome is None:
+            for g in self.gene_bank:
+                if g.algo_id == proposal.donor_algo_id:
+                    donor_genome = g
+                    break
+
         # Execute the graft
         artifact = graft_general(host_genome.structural_ir, proposal)
+
+        # Materialize the donor genome into Python source so it can be
+        # injected into the host's exec namespace at evaluation time.
+        # The donor's structural_ir function name (e.g. "lmmse") is used
+        # as the call target in the grafted host IR.
+        from evolution.materialize import materialize as _materialize
+        donor_sources: dict[str, str] = {}
+        if donor_genome is not None:
+            try:
+                donor_src = _materialize(donor_genome)
+                donor_name = proposal.donor_ir.name if proposal.donor_ir else (
+                    proposal.donor_algo_id or ""
+                )
+                donor_sources[donor_name] = donor_src
+            except Exception as exc:
+                logger.debug("Could not pre-materialize donor %s: %s",
+                             proposal.donor_algo_id, exc)
 
         # Build child genome
         child = AlgorithmGenome(
@@ -506,6 +574,7 @@ class AlgorithmEvolutionEngine:
                 ),
             ],
             tags=set(host_genome.tags) | {"grafted"},
+            metadata={"_donor_sources": donor_sources} if donor_sources else {},
         )
 
         # Initialize SlotPopulations for new slots introduced by donor

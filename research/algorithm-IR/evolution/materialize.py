@@ -117,7 +117,13 @@ def materialize(genome: AlgorithmGenome) -> str:
 
     # 4. Prepend slot helper definitions
     helpers = "\n".join(slot_impls.values())
-    full_source = helpers + "\n\n" + materialized
+
+    # 5. Prepend donor function sources (for grafted genomes)
+    donor_sources: dict[str, str] = genome.metadata.get("_donor_sources", {})
+    donor_helpers = "\n\n".join(donor_sources.values()) if donor_sources else ""
+
+    parts = [p for p in [donor_helpers, helpers, materialized] if p.strip()]
+    full_source = "\n\n".join(parts)
 
     return full_source
 
