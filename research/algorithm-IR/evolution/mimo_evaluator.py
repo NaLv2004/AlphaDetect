@@ -151,11 +151,19 @@ class MIMOFitnessEvaluator(AlgorithmFitnessEvaluator):
             total = 0
             t0 = time.perf_counter()
 
+            # Reuse a single executor; only recreate after a timeout to avoid
+            # stale threads blocking subsequent trials.
+            _ex = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+            _ex_dirty = False
+
             for trial_idx in range(cfg.n_trials):
                 H, x_true, y, sigma2 = generate_mimo_sample(
                     cfg.Nr, cfg.Nt, self.constellation, snr_db, rng,
                 )
-                _ex = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+                if _ex_dirty:
+                    _ex.shutdown(wait=False)
+                    _ex = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+                    _ex_dirty = False
                 try:
                     future = _ex.submit(fn, H, y, sigma2, self.constellation)
                     x_hat = future.result(timeout=_trial_timeout)
@@ -167,10 +175,9 @@ class MIMOFitnessEvaluator(AlgorithmFitnessEvaluator):
                 except concurrent.futures.TimeoutError:
                     future.cancel()
                     errors += cfg.Nt
+                    _ex_dirty = True  # Thread may be stuck; recreate executor
                 except Exception:
                     errors += cfg.Nt
-                finally:
-                    _ex.shutdown(wait=False)
 
                 total += cfg.Nt
                 elapsed = time.perf_counter() - t0
@@ -180,6 +187,7 @@ class MIMOFitnessEvaluator(AlgorithmFitnessEvaluator):
                     total += remaining * cfg.Nt
                     break
 
+            _ex.shutdown(wait=False)
             total_time += time.perf_counter() - t0
             ser_per_snr[snr_db] = errors / max(total, 1)
 

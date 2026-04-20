@@ -1,0 +1,32 @@
+{
+  "best_algo_id": "algo_a1c8ccda",
+  "best_score": 0.013400000000000002,
+  "best_metrics": {
+    "ser": 0.0,
+    "complexity": 0.134,
+    "eval_time": 0.005074900000181515,
+    "ser_15dB": 0.0
+  },
+  "total_time_sec": 0.754148100000748,
+  "generations": 1,
+  "history": [
+    {
+      "generation": 1,
+      "best_score": 0.013400000000000002,
+      "best_algo": "algo_a1c8ccda",
+      "elapsed": 0.12488920000032522,
+      "pop_algos": [
+        "lmmse",
+        "algo_5113ad86",
+        "algo_ed39bdab",
+        "zf"
+      ]
+    }
+  ],
+  "hall_of_fame": [
+    {
+      "algo_id": "algo_a3ce16bb",
+      "score": 0.013400000000000002
+    }
+  ]
+}

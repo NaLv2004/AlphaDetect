@@ -137,8 +137,16 @@ def _emit_op(ctx: _ExprCtx, op: Op, indent: int) -> None:
 
     if op.opcode == "call":
         n_args = op.attrs.get("n_args", 0)
+        kwarg_names = op.attrs.get("kwarg_names", [])
+        n_kwargs = len(kwarg_names)
         callable_vid = op.inputs[0]
         args = [ctx.expr(v) for v in op.inputs[1 : 1 + n_args]]
+        kwargs = [ctx.expr(v) for v in op.inputs[1 + n_args : 1 + n_args + n_kwargs]]
+        # Build argument string: positional + keyword
+        arg_parts = list(args)
+        for kname, kval in zip(kwarg_names, kwargs):
+            arg_parts.append(f"{kname}={kval}")
+        arg_str = ", ".join(arg_parts)
         # Detect method call pattern: callable defined by get_attr
         callable_val = func_ir.values.get(callable_vid)
         def_op_id = callable_val.def_op if callable_val else None
@@ -146,10 +154,10 @@ def _emit_op(ctx: _ExprCtx, op: Op, indent: int) -> None:
         if def_op and def_op.opcode == "get_attr":
             obj = ctx.expr(def_op.inputs[0])
             attr = def_op.attrs["attr"]
-            expr = f"{obj}.{attr}({', '.join(args)})"
+            expr = f"{obj}.{attr}({arg_str})"
         else:
             func_name = ctx.expr(callable_vid)
-            expr = f"{func_name}({', '.join(args)})"
+            expr = f"{func_name}({arg_str})"
         if op.outputs:
             if len(op.outputs) > 1:
                 # Multi-output call: assign each output to a named variable.

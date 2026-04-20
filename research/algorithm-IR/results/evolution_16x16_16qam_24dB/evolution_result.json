@@ -1,0 +1,20 @@
+{
+  "best_algo": "algo_549ba7a0",
+  "metrics": {
+    "ser": 0.0,
+    "complexity": 0.604,
+    "eval_time": 3.532226699999228,
+    "ser_24dB": 0.0
+  },
+  "score": 0.00604,
+  "time": 1096.0072851000004,
+  "ber_verification_5000_trials": {
+    "SER": 0.002462,
+    "BER": 0.000894,
+    "sym_errors": 197,
+    "total_syms": 80000,
+    "bit_errors": 286,
+    "total_bits": 320000,
+    "BER_target_met": true
+  }
+}

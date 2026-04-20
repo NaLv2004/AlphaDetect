@@ -67,6 +67,7 @@ SUPPORTED_AST = (
     ast.While,
     ast.For,
     ast.Call,
+    ast.keyword,
     ast.Name,
     ast.Constant,
     ast.Attribute,
@@ -448,7 +449,16 @@ class IRBuilder:
         if isinstance(expr, ast.Call):
             func_value = self._compile_expr(expr.func)
             args = [self._compile_expr(arg) for arg in expr.args]
-            return self._emit_call(func_value, args, expr)
+            kwarg_names: list[str] = []
+            kwarg_values: list[str] = []
+            for kw in expr.keywords:
+                if kw.arg is None:
+                    continue  # skip **kwargs (not supported)
+                kwarg_names.append(kw.arg)
+                kwarg_values.append(self._compile_expr(kw.value))
+            return self._emit_call(func_value, args, expr,
+                                   kwarg_names=kwarg_names,
+                                   kwarg_values=kwarg_values)
         if isinstance(expr, ast.Attribute):
             owner = self._compile_expr(expr.value)
             return self._emit_get_attr(owner, expr.attr, expr)
@@ -581,13 +591,22 @@ class IRBuilder:
         self._register_op(op)
         return out
 
-    def _emit_call(self, func_value: str, args: list[str], node: ast.AST) -> str:
+    def _emit_call(self, func_value: str, args: list[str], node: ast.AST,
+                   *, kwarg_names: list[str] | None = None,
+                   kwarg_values: list[str] | None = None) -> str:
+        kwarg_names = kwarg_names or []
+        kwarg_values = kwarg_values or []
+        all_inputs = [func_value] + args + kwarg_values
         out = self._new_value("call", "object", source_span(node), {})
         op_id = self._next_op_id()
+        attrs: dict[str, Any] = {"n_args": len(args)}
+        if kwarg_names:
+            attrs["kwarg_names"] = kwarg_names
+            attrs["n_kwargs"] = len(kwarg_names)
         op = Op(
-            id=op_id, opcode="call", inputs=[func_value] + args, outputs=[out],
+            id=op_id, opcode="call", inputs=all_inputs, outputs=[out],
             block_id=self.state.current_block, source_span=source_span(node),
-            attrs={"n_args": len(args)},
+            attrs=attrs,
         )
         self._register_op(op)
         return out

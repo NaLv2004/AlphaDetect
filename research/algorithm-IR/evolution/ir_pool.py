@@ -48,6 +48,7 @@ from evolution.algorithm_pool import (
 )
 from evolution.skeleton_registry import ProgramSpec
 from evolution.random_program import random_ir_program
+from evolution.skeleton_library import get_extended_specs, EXTENDED_SLOT_DEFAULTS, SkeletonSpec
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -57,9 +58,10 @@ from evolution.random_program import random_ir_program
 def _template_globals() -> dict[str, Any]:
     """Safe namespace for compiling detector templates to IR.
 
-    Since the IR builder does not support keyword arguments (ast.keyword),
-    we provide helper functions that wrap numpy calls using keyword args
-    internally.
+    Now that the IR builder supports keyword arguments (ast.keyword),
+    most helper wrappers are no longer needed. We keep only helpers
+    that perform multi-dimensional slicing (not expressible as simple
+    keyword calls) and safe-math wrappers.
     """
     import math
 
@@ -71,51 +73,6 @@ def _template_globals() -> dict[str, Any]:
 
     def _safe_log(a):
         return math.log(max(a, 1e-30))
-
-    # --- dtype helpers (avoid dtype=complex keyword) ---
-    def _czeros(n):
-        return np.zeros(n, dtype=complex)
-
-    def _czeros2(nr, nc):
-        return np.zeros((nr, nc), dtype=complex)
-
-    def _cones(n):
-        return np.ones(n, dtype=complex)
-
-    def _cempty(n):
-        return np.empty(n, dtype=complex)
-
-    def _cfull(n, val):
-        return np.full(n, val, dtype=float)
-
-    def _carray(lst):
-        return np.array(lst, dtype=complex)
-
-    # --- axis helpers ---
-    def _sum0(x):
-        return np.sum(x, axis=0)
-
-    def _sum1(x):
-        return np.sum(x, axis=1)
-
-    def _max1_keepdims(x):
-        return np.max(x, axis=1, keepdims=True)
-
-    def _sum1_keepdims(x):
-        return np.sum(x, axis=1, keepdims=True)
-
-    # --- misc helpers ---
-    def _qr(H):
-        return np.linalg.qr(H)
-
-    def _qr_Q(H):
-        return np.linalg.qr(H)[0]
-
-    def _qr_R(H):
-        return np.linalg.qr(H)[1]
-
-    def _delete_col(H, idx):
-        return np.delete(H, idx, axis=1)
 
     def _make_tree_node(level, symbols, cost):
         from evolution.pool_ops_l2 import TreeNode
@@ -155,20 +112,6 @@ def _template_globals() -> dict[str, Any]:
         "_safe_div": _safe_div,
         "_safe_sqrt": _safe_sqrt,
         "_safe_log": _safe_log,
-        "_czeros": _czeros,
-        "_czeros2": _czeros2,
-        "_cones": _cones,
-        "_cempty": _cempty,
-        "_cfull": _cfull,
-        "_carray": _carray,
-        "_sum0": _sum0,
-        "_sum1": _sum1,
-        "_max1_keepdims": _max1_keepdims,
-        "_sum1_keepdims": _sum1_keepdims,
-        "_qr": _qr,
-        "_qr_Q": _qr_Q,
-        "_qr_R": _qr_R,
-        "_delete_col": _delete_col,
         "_make_tree_node": _make_tree_node,
         "_col": _col,
         "_reverse_syms": _reverse_syms,
@@ -195,7 +138,7 @@ SLOT_DEFAULTS: dict[str, str] = {
     """),
     "hard_decision": textwrap.dedent("""\
         def hard_decision(x_soft, constellation):
-            x_hat = _czeros(len(x_soft))
+            x_hat = np.zeros(len(x_soft), dtype=complex)
             i = 0
             while i < len(x_soft):
                 dists = np.abs(constellation - x_soft[i]) ** 2
@@ -210,13 +153,13 @@ SLOT_DEFAULTS: dict[str, str] = {
             Nt = H.shape[1]
             G = H.conj().T @ H + sigma2 * np.eye(Nt)
             G_inv = np.linalg.inv(G)
-            snr = _czeros(Nt)
+            snr = np.zeros(Nt, dtype=complex)
             i = 0
             while i < Nt:
                 snr[i] = 1.0 / max(float(np.real(G_inv[i, i])), 1e-30) - sigma2
                 i = i + 1
             order = []
-            used = _czeros(Nt)
+            used = np.zeros(Nt, dtype=complex)
             k = 0
             while k < Nt:
                 best = -1
@@ -243,7 +186,7 @@ SLOT_DEFAULTS: dict[str, str] = {
             dists = np.abs(constellation - x_est) ** 2
             x_hard = constellation[np.argmin(dists)]
             y_new = y - _col(H, idx) * x_hard
-            H_new = _delete_col(H, idx)
+            H_new = np.delete(H, idx, axis=1)
             return x_hard, H_new, y_new
     """),
 
@@ -309,7 +252,7 @@ SLOT_DEFAULTS: dict[str, str] = {
             damping = 0.5
             it = 0
             while it < max_iters:
-                Muz = _czeros2(Nr, Nt)
+                Muz = np.zeros((Nr, Nt), dtype=complex)
                 sigmaz2 = np.zeros((Nr, Nt))
                 a = 0
                 while a < Nr:
@@ -410,7 +353,7 @@ SLOT_DEFAULTS: dict[str, str] = {
     """),
     "final_decision": textwrap.dedent("""\
         def final_decision(mu, constellation):
-            x_hat = _czeros(len(mu))
+            x_hat = np.zeros(len(mu), dtype=complex)
             i = 0
             while i < len(mu):
                 dists = np.abs(constellation - mu[i]) ** 2
@@ -421,7 +364,7 @@ SLOT_DEFAULTS: dict[str, str] = {
     "bp_final_decision": textwrap.dedent("""\
         def bp_final_decision(gamma, constellation):
             Nt = gamma.shape[0]
-            x_hat = _czeros(Nt)
+            x_hat = np.zeros(Nt, dtype=complex)
             i = 0
             while i < Nt:
                 best_idx = _argmax_row(gamma, i)
@@ -462,7 +405,7 @@ SLOT_DEFAULTS: dict[str, str] = {
             tau_p_plus_s2 = tau_p_safe + sigma2
             tau_z = tau_p_plus_s2 * gtilde
             tau_z = np.maximum(tau_z, 1e-30)
-            x_new = _czeros(Nt)
+            x_new = np.zeros(Nt, dtype=complex)
             x_var = np.zeros(Nt)
             i = 0
             while i < Nt:
@@ -551,7 +494,7 @@ OSIC_TEMPLATE = textwrap.dedent("""\
         H_cur = H.copy()
         y_cur = y.copy()
         order = slot_ordering(H_cur, y_cur, sigma2)
-        detected = _czeros(Nt)
+        detected = np.zeros(Nt, dtype=complex)
         col_map = list(range(Nt))
         step = 0
         while step < Nt:
@@ -570,8 +513,8 @@ KBEST_TEMPLATE = textwrap.dedent("""\
     def kbest(H, y, sigma2, constellation, slot_expand, slot_prune):
         Nr = H.shape[0]
         Nt = H.shape[1]
-        Q = _qr_Q(H)
-        R = _qr_R(H)
+        Q = np.linalg.qr(H)[0]
+        R = np.linalg.qr(H)[1]
         y_tilde = Q.conj().T @ y
         root = _make_tree_node(Nt - 1, [], 0.0)
         candidates = [root]
@@ -588,7 +531,7 @@ KBEST_TEMPLATE = textwrap.dedent("""\
             candidates = slot_prune(new_candidates, 16)
             level = level - 1
         if len(candidates) == 0:
-            return _czeros(Nt)
+            return np.zeros(Nt, dtype=complex)
         best = candidates[0]
         bi = 1
         while bi < len(candidates):
@@ -602,8 +545,8 @@ STACK_TEMPLATE = textwrap.dedent("""\
     def stack(H, y, sigma2, constellation, slot_node_select, slot_expand):
         Nr = H.shape[0]
         Nt = H.shape[1]
-        Q = _qr_Q(H)
-        R = _qr_R(H)
+        Q = np.linalg.qr(H)[0]
+        R = np.linalg.qr(H)[1]
         y_tilde = Q.conj().T @ y
         root = _make_tree_node(Nt - 1, [], 0.0)
         open_set = [root]
@@ -639,7 +582,7 @@ STACK_TEMPLATE = textwrap.dedent("""\
                 i = i + 1
             if len(best.symbols) == Nt:
                 return _reverse_syms(best.symbols, Nt)
-        return _czeros(Nt)
+        return np.zeros(Nt, dtype=complex)
 """)
 
 BP_TEMPLATE = textwrap.dedent("""\
@@ -649,7 +592,7 @@ BP_TEMPLATE = textwrap.dedent("""\
         M = len(constellation)
         G = H.conj().T @ H + sigma2 * np.eye(Nt)
         x_mmse = np.linalg.solve(G, H.conj().T @ y)
-        Px = _czeros2(Nt, M)
+        Px = np.zeros((Nt, M), dtype=complex)
         i = 0
         while i < Nt:
             dists = np.abs(constellation - x_mmse[i]) ** 2
@@ -672,7 +615,7 @@ EP_TEMPLATE = textwrap.dedent("""\
         Nr = H.shape[0]
         Nt = H.shape[1]
         alpha = np.ones(Nt) * 2.0
-        gamma_ep = _czeros(Nt)
+        gamma_ep = np.zeros(Nt, dtype=complex)
         HtH = H.conj().T @ H
         Hty = H.conj().T @ y
         s2inv = 1.0 / max(sigma2, 1e-30)
@@ -725,7 +668,7 @@ AMP_TEMPLATE = textwrap.dedent("""\
         gtilde = 1.0 / g_diag
         yMF = H.conj().T @ y
         yMFtilde = gtilde * yMF
-        x_hat = _czeros(Nt)
+        x_hat = np.zeros(Nt, dtype=complex)
         tau_s = np.ones(Nt)
         z = yMFtilde.copy()
         it = 0
@@ -855,6 +798,22 @@ _DETECTOR_SPECS: list[_DetectorSpec] = [
         tags={"original", "inference"},
     ),
 ]
+
+# ── Extend with skeleton library ──────────────────────────────────────────
+SLOT_DEFAULTS.update(EXTENDED_SLOT_DEFAULTS)
+
+for _skel in get_extended_specs():
+    _slot_defs_dict = _skel.slot_defs
+    _DETECTOR_SPECS.append(_DetectorSpec(
+        algo_id=_skel.algo_id,
+        source=_skel.source,
+        func_name=_skel.func_name,
+        slot_arg_names=_skel.slot_arg_names,
+        slot_defs_fn=lambda _d=_slot_defs_dict: _d,
+        slot_default_keys=_skel.slot_default_keys,
+        tags=_skel.tags,
+        extra_globals=_skel.extra_globals,
+    ))
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1160,8 +1119,12 @@ def build_ir_pool(
     pool: list[AlgorithmGenome] = []
 
     for spec in _DETECTOR_SPECS:
-        # 1. Compile template
-        structural_ir = compile_detector_template(spec)
+        # 1. Compile template (skip on failure — some templates use
+        #    unsupported AST nodes like Slice)
+        try:
+            structural_ir = compile_detector_template(spec)
+        except Exception:
+            continue
 
         # 2. Get slot definitions
         slot_tree = spec.slot_defs_fn()

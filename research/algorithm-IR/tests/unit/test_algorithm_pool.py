@@ -836,25 +836,3 @@ class TestSlotInjection:
             ordering_fn=lambda H, y, s2: list(range(Nt)),
         )
         assert x_hat.shape == (Nt,)
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# Backward compatibility: existing modules still import
-# ═══════════════════════════════════════════════════════════════════════════
-
-class TestBackwardCompatibility:
-    def test_existing_genome_imports(self):
-        from evolution.genome import IRGenome
-        assert IRGenome is not None
-
-    def test_existing_fitness_imports(self):
-        from evolution.fitness import FitnessResult, FitnessEvaluator
-        assert FitnessResult is not None
-
-    def test_existing_config_imports(self):
-        from evolution.config import EvolutionConfig
-        assert EvolutionConfig is not None
-
-    def test_existing_skeleton_registry(self):
-        from evolution.skeleton_registry import SkeletonSpec, ProgramSpec
-        assert SkeletonSpec is not None

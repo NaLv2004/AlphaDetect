@@ -15,8 +15,6 @@ from algorithm_ir.ir.model import FunctionIR, Op, Value
 from algorithm_ir.frontend.ir_builder import compile_source_to_ir
 from algorithm_ir.regeneration.codegen import emit_python_source
 
-from evolution.config import EvolutionConfig
-
 
 # Binary op names that can be swapped
 _BINARY_OPS = ["Add", "Sub", "Mult", "Div"]
@@ -205,58 +203,4 @@ def crossover_ir(
             donor = ir2_consts[rng.integers(len(ir2_consts))]
             op.attrs["literal"] = donor.attrs.get("literal", 0.0)
 
-    return child
-
-
-def mutate_genome(
-    genome,  # IRGenome (avoid circular import)
-    config: EvolutionConfig,
-    rng: np.random.Generator,
-) -> None:
-    """Mutate a genome in-place: mutate one program + optionally constants."""
-    roles = list(genome.programs.keys())
-    if not roles:
-        return
-
-    # Mutate one random program
-    role = rng.choice(roles)
-    genome.programs[role] = mutate_ir(genome.programs[role], rng)
-
-    # Optionally perturb constants
-    if len(genome.constants) > 0 and rng.random() < 0.5:
-        idx = rng.integers(len(genome.constants))
-        genome.constants[idx] += rng.normal(0, config.constant_mutate_sigma)
-        # Clamp to range
-        lo, hi = config.constant_range
-        genome.constants[idx] = np.clip(genome.constants[idx], lo, hi)
-
-    genome.invalidate_cache()
-
-
-def crossover_genome(
-    g1,  # IRGenome
-    g2,  # IRGenome
-    config: EvolutionConfig,
-    rng: np.random.Generator,
-):  # -> IRGenome
-    """Crossover two genomes. Returns a new genome."""
-    child = g1.clone()
-
-    # Per-role crossover
-    for role in child.programs:
-        if role in g2.programs and rng.random() < 0.5:
-            child.programs[role] = crossover_ir(
-                child.programs[role], g2.programs[role], rng
-            )
-
-    # Constant blending
-    if len(child.constants) > 0 and len(g2.constants) > 0:
-        alpha = rng.uniform(0.3, 0.7)
-        n = min(len(child.constants), len(g2.constants))
-        child.constants[:n] = (
-            alpha * child.constants[:n] + (1 - alpha) * g2.constants[:n]
-        )
-
-    child.parent_ids = [g1.genome_id, g2.genome_id]
-    child.invalidate_cache()
     return child

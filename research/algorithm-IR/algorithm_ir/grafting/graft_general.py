@@ -1,12 +1,16 @@
 """General-purpose IR-level grafting engine.
 
-Implements ``graft_general()`` — a universal, call-based grafting system
+Implements ``graft_general()`` — a universal, **inline** grafting system
 that operates entirely at the FunctionIR level (ops/values/blocks) without
 any Python source intermediary.
 
 Core principle: IR is the sole evolution medium.  All structural
 modifications happen directly on FunctionIR dicts.  Python source is only
 generated at execution time via ``materialize()``.
+
+Inline grafting means donor ops are cloned directly into the host IR,
+so every op is visible and mutable by subsequent evolution.  No opaque
+``call`` ops are created.
 """
 
 from __future__ import annotations
@@ -32,7 +36,8 @@ class GraftArtifact:
     ir: FunctionIR                    # The grafted IR
     new_slot_ids: list[str]           # AlgSlot IDs introduced by the donor
     replaced_op_ids: list[str]        # Original ops that were removed
-    call_op_id: str                   # The inserted call op
+    inlined_op_ids: list[str]         # Donor ops inlined into host
+    id_map: dict[str, str] = field(default_factory=dict)  # donor_id → host_id
 
 
 # ---------------------------------------------------------------------------
@@ -272,6 +277,265 @@ def remove_ops(ir: FunctionIR, op_ids: set[str]) -> None:
 _TERMINATOR_OPCODES = frozenset({"branch", "jump", "return"})
 
 
+# ---------------------------------------------------------------------------
+# Inline-graft helpers
+# ---------------------------------------------------------------------------
+
+def clone_donor_ir(
+    donor_ir: FunctionIR,
+) -> tuple[dict[str, str], dict[str, Value], dict[str, Op], dict[str, Block]]:
+    """Clone all donor values, ops, and blocks with fresh IDs.
+
+    Returns
+    -------
+    id_map : dict[str, str]
+        Mapping from old donor IDs (values, ops, blocks) to new IDs.
+    cloned_values : dict[str, Value]
+        New Value objects (excluding arg values — those will be rebound).
+    cloned_ops : dict[str, Op]
+        New Op objects with remapped inputs/outputs/block_ids.
+    cloned_blocks : dict[str, Block]
+        New Block objects with remapped op_ids/preds/succs.
+    """
+    id_map: dict[str, str] = {}
+
+    # Map all old IDs → fresh IDs
+    for vid in donor_ir.values:
+        id_map[vid] = _fresh_id("v_inl")
+    for oid in donor_ir.ops:
+        id_map[oid] = _fresh_id("op_inl")
+    for bid in donor_ir.blocks:
+        id_map[bid] = _fresh_id("blk_inl")
+
+    def _remap(old_id: str) -> str:
+        return id_map.get(old_id, old_id)
+
+    # Clone values (exclude arg values — they'll be rebound to host values)
+    arg_set = set(donor_ir.arg_values)
+    cloned_values: dict[str, Value] = {}
+    for vid, val in donor_ir.values.items():
+        if vid in arg_set:
+            continue  # will be rebound, don't clone
+        new_vid = _remap(vid)
+        cloned_values[new_vid] = Value(
+            id=new_vid,
+            name_hint=val.name_hint,
+            type_hint=val.type_hint,
+            source_span=val.source_span,
+            def_op=_remap(val.def_op) if val.def_op else None,
+            use_ops=[_remap(u) for u in val.use_ops],
+            attrs=dict(val.attrs),
+        )
+
+    # Clone ops
+    cloned_ops: dict[str, Op] = {}
+    for oid, op in donor_ir.ops.items():
+        new_oid = _remap(oid)
+        cloned_ops[new_oid] = Op(
+            id=new_oid,
+            opcode=op.opcode,
+            inputs=[_remap(v) for v in op.inputs],
+            outputs=[_remap(v) for v in op.outputs],
+            block_id=_remap(op.block_id),
+            source_span=op.source_span,
+            attrs=dict(op.attrs),
+        )
+        # Mark as grafted
+        cloned_ops[new_oid].attrs["grafted"] = True
+
+    # Clone blocks
+    cloned_blocks: dict[str, Block] = {}
+    for bid, block in donor_ir.blocks.items():
+        new_bid = _remap(bid)
+        cloned_blocks[new_bid] = Block(
+            id=new_bid,
+            op_ids=[_remap(o) for o in block.op_ids],
+            preds=[_remap(p) for p in block.preds],
+            succs=[_remap(s) for s in block.succs],
+            attrs=dict(block.attrs),
+        )
+
+    return id_map, cloned_values, cloned_ops, cloned_blocks
+
+
+def bind_donor_args_to_host_values(
+    cloned_ops: dict[str, Op],
+    cloned_values: dict[str, Value],
+    donor_arg_new_vids: list[str],
+    host_arg_vids: list[str],
+) -> None:
+    """Replace references to donor arg values with host values in cloned ops.
+
+    For each donor arg, all uses in cloned ops are rebound to the
+    corresponding host value.
+    """
+    for i, donor_vid in enumerate(donor_arg_new_vids):
+        if i >= len(host_arg_vids):
+            break
+        host_vid = host_arg_vids[i]
+        # Replace in all cloned op inputs
+        for op in cloned_ops.values():
+            op.inputs = [host_vid if v == donor_vid else v for v in op.inputs]
+        # Clean up — donor arg values were not cloned (excluded in clone_donor_ir)
+
+
+def bind_donor_returns_to_host_exits(
+    ir: FunctionIR,
+    exit_values: list[str],
+    donor_result_vids: list[str],
+) -> None:
+    """Rebind host exit values to donor result values.
+
+    After inlining, the donor's return value(s) should replace the
+    region's exit value(s) in the host IR.
+    """
+    for i, exit_vid in enumerate(exit_values):
+        if i < len(donor_result_vids):
+            rebind_uses(ir, exit_vid, donor_result_vids[i])
+
+
+def _inline_multiblock_donor(
+    ir: FunctionIR,
+    host_block_id: str,
+    region_op_ids: set[str],
+    cloned_ops: dict[str, Op],
+    cloned_values: dict[str, Value],
+    cloned_blocks: dict[str, Block],
+    donor_entry_block_id: str,
+    id_map: dict[str, str],
+    donor_ir: FunctionIR,
+) -> None:
+    """Inline a multi-block donor into the host IR.
+
+    Splits the host block at the region boundary into pre_block and
+    post_block, then inserts donor blocks between them with proper
+    CFG connections.
+    """
+    host_block = ir.blocks[host_block_id]
+
+    # Find region position
+    region_start_idx = None
+    region_end_idx = None
+    for i, oid in enumerate(host_block.op_ids):
+        if oid in region_op_ids:
+            if region_start_idx is None:
+                region_start_idx = i
+            region_end_idx = i
+
+    if region_start_idx is None:
+        region_start_idx = len(host_block.op_ids)
+        region_end_idx = region_start_idx - 1
+
+    pre_ops = host_block.op_ids[:region_start_idx]
+    post_ops = host_block.op_ids[region_end_idx + 1:]
+
+    # Create post_block for ops after region
+    post_block_id = _fresh_id("blk_post")
+    post_block = Block(
+        id=post_block_id,
+        op_ids=list(post_ops),
+        preds=[],
+        succs=list(host_block.succs),
+        attrs={},
+    )
+
+    # Update ops in post_block to reference new block_id
+    for oid in post_ops:
+        if oid in ir.ops:
+            ir.ops[oid].block_id = post_block_id
+
+    # Update successors of host_block's original successors to reference post_block
+    for succ_bid in host_block.succs:
+        succ_block = ir.blocks.get(succ_bid)
+        if succ_block:
+            succ_block.preds = [
+                post_block_id if p == host_block_id else p
+                for p in succ_block.preds
+            ]
+
+    # Trim host_block (now pre_block) to just pre_ops + jump to donor entry
+    host_block.op_ids = list(pre_ops)
+    host_block.succs = [donor_entry_block_id]
+
+    # Add jump op from pre_block to donor entry
+    jump_op_id = _fresh_id("op_jump_to_donor")
+    ir.ops[jump_op_id] = Op(
+        id=jump_op_id,
+        opcode="jump",
+        inputs=[],
+        outputs=[],
+        block_id=host_block_id,
+        attrs={"target": donor_entry_block_id, "grafted": True},
+    )
+    host_block.op_ids.append(jump_op_id)
+
+    # Find donor exit blocks (blocks that originally had return ops)
+    donor_exit_blocks: list[str] = []
+    for bid, block in cloned_blocks.items():
+        # A donor exit block is one that had its return op removed
+        # (now it has no terminator, or its last op was a return that was removed)
+        has_terminator = False
+        for oid in block.op_ids:
+            if oid in cloned_ops and cloned_ops[oid].opcode in _TERMINATOR_OPCODES:
+                has_terminator = True
+                break
+        if not has_terminator:
+            donor_exit_blocks.append(bid)
+
+    # Add jump from each donor exit block to post_block
+    for exit_bid in donor_exit_blocks:
+        exit_jump_id = _fresh_id("op_jump_to_post")
+        cloned_ops[exit_jump_id] = Op(
+            id=exit_jump_id,
+            opcode="jump",
+            inputs=[],
+            outputs=[],
+            block_id=exit_bid,
+            attrs={"target": post_block_id, "grafted": True},
+        )
+        cloned_blocks[exit_bid].op_ids.append(exit_jump_id)
+        cloned_blocks[exit_bid].succs.append(post_block_id)
+        post_block.preds.append(exit_bid)
+
+    # Set donor entry block pred
+    cloned_blocks[donor_entry_block_id].preds.append(host_block_id)
+
+    # Add all donor blocks, ops, values to host IR
+    ir.ops.update(cloned_ops)
+    ir.values.update(cloned_values)
+    ir.blocks.update(cloned_blocks)
+    ir.blocks[post_block_id] = post_block
+
+
+def _apply_inline_dependency_overrides(
+    ir: FunctionIR,
+    overrides: list,
+    inlined_op_ids: list[str],
+) -> None:
+    """Apply DependencyOverride objects for inlined graft.
+
+    For each override, find or create the dependency value and add it
+    to the IR's arg_values if needed.
+    """
+    for override in overrides:
+        for dep_name in override.new_dependencies:
+            found_vid = None
+            for vid, val in ir.values.items():
+                vname = val.attrs.get("var_name") or val.name_hint
+                if vname == dep_name:
+                    found_vid = vid
+                    break
+            if found_vid is None:
+                new_vid = _fresh_id(f"v_dep_{dep_name}")
+                ir.values[new_vid] = Value(
+                    id=new_vid,
+                    name_hint=dep_name,
+                    type_hint="object",
+                    attrs={"var_name": dep_name, "role": "arg"},
+                )
+                ir.arg_values.append(new_vid)
+
+
 def topological_sort_block(ir: FunctionIR, block_id: str) -> None:
     """Reorder ops within *block_id* so that defs precede uses.
 
@@ -392,21 +656,26 @@ def graft_general(
     host_ir: FunctionIR,
     proposal,
 ) -> GraftArtifact:
-    """Perform a general-purpose call-based graft at the IR level.
+    """Perform a general-purpose **inline** graft at the IR level.
 
     This is **pure IR-level op surgery**: no Python source intermediary.
+    Donor ops are cloned directly into the host IR so every op is visible
+    and mutable by subsequent evolution.
 
     Steps:
       1. Deep-copy host_ir
       2. Locate region ops (from proposal.region.op_ids)
       3. Analyse region boundary (entry_values, exit_values)
-      4. Register donor as a callable constant
-      5. Create a call op: ``result = donor_fn(entry_values…)``
-      6. Rebind: redirect external uses of exit_values → call outputs
-      7. Remove region ops
-      8. Apply dependency_overrides (if any)
-      9. Topological-sort affected blocks
-     10. Validate result IR
+      4. Clone donor IR with fresh IDs
+      5. Map donor args → host function args
+      6. Find donor return op(s), extract return values
+      7. Remove donor return ops from cloned blocks
+      8. Inline donor blocks into host (single-block or multi-block)
+      9. Rebind: redirect external uses of exit_values → donor result values
+     10. Remove region ops
+     11. Apply dependency_overrides (if any)
+     12. Topological-sort affected blocks
+     13. Detect new slots from donor
 
     Parameters
     ----------
@@ -420,18 +689,16 @@ def graft_general(
     -------
     GraftArtifact
     """
-    # 1. Deep copy — handle FunctionIR that may lack xdsl_module
+    # 1. Deep copy
     try:
         new_ir = deepcopy(host_ir)
     except (AttributeError, TypeError):
-        # Fallback: manual dict-level copy for IRs without xdsl_module
         new_ir = _manual_clone_ir(host_ir)
 
     # 2. Locate region ops
     region: RewriteRegion = proposal.region
     region_op_ids = set(region.op_ids)
 
-    # Verify all region ops exist in the copy
     missing = region_op_ids - set(new_ir.ops.keys())
     if missing:
         raise ValueError(
@@ -442,78 +709,167 @@ def graft_general(
     # 3. Boundary analysis
     entry_values, exit_values = find_region_boundary(new_ir, region_op_ids)
 
-    # 4. Determine donor callable name
+    # 4. Clone donor IR with fresh IDs
     donor_ir = proposal.donor_ir
-    if donor_ir and hasattr(donor_ir, "name"):
-        donor_name = donor_ir.name
-    elif proposal.donor_algo_id:
-        donor_name = f"donor_{proposal.donor_algo_id}"
-    else:
-        donor_name = f"donor_{_fresh_id('anon')}"
+    if donor_ir is None:
+        # No donor — just remove the region ops
+        remove_ops(new_ir, region_op_ids)
+        return GraftArtifact(
+            ir=new_ir,
+            new_slot_ids=[],
+            replaced_op_ids=sorted(region_op_ids),
+            inlined_op_ids=[],
+            id_map={},
+        )
 
-    # Determine call arguments:
-    # - If port_mapping is provided, apply it to entry_values
-    # - Otherwise map by position from the host function's own arg_values
-    #   so the donor receives the full host context (H, y, sigma2, constellation).
-    # - Fall back to entry_values only if the donor has no known arg list.
+    id_map, cloned_values, cloned_ops, cloned_blocks = clone_donor_ir(donor_ir)
+
+    # 5. Map donor args → host function args
+    donor_arg_new_vids = [id_map[v] for v in donor_ir.arg_values]
+
     if proposal.port_mapping:
-        call_arg_vids = [
+        host_arg_vids = [
             proposal.port_mapping.get(v, v) for v in entry_values
         ]
-    elif donor_ir and donor_ir.arg_values:
+    elif donor_ir.arg_values:
         n_donor = len(donor_ir.arg_values)
         n_host = len(new_ir.arg_values)
-        # Map donor arg i → host function arg i (positional)
-        call_arg_vids = list(new_ir.arg_values[:min(n_donor, n_host)])
+        host_arg_vids = list(new_ir.arg_values[:min(n_donor, n_host)])
+        # If donor has MORE args than host, create const ops for extra args
+        # so inlined donor ops can reference them (prevent broken IR).
+        if n_donor > n_host:
+            host_block = new_ir.blocks.get(new_ir.entry_block)
+            for extra_idx in range(n_host, n_donor):
+                donor_orig_vid = donor_ir.arg_values[extra_idx]
+                donor_orig_val = donor_ir.values.get(donor_orig_vid)
+                hint = donor_orig_val.name_hint if donor_orig_val else f"extra_{extra_idx}"
+                new_vid = _fresh_id("v_extra")
+                new_ir.values[new_vid] = Value(
+                    id=new_vid,
+                    name_hint=hint,
+                    type_hint="object",
+                    attrs={"role": "const", "var_name": hint},
+                )
+                # Create a const op that produces a default value (None)
+                const_oid = _fresh_id("op_extra_const")
+                new_ir.ops[const_oid] = Op(
+                    id=const_oid,
+                    opcode="const",
+                    inputs=[],
+                    outputs=[new_vid],
+                    block_id=new_ir.entry_block,
+                    attrs={"literal": None, "name": hint, "grafted": True},
+                )
+                new_ir.values[new_vid].def_op = const_oid
+                if host_block:
+                    host_block.op_ids.insert(0, const_oid)
+                host_arg_vids.append(new_vid)
     else:
-        call_arg_vids = list(entry_values)
+        host_arg_vids = list(entry_values)
 
-    # Determine the insertion block: use the block containing the first
-    # region op (or entry_block of the schedule_anchors)
-    first_region_op = new_ir.ops.get(region.op_ids[0]) if region.op_ids else None
-    insertion_block = first_region_op.block_id if first_region_op else new_ir.entry_block
-
-    # 5. Create call op
-    # A grafted algorithm call always returns exactly one result —
-    # the donor's computed output (e.g. x_hat for a MIMO detector).
-    # Multi-exit regions rebind only the first exit value; the rest
-    # become dead code which the evaluator will penalise via bad fitness.
-    n_results = 1
-    call_op_id, out_vids = create_call_op(
-        new_ir,
-        callee_name=donor_name,
-        arg_vids=call_arg_vids,
-        result_count=n_results,
-        block_id=insertion_block,
-        attrs={"graft_donor": donor_name, "grafted": True},
+    bind_donor_args_to_host_values(
+        cloned_ops, cloned_values, donor_arg_new_vids, host_arg_vids,
     )
 
-    # 6. Rebind exit_values → call outputs
-    for i, exit_vid in enumerate(exit_values):
-        if i < len(out_vids):
-            rebind_uses(new_ir, exit_vid, out_vids[i])
+    # 6. Find donor return ops, extract return values
+    donor_return_op_ids: list[str] = []
+    donor_result_vids: list[str] = []
+    for oid, op in list(cloned_ops.items()):
+        if op.opcode == "return":
+            donor_return_op_ids.append(oid)
+            donor_result_vids.extend(op.inputs)
 
-    # 7. Remove region ops
+    # 7. Remove return ops from cloned blocks
+    for ret_oid in donor_return_op_ids:
+        ret_op = cloned_ops[ret_oid]
+        block_id = ret_op.block_id
+        if block_id in cloned_blocks:
+            cloned_blocks[block_id].op_ids = [
+                o for o in cloned_blocks[block_id].op_ids if o != ret_oid
+            ]
+        del cloned_ops[ret_oid]
+
+    # 8. Inline donor blocks into host
+    first_region_op = new_ir.ops.get(region.op_ids[0]) if region.op_ids else None
+    host_block_id = first_region_op.block_id if first_region_op else new_ir.entry_block
+
+    donor_entry_block_id = id_map[donor_ir.entry_block]
+
+    if len(cloned_blocks) == 1:
+        # Simple case: single-block donor — inline ops into host block
+        donor_block = cloned_blocks[donor_entry_block_id]
+        donor_op_ids = donor_block.op_ids
+
+        # Find region position in host block
+        host_block = new_ir.blocks[host_block_id]
+        region_start_idx = None
+        region_end_idx = None
+        for i, oid in enumerate(host_block.op_ids):
+            if oid in region_op_ids:
+                if region_start_idx is None:
+                    region_start_idx = i
+                region_end_idx = i
+
+        if region_start_idx is None:
+            region_start_idx = len(host_block.op_ids)
+            region_end_idx = region_start_idx - 1
+
+        pre_ops = host_block.op_ids[:region_start_idx]
+        post_ops = host_block.op_ids[region_end_idx + 1:]
+
+        # Update donor ops block_id
+        for oid in donor_op_ids:
+            cloned_ops[oid].block_id = host_block_id
+
+        # Insert: pre + donor + post
+        host_block.op_ids = pre_ops + donor_op_ids + post_ops
+
+        # Add cloned ops/values to host IR
+        new_ir.ops.update(cloned_ops)
+        new_ir.values.update(cloned_values)
+        # Don't add donor blocks (merged into host block)
+
+    else:
+        # Multi-block donor: split host block, insert donor blocks
+        _inline_multiblock_donor(
+            new_ir, host_block_id, region_op_ids,
+            cloned_ops, cloned_values, cloned_blocks,
+            donor_entry_block_id, id_map, donor_ir,
+        )
+
+    # 9. Rebind exit_values → donor result values
+    bind_donor_returns_to_host_exits(
+        new_ir, exit_values, donor_result_vids,
+    )
+
+    # 10. Remove region ops
     remove_ops(new_ir, region_op_ids)
     replaced_op_ids = sorted(region_op_ids)
 
-    # 8. Dependency overrides
+    # 11. Dependency overrides
     if proposal.dependency_overrides:
-        apply_dependency_overrides(
-            new_ir, proposal.dependency_overrides, call_op_id,
+        # For inline graft, dependency overrides add values to the IR
+        # that the inlined ops can reference
+        _apply_inline_dependency_overrides(
+            new_ir, proposal.dependency_overrides,
+            [oid for oid in cloned_ops if oid in new_ir.ops],
         )
 
-    # 9. Topological sort affected blocks
-    affected_blocks = {insertion_block}
+    # 12. Topological sort affected blocks
+    affected_blocks = {host_block_id}
     for oid in region.op_ids:
         op = host_ir.ops.get(oid)
         if op:
             affected_blocks.add(op.block_id)
+    # Also sort any donor blocks that were added
+    for bid in list(new_ir.blocks.keys()):
+        if bid in {id_map.get(b) for b in donor_ir.blocks}:
+            affected_blocks.add(bid)
     for bid in affected_blocks:
         if bid in new_ir.blocks:
             topological_sort_block(new_ir, bid)
 
-    # 10. Detect new slots introduced by donor
+    # 13. Detect new slots from donor
     new_slot_ids: list[str] = []
     if donor_ir:
         for op in donor_ir.ops.values():
@@ -522,9 +878,12 @@ def graft_general(
                 if sid not in new_slot_ids:
                     new_slot_ids.append(sid)
 
+    inlined_op_ids = [oid for oid in cloned_ops if oid in new_ir.ops]
+
     return GraftArtifact(
         ir=new_ir,
         new_slot_ids=new_slot_ids,
         replaced_op_ids=replaced_op_ids,
-        call_op_id=call_op_id,
+        inlined_op_ids=inlined_op_ids,
+        id_map=id_map,
     )

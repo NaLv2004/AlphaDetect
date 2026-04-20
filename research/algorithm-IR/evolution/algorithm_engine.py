@@ -36,9 +36,9 @@ from evolution.materialize import materialize_with_override
 logger = logging.getLogger(__name__)
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════�?
 # Two-Level Algorithm Evolution Engine
-# ═══════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════�?
 
 class AlgorithmEvolutionEngine:
     """Hierarchical evolution: macro (skeleton selection) + micro (slot IR)."""
@@ -155,6 +155,7 @@ class AlgorithmEvolutionEngine:
 
             # ---- Track A: structural grafting via PatternMatcher ----
             graft_offspring: list[AlgorithmGenome] = []
+            graft_proposal_ids: list[str] = []  # track proposal IDs for RL feedback
             if self.pattern_matcher is not None:
                 entries = [
                     g.to_entry(f)
@@ -178,9 +179,10 @@ class AlgorithmEvolutionEngine:
                         if child is not None:
                             child.generation = self.generation
                             graft_offspring.append(child)
+                            graft_proposal_ids.append(proposal.proposal_id)
                             n_graft_ok += 1
                     except Exception as exc:
-                        logger.debug("Graft failed: %s", exc)
+                        logger.warning("Graft failed: %s", exc)
                 if proposals:
                     logger.info(
                         "  Structural grafts: %d/%d succeeded",
@@ -191,13 +193,27 @@ class AlgorithmEvolutionEngine:
             all_offspring = offspring + graft_offspring
             off_fitness = self.evaluator.evaluate_batch(all_offspring)
 
-            # Selection: keep best from parents + offspring
+            # ---- RL feedback for GNN pattern matcher ----
+            if graft_offspring and graft_proposal_ids:
+                # Normalized reward:
+                #   +1  if graft_score = 0    (perfect detector)
+                #    0  if graft_score = 0.5  (half random guessing)
+                #   -1  if graft_score = 1.0  (random guessing)
+                # This gives the GNN a strong gradient for any *working* graft
+                # (SER < 0.5) vs broken grafts (SER ~1.0), independent of
+                # whether the graft beats the already-excellent best parent.
+                graft_start = len(offspring)
+                for gi, pid in enumerate(graft_proposal_ids):
+                    graft_idx = graft_start + gi
+                    if graft_idx < len(off_fitness):
+                        graft_score = off_fitness[graft_idx].composite_score()
+                        reward = 1.0 - 2.0 * min(graft_score, 1.0)
+                        self._record_graft_reward(pid, reward)
+
+            # Selection with niching: preserve structural diversity
             combined = list(zip(self.population, self.fitness)) + \
                        list(zip(all_offspring, off_fitness))
-            combined.sort(key=lambda x: x[1].composite_score())
-
-            # Elitism + truncation selection
-            survivors = combined[:cfg.pool_size]
+            survivors = self._select_with_niching(combined, cfg.pool_size)
             self.population = [g for g, _ in survivors]
             self.fitness = [f for _, f in survivors]
 
@@ -248,7 +264,16 @@ class AlgorithmEvolutionEngine:
         for _ in range(cfg.micro_generations):
             for slot_id, pop in genome.slot_populations.items():
                 if len(pop.variants) < 2:
-                    continue
+                    # Bootstrap: generate a mutation so micro-evolution can start
+                    if len(pop.variants) == 1:
+                        try:
+                            child = mutate_ir(pop.variants[0], self.rng)
+                            pop.variants.append(child)
+                            pop.fitness.append(float("inf"))
+                        except Exception:
+                            continue
+                    else:
+                        continue
                 self._micro_step(genome, slot_id, pop)
 
     def _micro_step(
@@ -361,12 +386,18 @@ class AlgorithmEvolutionEngine:
         total_sym = 0
         _timeout = getattr(cfg, "timeout_sec", 5.0) / max(n_quick, 1) * 2 if cfg else 2.0
 
+        _ex = _cf.ThreadPoolExecutor(max_workers=1)
+        _ex_dirty = False
+
         for trial in range(n_quick):
             try:
                 H, x_true, y, sigma2 = generate_mimo_sample(
                     Nr, Nt, constellation, snr_db, rng,
                 )
-                _ex = _cf.ThreadPoolExecutor(max_workers=1)
+                if _ex_dirty:
+                    _ex.shutdown(wait=False)
+                    _ex = _cf.ThreadPoolExecutor(max_workers=1)
+                    _ex_dirty = False
                 try:
                     fut = _ex.submit(fn, H, y, sigma2, constellation)
                     x_hat = fut.result(timeout=_timeout)
@@ -379,20 +410,89 @@ class AlgorithmEvolutionEngine:
                 except _cf.TimeoutError:
                     fut.cancel()
                     total_err += Nt
+                    _ex_dirty = True
                 except Exception:
                     total_err += Nt
-                finally:
-                    _ex.shutdown(wait=False)
                 total_sym += Nt
             except Exception:
                 total_err += Nt
                 total_sym += Nt
+
+        _ex.shutdown(wait=False)
 
         return total_err / max(total_sym, 1)
 
     # ------------------------------------------------------------------
     # Macro-level breeding
     # ------------------------------------------------------------------
+
+    # ------------------------------------------------------------------
+    # Niching selection
+    # ------------------------------------------------------------------
+
+    def _select_with_niching(
+        self,
+        candidates: list[tuple[AlgorithmGenome, FitnessResult]],
+        target_size: int,
+    ) -> list[tuple[AlgorithmGenome, FitnessResult]]:
+        """Select survivors with structural diversity protection.
+
+        Strategy: fill elite slots first (top 50%), then fill remaining
+        slots by picking the best genome from each under-represented
+        algo_id niche. This prevents the population collapsing to one
+        algorithm family.
+        """
+        candidates.sort(key=lambda x: x[1].composite_score())
+
+        # Phase 1: elite — top 50% by pure fitness
+        n_elite = max(1, target_size // 2)
+        survivors = list(candidates[:n_elite])
+        selected_ids = set()
+        for g, _ in survivors:
+            selected_ids.add(id(g))
+
+        # Phase 1.5: protect best grafted individuals (min 2 reserved slots)
+        grafted_in_survivors = sum(1 for g, _ in survivors if "grafted" in g.tags)
+        if grafted_in_survivors < 2:
+            grafted_cands = [
+                (g, f) for g, f in candidates
+                if "grafted" in g.tags and id(g) not in selected_ids
+            ]
+            grafted_cands.sort(key=lambda x: x[1].composite_score())
+            for g, f in grafted_cands[:2 - grafted_in_survivors]:
+                survivors.append((g, f))
+                selected_ids.add(id(g))
+
+        # Phase 2: diversity �?fill remaining slots with best unseen algo_ids
+        remaining = [c for c in candidates if id(c[0]) not in selected_ids]
+        # Group by algo_id
+        niche_best: dict[str, tuple[AlgorithmGenome, FitnessResult]] = {}
+        for g, f in remaining:
+            aid = g.algo_id
+            if aid not in niche_best or f.composite_score() < niche_best[aid][1].composite_score():
+                niche_best[aid] = (g, f)
+
+        # Already-covered algo_ids from elite
+        elite_aids = {g.algo_id for g, _ in survivors}
+        # Prioritise niches not yet in survivors
+        uncovered = [(g, f) for aid, (g, f) in niche_best.items() if aid not in elite_aids]
+        uncovered.sort(key=lambda x: x[1].composite_score())
+        for g, f in uncovered:
+            if len(survivors) >= target_size:
+                break
+            survivors.append((g, f))
+            selected_ids.add(id(g))
+
+        # Phase 3: if still under target, fill from remaining by fitness
+        if len(survivors) < target_size:
+            leftovers = [c for c in candidates if id(c[0]) not in selected_ids]
+            leftovers.sort(key=lambda x: x[1].composite_score())
+            for c in leftovers:
+                if len(survivors) >= target_size:
+                    break
+                survivors.append(c)
+
+        return survivors[:target_size]
 
     def _breed_macro(self) -> list[AlgorithmGenome]:
         """Create offspring via tournament selection + slot-level crossover."""
@@ -439,7 +539,7 @@ class AlgorithmEvolutionEngine:
             # Different skeletons: graft compatible slots
             for slot_id, pop in p2.slot_populations.items():
                 if slot_id in child.slot_populations:
-                    # Compatible slot found — donate best variant
+                    # Compatible slot found �?donate best variant
                     if pop.variants and pop.best_idx < len(pop.variants):
                         donor_ir = deepcopy(pop.variants[pop.best_idx])
                         child.slot_populations[slot_id].variants.append(donor_ir)
@@ -500,6 +600,7 @@ class AlgorithmEvolutionEngine:
         """Execute a GraftProposal via graft_general() and produce a new genome.
 
         Steps:
+          0. Trim donor IR to avoid inlining the entire donor
           1. Call graft_general() for IR-level op surgery
           2. Discover new slots introduced by the donor
           3. Initialize SlotPopulations for new slots
@@ -507,6 +608,12 @@ class AlgorithmEvolutionEngine:
         """
         from algorithm_ir.grafting.graft_general import graft_general
         from evolution.ir_pool import find_algslot_ops
+
+        # --- Step 0: Trim donor IR ---
+        # GNN proposals already carry a GNN-selected trimmed donor (skip).
+        # For other matchers (expert rules, static), apply heuristic trimming.
+        if not proposal.proposal_id.startswith("gnn_graft"):
+            proposal = self._trim_donor_for_proposal(proposal)
 
         # Find the host genome (current population first, then gene bank)
         host_genome: AlgorithmGenome | None = None
@@ -535,25 +642,8 @@ class AlgorithmEvolutionEngine:
                     donor_genome = g
                     break
 
-        # Execute the graft
+        # Execute the graft (inline �?donor ops are cloned into host IR)
         artifact = graft_general(host_genome.structural_ir, proposal)
-
-        # Materialize the donor genome into Python source so it can be
-        # injected into the host's exec namespace at evaluation time.
-        # The donor's structural_ir function name (e.g. "lmmse") is used
-        # as the call target in the grafted host IR.
-        from evolution.materialize import materialize as _materialize
-        donor_sources: dict[str, str] = {}
-        if donor_genome is not None:
-            try:
-                donor_src = _materialize(donor_genome)
-                donor_name = proposal.donor_ir.name if proposal.donor_ir else (
-                    proposal.donor_algo_id or ""
-                )
-                donor_sources[donor_name] = donor_src
-            except Exception as exc:
-                logger.debug("Could not pre-materialize donor %s: %s",
-                             proposal.donor_algo_id, exc)
 
         # Build child genome
         child = AlgorithmGenome(
@@ -574,12 +664,34 @@ class AlgorithmEvolutionEngine:
                 ),
             ],
             tags=set(host_genome.tags) | {"grafted"},
-            metadata={"_donor_sources": donor_sources} if donor_sources else {},
+            metadata={},
         )
 
-        # Initialize SlotPopulations for new slots introduced by donor
+        # Initialize SlotPopulations for new slots introduced by donor.
+        # When a donor genome is available, copy its slot populations so
+        # that inlined slot ops have real implementations (not empty
+        # fallbacks).  Without this, grafted children produce dead code
+        # because materialize() falls back to a pass-through stub.
         for slot_id in artifact.new_slot_ids:
-            if slot_id not in child.slot_populations:
+            if slot_id in child.slot_populations:
+                continue
+            # Try to inherit from donor genome's slot populations
+            donor_pop = self._find_donor_slot_population(
+                donor_genome, slot_id,
+            )
+            if donor_pop is not None:
+                child.slot_populations[slot_id] = SlotPopulation(
+                    slot_id=slot_id,
+                    spec=donor_pop.spec,
+                    variants=[deepcopy(v) for v in donor_pop.variants],
+                    fitness=list(donor_pop.fitness),
+                    best_idx=donor_pop.best_idx,
+                    source_variants=list(donor_pop.source_variants)
+                    if donor_pop.source_variants
+                    else [],
+                )
+            else:
+                # Fallback: create an empty population (will use stub)
                 from evolution.skeleton_registry import ProgramSpec
                 spec = ProgramSpec(
                     name=slot_id,
@@ -587,22 +699,202 @@ class AlgorithmEvolutionEngine:
                     param_types=[],
                     return_type="object",
                 )
-                # Attempt to extract the donor's slot implementation
-                donor_variants = []
-                if proposal.donor_ir:
-                    for op in proposal.donor_ir.ops.values():
-                        if op.attrs.get("slot_id") == slot_id:
-                            # The donor itself references this slot
-                            break
                 child.slot_populations[slot_id] = SlotPopulation(
                     slot_id=slot_id,
                     spec=spec,
-                    variants=donor_variants,
-                    fitness=[float("inf")] * len(donor_variants),
+                    variants=[],
+                    fitness=[],
                     best_idx=0,
                 )
 
         return child
+
+    def _trim_donor_for_proposal(self, proposal) -> object:
+        """Trim the donor IR to a region matching the host region size.
+
+        Without trimming, graft_general inlines the ENTIRE donor IR
+        (typically 10-20 ops) to replace a small 1-3 op host region,
+        creating bloated hybrids that don't function. This method creates
+        a focused donor IR containing only a similar number of ops.
+        """
+        from copy import deepcopy
+        from algorithm_ir.ir.model import FunctionIR, Op, Value, Block
+
+        donor_ir = proposal.donor_ir
+        if donor_ir is None:
+            return proposal
+
+        host_region_size = len(proposal.region.op_ids)
+
+        # Count non-terminator ops in donor
+        terminators = {"return", "branch", "jump"}
+        donor_non_term = [
+            oid for oid in self._ordered_donor_ops(donor_ir)
+            if donor_ir.ops.get(oid) and donor_ir.ops[oid].opcode not in terminators
+        ]
+
+        # If donor is already small enough, no trimming needed
+        max_allowed = max(host_region_size * 3, 5)  # at most 3x host region
+        if len(donor_non_term) <= max_allowed:
+            return proposal
+
+        # Select the most interesting region from the donor:
+        # Prefer regions with "call" ops (slot calls are the functional units)
+        best_start, best_score = 0, -1
+        for start in range(len(donor_non_term) - max_allowed + 1):
+            region = donor_non_term[start:start + max_allowed]
+            score = sum(
+                2 if donor_ir.ops[oid].opcode == "call" else
+                1 if donor_ir.ops[oid].opcode in ("binary", "unary") else 0
+                for oid in region
+            )
+            if score > best_score:
+                best_score = score
+                best_start = start
+
+        selected_ops = set(donor_non_term[best_start:best_start + max_allowed])
+
+        # Build a trimmed donor IR containing only the selected ops
+        trimmed = self._build_trimmed_donor(donor_ir, selected_ops)
+        if trimmed is None:
+            return proposal
+
+        # Create a modified proposal with the trimmed donor
+        new_proposal = deepcopy(proposal)
+        new_proposal.donor_ir = trimmed
+        return new_proposal
+
+    def _ordered_donor_ops(self, ir) -> list[str]:
+        """Return donor ops in block order (entry block first)."""
+        result = []
+        entry = ir.blocks.get(ir.entry_block)
+        if entry:
+            result.extend(entry.op_ids)
+        for bid, block in ir.blocks.items():
+            if bid != ir.entry_block:
+                result.extend(block.op_ids)
+        return result
+
+    def _build_trimmed_donor(self, donor_ir, selected_op_ids: set[str]):
+        """Build a minimal FunctionIR from selected donor ops."""
+        from algorithm_ir.ir.model import FunctionIR, Op, Value, Block
+
+        # Collect values defined and used by selected ops
+        defined_vals: set[str] = set()
+        used_vals: set[str] = set()
+        for oid in selected_op_ids:
+            op = donor_ir.ops.get(oid)
+            if op is None:
+                continue
+            defined_vals.update(op.outputs)
+            used_vals.update(op.inputs)
+
+        # Entry values = used but not defined in region �?become function args
+        entry_vals = sorted(used_vals - defined_vals)
+        # Exit values = defined in region but used outside (or all defined)
+        exit_vals = sorted(defined_vals)
+
+        # Map entry values to donor's arg values where possible
+        arg_map = {}
+        donor_args = set(donor_ir.arg_values)
+        for v in entry_vals:
+            if v in donor_args:
+                arg_map[v] = v
+
+        # Build single-block IR
+        block_id = "entry"
+        ops = {}
+        for oid in self._ordered_donor_ops(donor_ir):
+            if oid in selected_op_ids:
+                op = donor_ir.ops[oid]
+                ops[oid] = Op(
+                    id=op.id,
+                    opcode=op.opcode,
+                    inputs=list(op.inputs),
+                    outputs=list(op.outputs),
+                    block_id=block_id,
+                    source_span=op.source_span,
+                    attrs=dict(op.attrs),
+                )
+
+        # Add a return op that outputs the last defined value
+        ret_vals = exit_vals[-1:] if exit_vals else []
+        ret_id = "ret_trim"
+        ops[ret_id] = Op(
+            id=ret_id, opcode="return",
+            inputs=ret_vals, outputs=[],
+            block_id=block_id, attrs={},
+        )
+
+        # Collect all referenced values
+        all_vals = {}
+        for vid in set(entry_vals) | set(defined_vals):
+            v = donor_ir.values.get(vid)
+            if v:
+                all_vals[vid] = Value(
+                    id=v.id, name_hint=v.name_hint,
+                    type_hint=v.type_hint, source_span=v.source_span,
+                    def_op=v.def_op if v.def_op in ops else "",
+                    use_ops=[u for u in v.use_ops if u in ops],
+                    attrs=dict(v.attrs),
+                )
+
+        block = Block(
+            id=block_id,
+            op_ids=list(ops.keys()),
+            preds=[], succs=[], attrs={},
+        )
+
+        # Use donor's arg values that are needed, plus extra entry values
+        func_args = [v for v in donor_ir.arg_values if v in entry_vals]
+        for v in entry_vals:
+            if v not in func_args:
+                func_args.append(v)
+
+        return FunctionIR(
+            id=donor_ir.id + "_trim",
+            name=donor_ir.name + "_trim",
+            arg_values=func_args,
+            return_values=ret_vals,
+            values=all_vals,
+            ops=ops,
+            blocks={block_id: block},
+            entry_block=block_id,
+            attrs=dict(donor_ir.attrs) if donor_ir.attrs else {},
+        )
+
+    def _find_donor_slot_population(
+        self,
+        donor_genome: AlgorithmGenome | None,
+        slot_id: str,
+    ) -> SlotPopulation | None:
+        """Find a matching SlotPopulation from the donor genome.
+
+        Tries exact key match, then suffix match (e.g. 'bp_sweep' matches
+        population keyed as 'bp.sweep'), then slot_id substring.
+        """
+        if donor_genome is None or not donor_genome.slot_populations:
+            return None
+
+        # 1. Exact key match
+        if slot_id in donor_genome.slot_populations:
+            pop = donor_genome.slot_populations[slot_id]
+            if pop.variants:
+                return pop
+
+        # 2. Match by slot_id suffix (e.g. donor key "bp.sweep" for slot_id "bp_sweep")
+        for key, pop in donor_genome.slot_populations.items():
+            if not pop.variants:
+                continue
+            # Check if the key's short name matches
+            short = key.split(".")[-1]
+            if short == slot_id or slot_id.endswith(short) or slot_id.endswith(f"_{short}"):
+                return pop
+            # Check if slot_id matches the population's slot_id
+            if pop.slot_id == slot_id:
+                return pop
+
+        return None
 
     # ------------------------------------------------------------------
     # Runtime trace collection
@@ -627,9 +919,14 @@ class AlgorithmEvolutionEngine:
         for idx in top_indices:
             genome = self.population[idx]
             try:
-                # Materialize the genome to get a FunctionIR with slots filled
-                mat_ir = materialize(genome)
-                if mat_ir is None:
+                # Materialize the genome �?returns Python source (str),
+                # not FunctionIR.  The interpreter path requires FunctionIR,
+                # so skip trace collection when materialization yields source.
+                mat_result = materialize(genome)
+                if mat_result is None:
+                    continue
+                if isinstance(mat_result, str):
+                    # Source-level materialization �?cannot use interpreter path
                     continue
 
                 # Generate a single sample input for trace collection
@@ -683,6 +980,18 @@ class AlgorithmEvolutionEngine:
             # Keep top 10
             self.hall_of_fame.sort(key=lambda x: x[1].composite_score())
             self.hall_of_fame = self.hall_of_fame[:10]
+
+    def _record_graft_reward(self, proposal_id: str, reward: float) -> None:
+        """Forward graft outcome to GNN pattern matcher if applicable."""
+        if self.pattern_matcher is None:
+            return
+        # Walk through composite matchers to find GNN matchers
+        matchers = [self.pattern_matcher]
+        if hasattr(self.pattern_matcher, "matchers"):
+            matchers = self.pattern_matcher.matchers
+        for m in matchers:
+            if hasattr(m, "record_outcome"):
+                m.record_outcome(proposal_id, reward)
 
     def _check_stagnation(self) -> None:
         """Detect and handle stagnation."""

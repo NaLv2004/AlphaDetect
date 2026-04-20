@@ -1,0 +1,38 @@
+04:51:18 INFO  evolution.algorithm_engine ！ Population initialized: 24 genomes, best=0.000488
+04:51:40 INFO  evolution.algorithm_engine ！   Structural grafts: 10/10 succeeded
+04:51:40 INFO  evolution.algorithm_engine ！ Gen 1: best=0.000488 (algo_e46f5277) elapsed=21.8s stagnation=0
+04:51:45 INFO  evolution.gnn_pattern_matcher ！ GNN train: 6 samples, avg_reward=-1.0000, baseline=-0.1000, loss=-18.7495
+04:52:04 WARNING evolution.algorithm_engine ！ Graft failed: Region references 3 ops not in host IR: ['op_inl_c0899b', 'op_inl_db6aee', 'op_inl_dbd8df']´
+04:52:04 WARNING evolution.algorithm_engine ！ Graft failed: Region references 3 ops not in host IR: ['op_inl_c0899b', 'op_inl_db6aee', 'op_inl_dbd8df']´
+04:52:04 WARNING evolution.algorithm_engine ！ Graft failed: Region references 3 ops not in host IR: ['op_inl_c0899b', 'op_inl_db6aee', 'op_inl_dbd8df']´
+04:52:04 WARNING evolution.algorithm_engine ！ Graft failed: Region references 3 ops not in host IR: ['op_inl_c0899b', 'op_inl_db6aee', 'op_inl_dbd8df']´
+04:52:04 INFO  evolution.algorithm_engine ！   Structural grafts: 6/10 succeeded
+04:52:05 INFO  evolution.algorithm_engine ！ Gen 2: best=0.000488 (algo_e46f5277) elapsed=24.9s stagnation=0
+04:52:10 INFO  evolution.gnn_pattern_matcher ！ GNN train: 2 samples, avg_reward=-1.0000, baseline=-0.1900, loss=-5.2102
+04:52:25 INFO  evolution.algorithm_engine ！   Structural grafts: 10/10 succeeded
+04:52:34 INFO  evolution.algorithm_engine ！ Gen 3: best=0.000488 (algo_e46f5277) elapsed=28.8s stagnation=1
+04:52:41 INFO  evolution.gnn_pattern_matcher ！ GNN train: 6 samples, avg_reward=-1.0000, baseline=-0.2710, loss=-14.9667
+04:53:00 INFO  evolution.algorithm_engine ！   Structural grafts: 10/10 succeeded
+04:53:01 INFO  evolution.algorithm_engine ！ Gen 4: best=0.000488 (algo_e46f5277) elapsed=26.8s stagnation=2
+04:53:12 INFO  evolution.gnn_pattern_matcher ！ GNN train: 6 samples, avg_reward=-1.0000, baseline=-0.3439, loss=-13.6841
+04:53:26 INFO  evolution.algorithm_engine ！   Structural grafts: 10/10 succeeded
+04:53:27 INFO  evolution.algorithm_engine ！ Gen 5: best=0.000488 (algo_e46f5277) elapsed=26.2s stagnation=3
+04:53:30 INFO  evolution.gnn_pattern_matcher ！ GNN train: 6 samples, avg_reward=-1.0000, baseline=-0.4095, loss=-11.9951
+04:53:43 INFO  evolution.algorithm_engine ！   Structural grafts: 10/10 succeeded
+04:53:44 INFO  evolution.algorithm_engine ！ Gen 6: best=0.000488 (algo_e46f5277) elapsed=17.4s stagnation=4
+04:53:48 INFO  evolution.gnn_pattern_matcher ！ GNN train: 6 samples, avg_reward=-1.0000, baseline=-0.4686, loss=-10.7567
+04:54:03 INFO  evolution.algorithm_engine ！   Structural grafts: 10/10 succeeded
+04:54:04 INFO  evolution.algorithm_engine ！ Gen 7: best=0.000488 (algo_e46f5277) elapsed=19.8s stagnation=5
+04:54:08 INFO  evolution.gnn_pattern_matcher ！ GNN train: 6 samples, avg_reward=-1.0000, baseline=-0.5217, loss=-9.6882
+04:54:30 INFO  evolution.algorithm_engine ！   Structural grafts: 10/10 succeeded
+04:54:30 INFO  evolution.algorithm_engine ！ Gen 8: best=0.000488 (algo_e46f5277) elapsed=26.1s stagnation=6
+04:54:43 INFO  evolution.gnn_pattern_matcher ！ GNN train: 6 samples, avg_reward=-1.0000, baseline=-0.5695, loss=-8.3466
+04:54:59 INFO  evolution.algorithm_engine ！   Structural grafts: 10/10 succeeded
+04:55:00 INFO  evolution.algorithm_engine ！ Gen 9: best=0.000488 (algo_e46f5277) elapsed=29.7s stagnation=7
+04:55:46 INFO  evolution.gnn_pattern_matcher ！ GNN train: 6 samples, avg_reward=-1.0000, baseline=-0.6126, loss=-7.7509
+06:58:58 INFO  evolution.algorithm_engine ！   Structural grafts: 10/10 succeeded
+06:59:40 INFO  evolution.algorithm_engine ！ Gen 10: best=0.000488 (algo_e46f5277) elapsed=7479.7s stagnation=8
+07:00:56 INFO  evolution.gnn_pattern_matcher ！ GNN train: 6 samples, avg_reward=-1.0000, baseline=-0.6513, loss=-7.1563
+09:04:19 INFO  evolution.algorithm_engine ！   Structural grafts: 10/10 succeeded
+09:05:00 INFO  evolution.algorithm_engine ！ Gen 11: best=0.000488 (algo_e46f5277) elapsed=7517.5s stagnation=9
+09:06:21 INFO  evolution.gnn_pattern_matcher ！ GNN train: 6 samples, avg_reward=-1.0000, baseline=-0.6862, loss=-6.2104

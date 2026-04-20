@@ -303,13 +303,30 @@ class ExpertPatternMatcher:
         donor: AlgorithmEntry,
     ) -> GraftProposal | None:
         """Try to apply an expert rule to a host/donor pair."""
-        # Find matching opcode sequence in host
+        # Find matching opcode sequence in host, then extend region
         for block_id, block in host.ir.blocks.items():
             match_ops = self._find_opcode_sequence(
                 host.ir, block.op_ids, rule.host_opcode_sequence,
             )
             if match_ops:
-                region = _build_region_from_ops(host.ir, match_ops)
+                # Extend region: include 2 ops before and after the match
+                non_term = [
+                    oid for oid in block.op_ids
+                    if host.ir.ops.get(oid)
+                    and host.ir.ops[oid].opcode not in ("return", "branch", "jump")
+                ]
+                try:
+                    start_idx = non_term.index(match_ops[0])
+                except ValueError:
+                    start_idx = 0
+                try:
+                    end_idx = non_term.index(match_ops[-1])
+                except ValueError:
+                    end_idx = start_idx + len(match_ops) - 1
+                ext_start = max(0, start_idx - 2)
+                ext_end = min(len(non_term), end_idx + 3)
+                extended_ops = non_term[ext_start:ext_end]
+                region = _build_region_from_ops(host.ir, extended_ops)
                 return GraftProposal(
                     proposal_id=_fresh_id(f"expert_{rule.rule_id}"),
                     host_algo_id=host.algo_id,
@@ -319,7 +336,7 @@ class ExpertPatternMatcher:
                     donor_ir=donor.ir,
                     dependency_overrides=[],
                     confidence=rule.confidence,
-                    rationale=rule.description,
+                    rationale=f"{rule.description} ({len(extended_ops)} ops)",
                 )
         return None
 
@@ -455,15 +472,34 @@ class StaticStructurePatternMatcher:
                 )
 
         # Strategy: if host has call ops and donor has different call ops,
-        # propose replacing a call with donor's version
+        # propose replacing the call AND its surrounding ops (a larger region)
         host_calls = [
             oid for oid, op in host.ir.ops.items()
             if op.opcode == "call" and not op.attrs.get("grafted")
         ]
         if host_calls and donor_fp["n_ops"] > 0:
-            # Pick first non-grafted call
+            # Pick first non-grafted call and extend region to neighbours
             target_call = host_calls[0]
-            region = _build_region_from_ops(host.ir, [target_call])
+            target_op = host.ir.ops[target_call]
+            block = host.ir.blocks.get(target_op.block_id)
+            if block:
+                non_term = [
+                    oid for oid in block.op_ids
+                    if host.ir.ops.get(oid)
+                    and host.ir.ops[oid].opcode not in ("return", "branch", "jump")
+                ]
+                # Find index of the call in non_term ops
+                try:
+                    call_idx = non_term.index(target_call)
+                except ValueError:
+                    call_idx = 0
+                # Extend region: 2 ops before, the call, 2 ops after
+                start = max(0, call_idx - 2)
+                end = min(len(non_term), call_idx + 3)
+                region_ops = non_term[start:end]
+            else:
+                region_ops = [target_call]
+            region = _build_region_from_ops(host.ir, region_ops)
             return GraftProposal(
                 proposal_id=_fresh_id("static_call_replace"),
                 host_algo_id=host.algo_id,
@@ -473,8 +509,37 @@ class StaticStructurePatternMatcher:
                 donor_ir=donor.ir,
                 dependency_overrides=[],
                 confidence=0.4,
-                rationale="Replace call op with donor implementation",
+                rationale=f"Replace call region ({len(region_ops)} ops) with donor",
             )
+
+        # Strategy: replace core computation (middle portion of entry block)
+        entry_block = host.ir.blocks.get(host.ir.entry_block)
+        if entry_block and donor_fp["n_ops"] > 0:
+            non_term = [
+                oid for oid in entry_block.op_ids
+                if host.ir.ops.get(oid)
+                and host.ir.ops[oid].opcode not in ("return", "branch", "jump")
+            ]
+            if len(non_term) >= 6:
+                # Keep first 25% (setup) and last 25% (post-processing)
+                # Replace the middle 50% with donor
+                n = len(non_term)
+                start = max(2, n // 4)
+                end = min(n, n - n // 4)
+                if end - start >= 3:
+                    region_ops = non_term[start:end]
+                    region = _build_region_from_ops(host.ir, region_ops)
+                    return GraftProposal(
+                        proposal_id=_fresh_id("static_core_replace"),
+                        host_algo_id=host.algo_id,
+                        region=region,
+                        contract=None,
+                        donor_algo_id=donor.algo_id,
+                        donor_ir=donor.ir,
+                        dependency_overrides=[],
+                        confidence=0.45,
+                        rationale=f"Replace core computation ({len(region_ops)}/{n} ops) with donor",
+                    )
 
         return None
 
