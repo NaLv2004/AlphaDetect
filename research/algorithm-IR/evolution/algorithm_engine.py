@@ -68,6 +68,10 @@ class AlgorithmEvolutionEngine:
         self._history: list[dict[str, Any]] = []
         # Gene bank: original pool genomes kept permanently for donor lookup
         self.gene_bank: list[AlgorithmGenome] = []
+        # Optional lightweight evaluator for warm-start graft sweeps.
+        self.graft_eval_evaluator: AlgorithmFitnessEvaluator | None = None
+        self.graft_survivor_cap: int | None = None
+        self.last_generation_stats: dict[str, Any] = {}
 
     # ------------------------------------------------------------------
     # Initialization
@@ -143,19 +147,48 @@ class AlgorithmEvolutionEngine:
             t0 = time.perf_counter()
 
             # ---- Micro level: evolve slots within each genome ----
+            # Only micro-evolve up to 20 best genomes per generation to
+            # keep generation time bounded (~30-60s instead of 10+ min).
+            _MAX_MICRO = 20
+            # Build list of (index, genome) sorted by fitness (best first)
+            _candidates = []
             for i, genome in enumerate(self.population):
+                if i < len(self.fitness):
+                    genome_ser = self.fitness[i].metrics.get("ser", 1.0)
+                    if genome_ser > 0.5:
+                        continue
+                    _candidates.append((self.fitness[i].composite_score(), i, genome))
+                else:
+                    _candidates.append((float("inf"), i, genome))
+            _candidates.sort(key=lambda x: x[0])
+            _micro_evolved_indices: set[int] = set()
+            for _, idx, genome in _candidates[:_MAX_MICRO]:
                 self._micro_evolve(genome)
+                _micro_evolved_indices.add(idx)
+            t_micro = time.perf_counter()
 
-            # ---- Re-evaluate after micro evolution ----
-            self.fitness = self.evaluator.evaluate_batch(self.population)
+            # ---- Re-evaluate only micro-evolved genomes (cache rest) ----
+            # This avoids re-evaluating all 91 genomes every generation.
+            if not self.fitness:
+                # First generation: evaluate all
+                self.fitness = self.evaluator.evaluate_batch(self.population)
+            else:
+                for i in _micro_evolved_indices:
+                    if i < len(self.population):
+                        self.fitness[i] = self.evaluator.evaluate(self.population[i])
             self._update_best()
+            t_eval_micro = time.perf_counter()
 
             # ---- Macro level: breed next generation ----
             offspring = self._breed_macro()
 
             # ---- Track A: structural grafting via PatternMatcher ----
             graft_offspring: list[AlgorithmGenome] = []
-            graft_proposal_ids: list[str] = []  # track proposal IDs for RL feedback
+            graft_proposals: list = []
+            host_scores: dict[str, float] = {
+                g.algo_id: f.composite_score()
+                for g, f in zip(self.population, self.fitness)
+            }
             if self.pattern_matcher is not None:
                 entries = [
                     g.to_entry(f)
@@ -171,7 +204,9 @@ class AlgorithmEvolutionEngine:
                     if g.algo_id not in pop_ids
                 ]
                 all_entries = entries + bank_entries
+                t_gnn_start = time.perf_counter()
                 proposals = self.pattern_matcher(all_entries, self.generation)
+                t_gnn_propose = time.perf_counter()
                 n_graft_ok = 0
                 for proposal in proposals:
                     try:
@@ -179,36 +214,113 @@ class AlgorithmEvolutionEngine:
                         if child is not None:
                             child.generation = self.generation
                             graft_offspring.append(child)
-                            graft_proposal_ids.append(proposal.proposal_id)
+                            graft_proposals.append(proposal)
                             n_graft_ok += 1
+                        else:
+                            host_score = host_scores.get(proposal.host_algo_id, 1.0)
+                            self._record_graft_reward(
+                                proposal.proposal_id,
+                                reward=-1.0,
+                                graft_score=1.5,
+                                host_score=host_score,
+                                is_valid=False,
+                            )
                     except Exception as exc:
                         logger.warning("Graft failed: %s", exc)
+                        host_score = host_scores.get(proposal.host_algo_id, 1.0)
+                        self._record_graft_reward(
+                            proposal.proposal_id,
+                            reward=-1.0,
+                            graft_score=1.5,
+                            host_score=host_score,
+                            is_valid=False,
+                        )
                 if proposals:
+                    t_gnn_graft = time.perf_counter()
                     logger.info(
-                        "  Structural grafts: %d/%d succeeded",
+                        "  Structural grafts: %d/%d succeeded (propose=%.1fs, graft=%.1fs)",
                         n_graft_ok, len(proposals),
+                        t_gnn_propose - t_gnn_start,
+                        t_gnn_graft - t_gnn_propose,
                     )
 
-            # Evaluate offspring
-            all_offspring = offspring + graft_offspring
-            off_fitness = self.evaluator.evaluate_batch(all_offspring)
+            warmstart_active = bool(
+                self.pattern_matcher is not None
+                and hasattr(self.pattern_matcher, "is_warmstart_generation")
+                and self.pattern_matcher.is_warmstart_generation(self.generation)
+                and self.graft_eval_evaluator is not None
+            )
+            t_eval_start = time.perf_counter()
+            macro_fitness = self.evaluator.evaluate_batch(offspring)
+            selected_graft_offspring: list[AlgorithmGenome] = []
+            selected_graft_fitness: list[FitnessResult] = []
+            n_graft_evaluated = 0
+            n_graft_selected = 0
 
             # ---- RL feedback for GNN pattern matcher ----
-            if graft_offspring and graft_proposal_ids:
-                # Normalized reward:
-                #   +1  if graft_score = 0    (perfect detector)
-                #    0  if graft_score = 0.5  (half random guessing)
-                #   -1  if graft_score = 1.0  (random guessing)
-                # This gives the GNN a strong gradient for any *working* graft
-                # (SER < 0.5) vs broken grafts (SER ~1.0), independent of
-                # whether the graft beats the already-excellent best parent.
-                graft_start = len(offspring)
-                for gi, pid in enumerate(graft_proposal_ids):
-                    graft_idx = graft_start + gi
-                    if graft_idx < len(off_fitness):
-                        graft_score = off_fitness[graft_idx].composite_score()
-                        reward = 1.0 - 2.0 * min(graft_score, 1.0)
-                        self._record_graft_reward(pid, reward)
+            if graft_offspring and graft_proposals:
+                # Tiered reward with bonus for valid (non-crashing) grafts:
+                #   Base: 1.0 - 2.0 * SER  (range -1 to +1)
+                #   Bonus: +0.2 if algorithm executed without crash (is_valid)
+                #          +0.3 if SER < 0.5  (better than random guessing)
+                #          +0.5 if SER < host_SER (actual improvement over host)
+                # Compare against the HOST genome's score, not global best —
+                # this gives meaningful gradient even when the best algorithm
+                # in the pool has SER ≈ 0.
+                graft_evaluator = (
+                    self.graft_eval_evaluator
+                    if warmstart_active and self.graft_eval_evaluator is not None
+                    else self.evaluator
+                )
+                graft_fitness_all = graft_evaluator.evaluate_batch(graft_offspring)
+                n_graft_evaluated = len(graft_fitness_all)
+
+                for proposal, fit in zip(graft_proposals, graft_fitness_all):
+                    graft_score = fit.composite_score()
+                    host_score = host_scores.get(proposal.host_algo_id, 1.0)
+                    reward = self._compute_graft_reward(
+                        graft_score=graft_score,
+                        host_score=host_score,
+                        is_valid=fit.is_valid,
+                    )
+                    self._record_graft_reward(
+                        proposal.proposal_id,
+                        reward=reward,
+                        graft_score=graft_score,
+                        host_score=host_score,
+                        is_valid=fit.is_valid,
+                    )
+
+                if warmstart_active and self.graft_survivor_cap is not None and self.graft_survivor_cap > 0:
+                    ranked = sorted(
+                        zip(graft_offspring, graft_fitness_all),
+                        key=lambda item: item[1].composite_score(),
+                    )
+                    selected_graft_offspring = [
+                        child for child, _ in ranked[:self.graft_survivor_cap]
+                    ]
+                    if selected_graft_offspring:
+                        selected_graft_fitness = self.evaluator.evaluate_batch(
+                            selected_graft_offspring
+                        )
+                    n_graft_selected = len(selected_graft_offspring)
+                else:
+                    selected_graft_offspring = graft_offspring
+                    selected_graft_fitness = graft_fitness_all
+                    n_graft_selected = len(selected_graft_offspring)
+
+            all_offspring = offspring + selected_graft_offspring
+            off_fitness = macro_fitness + selected_graft_fitness
+            t_eval_off = time.perf_counter()
+            logger.info(
+                "  Timing: micro=%.1fs eval_micro=%.1fs eval_off=%.1fs (%d macro, %d graft eval, %d graft kept)",
+                t_micro - t0,
+                t_eval_micro - t_micro,
+                t_eval_off - t_eval_start,
+                len(offspring),
+                n_graft_evaluated,
+                n_graft_selected,
+            )
 
             # Selection with niching: preserve structural diversity
             combined = list(zip(self.population, self.fitness)) + \
@@ -216,6 +328,14 @@ class AlgorithmEvolutionEngine:
             survivors = self._select_with_niching(combined, cfg.pool_size)
             self.population = [g for g, _ in survivors]
             self.fitness = [f for _, f in survivors]
+            self.last_generation_stats = {
+                "warmstart_active": warmstart_active,
+                "macro_offspring": len(offspring),
+                "graft_candidates": len(graft_proposals),
+                "graft_successes": len(graft_offspring),
+                "graft_evaluated": n_graft_evaluated,
+                "graft_kept": n_graft_selected,
+            }
 
             self._update_best()
             elapsed = time.perf_counter() - t0
@@ -274,6 +394,16 @@ class AlgorithmEvolutionEngine:
                             continue
                     else:
                         continue
+                # Ensure the current best variant has a real fitness value.
+                # Initial pool sets fitness=inf for all variants including
+                # the default implementation.  Without this, the first
+                # random mutation (evaluated and finite) immediately
+                # displaces the correct default as "best".
+                bi = pop.best_idx
+                if bi < len(pop.fitness) and pop.fitness[bi] == float("inf"):
+                    pop.fitness[bi] = self._evaluate_slot_variant(
+                        genome, slot_id, pop.variants[bi],
+                    )
                 self._micro_step(genome, slot_id, pop)
 
     def _micro_step(
@@ -379,25 +509,28 @@ class AlgorithmEvolutionEngine:
         if cfg and cfg.snr_db_list:
             snr_db = cfg.snr_db_list[len(cfg.snr_db_list) // 2]
 
-        # Run a few quick trials with per-trial timeout
+        # Run a few quick trials with per-trial timeout.
+        # Use a short timeout (0.3s) and abort early on first timeout
+        # to avoid accumulating leaked threads from hung computations.
         import concurrent.futures as _cf
         n_quick = 5
         total_err = 0
         total_sym = 0
-        _timeout = getattr(cfg, "timeout_sec", 5.0) / max(n_quick, 1) * 2 if cfg else 2.0
+        _timeout = 0.3  # seconds per trial — good algos finish in <0.05s
+        _timeouts = 0
 
         _ex = _cf.ThreadPoolExecutor(max_workers=1)
-        _ex_dirty = False
 
         for trial in range(n_quick):
+            if _timeouts >= 1:
+                # First timeout means algo is too slow — skip remaining
+                total_err += Nt * (n_quick - trial)
+                total_sym += Nt * (n_quick - trial)
+                break
             try:
                 H, x_true, y, sigma2 = generate_mimo_sample(
                     Nr, Nt, constellation, snr_db, rng,
                 )
-                if _ex_dirty:
-                    _ex.shutdown(wait=False)
-                    _ex = _cf.ThreadPoolExecutor(max_workers=1)
-                    _ex_dirty = False
                 try:
                     fut = _ex.submit(fn, H, y, sigma2, constellation)
                     x_hat = fut.result(timeout=_timeout)
@@ -410,7 +543,10 @@ class AlgorithmEvolutionEngine:
                 except _cf.TimeoutError:
                     fut.cancel()
                     total_err += Nt
-                    _ex_dirty = True
+                    _timeouts += 1
+                    # Replace executor to avoid thread leak buildup
+                    _ex.shutdown(wait=False)
+                    _ex = _cf.ThreadPoolExecutor(max_workers=1)
                 except Exception:
                     total_err += Nt
                 total_sym += Nt
@@ -642,7 +778,19 @@ class AlgorithmEvolutionEngine:
                     donor_genome = g
                     break
 
-        # Execute the graft (inline �?donor ops are cloned into host IR)
+        # Execute the graft (inline — donor ops are cloned into host IR)
+        # Diagnostic: verify region ops exist in host IR before calling graft
+        region_ops = set(proposal.region.op_ids)
+        host_ops = set(host_genome.structural_ir.ops.keys())
+        missing_ops = region_ops - host_ops
+        if missing_ops:
+            logger.warning(
+                "Pre-graft mismatch: host=%s has %d ops, region wants %s "
+                "(missing %d). GNN proposed stale op IDs.",
+                host_genome.algo_id, len(host_ops),
+                sorted(missing_ops)[:3], len(missing_ops),
+            )
+            return None
         artifact = graft_general(host_genome.structural_ir, proposal)
 
         # Build child genome
@@ -926,8 +1074,11 @@ class AlgorithmEvolutionEngine:
                 if mat_result is None:
                     continue
                 if isinstance(mat_result, str):
-                    # Source-level materialization �?cannot use interpreter path
+                    # Source-level materialization — cannot use interpreter path
                     continue
+
+                # mat_result is a FunctionIR at this point
+                mat_ir = mat_result
 
                 # Generate a single sample input for trace collection
                 cfg = getattr(self.evaluator, 'config', None)
@@ -981,7 +1132,32 @@ class AlgorithmEvolutionEngine:
             self.hall_of_fame.sort(key=lambda x: x[1].composite_score())
             self.hall_of_fame = self.hall_of_fame[:10]
 
-    def _record_graft_reward(self, proposal_id: str, reward: float) -> None:
+    def _compute_graft_reward(
+        self,
+        *,
+        graft_score: float,
+        host_score: float,
+        is_valid: bool,
+    ) -> float:
+        """Dense reward used for online graft policy training."""
+        safe_score = graft_score if np.isfinite(graft_score) else 1.5
+        reward = 1.0 - 2.0 * min(safe_score, 1.0)
+        if is_valid:
+            reward += 0.2
+        if safe_score < 0.5:
+            reward += 0.3
+        if safe_score < host_score:
+            reward += 0.5
+        return reward
+
+    def _record_graft_reward(
+        self,
+        proposal_id: str,
+        reward: float,
+        graft_score: float | None = None,
+        host_score: float | None = None,
+        is_valid: bool | None = None,
+    ) -> None:
         """Forward graft outcome to GNN pattern matcher if applicable."""
         if self.pattern_matcher is None:
             return
@@ -991,7 +1167,13 @@ class AlgorithmEvolutionEngine:
             matchers = self.pattern_matcher.matchers
         for m in matchers:
             if hasattr(m, "record_outcome"):
-                m.record_outcome(proposal_id, reward)
+                m.record_outcome(
+                    proposal_id,
+                    reward,
+                    graft_score=graft_score,
+                    host_score=host_score,
+                    is_valid=is_valid,
+                )
 
     def _check_stagnation(self) -> None:
         """Detect and handle stagnation."""

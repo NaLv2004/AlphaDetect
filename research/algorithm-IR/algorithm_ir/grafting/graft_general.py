@@ -727,43 +727,97 @@ def graft_general(
     # 5. Map donor args → host function args
     donor_arg_new_vids = [id_map[v] for v in donor_ir.arg_values]
 
+    # Generic IR-builder name_hints that must NOT be used for
+    # cross-IR value matching — they are semantically meaningless
+    # and collide across every IR (every binary op produces a value
+    # called "binary", etc.).
+    _GENERIC_IR_NAMES = frozenset({
+        "binary", "unary", "compare", "call", "get_attr", "get_item",
+        "iter_init", "iter_next", "iter_has_next", "phi", "const",
+    })
+
     if proposal.port_mapping:
         host_arg_vids = [
             proposal.port_mapping.get(v, v) for v in entry_values
         ]
     elif donor_ir.arg_values:
+        # Name-hint matching: for each donor arg, find the host value
+        # whose name_hint matches.  This is critical for trimmed donors
+        # where arg_values are a subset of the original function args —
+        # positional mapping (old approach) binds them incorrectly.
+        host_name_to_vid: dict[str, str] = {}
+        for vid in new_ir.arg_values:
+            val = new_ir.values.get(vid)
+            if val:
+                hints = [h for h in [
+                    val.name_hint,
+                    val.attrs.get("var_name"),
+                    val.attrs.get("name"),
+                ] if h and h not in _GENERIC_IR_NAMES]
+                for h in hints:
+                    host_name_to_vid[h] = vid
+
+        # Also index all host values by name (not just args) so that
+        # intermediate entry values can be matched.
+        for vid, val in new_ir.values.items():
+            hints = [h for h in [
+                val.name_hint,
+                val.attrs.get("var_name"),
+                val.attrs.get("name"),
+            ] if h and h not in _GENERIC_IR_NAMES]
+            for h in hints:
+                if h not in host_name_to_vid:
+                    host_name_to_vid[h] = vid
+
+        host_arg_vids: list[str] = []
         n_donor = len(donor_ir.arg_values)
         n_host = len(new_ir.arg_values)
-        host_arg_vids = list(new_ir.arg_values[:min(n_donor, n_host)])
-        # If donor has MORE args than host, create const ops for extra args
-        # so inlined donor ops can reference them (prevent broken IR).
-        if n_donor > n_host:
-            host_block = new_ir.blocks.get(new_ir.entry_block)
-            for extra_idx in range(n_host, n_donor):
-                donor_orig_vid = donor_ir.arg_values[extra_idx]
-                donor_orig_val = donor_ir.values.get(donor_orig_vid)
-                hint = donor_orig_val.name_hint if donor_orig_val else f"extra_{extra_idx}"
-                new_vid = _fresh_id("v_extra")
-                new_ir.values[new_vid] = Value(
-                    id=new_vid,
-                    name_hint=hint,
-                    type_hint="object",
-                    attrs={"role": "const", "var_name": hint},
-                )
-                # Create a const op that produces a default value (None)
-                const_oid = _fresh_id("op_extra_const")
-                new_ir.ops[const_oid] = Op(
-                    id=const_oid,
-                    opcode="const",
-                    inputs=[],
-                    outputs=[new_vid],
-                    block_id=new_ir.entry_block,
-                    attrs={"literal": None, "name": hint, "grafted": True},
-                )
-                new_ir.values[new_vid].def_op = const_oid
-                if host_block:
-                    host_block.op_ids.insert(0, const_oid)
-                host_arg_vids.append(new_vid)
+
+        for di, donor_vid in enumerate(donor_ir.arg_values):
+            donor_val = donor_ir.values.get(donor_vid)
+            matched_vid: str | None = None
+
+            if donor_val:
+                # Try matching by name hints (skip generic IR names)
+                for hint in [
+                    donor_val.name_hint,
+                    donor_val.attrs.get("var_name"),
+                    donor_val.attrs.get("name"),
+                ]:
+                    if hint and hint not in _GENERIC_IR_NAMES and hint in host_name_to_vid:
+                        matched_vid = host_name_to_vid[hint]
+                        break
+
+            if matched_vid is None:
+                # Fallback: positional mapping (clamped to host arg count)
+                if di < n_host:
+                    matched_vid = new_ir.arg_values[di]
+                else:
+                    # Create a const None for unmatchable extra args
+                    hint = donor_val.name_hint if donor_val else f"extra_{di}"
+                    new_vid = _fresh_id("v_extra")
+                    new_ir.values[new_vid] = Value(
+                        id=new_vid,
+                        name_hint=hint,
+                        type_hint="object",
+                        attrs={"role": "const", "var_name": hint},
+                    )
+                    const_oid = _fresh_id("op_extra_const")
+                    new_ir.ops[const_oid] = Op(
+                        id=const_oid,
+                        opcode="const",
+                        inputs=[],
+                        outputs=[new_vid],
+                        block_id=new_ir.entry_block,
+                        attrs={"literal": None, "name": hint, "grafted": True},
+                    )
+                    new_ir.values[new_vid].def_op = const_oid
+                    host_block = new_ir.blocks.get(new_ir.entry_block)
+                    if host_block:
+                        host_block.op_ids.insert(0, const_oid)
+                    matched_vid = new_vid
+
+            host_arg_vids.append(matched_vid)
     else:
         host_arg_vids = list(entry_values)
 
@@ -868,6 +922,48 @@ def graft_general(
     for bid in affected_blocks:
         if bid in new_ir.blocks:
             topological_sort_block(new_ir, bid)
+
+    # 12b. Fix dangling value references — safety net for values
+    # referenced by ops but not defined by any op in the IR and not in
+    # arg_values.  These arise when trimmed-donor args with generic
+    # name_hints (e.g. "binary") aren't matched to host values.
+    arg_set = set(new_ir.arg_values)
+    for op in list(new_ir.ops.values()):
+        for inp_vid in list(op.inputs):
+            if inp_vid in arg_set:
+                continue
+            val = new_ir.values.get(inp_vid)
+            if val is None:
+                continue
+            # Check if the value has a defining op that exists in the IR
+            if val.def_op and val.def_op in new_ir.ops:
+                continue
+            # Dangling reference: value has no definition.
+            # Replace with a safe const 0 to prevent NameError.
+            safe_vid = _fresh_id("v_safe")
+            new_ir.values[safe_vid] = Value(
+                id=safe_vid,
+                name_hint="safe_zero",
+                type_hint="object",
+                attrs={"role": "const", "var_name": "0"},
+            )
+            safe_oid = _fresh_id("op_safe_const")
+            new_ir.ops[safe_oid] = Op(
+                id=safe_oid,
+                opcode="const",
+                inputs=[],
+                outputs=[safe_vid],
+                block_id=new_ir.entry_block,
+                attrs={"literal": 0, "name": "0", "grafted": True},
+            )
+            new_ir.values[safe_vid].def_op = safe_oid
+            entry_block = new_ir.blocks.get(new_ir.entry_block)
+            if entry_block:
+                entry_block.op_ids.insert(0, safe_oid)
+            # Rebind the dangling input to the safe const
+            op.inputs = [safe_vid if v == inp_vid else v for v in op.inputs]
+            if safe_vid not in new_ir.values[safe_vid].use_ops:
+                new_ir.values[safe_vid].use_ops.append(op.id)
 
     # 13. Detect new slots from donor
     new_slot_ids: list[str] = []

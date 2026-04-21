@@ -211,3 +211,22 @@ Each entry includes parameters, results, and key observations.
   4. Gen timing: ~52-57s/gen (down from ~75s in v7c thanks to batched constant_hill_climb).
   5. The two formula variants represent a Pareto front: old better at high SNR, new better at low SNR.
 - **Files**: research/mimo-push-gp/logs/sbp_evolution_run0416_v7d.log, research/mimo-push-gp/results/sbp_run0416_v7d_gen*.json
+
+## [2026-04-22 00:37] Algorithm-IR Phase A/B Warm-Start GNN Benchmark
+- **Context**: Implemented phase A/B for `research/algorithm-IR/train_gnn.py`: gen-1 full pair warm-start (one sampled graft per host/donor pair), scorer MSE on real graft composite score, stochastic host/donor region policies, replay retention, lightweight warm-start graft evaluator, parallel `evaluate_batch`, and materialized callable caching.
+- **Benchmark setup**:
+  - Baseline: `warmstart_gens=0`, `gens=3`, `proposals=20`, `pool_size=91`, `n_trials=1`, `timeout=0.3`, `train_steps=5`.
+  - Warm-start: same config except `warmstart_gens=1`, `warmstart_trials=1`, `warmstart_timeout=0.15`, `warmstart_eval_workers=12`, `warmstart_survivor_cap=32`.
+  - Outputs in `bench/baseline/results/gnn_training/` and `bench/warmstart/results/gnn_training/`.
+- **Results**:
+  - Baseline gen-2 matched samples: `20`; gen-3 matched samples: `40`.
+  - Warm-start gen-2 matched samples: `8190`; gen-3 matched samples: `8210`.
+  - Baseline median SER by gen: `0.3125 -> 0.25 -> 0.0625`.
+  - Warm-start median SER by gen: `0.0 -> 0.0 -> 0.0` on the same noisy `n_trials=1` evaluator.
+  - Baseline grafted survivors by gen: `2 -> 2 -> 2`.
+  - Warm-start grafted survivors by gen: `32 -> 53 -> 58`.
+  - Runtime: baseline total `19.7s`; warm-start total `231.6s`.
+- **Profiling observation**:
+  - Warm-start gen-1 proposer time was dominant: `176.6s` to build `8190` proposals.
+  - Warm-start gen-1 graft evaluator time was `18.2s` for `8190` lightweight evaluations, so evaluation is no longer the main bottleneck.
+- **Takeaway**: Phase A/B materially increased training data density and early graft usefulness, but the dominant cost is now Python-side proposal generation rather than evaluator throughput.

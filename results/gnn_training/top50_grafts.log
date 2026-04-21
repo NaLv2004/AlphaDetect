@@ -1,0 +1,94 @@
+GNN Grafting Training Log
+Started: 2026-04-22 00:25:34
+Config: {'gens': 1, 'snr_start': 20.0, 'snr_target': 24.0, 'phase_thresh': 0.5, 'proposals': 20, 'top_k': 20, 'pool_size': 91, 'n_trials': 1, 'timeout': 0.4, 'eval_workers': 2, 'warmstart_gens': 0, 'warmstart_trials': 1, 'warmstart_timeout': 0.5, 'warmstart_eval_workers': 8, 'warmstart_survivor_cap': 48, 'train_steps': 1, 'train_interval': 1, 'buffer_size': 2000, 'pair_temp': 0.7, 'pair_eps': 0.1, 'region_eps': 0.1, 'donor_eps': 0.1, 'ckpt_interval': 1000, 'seed': 42, 'resume': None}
+
+
+================================================================================
+GENERATION 1 | SNR=20dB | 2 grafted in population
+================================================================================
+
+--- #1 | algo_7fba4588 | SER=0.875000 | score=0.876840 | verdict=PARTIAL_DEAD ---
+  Lineage: divide_conquer<-reg_solve_wrap
+  Graft ops: 9 (dead: 1)
+  Slots: 4 | Slot pops: {'divide_conquer.linear_solve': 8, 'divide_conquer.hard_decision': 9, 'regularizer': 9}
+  Parents: ['divide_conquer', 'reg_solve_wrap']
+  Source:
+    def _slot_linear_solve_op_38(A, b):
+        return np.linalg.solve(A, b)
+    
+    def _slot_linear_solve_op_39(A, b):
+        return np.linalg.solve(A, b)
+    
+    def _slot_hard_decision_op_40(x_soft, constellation):
+        x_hat = np.zeros(len(x_soft), dtype=complex)
+        i = 0
+        while i < len(x_soft):
+            dists = np.abs(constellation - x_soft[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    def _slot_regularizer_op_inl_8a45ee(G, sigma2):
+        n = G.shape[0]
+        return G + sigma2 * np.eye(n)
+    
+    
+    def divide_conquer_detector(H, y, sigma2, constellation):
+        H.conj()
+        Nt = H.shape[1]
+        rhs = H.conj().T @ y
+        G = H.conj().T @ H
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        G_reg = _slot_regularizer_op_inl_8a45ee(G, sigma2)
+        x = _slot_linear_solve_op_38(G, rhs)
+        x_hat = _slot_hard_decision_op_40(G_reg, constellation)
+        r = y - H @ x
+        g = H.conj().T @ r
+        dx = _slot_linear_solve_op_39(G, g)
+        return x_hat
+
+--- #2 | algo_f3986249 | SER=0.937500 | score=0.940140 | verdict=PARTIAL_DEAD ---
+  Lineage: sparse_detect<-mh
+  Graft ops: 14 (dead: 3)
+  Slots: 2 | Slot pops: {'sparse_detect.shrinkage': 8, 'sparse_detect.hard_decision': 8}
+  Parents: ['sparse_detect', 'mh']
+  Source:
+    def _slot_shrinkage_op_49(x, threshold):
+        Nt = len(x)
+        x_new = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            mag = abs(x[i])
+            if mag > threshold:
+                x_new[i] = x[i] * (1.0 - threshold / mag)
+            i = i + 1
+        return x_new
+    
+    def _slot_hard_decision_op_50(x_soft, constellation):
+        x_hat = np.zeros(len(x_soft), dtype=complex)
+        i = 0
+        while i < len(x_soft):
+            dists = np.abs(constellation - x_soft[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    
+    def sparse_detector(H, y, sigma2, constellation):
+        i = 0
+        Nt = H.shape[1]
+        Nt = H.shape[1]
+        lam = Nt
+        x = np.zeros(Nt, dtype=complex)
+        x = np.zeros(Nt, dtype=complex)
+        while i < 30:
+            r = y - H @ x
+            g = H.conj().T @ r
+            x = x + 0.01 * g
+            x = _slot_shrinkage_op_49(x, lam)
+            i = i + 1
+        x_hat = _slot_hard_decision_op_50(x, constellation)
+        return x_hat
+
+SUMMARY: 0 non-trivial, 0 dead-code, 0 identity, 0 cascade, 2 total
+

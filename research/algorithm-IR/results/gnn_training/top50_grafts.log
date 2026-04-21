@@ -1,0 +1,1062 @@
+GNN Grafting Training Log
+Started: 2026-04-21 22:08:39
+Config: {'gens': 300, 'snr_start': 20.0, 'snr_target': 22.0, 'phase_thresh': 0.5, 'proposals': 200, 'top_k': 50, 'pool_size': 91, 'n_trials': 5, 'timeout': 1.5, 'train_steps': 10, 'ckpt_interval': 10, 'seed': 42, 'resume': None}
+
+
+================================================================================
+GENERATION 1 | SNR=20dB | 6 grafted in population
+================================================================================
+
+--- #1 | algo_42fde667 | SER=0.225000 | score=0.229140 | verdict=NON_TRIVIAL ---
+  Lineage: two_stage<-weight_apply_wrap
+  Graft ops: 5 (dead: 0)
+  Slots: 4 | Slot pops: {'two_stage.stage1': 8, 'two_stage.refine': 8, 'two_stage.hard_decision': 8, 'weight': 9, 'hard_decision': 9}
+  Parents: ['two_stage', 'weight_apply_wrap']
+  Source:
+    def _slot_refine_op_8(H, y, sigma2, x, constellation):
+        r = y - H @ x
+        g = H.conj().T @ r
+        x_new = x + 0.02 * g
+        Nt = len(x_new)
+        x_hat = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            dists = np.abs(constellation - x_new[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    def _slot_hard_decision_op_9(x_soft, constellation):
+        x_hat = np.zeros(len(x_soft), dtype=complex)
+        i = 0
+        while i < len(x_soft):
+            dists = np.abs(constellation - x_soft[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    def _slot_weight_op_inl_d1d6b2(H, sigma2):
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        return np.linalg.inv(G) @ H.conj().T
+    
+    def _slot_hard_decision_op_inl_227c42(x_soft, constellation):
+        x_hat = np.zeros(len(x_soft), dtype=complex)
+        i = 0
+        while i < len(x_soft):
+            dists = np.abs(constellation - x_soft[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    
+    def two_stage_detector(H, y, sigma2, constellation):
+        W = _slot_weight_op_inl_d1d6b2(H, sigma2)
+        x_soft = W @ y
+        x_init = _slot_hard_decision_op_inl_227c42(x_soft, constellation)
+        x_refined = _slot_refine_op_8(H, y, sigma2, x_init, constellation)
+        x_hat = _slot_hard_decision_op_9(x_refined, constellation)
+        return x_hat
+
+--- #2 | algo_6eb69104 | SER=0.225000 | score=0.229160 | verdict=NON_TRIVIAL ---
+  Lineage: two_stage<-scaled_detect
+  Graft ops: 6 (dead: 0)
+  Slots: 4 | Slot pops: {'two_stage.stage1': 8, 'two_stage.refine': 8, 'two_stage.hard_decision': 8, 'weight': 8, 'hard_decision': 8}
+  Parents: ['two_stage', 'scaled_detect']
+  Source:
+    def _slot_refine_op_8(H, y, sigma2, x, constellation):
+        r = y - H @ x
+        g = H.conj().T @ r
+        x_new = x + 0.02 * g
+        Nt = len(x_new)
+        x_hat = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            dists = np.abs(constellation - x_new[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    def _slot_hard_decision_op_9(x_soft, constellation):
+        x_hat = np.zeros(len(x_soft), dtype=complex)
+        i = 0
+        while i < len(x_soft):
+            dists = np.abs(constellation - x_soft[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    def _slot_weight_op_inl_5db60c(H, sigma2):
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        return np.linalg.inv(G) @ H.conj().T
+    
+    def _slot_hard_decision_op_inl_f5532b(x_soft, constellation):
+        x_hat = np.zeros(len(x_soft), dtype=complex)
+        i = 0
+        while i < len(x_soft):
+            dists = np.abs(constellation - x_soft[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    
+    def two_stage_detector(H, y, sigma2, constellation):
+        W = _slot_weight_op_inl_5db60c(H, sigma2)
+        x_soft = W @ y
+        x_hat = _slot_hard_decision_op_inl_f5532b(x_soft, constellation)
+        x_init = x_hat
+        x_refined = _slot_refine_op_8(H, y, sigma2, x_init, constellation)
+        x_hat = _slot_hard_decision_op_9(x_refined, constellation)
+        return x_hat
+
+--- #3 | algo_5125a74f | SER=0.262500 | score=0.268020 | verdict=NON_TRIVIAL ---
+  Lineage: three_stage<-weight_apply_wrap
+  Graft ops: 6 (dead: 0)
+  Slots: 5 | Slot pops: {'three_stage.stage1': 8, 'three_stage.refine': 8, 'three_stage.hard_decision': 8, 'weight': 9, 'hard_decision': 9}
+  Parents: ['three_stage', 'weight_apply_wrap']
+  Source:
+    def _slot_refine_op_10(H, y, sigma2, x, constellation):
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        rhs = H.conj().T @ y
+        x_new = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            s = 0.0 + 0.0j
+            j = 0
+            while j < Nt:
+                if j != i:
+                    s = s + G[i, j] * x[j]
+                j = j + 1
+            x_new[i] = (rhs[i] - s) / G[i, i]
+            i = i + 1
+        x_hat = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            dists = np.abs(constellation - x_new[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    def _slot_refine_op_11(H, y, sigma2, x, constellation):
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        rhs = H.conj().T @ y
+        x_new = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            s = 0.0 + 0.0j
+            j = 0
+            while j < Nt:
+                if j != i:
+                    s = s + G[i, j] * x[j]
+                j = j + 1
+            x_new[i] = (rhs[i] - s) / G[i, i]
+            i = i + 1
+        x_hat = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            dists = np.abs(constellation - x_new[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    def _slot_hard_decision_op_12(x_soft, constellation):
+        x_hat = np.zeros(len(x_soft), dtype=complex)
+        i = 0
+        while i < len(x_soft):
+            dists = np.abs(constellation - x_soft[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+      
+      ... (2374 chars total)
+
+--- #4 | algo_55106a98 | SER=0.262500 | score=0.268020 | verdict=NON_TRIVIAL ---
+  Lineage: three_stage<-scaled_detect
+  Graft ops: 6 (dead: 0)
+  Slots: 5 | Slot pops: {'three_stage.stage1': 8, 'three_stage.refine': 8, 'three_stage.hard_decision': 8, 'weight': 8, 'hard_decision': 8}
+  Parents: ['three_stage', 'scaled_detect']
+  Source:
+    def _slot_refine_op_10(H, y, sigma2, x, constellation):
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        rhs = H.conj().T @ y
+        x_new = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            s = 0.0 + 0.0j
+            j = 0
+            while j < Nt:
+                if j != i:
+                    s = s + G[i, j] * x[j]
+                j = j + 1
+            x_new[i] = (rhs[i] - s) / G[i, i]
+            i = i + 1
+        x_hat = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            dists = np.abs(constellation - x_new[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    def _slot_refine_op_11(H, y, sigma2, x, constellation):
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        rhs = H.conj().T @ y
+        x_new = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            s = 0.0 + 0.0j
+            j = 0
+            while j < Nt:
+                if j != i:
+                    s = s + G[i, j] * x[j]
+                j = j + 1
+            x_new[i] = (rhs[i] - s) / G[i, i]
+            i = i + 1
+        x_hat = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            dists = np.abs(constellation - x_new[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    def _slot_hard_decision_op_12(x_soft, constellation):
+        x_hat = np.zeros(len(x_soft), dtype=complex)
+        i = 0
+        while i < len(x_soft):
+            dists = np.abs(constellation - x_soft[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+      
+      ... (2374 chars total)
+
+--- #5 | algo_da471bc0 | SER=0.312500 | score=0.319740 | verdict=NON_TRIVIAL ---
+  Lineage: three_stage<-two_stage
+  Graft ops: 6 (dead: 0)
+  Slots: 6 | Slot pops: {'three_stage.stage1': 8, 'three_stage.refine': 8, 'three_stage.hard_decision': 8, 'stage1': 8, 'refine': 8, 'hard_decision': 8}
+  Parents: ['three_stage', 'two_stage']
+  Source:
+    def _slot_refine_op_10(H, y, sigma2, x, constellation):
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        rhs = H.conj().T @ y
+        x_new = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            s = 0.0 + 0.0j
+            j = 0
+            while j < Nt:
+                if j != i:
+                    s = s + G[i, j] * x[j]
+                j = j + 1
+            x_new[i] = (rhs[i] - s) / G[i, i]
+            i = i + 1
+        x_hat = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            dists = np.abs(constellation - x_new[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    def _slot_refine_op_11(H, y, sigma2, x, constellation):
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        rhs = H.conj().T @ y
+        x_new = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            s = 0.0 + 0.0j
+            j = 0
+            while j < Nt:
+                if j != i:
+                    s = s + G[i, j] * x[j]
+                j = j + 1
+            x_new[i] = (rhs[i] - s) / G[i, i]
+            i = i + 1
+        x_hat = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            dists = np.abs(constellation - x_new[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    def _slot_hard_decision_op_12(x_soft, constellation):
+        x_hat = np.zeros(len(x_soft), dtype=complex)
+        i = 0
+        while i < len(x_soft):
+            dists = np.abs(constellation - x_soft[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+      
+      ... (3329 chars total)
+
+--- #6 | algo_46c274b4 | SER=0.400000 | score=0.403580 | verdict=NON_TRIVIAL ---
+  Lineage: parallel<-scaled_detect
+  Graft ops: 4 (dead: 0)
+  Slots: 4 | Slot pops: {'parallel.stage1': 8, 'parallel.stage2': 8, 'parallel.merge': 8, 'parallel.hard_decision': 8, 'weight': 8}
+  Parents: ['parallel', 'scaled_detect']
+  Source:
+    def _slot_stage2_op_10(H, y, sigma2, constellation):
+        Nt = H.shape[1]
+        G = H.conj().T @ H
+        x_soft = np.linalg.solve(G, H.conj().T @ y)
+        x_hat = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            dists = np.abs(constellation - x_soft[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    def _slot_merge_op_11(x1, x2, constellation):
+        return 0.5 * (x1 + x2)
+    
+    def _slot_hard_decision_op_12(x_soft, constellation):
+        x_hat = np.zeros(len(x_soft), dtype=complex)
+        i = 0
+        while i < len(x_soft):
+            dists = np.abs(constellation - x_soft[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    def _slot_weight_op_inl_fdabc6(H, sigma2):
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        return np.linalg.inv(G) @ H.conj().T
+    
+    
+    def parallel_detector(H, y, sigma2, constellation):
+        W = _slot_weight_op_inl_fdabc6(H, sigma2)
+        x2 = _slot_stage2_op_10(H, y, sigma2, constellation)
+        x_soft = W @ y
+        x1 = x_soft
+        x_merged = _slot_merge_op_11(x1, x2, constellation)
+        x_hat = _slot_hard_decision_op_12(x_merged, constellation)
+        return x_hat
+
+SUMMARY: 6 non-trivial, 0 dead-code, 0 identity, 0 cascade, 6 total
+
+
+================================================================================
+GENERATION 2 | SNR=20dB | 2 grafted in population
+================================================================================
+
+--- #1 | algo_2d89e9c1 | SER=0.200000 | score=0.206620 | verdict=NON_TRIVIAL ---
+  Lineage: parallel<-three_stage
+  Graft ops: 4 (dead: 0)
+  Slots: 5 | Slot pops: {'parallel.stage1': 8, 'parallel.stage2': 8, 'parallel.merge': 8, 'parallel.hard_decision': 8, 'stage1': 8, 'refine': 8}
+  Parents: ['parallel', 'three_stage']
+  Source:
+    def _slot_stage2_op_10(H, y, sigma2, constellation):
+        Nt = H.shape[1]
+        G = H.conj().T @ H
+        x_soft = np.linalg.solve(G, H.conj().T @ y)
+        x_hat = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            dists = np.abs(constellation - x_soft[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    def _slot_merge_op_11(x1, x2, constellation):
+        return 0.5 * (x1 + x2)
+    
+    def _slot_hard_decision_op_12(x_soft, constellation):
+        x_hat = np.zeros(len(x_soft), dtype=complex)
+        i = 0
+        while i < len(x_soft):
+            dists = np.abs(constellation - x_soft[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    def _slot_stage1_op_inl_e1aff5(H, y, sigma2, constellation):
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        x_soft = np.linalg.solve(G, H.conj().T @ y)
+        x_hat = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            dists = np.abs(constellation - x_soft[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    def _slot_refine_op_inl_228ecb(H, y, sigma2, x, constellation):
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        rhs = H.conj().T @ y
+        x_new = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            s = 0.0 + 0.0j
+            j = 0
+            while j < Nt:
+                if j != i:
+                    s = s + G[i, j] * x[j]
+                j = j + 1
+            x_new[i] = (rhs[i] - s) / G[i, i]
+      ... (2119 chars total)
+
+--- #2 | algo_42fde667 | SER=0.225000 | score=0.229140 | verdict=NON_TRIVIAL ---
+  Lineage: two_stage<-weight_apply_wrap
+  Graft ops: 5 (dead: 0)
+  Slots: 4 | Slot pops: {'two_stage.stage1': 8, 'two_stage.refine': 8, 'two_stage.hard_decision': 8, 'weight': 9, 'hard_decision': 9}
+  Parents: ['two_stage', 'weight_apply_wrap']
+  Source:
+    def _slot_refine_op_8(H, y, sigma2, x, constellation):
+        r = y - H @ x
+        g = H.conj().T @ r
+        x_new = x + 0.02 * g
+        Nt = len(x_new)
+        x_hat = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            dists = np.abs(constellation - x_new[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    def _slot_hard_decision_op_9(x_soft, constellation):
+        x_hat = np.zeros(len(x_soft), dtype=complex)
+        i = 0
+        while i < len(x_soft):
+            dists = np.abs(constellation - x_soft[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    def _slot_weight_op_inl_d1d6b2(H, sigma2):
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        return np.linalg.inv(G) @ H.conj().T
+    
+    def _slot_hard_decision_op_inl_227c42(x_soft, constellation):
+        x_hat = np.zeros(len(x_soft), dtype=complex)
+        i = 0
+        while i < len(x_soft):
+            dists = np.abs(constellation - x_soft[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    
+    def two_stage_detector(H, y, sigma2, constellation):
+        W = _slot_weight_op_inl_d1d6b2(H, sigma2)
+        x_soft = W @ y
+        x_init = _slot_hard_decision_op_inl_227c42(x_soft, constellation)
+        x_refined = _slot_refine_op_8(H, y, sigma2, x_init, constellation)
+        x_hat = _slot_hard_decision_op_9(x_refined, constellation)
+        return x_hat
+
+SUMMARY: 2 non-trivial, 0 dead-code, 0 identity, 0 cascade, 2 total
+
+
+================================================================================
+GENERATION 3 | SNR=20dB | 3 grafted in population
+================================================================================
+
+--- #1 | algo_2d89e9c1 | SER=0.200000 | score=0.205640 | verdict=NON_TRIVIAL ---
+  Lineage: parallel<-three_stage
+  Graft ops: 4 (dead: 0)
+  Slots: 5 | Slot pops: {'parallel.stage1': 8, 'parallel.stage2': 9, 'parallel.merge': 8, 'parallel.hard_decision': 9, 'stage1': 8, 'refine': 8}
+  Parents: ['parallel', 'three_stage']
+  Source:
+    def _slot_stage2_op_10(H, y, sigma2, constellation):
+        return -0.367244
+    def _slot_merge_op_11(x1, x2, constellation):
+        return 0.5 * (x1 + x2)
+    
+    def _slot_hard_decision_op_12(x_soft, constellation):
+        x_hat = np.zeros(len(x_soft), dtype=complex)
+        i = 0
+        while i < len(x_soft):
+            dists = np.abs(constellation - x_soft[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    def _slot_stage1_op_inl_e1aff5(H, y, sigma2, constellation):
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        x_soft = np.linalg.solve(G, H.conj().T @ y)
+        x_hat = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            dists = np.abs(constellation - x_soft[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    def _slot_refine_op_inl_228ecb(H, y, sigma2, x, constellation):
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        rhs = H.conj().T @ y
+        x_new = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            s = 0.0 + 0.0j
+            j = 0
+            while j < Nt:
+                if j != i:
+                    s = s + G[i, j] * x[j]
+                j = j + 1
+            x_new[i] = (rhs[i] - s) / G[i, i]
+            i = i + 1
+        x_hat = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            dists = np.abs(constellation - x_new[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    
+    def parallel_detector(H, y, sigma2, constellation):
+      ... (1839 chars total)
+
+--- #2 | algo_eacd9ea7 | SER=0.200000 | score=0.205640 | verdict=NON_TRIVIAL ---
+  Lineage: parallel<-three_stage
+  Graft ops: 4 (dead: 0)
+  Slots: 5 | Slot pops: {'parallel.stage1': 8, 'parallel.stage2': 9, 'parallel.merge': 9, 'parallel.hard_decision': 9, 'stage1': 8, 'refine': 8}
+  Parents: ['algo_2d89e9c1', 'algo_0a180a1d']
+  Source:
+    def _slot_stage2_op_10(H, y, sigma2, constellation):
+        return -0.367244
+    def _slot_merge_op_11(x1, x2, constellation):
+        return 0.5 * (x1 + x2)
+    
+    def _slot_hard_decision_op_12(x_soft, constellation):
+        x_hat = np.zeros(len(x_soft), dtype=complex)
+        i = 0
+        while i < len(x_soft):
+            dists = np.abs(constellation - x_soft[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    def _slot_stage1_op_inl_e1aff5(H, y, sigma2, constellation):
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        x_soft = np.linalg.solve(G, H.conj().T @ y)
+        x_hat = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            dists = np.abs(constellation - x_soft[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    def _slot_refine_op_inl_228ecb(H, y, sigma2, x, constellation):
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        rhs = H.conj().T @ y
+        x_new = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            s = 0.0 + 0.0j
+            j = 0
+            while j < Nt:
+                if j != i:
+                    s = s + G[i, j] * x[j]
+                j = j + 1
+            x_new[i] = (rhs[i] - s) / G[i, i]
+            i = i + 1
+        x_hat = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            dists = np.abs(constellation - x_new[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    
+    def parallel_detector(H, y, sigma2, constellation):
+      ... (1839 chars total)
+
+--- #3 | algo_789c7c04 | SER=0.200000 | score=0.205640 | verdict=NON_TRIVIAL ---
+  Lineage: parallel<-three_stage
+  Graft ops: 4 (dead: 0)
+  Slots: 5 | Slot pops: {'parallel.stage1': 8, 'parallel.stage2': 9, 'parallel.merge': 8, 'parallel.hard_decision': 10, 'stage1': 8, 'refine': 8}
+  Parents: ['algo_2d89e9c1', 'algo_5e1f59a2']
+  Source:
+    def _slot_stage2_op_10(H, y, sigma2, constellation):
+        return -0.367244
+    def _slot_merge_op_11(x1, x2, constellation):
+        return 0.5 * (x1 + x2)
+    
+    def _slot_hard_decision_op_12(x_soft, constellation):
+        x_hat = np.zeros(len(x_soft), dtype=complex)
+        i = 0
+        while i < len(x_soft):
+            dists = np.abs(constellation - x_soft[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    def _slot_stage1_op_inl_e1aff5(H, y, sigma2, constellation):
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        x_soft = np.linalg.solve(G, H.conj().T @ y)
+        x_hat = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            dists = np.abs(constellation - x_soft[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    def _slot_refine_op_inl_228ecb(H, y, sigma2, x, constellation):
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        rhs = H.conj().T @ y
+        x_new = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            s = 0.0 + 0.0j
+            j = 0
+            while j < Nt:
+                if j != i:
+                    s = s + G[i, j] * x[j]
+                j = j + 1
+            x_new[i] = (rhs[i] - s) / G[i, i]
+            i = i + 1
+        x_hat = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            dists = np.abs(constellation - x_new[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    
+    def parallel_detector(H, y, sigma2, constellation):
+      ... (1839 chars total)
+
+SUMMARY: 3 non-trivial, 0 dead-code, 0 identity, 0 cascade, 3 total
+
+
+================================================================================
+GENERATION 4 | SNR=20dB | 7 grafted in population
+================================================================================
+
+--- #1 | algo_2d89e9c1 | SER=0.200000 | score=0.205640 | verdict=NON_TRIVIAL ---
+  Lineage: parallel<-three_stage
+  Graft ops: 4 (dead: 0)
+  Slots: 5 | Slot pops: {'parallel.stage1': 8, 'parallel.stage2': 9, 'parallel.merge': 8, 'parallel.hard_decision': 9, 'stage1': 8, 'refine': 8}
+  Parents: ['parallel', 'three_stage']
+  Source:
+    def _slot_stage2_op_10(H, y, sigma2, constellation):
+        return -0.367244
+    def _slot_merge_op_11(x1, x2, constellation):
+        return 0.5 * (x1 + x2)
+    
+    def _slot_hard_decision_op_12(x_soft, constellation):
+        x_hat = np.zeros(len(x_soft), dtype=complex)
+        i = 0
+        while i < len(x_soft):
+            dists = np.abs(constellation - x_soft[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    def _slot_stage1_op_inl_e1aff5(H, y, sigma2, constellation):
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        x_soft = np.linalg.solve(G, H.conj().T @ y)
+        x_hat = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            dists = np.abs(constellation - x_soft[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    def _slot_refine_op_inl_228ecb(H, y, sigma2, x, constellation):
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        rhs = H.conj().T @ y
+        x_new = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            s = 0.0 + 0.0j
+            j = 0
+            while j < Nt:
+                if j != i:
+                    s = s + G[i, j] * x[j]
+                j = j + 1
+            x_new[i] = (rhs[i] - s) / G[i, i]
+            i = i + 1
+        x_hat = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            dists = np.abs(constellation - x_new[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    
+    def parallel_detector(H, y, sigma2, constellation):
+      ... (1839 chars total)
+
+--- #2 | algo_eacd9ea7 | SER=0.200000 | score=0.205640 | verdict=NON_TRIVIAL ---
+  Lineage: parallel<-three_stage
+  Graft ops: 4 (dead: 0)
+  Slots: 5 | Slot pops: {'parallel.stage1': 8, 'parallel.stage2': 9, 'parallel.merge': 9, 'parallel.hard_decision': 9, 'stage1': 8, 'refine': 8}
+  Parents: ['algo_2d89e9c1', 'algo_0a180a1d']
+  Source:
+    def _slot_stage2_op_10(H, y, sigma2, constellation):
+        return -0.367244
+    def _slot_merge_op_11(x1, x2, constellation):
+        return 0.5 * (x1 + x2)
+    
+    def _slot_hard_decision_op_12(x_soft, constellation):
+        x_hat = np.zeros(len(x_soft), dtype=complex)
+        i = 0
+        while i < len(x_soft):
+            dists = np.abs(constellation - x_soft[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    def _slot_stage1_op_inl_e1aff5(H, y, sigma2, constellation):
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        x_soft = np.linalg.solve(G, H.conj().T @ y)
+        x_hat = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            dists = np.abs(constellation - x_soft[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    def _slot_refine_op_inl_228ecb(H, y, sigma2, x, constellation):
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        rhs = H.conj().T @ y
+        x_new = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            s = 0.0 + 0.0j
+            j = 0
+            while j < Nt:
+                if j != i:
+                    s = s + G[i, j] * x[j]
+                j = j + 1
+            x_new[i] = (rhs[i] - s) / G[i, i]
+            i = i + 1
+        x_hat = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            dists = np.abs(constellation - x_new[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    
+    def parallel_detector(H, y, sigma2, constellation):
+      ... (1839 chars total)
+
+--- #3 | algo_789c7c04 | SER=0.200000 | score=0.205640 | verdict=NON_TRIVIAL ---
+  Lineage: parallel<-three_stage
+  Graft ops: 4 (dead: 0)
+  Slots: 5 | Slot pops: {'parallel.stage1': 8, 'parallel.stage2': 9, 'parallel.merge': 8, 'parallel.hard_decision': 10, 'stage1': 8, 'refine': 8}
+  Parents: ['algo_2d89e9c1', 'algo_5e1f59a2']
+  Source:
+    def _slot_stage2_op_10(H, y, sigma2, constellation):
+        return -0.367244
+    def _slot_merge_op_11(x1, x2, constellation):
+        return 0.5 * (x1 + x2)
+    
+    def _slot_hard_decision_op_12(x_soft, constellation):
+        x_hat = np.zeros(len(x_soft), dtype=complex)
+        i = 0
+        while i < len(x_soft):
+            dists = np.abs(constellation - x_soft[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    def _slot_stage1_op_inl_e1aff5(H, y, sigma2, constellation):
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        x_soft = np.linalg.solve(G, H.conj().T @ y)
+        x_hat = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            dists = np.abs(constellation - x_soft[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    def _slot_refine_op_inl_228ecb(H, y, sigma2, x, constellation):
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        rhs = H.conj().T @ y
+        x_new = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            s = 0.0 + 0.0j
+            j = 0
+            while j < Nt:
+                if j != i:
+                    s = s + G[i, j] * x[j]
+                j = j + 1
+            x_new[i] = (rhs[i] - s) / G[i, i]
+            i = i + 1
+        x_hat = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            dists = np.abs(constellation - x_new[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    
+    def parallel_detector(H, y, sigma2, constellation):
+      ... (1839 chars total)
+
+--- #4 | algo_d6d5dbb1 | SER=0.200000 | score=0.205640 | verdict=NON_TRIVIAL ---
+  Lineage: parallel<-three_stage
+  Graft ops: 4 (dead: 0)
+  Slots: 5 | Slot pops: {'parallel.stage1': 8, 'parallel.stage2': 10, 'parallel.merge': 9, 'parallel.hard_decision': 9, 'stage1': 8, 'refine': 8}
+  Parents: ['algo_eacd9ea7', 'algo_0748af91']
+  Source:
+    def _slot_stage2_op_10(H, y, sigma2, constellation):
+        return -0.367244
+    def _slot_merge_op_11(x1, x2, constellation):
+        return 0.5 * (x1 + x2)
+    
+    def _slot_hard_decision_op_12(x_soft, constellation):
+        x_hat = np.zeros(len(x_soft), dtype=complex)
+        i = 0
+        while i < len(x_soft):
+            dists = np.abs(constellation - x_soft[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    def _slot_stage1_op_inl_e1aff5(H, y, sigma2, constellation):
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        x_soft = np.linalg.solve(G, H.conj().T @ y)
+        x_hat = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            dists = np.abs(constellation - x_soft[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    def _slot_refine_op_inl_228ecb(H, y, sigma2, x, constellation):
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        rhs = H.conj().T @ y
+        x_new = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            s = 0.0 + 0.0j
+            j = 0
+            while j < Nt:
+                if j != i:
+                    s = s + G[i, j] * x[j]
+                j = j + 1
+            x_new[i] = (rhs[i] - s) / G[i, i]
+            i = i + 1
+        x_hat = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            dists = np.abs(constellation - x_new[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    
+    def parallel_detector(H, y, sigma2, constellation):
+      ... (1839 chars total)
+
+--- #5 | algo_ec2d00ac | SER=0.200000 | score=0.205640 | verdict=NON_TRIVIAL ---
+  Lineage: parallel<-three_stage
+  Graft ops: 4 (dead: 0)
+  Slots: 5 | Slot pops: {'parallel.stage1': 9, 'parallel.stage2': 9, 'parallel.merge': 8, 'parallel.hard_decision': 10, 'stage1': 8, 'refine': 8}
+  Parents: ['algo_789c7c04', 'algo_4ae3e4eb']
+  Source:
+    def _slot_stage2_op_10(H, y, sigma2, constellation):
+        return -0.367244
+    def _slot_merge_op_11(x1, x2, constellation):
+        return 0.5 * (x1 + x2)
+    
+    def _slot_hard_decision_op_12(x_soft, constellation):
+        x_hat = np.zeros(len(x_soft), dtype=complex)
+        i = 0
+        while i < len(x_soft):
+            dists = np.abs(constellation - x_soft[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    def _slot_stage1_op_inl_e1aff5(H, y, sigma2, constellation):
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        x_soft = np.linalg.solve(G, H.conj().T @ y)
+        x_hat = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            dists = np.abs(constellation - x_soft[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    def _slot_refine_op_inl_228ecb(H, y, sigma2, x, constellation):
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        rhs = H.conj().T @ y
+        x_new = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            s = 0.0 + 0.0j
+            j = 0
+            while j < Nt:
+                if j != i:
+                    s = s + G[i, j] * x[j]
+                j = j + 1
+            x_new[i] = (rhs[i] - s) / G[i, i]
+            i = i + 1
+        x_hat = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            dists = np.abs(constellation - x_new[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    
+    def parallel_detector(H, y, sigma2, constellation):
+      ... (1839 chars total)
+
+--- #6 | algo_fa196a17 | SER=0.200000 | score=0.205640 | verdict=NON_TRIVIAL ---
+  Lineage: parallel<-three_stage
+  Graft ops: 4 (dead: 0)
+  Slots: 5 | Slot pops: {'parallel.stage1': 9, 'parallel.stage2': 9, 'parallel.merge': 8, 'parallel.hard_decision': 9, 'stage1': 8, 'refine': 8}
+  Parents: ['algo_2d89e9c1', 'algo_17eeccdf']
+  Source:
+    def _slot_stage2_op_10(H, y, sigma2, constellation):
+        return -0.367244
+    def _slot_merge_op_11(x1, x2, constellation):
+        return 0.5 * (x1 + x2)
+    
+    def _slot_hard_decision_op_12(x_soft, constellation):
+        x_hat = np.zeros(len(x_soft), dtype=complex)
+        i = 0
+        while i < len(x_soft):
+            dists = np.abs(constellation - x_soft[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    def _slot_stage1_op_inl_e1aff5(H, y, sigma2, constellation):
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        x_soft = np.linalg.solve(G, H.conj().T @ y)
+        x_hat = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            dists = np.abs(constellation - x_soft[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    def _slot_refine_op_inl_228ecb(H, y, sigma2, x, constellation):
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        rhs = H.conj().T @ y
+        x_new = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            s = 0.0 + 0.0j
+            j = 0
+            while j < Nt:
+                if j != i:
+                    s = s + G[i, j] * x[j]
+                j = j + 1
+            x_new[i] = (rhs[i] - s) / G[i, i]
+            i = i + 1
+        x_hat = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            dists = np.abs(constellation - x_new[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    
+    def parallel_detector(H, y, sigma2, constellation):
+      ... (1839 chars total)
+
+--- #7 | algo_a3ad246e | SER=0.200000 | score=0.205640 | verdict=NON_TRIVIAL ---
+  Lineage: parallel<-three_stage
+  Graft ops: 4 (dead: 0)
+  Slots: 5 | Slot pops: {'parallel.stage1': 9, 'parallel.stage2': 9, 'parallel.merge': 9, 'parallel.hard_decision': 9, 'stage1': 8, 'refine': 8}
+  Parents: ['algo_eacd9ea7', 'algo_d25f2828']
+  Source:
+    def _slot_stage2_op_10(H, y, sigma2, constellation):
+        return -0.367244
+    def _slot_merge_op_11(x1, x2, constellation):
+        return 0.5 * (x1 + x2)
+    
+    def _slot_hard_decision_op_12(x_soft, constellation):
+        x_hat = np.zeros(len(x_soft), dtype=complex)
+        i = 0
+        while i < len(x_soft):
+            dists = np.abs(constellation - x_soft[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    def _slot_stage1_op_inl_e1aff5(H, y, sigma2, constellation):
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        x_soft = np.linalg.solve(G, H.conj().T @ y)
+        x_hat = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            dists = np.abs(constellation - x_soft[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    def _slot_refine_op_inl_228ecb(H, y, sigma2, x, constellation):
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        rhs = H.conj().T @ y
+        x_new = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            s = 0.0 + 0.0j
+            j = 0
+            while j < Nt:
+                if j != i:
+                    s = s + G[i, j] * x[j]
+                j = j + 1
+            x_new[i] = (rhs[i] - s) / G[i, i]
+            i = i + 1
+        x_hat = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            dists = np.abs(constellation - x_new[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    
+    def parallel_detector(H, y, sigma2, constellation):
+      ... (1839 chars total)
+
+SUMMARY: 7 non-trivial, 0 dead-code, 0 identity, 0 cascade, 7 total
+

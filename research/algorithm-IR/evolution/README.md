@@ -1,6 +1,6 @@
 # `evolution/` — 双层算法进化引擎
 
-> 基于 `FunctionIR` 的 MIMO 检测器自动进化框架。宏观层执行骨架嫁接（structural grafting），微观层在每个算法的槽位子种群内做变异/交叉。
+> 基于 `FunctionIR` 的 MIMO 检测器自动进化框架。宏观层执行骨架嫁接（structural grafting），微观层在每个算法的槽位子种群内做变异/交叉。GNN 模式匹配器（`gnn_pattern_matcher.py`）通过图注意力网络在线学习最优嫁接配对。
 
 ---
 
@@ -13,13 +13,14 @@ evolution/
 │   ├── algorithm_engine.py       # ★ AlgorithmEvolutionEngine — 双层进化主循环
 │   ├── pool_types.py             #   AlgorithmGenome, AlgorithmEntry, GraftProposal,
 │   │                             #   SlotPopulation, SlotDescriptor, PatternMatcherFn
-│   ├── mimo_evaluator.py         #   MIMOFitnessEvaluator — Monte Carlo 评估 (BER + 复杂度)
+│   ├── mimo_evaluator.py         #   MIMOFitnessEvaluator — Monte Carlo 评估 (SER + 复杂度)
 │   ├── materialize.py            #   materialize(), materialize_to_callable() — IR → 可执行代码
 │   └── ir_pool.py                #   build_ir_pool() — 8 个基线检测器的 IR + 槽位初始化
 │
 ├── 骨架嫁接 ──────────────────────────────────────────
-│   └── pattern_matchers.py       # ★ ExpertPatternMatcher, RandomGraftPatternMatcher,
-│                                 #   StaticStructurePatternMatcher, CompositePatternMatcher
+│   ├── pattern_matchers.py       # ★ ExpertPatternMatcher, RandomGraftPatternMatcher,
+│   │                             #   StaticStructurePatternMatcher, CompositePatternMatcher
+│   └── gnn_pattern_matcher.py    # ★ GNNPatternMatcher — GAT 网络 + REINFORCE 在线学习
 │
 ├── IR 操作算子 ────────────────────────────────────────
 │   ├── operators.py              #   mutate_ir(), crossover_ir(), mutate_genome(), crossover_genome()
@@ -201,7 +202,42 @@ for g in self.population + self.gene_bank:
 | `ExpertPatternMatcher` | 5 条硬编码专家规则 | 0.6–0.9 |
 | `RandomGraftPatternMatcher` | 随机宿主/供体/区域 | 0.1 |
 | `StaticStructurePatternMatcher` | IR 结构指纹匹配 | 0.4–0.5 |
+| `GNNPatternMatcher` | GAT 网络在线学习（REINFORCE） | 动态 |
 | `CompositePatternMatcher` | 组合多个 matcher | — |
+
+### GNNPatternMatcher (`gnn_pattern_matcher.py`)
+
+`GNNPatternMatcher` 将每个算法的 `FunctionIR` 转换为 PyTorch Geometric 图（节点 = IR 操作，边 = 数据流 + 控制流），使用 **GAT（图注意力网络）**编码，再通过一个评分头预测宿主-供体对的嫁接价值，并以 REINFORCE 策略梯度在线更新。
+
+```
+FunctionIR → PyG Data → GATConv×2 → global_mean_pool → 256-dim embedding
+  (host_emb, donor_emb) → MLP scoring head → compatibility score
+        ↓ REINFORCE
+  reward = (嫁接子代 SER 改善) / baseline
+```
+
+关键超参数（由 `train_gnn.py` 控制）：
+
+| 参数 | 说明 |
+|------|------|
+| `max_proposals_per_gen` | 每代最多产生的嫁接提议数（`train_gnn.py` 用 500） |
+| `top_k_pairs` | 经 GNN 评分后保留的 top-k 宿主-供体对 |
+| `buffer_size` | 经验回放缓冲区大小（默认 20000） |
+| `train_steps` | 每代梯度更新步数（默认 5） |
+| `pair_temp` | softmax 温度（越低越贪婪，默认 0.7） |
+| `pair_eps` | ε-均匀探索混合比（默认 0.10） |
+
+使用示例：
+
+```python
+from evolution.gnn_pattern_matcher import GNNPatternMatcher
+from evolution.pattern_matchers import ExpertPatternMatcher, CompositePatternMatcher
+
+matcher = CompositePatternMatcher([
+    ExpertPatternMatcher(max_proposals_per_gen=2),
+    GNNPatternMatcher(max_proposals_per_gen=4, top_k_pairs=8),
+])
+```
 
 ### 5 条专家嫁接规则
 

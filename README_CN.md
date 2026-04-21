@@ -1,10 +1,187 @@
 <p align="center">
   <h1 align="center">AlphaDetect</h1>
-  <p align="center"><b>基于神经符号自动推理的可解释MIMO检测算法发现</b></p>
+  <p align="center"><b>基于 IR 进化搜索的 MIMO 检测算法自动发现框架</b></p>
   <p align="center">
     <a href="README.md">English</a> | <a href="README_CN.md">中文</a>
   </p>
 </p>
+
+---
+
+## 概述
+
+**AlphaDetect** 是一个面向 **MIMO 检测算法自动发现**的研究项目，核心方法是将现有检测器实现（LMMSE、ZF、OSIC、K-Best、BP、EP、AMP 等）编译为结构中立的 SSA 中间表示（IR），再通过**双层进化引擎**进行跨算法族结构嫁接与槽位微变异，从而自动发现新型检测器。
+
+> **当前状态**：活跃开发中。`research/algorithm-IR/` 文件夹包含完整框架——IR 编译器、带 GNN 引导嫁接的进化引擎、8 个基线检测器、Monte Carlo MIMO 评估器以及 242 个测试。
+
+## 研究愿景
+
+核心研究问题：
+
+> *机器能否系统性地发现算法设计中的概念创新，而不仅仅是在固定算法空间内进行优化？*
+
+当前最先进的 MIMO 检测器（ZF、MMSE、V-BLAST、球形解码、K-Best、BP、GTA、EP、AMP 等）是人类研究者经过数十年工作发现的。每一次突破不仅需要数学推导，还需要**发明新概念**：将检测问题表示为图上的概率推断、将搜索空间建模为树、或引入空穴分布（cavity distribution）等。
+
+AlphaDetect 的 Algorithm-IR 框架通过以下方式实现**结构性自动创新**：
+
+1. **IR 编译** — 将 Python 检测器函数编译为 SSA IR（`FunctionIR`），使计算结构可被显式操作。
+2. **骨架嫁接** — 跨算法族结构迁移：如将 LMMSE 预滤波注入 K-Best 树搜索、将 EP 腔计算替换为 BP 消息扫描——均在 IR 层通过 `graft_general()` 执行。
+3. **双层进化** — 宏观层进化骨架结构（嫁接），微观层进化每个槽位的实现（IR 变异/交叉）。
+4. **GNN 引导提议** — 图注意力网络（GAT）通过 REINFORCE 在线学习哪些宿主-供体对能产生有效检测器，以学习到的结构直觉替代随机嫁接。
+5. **代码物化** — 任何进化后的 `AlgorithmGenome` 都能被物化为可执行的 Python 源码。
+
+完整技术细节请参阅 [research/research-proposal/research_proposal.tex](research/research-proposal/research_proposal.tex)。
+
+## 项目结构
+
+```
+AlphaDetect/
+├── .github/                        # 用于 vibe-coding 研究的 AI 智能体系统
+│   ├── agents/                     # 8 个专业化智能体定义
+│   │   ├── orchestrator.agent.md   # 中央研究协调者
+│   │   ├── code-generation.agent.md
+│   │   ├── experiment.agent.md
+│   │   ├── ideator.agent.md
+│   │   ├── literature-search.agent.md
+│   │   ├── math-deduction.agent.md
+│   │   ├── paper-writing.agent.md
+│   │   └── review.agent.md
+│   ├── instructions/               # 编码规范 & 记忆协议
+│   └── skills/                     # 领域特定技能模块
+├── AGENTS.md                       # 智能体系统概述 & 规范
+├── research/
+│   ├── memory/                     # 持久化研究记忆
+│   │   ├── state.json              # 当前研究线程 & 阶段
+│   │   ├── experiment-log.md       # 按时间排列的实验记录
+│   │   ├── idea-bank.md            # 研究想法及状态追踪
+│   │   ├── decision-history.md     # 重大决策及其理由
+│   │   └── experience-base.md      # 经验教训 & 模式总结
+│   ├── research-proposal/          # 核心研究提案（LaTeX）
+│   │   ├── research_proposal.tex   # 完整 AlphaDetect 愿景（英文）
+│   │   └── research_proposal_cn.tex  # 中文版本
+│   └── algorithm-IR/              # ★ 主要研究实现
+│       ├── algorithm_ir/           #   IR 编译器、嫁接、运行时
+│       ├── evolution/              #   双层进化引擎
+│       ├── tests/                  #   242 个测试（单元 + 集成）
+│       ├── e2e_experiment.py       #   端到端进化实验入口
+│       ├── train_gnn.py            #   GNN 模式匹配器训练
+│       ├── baseline_eval.py        #   基线检测器评估
+│       └── osic_sweep.py           #   OSIC 基线 SNR 扫描
+└── code_for_reference/             # 外部参考代码（AutoML-Zero 等）
+```
+
+### AI 智能体系统（`.github/`）
+
+本项目使用基于 VS Code Copilot 自定义智能体团队驱动的 **vibe-coding 研究**工作流。一个**协调者（Orchestrator）**智能体协调 7 个专业化子智能体：
+
+| 智能体 | 职责 |
+|--------|------|
+| **Orchestrator（协调者）** | 中央研究主管——加载研究状态、做出战略决策、委派子智能体、维护记忆 |
+| **Ideator（创意生成）** | 生成新颖的研究想法、进行差距分析、评估新颖性 |
+| **Literature Search（文献搜索）** | 搜索 arXiv/IEEE/Scholar、下载 PDF、构建文献综述 |
+| **Code Generation（代码生成）** | 编写仿真代码（Python/C++）、实现算法 |
+| **Experiment（实验）** | 编译、运行和分析仿真；收集 BER/SER 结果 |
+| **Math Deduction（数学推导）** | 执行严格的逐步数学推导 |
+| **Paper Writing（论文撰写）** | 撰写 IEEE 格式 LaTeX 论文、创建 TikZ 图表 |
+| **Review（评审）** | 模拟同行评审、评估新颖性和技术正确性 |
+
+## Algorithm-IR：基于 IR 的 MIMO 检测器进化
+
+`research/algorithm-IR/` 是主要实现。它将 Python MIMO 检测器编译为 SSA IR，进行结构进化，并通过 Monte Carlo 仿真评估适应度。
+
+### 架构概览
+
+```
+Python 检测器 (LMMSE, ZF, OSIC, K-Best, BP, EP, AMP, Stack)
+        ↓  compile_source_to_ir()
+   FunctionIR  (SSA — Values, Ops, Blocks)
+        ↓
+   AlgorithmGenome = structural_ir + slot_populations
+        ↓
+   双层进化
+   ├── 宏观层: graft_general()  ← GNN / 专家 / 静态模式匹配器
+   └── 微观层: mutate_ir() / crossover_ir()  ← 槽位 IR 变异
+        ↓
+   MIMOFitnessEvaluator  (16×16 16-QAM Monte Carlo)
+        ↓
+   materialize()  →  可执行 Python 源码
+```
+
+### 8 个基线检测器
+
+| 算法 | 标签 | 可进化槽位 |
+|------|------|-----------|
+| `lmmse` | `linear` | `slot_regularizer`, `slot_hard_decision` |
+| `zf` | `linear` | `slot_hard_decision` |
+| `osic` | `sic` | `slot_ordering`, `slot_sic_step` |
+| `kbest` | `tree_search` | `slot_expand`, `slot_prune` |
+| `stack` | `tree_search` | `slot_expand`, `slot_prune` |
+| `bp` | `message_passing` | `slot_bp_sweep`, `slot_bp_final` |
+| `ep` | `inference` | `slot_ep_site`, `slot_ep_final` |
+| `amp` | `inference` | `slot_amp_denoise`, `slot_amp_final` |
+
+### 快速开始
+
+```bash
+conda activate AutoGenOld
+cd research/algorithm-IR
+
+# 1. 评估所有 8 个基线检测器（16×16 16-QAM，SNR=24dB）
+python baseline_eval.py
+
+# 2. OSIC SNR 扫描（18–28 dB，每点 2000 次试验）
+python osic_sweep.py
+
+# 3. 端到端进化实验（50 代，Expert+Static+GNN 匹配器）
+python e2e_experiment.py
+
+# 4. GNN 引导训练器（大规模，每代 500 个嫁接提议）
+python train_gnn.py [--gens 200] [--snr-start 20] [--snr-target 24] \
+    [--proposals 500] [--pool-size 141] [--n-trials 5] [--timeout 1.5] \
+    [--warmstart-gens 1] [--warmstart-eval-workers 8] [--seed 42] \
+    [--resume path/to/checkpoint.pt]
+
+# 5. 运行全部测试
+python -m pytest tests/ -v   # 242 个测试，约 30 秒
+```
+
+### `train_gnn.py` 关键参数
+
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `--gens` | 200 | 总进化代数 |
+| `--snr-start` | 20.0 | 初始训练 SNR（dB） |
+| `--snr-target` | 24.0 | 目标 SNR（dB） |
+| `--proposals` | 500 | 每代 GNN 嫁接提议数 |
+| `--pool-size` | 141 | 种群规模（91 原始 + 50 嫁接幸存者） |
+| `--n-trials` | 5 | 每个基因组的评估试验数（320 bits/trial） |
+| `--timeout` | 1.5 | 每个基因组的评估超时（秒） |
+| `--warmstart-gens` | 1 | 热启动代数（穷举宿主-供体对扫描） |
+| `--warmstart-eval-workers` | 8 | 热启动评估的并行工作者数 |
+| `--ckpt-interval` | 10 | 每 N 代保存 GNN 检查点 |
+| `--seed` | 42 | 随机种子 |
+| `--resume` | None | 从指定检查点路径恢复 |
+
+输出写入 `results/gnn_training/`（JSONL 日志 + 检查点文件）。
+
+### 环境要求
+
+- Python 3.12+（`conda activate AutoGenOld`）
+- `numpy`、`scipy`、`torch`、`torch_geometric`、`xdsl`
+- `pytest` 用于运行测试套件
+
+## 许可
+
+本项目用于学术研究目的。
+
+## 引用
+
+如需引用本工作，请使用：
+
+```
+AlphaDetect: Explainable MIMO Detection Algorithm Discovery
+via Neural-Symbolic Automated Reasoning. Research Proposal, April 2026.
+```
 
 ---
 

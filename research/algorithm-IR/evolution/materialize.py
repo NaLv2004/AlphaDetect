@@ -21,8 +21,11 @@ Key entry points
 
 from __future__ import annotations
 
+import hashlib
 import textwrap
+import threading
 from copy import deepcopy
+from collections import OrderedDict
 from typing import Any, Callable
 
 import numpy as np
@@ -32,6 +35,11 @@ from algorithm_ir.regeneration.codegen import emit_python_source
 
 from evolution.pool_types import AlgorithmGenome, SlotPopulation
 from evolution.ir_pool import find_algslot_ops
+
+
+_CALLABLE_CACHE_LOCK = threading.Lock()
+_CALLABLE_CACHE: "OrderedDict[str, Callable]" = OrderedDict()
+_CALLABLE_CACHE_MAX = 512
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -372,6 +380,14 @@ def materialize_to_callable(
     """
     source = materialize(genome)
     func_name = _extract_func_name_from_full(source, genome.algo_id)
+    cache_key = hashlib.sha1(source.encode("utf-8")).hexdigest()
+
+    if extra_globals is None:
+        with _CALLABLE_CACHE_LOCK:
+            cached = _CALLABLE_CACHE.get(cache_key)
+            if cached is not None:
+                _CALLABLE_CACHE.move_to_end(cache_key)
+                return cached
 
     ns = _default_exec_namespace()
     if extra_globals:
@@ -390,6 +406,13 @@ def materialize_to_callable(
         raise RuntimeError(
             f"Function '{func_name}' not found after materializing '{genome.algo_id}'"
         )
+
+    if extra_globals is None:
+        with _CALLABLE_CACHE_LOCK:
+            _CALLABLE_CACHE[cache_key] = fn
+            _CALLABLE_CACHE.move_to_end(cache_key)
+            while len(_CALLABLE_CACHE) > _CALLABLE_CACHE_MAX:
+                _CALLABLE_CACHE.popitem(last=False)
     return fn
 
 

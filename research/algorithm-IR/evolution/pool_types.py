@@ -387,7 +387,7 @@ class AlgorithmEvolutionConfig:
 
     # Micro layer
     micro_pop_size: int = 8
-    micro_generations: int = 5
+    micro_generations: int = 1
     micro_mutation_rate: float = 0.3
 
     # Constant perturbation

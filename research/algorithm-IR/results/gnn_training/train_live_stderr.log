@@ -1,0 +1,24 @@
+22:08:39 INFO  evolution.algorithm_engine â€\ufffd Population initialized: 91 genomes, best=0.004880
+22:08:39 INFO  train_gnn â€\ufffd Starting GNN training: 300 gens, SNR=20dBâ†\ufffd22dB, 200 proposals/gen, pool=91, trials=5
+22:08:48 INFO  evolution.gnn_pattern_matcher â€\ufffd GNN propose: encode=0.19s train=0.00s score=0.01s propose=1.14s â†\ufffd 50 proposals from 91 entries
+22:08:48 INFO  evolution.algorithm_engine â€\ufffd   Structural grafts: 50/50 succeeded (propose=1.3s, graft=0.1s)
+22:08:53 INFO  evolution.algorithm_engine â€\ufffd   Timing: micro=5.4s eval_micro=2.4s eval_off=4.4s (95 offspring)
+22:08:53 INFO  evolution.algorithm_engine â€\ufffd Gen 1: best=0.004880 (algo_568eb4ec) elapsed=13.8s stagnation=0
+22:08:53 INFO  train_gnn â€\ufffd Gen   1 | SNR=20dB | best_SER=0.000000 | median=0.2250 | good=13% | grafted=6 (nontrivial=6, dead=0) | 13.8s
+22:17:49 INFO  evolution.gnn_pattern_matcher â€\ufffd GNN propose: encode=29.30s train=0.00s score=0.78s propose=469.79s â†\ufffd 50 proposals from 138 entries
+22:17:54 INFO  evolution.algorithm_engine â€\ufffd   Structural grafts: 50/50 succeeded (propose=499.9s, graft=4.9s)
+22:19:29 INFO  evolution.algorithm_engine â€\ufffd   Timing: micro=6.9s eval_micro=28.3s eval_off=94.7s (95 offspring)
+22:19:29 INFO  evolution.algorithm_engine â€\ufffd Gen 2: best=0.004880 (algo_568eb4ec) elapsed=636.0s stagnation=0
+22:19:29 INFO  train_gnn â€\ufffd Gen   2 | SNR=20dB | best_SER=0.037500 | median=0.2250 | good=4% | grafted=2 (nontrivial=2, dead=0) | 636.1s
+22:30:31 INFO  evolution.gnn_pattern_matcher â€\ufffd GNN propose: encode=26.91s train=0.00s score=4.33s propose=551.21s â†\ufffd 50 proposals from 161 entries
+22:30:31 INFO  evolution.algorithm_engine â€\ufffd   Structural grafts: 50/50 succeeded (propose=582.4s, graft=0.1s)
+22:31:52 INFO  evolution.algorithm_engine â€\ufffd   Timing: micro=43.2s eval_micro=26.0s eval_off=80.4s (95 offspring)
+22:31:52 INFO  evolution.algorithm_engine â€\ufffd Gen 3: best=0.004880 (algo_568eb4ec) elapsed=742.6s stagnation=1
+22:31:52 INFO  train_gnn â€\ufffd Gen   3 | SNR=20dB | best_SER=0.000000 | median=0.2125 | good=1% | grafted=3 (nontrivial=3, dead=0) | 742.6s
+22:40:30 INFO  evolution.gnn_pattern_matcher â€\ufffd GNN propose: encode=29.36s train=0.00s score=1.61s propose=447.54s â†\ufffd 50 proposals from 170 entries
+22:40:41 INFO  evolution.algorithm_engine â€\ufffd   Structural grafts: 50/50 succeeded (propose=478.5s, graft=11.5s)
+22:42:12 INFO  evolution.algorithm_engine â€\ufffd   Timing: micro=16.9s eval_micro=21.1s eval_off=90.5s (95 offspring)
+22:42:12 INFO  evolution.algorithm_engine â€\ufffd Gen 4: best=0.004880 (algo_568eb4ec) elapsed=619.8s stagnation=2
+22:42:12 INFO  train_gnn â€\ufffd Gen   4 | SNR=20dB | best_SER=0.000000 | median=0.2125 | good=4% | grafted=7 (nontrivial=7, dead=0) | 619.9s
+
+ERROR conda.cli.main_run:execute(125): `conda run python train_gnn.py --gens 300 --proposals 200 --top-k 50 --pool-size 91 --n-trials 5 --train-steps 10 --snr-start 20 --snr-target 22 --phase-thresh 0.5 --timeout 1.5` failed. (See above for error)

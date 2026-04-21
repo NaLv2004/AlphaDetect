@@ -8,6 +8,7 @@ Evaluates candidate detector algorithms by:
 
 from __future__ import annotations
 
+import concurrent.futures
 import time
 from dataclasses import dataclass, field
 from typing import Any, Callable
@@ -101,6 +102,7 @@ class MIMOEvalConfig:
     n_trials: int = 200            # Monte Carlo trials per SNR
     timeout_sec: float = 5.0       # max seconds per genome
     complexity_weight: float = 0.1 # weight for complexity in composite score
+    batch_workers: int = 1         # outer parallelism across genomes
     seed: int = 42
 
 
@@ -213,6 +215,34 @@ class MIMOFitnessEvaluator(AlgorithmFitnessEvaluator):
             weights[f"ser_{snr:.0f}dB"] = 0.0
 
         return FitnessResult(metrics=metrics, is_valid=True, weights=weights)
+
+    def evaluate_batch(self, genomes: list[AlgorithmGenome]) -> list[FitnessResult]:
+        """Batch-evaluate genomes with optional outer thread parallelism."""
+        if not genomes:
+            return []
+        workers = max(1, int(getattr(self.config, "batch_workers", 1)))
+        if workers <= 1 or len(genomes) <= 1:
+            return [self.evaluate(g) for g in genomes]
+
+        results: list[FitnessResult | None] = [None] * len(genomes)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as ex:
+            future_to_idx = {
+                ex.submit(self.evaluate, genome): idx
+                for idx, genome in enumerate(genomes)
+            }
+            for future in concurrent.futures.as_completed(future_to_idx):
+                idx = future_to_idx[future]
+                try:
+                    results[idx] = future.result()
+                except Exception:
+                    results[idx] = FitnessResult(
+                        metrics={"ser": 1.0, "batch_error": 1.0},
+                        is_valid=False,
+                    )
+        return [
+            r if r is not None else FitnessResult(metrics={"ser": 1.0}, is_valid=False)
+            for r in results
+        ]
 
     def evaluate_single_result(self, result: Any) -> float:
         """Quick scalar fitness from a single trial result.

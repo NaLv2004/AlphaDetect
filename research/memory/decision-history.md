@@ -148,3 +148,9 @@ Record of major research decisions, rationale, alternatives, and impact.
 - **Alternatives**: Keep only `demo_outputs.py`; rely on tests and README prose without a guided walkthrough.
 - **Impact**: Users can now run one command and see both levels of BP injection into a stack decoder: a local score-region graft and a stronger runtime-nested graft where BP runs on the explored tree after each expansion. The script was executed successfully, and the full test suite still passes.
 
+## [2026-04-22 00:37] Algorithm-IR GNN Training Prioritizes Phase A/B over C++ Evaluator Backend
+- **Decision**: Implemented phase A/B in the Python stack first and deferred any C++ evaluator backend work.
+- **Rationale**: After adding warm-start full-pair sweeps, lightweight graft evaluation, parallel `evaluate_batch`, and callable caching, the dominant wall-clock cost moved to GNN proposal generation (`~176s` for 8190 proposals in gen-1) rather than evaluation (`~18s` for 8190 lightweight graft evals). A C++ evaluator backend would therefore not address the main bottleneck yet.
+- **Alternatives**: Start immediately on a C/C++ backend under `algorithm_ir/`; keep the previous small-sample online-only GNN training loop.
+- **Impact**: The training pipeline now produces dense warm-start supervision (`8190` matched samples at gen-2 instead of `20`), while preserving a clean architectural boundary. Future native work, if needed, should target whichever stage remains dominant after proposal-generation optimizations, not evaluation by default.
+

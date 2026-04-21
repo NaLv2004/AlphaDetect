@@ -1,0 +1,1871 @@
+GNN Grafting Training Log
+Started: 2026-04-22 00:27:08
+Config: {'gens': 1, 'snr_start': 20.0, 'snr_target': 24.0, 'phase_thresh': 0.5, 'proposals': 20, 'top_k': 20, 'pool_size': 91, 'n_trials': 1, 'timeout': 0.3, 'eval_workers': 2, 'warmstart_gens': 1, 'warmstart_trials': 1, 'warmstart_timeout': 0.15, 'warmstart_eval_workers': 12, 'warmstart_survivor_cap': 32, 'train_steps': 1, 'train_interval': 1, 'buffer_size': 20000, 'pair_temp': 0.7, 'pair_eps': 0.1, 'region_eps': 0.1, 'donor_eps': 0.1, 'ckpt_interval': 1000, 'seed': 42, 'resume': None}
+
+
+================================================================================
+GENERATION 1 | SNR=20dB | 32 grafted in population
+================================================================================
+
+--- #1 | algo_d25c96c8 | SER=0.000000 | score=0.002740 | verdict=PARTIAL_DEAD ---
+  Lineage: turbo_linear<-richardson
+  Graft ops: 6 (dead: 1)
+  Slots: 2 | Slot pops: {'turbo_linear.soft_estimate': 8, 'turbo_linear.hard_decision': 8}
+  Parents: ['turbo_linear', 'richardson']
+  Source:
+    def _slot_soft_estimate_op_99(x_soft, variance, constellation):
+        Nt = len(x_soft)
+        x_out = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            v = max(float(variance[i]), 1e-30) if len(variance) > i else 1.0
+            w = np.exp(-np.abs(constellation - x_soft[i]) ** 2 / v)
+            w_sum = float(np.sum(w))
+            if w_sum < 1e-30:
+                x_out[i] = x_soft[i]
+            else:
+                x_out[i] = np.sum(w * constellation) / w_sum
+            i = i + 1
+        return x_out
+    
+    def _slot_hard_decision_op_100(x_soft, constellation):
+        x_hat = np.zeros(len(x_soft), dtype=complex)
+        i = 0
+        while i < len(x_soft):
+            dists = np.abs(constellation - x_soft[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    
+    def turbo_linear_detector(H, y, sigma2, constellation):
+        i = 0
+        j = 0
+        Nt = H.shape[1]
+        var = np.zeros(Nt)
+        rhs = H.conj().T @ y
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        x = np.linalg.solve(G, rhs)
+        while j < Nt:
+            G_inv_jj = 1.0 / max(float(np.real(G[(j, j)])), 1e-30)
+            var[j] = G_inv_jj * sigma2
+            j = j + 1
+        i = 0
+        while i < 5:
+            x_soft = _slot_soft_estimate_op_99(x, var, constellation)
+            r = y - H @ x_soft
+            x = x_soft + np.linalg.solve(G, H.conj().T @ r)
+            i = i + 1
+        x_hat = _slot_hard_decision_op_100(x, constellation)
+        return x_hat
+
+--- #2 | algo_e58e6951 | SER=0.000000 | score=0.002900 | verdict=PARTIAL_DEAD ---
+  Lineage: turbo_linear<-stationary
+  Graft ops: 15 (dead: 3)
+  Slots: 2 | Slot pops: {'turbo_linear.soft_estimate': 8, 'turbo_linear.hard_decision': 8}
+  Parents: ['turbo_linear', 'stationary']
+  Source:
+    def _slot_soft_estimate_op_99(x_soft, variance, constellation):
+        Nt = len(x_soft)
+        x_out = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            v = max(float(variance[i]), 1e-30) if len(variance) > i else 1.0
+            w = np.exp(-np.abs(constellation - x_soft[i]) ** 2 / v)
+            w_sum = float(np.sum(w))
+            if w_sum < 1e-30:
+                x_out[i] = x_soft[i]
+            else:
+                x_out[i] = np.sum(w * constellation) / w_sum
+            i = i + 1
+        return x_out
+    
+    def _slot_hard_decision_op_100(x_soft, constellation):
+        x_hat = np.zeros(len(x_soft), dtype=complex)
+        i = 0
+        while i < len(x_soft):
+            dists = np.abs(constellation - x_soft[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    
+    def turbo_linear_detector(H, y, sigma2, constellation):
+        j = 0
+        Nt = H.shape[1]
+        np.eye(Nt)
+        var = np.zeros(Nt)
+        rhs = H.conj().T @ y
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        x = np.linalg.solve(G, rhs)
+        while j < Nt:
+            G_inv_jj = 1.0 / max(float(np.real(G[(j, j)])), 1e-30)
+            var[j] = G_inv_jj * sigma2
+            j = j + 1
+        i = 0
+        while i < 5:
+            x_soft = _slot_soft_estimate_op_99(x, var, constellation)
+            r = y - H @ x_soft
+            x = x_soft + np.linalg.solve(G, H.conj().T @ r)
+            i = i + 1
+        x_hat = _slot_hard_decision_op_100(x, constellation)
+        return x_hat
+
+--- #3 | algo_a54fcc32 | SER=0.000000 | score=0.004920 | verdict=PARTIAL_DEAD ---
+  Lineage: kbest<-random_walk
+  Graft ops: 4 (dead: 1)
+  Slots: 2 | Slot pops: {'kbest.expand': 9, 'kbest.prune': 8}
+  Parents: ['kbest', 'random_walk']
+  Source:
+    def _slot_expand_op_149(node, y_tilde, R, constellation):
+        level = node.level
+        Nt = R.shape[1]
+        children = []
+        interf = 0.0 + 0.0j
+        j_rel = 0
+        while j_rel < len(node.symbols):
+            j = Nt - 1 - j_rel
+            interf = interf + R[level, j] * node.symbols[j_rel]
+            j_rel = j_rel + 1
+        ci = 0
+        while ci < len(constellation):
+            sym = constellation[ci]
+            residual = y_tilde[level] - R[level, level] * sym - interf
+            local_cost = float(np.abs(residual) ** 2)
+            total = node.cost + local_cost
+            child = _make_tree_node(level - 1, node.symbols + [sym], total)
+            children.append(child)
+            ci = ci + 1
+        return children
+    
+    def _slot_prune_op_150(candidates, K):
+        n = len(candidates)
+        i = 0
+        while i < n:
+            j = i + 1
+            while j < n:
+                if candidates[j].cost < candidates[i].cost:
+                    tmp = candidates[i]
+                    candidates[i] = candidates[j]
+                    candidates[j] = tmp
+                j = j + 1
+            i = i + 1
+        return candidates[:K]
+    
+    
+    def kbest(H, y, sigma2, constellation):
+        j = 0
+        Nr = H.shape[0]
+        Nt = H.shape[1]
+        Q = np.linalg.qr(H)[0]
+        R = np.linalg.qr(H)[1]
+        level = Nt - 1
+        root = _make_tree_node(Nt - 1, [], 0.0)
+        candidates = [root]
+        y_tilde = Q.conj().T @ y
+        while level >= 0:
+            new_candidates = []
+            ci = 0
+            while ci < len(candidates):
+                node = candidates[ci]
+                node.level = level
+                childr
+      ... (2003 chars total)
+
+--- #4 | algo_ad14efc6 | SER=0.000000 | score=0.004940 | verdict=NON_TRIVIAL ---
+  Lineage: kbest<-mmse_init_iter
+  Graft ops: 4 (dead: 0)
+  Slots: 2 | Slot pops: {'kbest.expand': 9, 'kbest.prune': 8}
+  Parents: ['kbest', 'mmse_init_iter']
+  Source:
+    def _slot_expand_op_149(node, y_tilde, R, constellation):
+        level = node.level
+        Nt = R.shape[1]
+        children = []
+        interf = 0.0 + 0.0j
+        j_rel = 0
+        while j_rel < len(node.symbols):
+            j = Nt - 1 - j_rel
+            interf = interf + R[level, j] * node.symbols[j_rel]
+            j_rel = j_rel + 1
+        ci = 0
+        while ci < len(constellation):
+            sym = constellation[ci]
+            residual = y_tilde[level] - R[level, level] * sym - interf
+            local_cost = float(np.abs(residual) ** 2)
+            total = node.cost + local_cost
+            child = _make_tree_node(level - 1, node.symbols + [sym], total)
+            children.append(child)
+            ci = ci + 1
+        return children
+    
+    def _slot_prune_op_150(candidates, K):
+        n = len(candidates)
+        i = 0
+        while i < n:
+            j = i + 1
+            while j < n:
+                if candidates[j].cost < candidates[i].cost:
+                    tmp = candidates[i]
+                    candidates[i] = candidates[j]
+                    candidates[j] = tmp
+                j = j + 1
+            i = i + 1
+        return candidates[:K]
+    
+    
+    def kbest(H, y, sigma2, constellation):
+        i = 0
+        Nr = H.shape[0]
+        Nt = H.shape[1]
+        Q = np.linalg.qr(H)[0]
+        R = np.linalg.qr(H)[1]
+        root = _make_tree_node(i, [], 0.0)
+        level = Nt - 1
+        candidates = [root]
+        y_tilde = Q.conj().T @ y
+        while level >= 0:
+            new_candidates = []
+            ci = 0
+            while ci < len(candidates):
+                node = candidates[ci]
+                node.level = level
+                children = 
+      ... (1998 chars total)
+
+--- #5 | algo_e4a24365 | SER=0.000000 | score=0.005000 | verdict=PARTIAL_DEAD ---
+  Lineage: kbest<-gs
+  Graft ops: 8 (dead: 2)
+  Slots: 2 | Slot pops: {'kbest.expand': 9, 'kbest.prune': 8}
+  Parents: ['kbest', 'gs']
+  Source:
+    def _slot_expand_op_149(node, y_tilde, R, constellation):
+        level = node.level
+        Nt = R.shape[1]
+        children = []
+        interf = 0.0 + 0.0j
+        j_rel = 0
+        while j_rel < len(node.symbols):
+            j = Nt - 1 - j_rel
+            interf = interf + R[level, j] * node.symbols[j_rel]
+            j_rel = j_rel + 1
+        ci = 0
+        while ci < len(constellation):
+            sym = constellation[ci]
+            residual = y_tilde[level] - R[level, level] * sym - interf
+            local_cost = float(np.abs(residual) ** 2)
+            total = node.cost + local_cost
+            child = _make_tree_node(level - 1, node.symbols + [sym], total)
+            children.append(child)
+            ci = ci + 1
+        return children
+    
+    def _slot_prune_op_150(candidates, K):
+        n = len(candidates)
+        i = 0
+        while i < n:
+            j = i + 1
+            while j < n:
+                if candidates[j].cost < candidates[i].cost:
+                    tmp = candidates[i]
+                    candidates[i] = candidates[j]
+                    candidates[j] = tmp
+                j = j + 1
+            i = i + 1
+        return candidates[:K]
+    
+    
+    def kbest(H, y, sigma2, constellation):
+        Nt = H
+        Nr = H.shape[0]
+        Nt = H.shape[1]
+        x = np.zeros(Nt, dtype=complex)
+        root = _make_tree_node(Nt, [], 0.0)
+        Q = np.linalg.qr(H)[0]
+        R = np.linalg.qr(H)[1]
+        level = Nt - 1
+        candidates = [root]
+        y_tilde = Q.conj().T @ y
+        while level >= 0:
+            new_candidates = []
+            ci = 0
+            while ci < len(candidates):
+                node = candidates[ci]
+                node
+      ... (2036 chars total)
+
+--- #6 | algo_7a315fa0 | SER=0.000000 | score=0.005100 | verdict=PARTIAL_DEAD ---
+  Lineage: kbest<-particle_filter
+  Graft ops: 13 (dead: 2)
+  Slots: 2 | Slot pops: {'kbest.expand': 9, 'kbest.prune': 8}
+  Parents: ['kbest', 'particle_filter']
+  Source:
+    def _slot_expand_op_149(node, y_tilde, R, constellation):
+        level = node.level
+        Nt = R.shape[1]
+        children = []
+        interf = 0.0 + 0.0j
+        j_rel = 0
+        while j_rel < len(node.symbols):
+            j = Nt - 1 - j_rel
+            interf = interf + R[level, j] * node.symbols[j_rel]
+            j_rel = j_rel + 1
+        ci = 0
+        while ci < len(constellation):
+            sym = constellation[ci]
+            residual = y_tilde[level] - R[level, level] * sym - interf
+            local_cost = float(np.abs(residual) ** 2)
+            total = node.cost + local_cost
+            child = _make_tree_node(level - 1, node.symbols + [sym], total)
+            children.append(child)
+            ci = ci + 1
+        return children
+    
+    def _slot_prune_op_150(candidates, K):
+        n = len(candidates)
+        i = 0
+        while i < n:
+            j = i + 1
+            while j < n:
+                if candidates[j].cost < candidates[i].cost:
+                    tmp = candidates[i]
+                    candidates[i] = candidates[j]
+                    candidates[j] = tmp
+                j = j + 1
+            i = i + 1
+        return candidates[:K]
+    
+    
+    def kbest(H, y, sigma2, constellation):
+        n_particles = 10
+        Nt = H.shape[1]
+        Nt = H.shape[1]
+        Q = np.linalg.qr(H)[0]
+        R = np.linalg.qr(H)[1]
+        np.zeros((n_particles, Nt), dtype=complex)
+        level = Nt - 1
+        root = _make_tree_node(Nt - 1, [], 0.0)
+        candidates = [root]
+        y_tilde = Q.conj().T @ y
+        while level >= 0:
+            new_candidates = []
+            ci = 0
+            while ci < len(candidates):
+                node = candid
+      ... (2061 chars total)
+
+--- #7 | algo_fc984ac2 | SER=0.000000 | score=0.005100 | verdict=PARTIAL_DEAD ---
+  Lineage: kbest<-ec
+  Graft ops: 12 (dead: 2)
+  Slots: 2 | Slot pops: {'kbest.expand': 9, 'kbest.prune': 8}
+  Parents: ['kbest', 'ec']
+  Source:
+    def _slot_expand_op_149(node, y_tilde, R, constellation):
+        level = node.level
+        Nt = R.shape[1]
+        children = []
+        interf = 0.0 + 0.0j
+        j_rel = 0
+        while j_rel < len(node.symbols):
+            j = Nt - 1 - j_rel
+            interf = interf + R[level, j] * node.symbols[j_rel]
+            j_rel = j_rel + 1
+        ci = 0
+        while ci < len(constellation):
+            sym = constellation[ci]
+            residual = y_tilde[level] - R[level, level] * sym - interf
+            local_cost = float(np.abs(residual) ** 2)
+            total = node.cost + local_cost
+            child = _make_tree_node(level - 1, node.symbols + [sym], total)
+            children.append(child)
+            ci = ci + 1
+        return children
+    
+    def _slot_prune_op_150(candidates, K):
+        n = len(candidates)
+        i = 0
+        while i < n:
+            j = i + 1
+            while j < n:
+                if candidates[j].cost < candidates[i].cost:
+                    tmp = candidates[i]
+                    candidates[i] = candidates[j]
+                    candidates[j] = tmp
+                j = j + 1
+            i = i + 1
+        return candidates[:K]
+    
+    
+    def kbest(H, y, sigma2, constellation):
+        j = 0
+        Nr = H.shape[0]
+        Nt = H.shape[1]
+        Nt = H.shape[1]
+        Q = np.linalg.qr(H)[0]
+        R = np.linalg.qr(H)[1]
+        level = Nt - 1
+        x = np.zeros(Nt, dtype=complex)
+        root = _make_tree_node(Nt - Nt, [], 0.0)
+        candidates = [root]
+        y_tilde = Q.conj().T @ y
+        while level >= 0:
+            new_candidates = []
+            ci = 0
+            while ci < len(candidates):
+                node = candida
+      ... (2060 chars total)
+
+--- #8 | algo_6ede7e96 | SER=0.000000 | score=0.005120 | verdict=NON_TRIVIAL ---
+  Lineage: osic<-em
+  Graft ops: 6 (dead: 0)
+  Slots: 2 | Slot pops: {'osic.ordering': 8, 'osic.sic_step': 8}
+  Parents: ['osic', 'em']
+  Source:
+    def _slot_ordering_op_68(H, y, sigma2):
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        G_inv = np.linalg.inv(G)
+        snr = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            snr[i] = 1.0 / max(float(np.real(G_inv[i, i])), 1e-30) - sigma2
+            i = i + 1
+        order = []
+        used = np.zeros(Nt, dtype=complex)
+        k = 0
+        while k < Nt:
+            best = -1
+            best_val = -1e30
+            j = 0
+            while j < Nt:
+                if float(np.real(used[j])) == 0.0:
+                    if float(np.real(snr[j])) > best_val:
+                        best_val = float(np.real(snr[j]))
+                        best = j
+                j = j + 1
+            order.append(best)
+            used[best] = 1.0
+            k = k + 1
+        return order
+    
+    def _slot_sic_step_op_69(H, y, sigma2, idx, constellation):
+        Nr = H.shape[0]
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        w = np.linalg.solve(G, H.conj().T @ y)
+        x_est = w[idx]
+        dists = np.abs(constellation - x_est) ** 2
+        x_hard = constellation[np.argmin(dists)]
+        y_new = y - _col(H, idx) * x_hard
+        H_new = np.delete(H, idx, axis=1)
+        return x_hard, H_new, y_new
+    
+    
+    def osic(H, y, sigma2, constellation):
+        j = 0
+        Nr = H.shape[0]
+        Nt = H.shape[1]
+        H_cur = H.copy()
+        y_cur = y.copy()
+        step = j
+        detected = np.zeros(Nt, dtype=complex)
+        order = _slot_ordering_op_68(H_cur, y_cur, sigma2)
+        col_map = list(range(Nt))
+        while step < Nt:
+            orig_idx = order[step]
+            cur_idx = col_
+      ... (1767 chars total)
+
+--- #9 | algo_ce010565 | SER=0.000000 | score=0.005180 | verdict=PARTIAL_DEAD ---
+  Lineage: osic<-random_walk
+  Graft ops: 16 (dead: 2)
+  Slots: 2 | Slot pops: {'osic.ordering': 8, 'osic.sic_step': 8}
+  Parents: ['osic', 'random_walk']
+  Source:
+    def _slot_ordering_op_68(H, y, sigma2):
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        G_inv = np.linalg.inv(G)
+        snr = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            snr[i] = 1.0 / max(float(np.real(G_inv[i, i])), 1e-30) - sigma2
+            i = i + 1
+        order = []
+        used = np.zeros(Nt, dtype=complex)
+        k = 0
+        while k < Nt:
+            best = -1
+            best_val = -1e30
+            j = 0
+            while j < Nt:
+                if float(np.real(used[j])) == 0.0:
+                    if float(np.real(snr[j])) > best_val:
+                        best_val = float(np.real(snr[j]))
+                        best = j
+                j = j + 1
+            order.append(best)
+            used[best] = 1.0
+            k = k + 1
+        return order
+    
+    def _slot_sic_step_op_69(H, y, sigma2, idx, constellation):
+        Nr = H.shape[0]
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        w = np.linalg.solve(G, H.conj().T @ y)
+        x_est = w[idx]
+        dists = np.abs(constellation - x_est) ** 2
+        x_hard = constellation[np.argmin(dists)]
+        y_new = y - _col(H, idx) * x_hard
+        H_new = np.delete(H, idx, axis=1)
+        return x_hard, H_new, y_new
+    
+    
+    def osic(H, y, sigma2, constellation):
+        j = 0
+        step = 0
+        Nt = H.shape[1]
+        H_cur = H.copy()
+        y_cur = y.copy()
+        x = np.zeros(Nt, dtype=complex)
+        detected = np.zeros(Nt, dtype=complex)
+        order = _slot_ordering_op_68(H_cur, y_cur, sigma2)
+        col_map = list(range(Nt))
+        while step < Nt:
+            orig_idx = order[step]
+          
+      ... (1783 chars total)
+
+--- #10 | algo_e726de1f | SER=0.000000 | score=0.005220 | verdict=PARTIAL_DEAD ---
+  Lineage: osic<-greedy
+  Graft ops: 12 (dead: 1)
+  Slots: 2 | Slot pops: {'osic.ordering': 8, 'osic.sic_step': 8}
+  Parents: ['osic', 'greedy']
+  Source:
+    def _slot_ordering_op_68(H, y, sigma2):
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        G_inv = np.linalg.inv(G)
+        snr = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            snr[i] = 1.0 / max(float(np.real(G_inv[i, i])), 1e-30) - sigma2
+            i = i + 1
+        order = []
+        used = np.zeros(Nt, dtype=complex)
+        k = 0
+        while k < Nt:
+            best = -1
+            best_val = -1e30
+            j = 0
+            while j < Nt:
+                if float(np.real(used[j])) == 0.0:
+                    if float(np.real(snr[j])) > best_val:
+                        best_val = float(np.real(snr[j]))
+                        best = j
+                j = j + 1
+            order.append(best)
+            used[best] = 1.0
+            k = k + 1
+        return order
+    
+    def _slot_sic_step_op_69(H, y, sigma2, idx, constellation):
+        Nr = H.shape[0]
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        w = np.linalg.solve(G, H.conj().T @ y)
+        x_est = w[idx]
+        dists = np.abs(constellation - x_est) ** 2
+        x_hard = constellation[np.argmin(dists)]
+        y_new = y - _col(H, idx) * x_hard
+        H_new = np.delete(H, idx, axis=1)
+        return x_hard, H_new, y_new
+    
+    
+    def osic(H, y, sigma2, constellation):
+        step = 0
+        Nr = H.shape[0]
+        Nt = H.shape[1]
+        H_cur = H.copy()
+        y_cur = y.copy()
+        Nt = H.shape[1]
+        order = _slot_ordering_op_68(H_cur, y_cur, sigma2)
+        detected = np.zeros(Nt, dtype=complex)
+        col_map = list(range(Nt))
+        while step < Nt:
+            orig_idx = order[step]
+            cur_
+      ... (1777 chars total)
+
+--- #11 | algo_10c2d0e4 | SER=0.000000 | score=0.005480 | verdict=PARTIAL_DEAD ---
+  Lineage: osic<-lmmse
+  Graft ops: 15 (dead: 1)
+  Slots: 3 | Slot pops: {'osic.ordering': 8, 'osic.sic_step': 8, 'regularizer': 9}
+  Parents: ['osic', 'lmmse']
+  Source:
+    def _slot_ordering_op_68(H, y, sigma2):
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        G_inv = np.linalg.inv(G)
+        snr = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            snr[i] = 1.0 / max(float(np.real(G_inv[i, i])), 1e-30) - sigma2
+            i = i + 1
+        order = []
+        used = np.zeros(Nt, dtype=complex)
+        k = 0
+        while k < Nt:
+            best = -1
+            best_val = -1e30
+            j = 0
+            while j < Nt:
+                if float(np.real(used[j])) == 0.0:
+                    if float(np.real(snr[j])) > best_val:
+                        best_val = float(np.real(snr[j]))
+                        best = j
+                j = j + 1
+            order.append(best)
+            used[best] = 1.0
+            k = k + 1
+        return order
+    
+    def _slot_sic_step_op_69(H, y, sigma2, idx, constellation):
+        Nr = H.shape[0]
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        w = np.linalg.solve(G, H.conj().T @ y)
+        x_est = w[idx]
+        dists = np.abs(constellation - x_est) ** 2
+        x_hard = constellation[np.argmin(dists)]
+        y_new = y - _col(H, idx) * x_hard
+        H_new = np.delete(H, idx, axis=1)
+        return x_hard, H_new, y_new
+    
+    def _slot_regularizer_op_inl_c8f17b(G, sigma2):
+        n = G.shape[0]
+        return G + sigma2 * np.eye(n)
+    
+    
+    def osic(H, y, sigma2, constellation):
+        step = 0
+        Nr = H.shape[0]
+        Nt = H.shape[1]
+        H_cur = H.copy()
+        y_cur = y.copy()
+        Nt = H.shape[1]
+        order = _slot_ordering_op_68(H_cur, y_cur, sigma2)
+        G = H.conj().T @ H
+        col_map 
+      ... (1935 chars total)
+
+--- #12 | algo_1c4a8ab8 | SER=0.000000 | score=0.005480 | verdict=PARTIAL_DEAD ---
+  Lineage: osic<-steepest_desc
+  Graft ops: 25 (dead: 3)
+  Slots: 2 | Slot pops: {'osic.ordering': 8, 'osic.sic_step': 8}
+  Parents: ['osic', 'steepest_desc']
+  Source:
+    def _slot_ordering_op_68(H, y, sigma2):
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        G_inv = np.linalg.inv(G)
+        snr = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            snr[i] = 1.0 / max(float(np.real(G_inv[i, i])), 1e-30) - sigma2
+            i = i + 1
+        order = []
+        used = np.zeros(Nt, dtype=complex)
+        k = 0
+        while k < Nt:
+            best = -1
+            best_val = -1e30
+            j = 0
+            while j < Nt:
+                if float(np.real(used[j])) == 0.0:
+                    if float(np.real(snr[j])) > best_val:
+                        best_val = float(np.real(snr[j]))
+                        best = j
+                j = j + 1
+            order.append(best)
+            used[best] = 1.0
+            k = k + 1
+        return order
+    
+    def _slot_sic_step_op_69(H, y, sigma2, idx, constellation):
+        Nr = H.shape[0]
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        w = np.linalg.solve(G, H.conj().T @ y)
+        x_est = w[idx]
+        dists = np.abs(constellation - x_est) ** 2
+        x_hard = constellation[np.argmin(dists)]
+        y_new = y - _col(H, idx) * x_hard
+        H_new = np.delete(H, idx, axis=1)
+        return x_hard, H_new, y_new
+    
+    
+    def osic(H, y, sigma2, constellation):
+        step = 0
+        Nt = H.shape[1]
+        Nt = H.shape[1]
+        H_cur = H.copy()
+        y_cur = y.copy()
+        rhs = H.conj().T @ y
+        detected = np.zeros(Nt, dtype=complex)
+        order = _slot_ordering_op_68(H_cur, y_cur, sigma2)
+        col_map = list(range(Nt))
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        Nr = G[0]
+    
+      ... (1841 chars total)
+
+--- #13 | algo_a105d8fc | SER=0.000000 | score=0.006100 | verdict=PARTIAL_DEAD ---
+  Lineage: ep<-bp
+  Graft ops: 9 (dead: 1)
+  Slots: 3 | Slot pops: {'ep.cavity': 9, 'ep.site_update': 8, 'ep.final_decision': 8}
+  Parents: ['ep', 'bp']
+  Source:
+    def _slot_final_decision_op_199(mu, constellation):
+        x_hat = np.zeros(len(mu), dtype=complex)
+        i = 0
+        while i < len(mu):
+            dists = np.abs(constellation - mu[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    def _slot_cavity_op_197(t, h2, gamma_i, alpha_i):
+        return t, h2
+    
+    def _slot_site_update_op_198(t, h2, constellation, gamma_i, alpha_i):
+        diffs = constellation - t
+        exponents = -np.abs(diffs) ** 2 / max(2.0 * h2, 1e-30)
+        max_exp = float(np.max(np.real(exponents)))
+        weights = np.exp(np.real(exponents) - max_exp)
+        w_sum = max(float(np.sum(weights)), 1e-30)
+        weights = weights / w_sum
+        mu_p = np.sum(weights * constellation)
+        sigma2_p = float(np.real(np.sum(weights * np.abs(constellation) ** 2))) - float(np.abs(mu_p) ** 2)
+        sigma2_p = max(sigma2_p, 5e-7)
+        new_alpha = 1.0 / sigma2_p - 1.0 / max(h2, 1e-30)
+        new_gamma = mu_p / sigma2_p - t / max(h2, 1e-30)
+        return new_alpha, new_gamma
+    
+    
+    def ep(H, y, sigma2, constellation):
+        Nt = 0
+        damping = 0.5
+        it = 0
+        Nt = H.shape[1]
+        gamma_ep = np.zeros(Nt, dtype=complex)
+        alpha = np.ones(Nt) * 2.0
+        s2inv = 1.0 / max(sigma2, 1e-30)
+        one_m_damp = 1.0 - damping
+        HtH = H.conj().T @ H
+        Hty = H.conj().T @ y
+        HtH_scaled = HtH * s2inv
+        Hty_scaled = Hty * s2inv
+        rhs = Hty_scaled + gamma_ep
+        Sigma_q = np.linalg.inv(HtH_scaled + np.diag(alpha))
+        mu_q = Sigma_q @ rhs
+        while it < 20:
+            sig = np.real(np.dia
+      ... (2597 chars total)
+
+--- #14 | algo_d3fb98f3 | SER=0.000000 | score=0.006240 | verdict=PARTIAL_DEAD ---
+  Lineage: ep<-soft_sic
+  Graft ops: 11 (dead: 2)
+  Slots: 3 | Slot pops: {'ep.cavity': 9, 'ep.site_update': 8, 'ep.final_decision': 8}
+  Parents: ['ep', 'soft_sic']
+  Source:
+    def _slot_final_decision_op_199(mu, constellation):
+        x_hat = np.zeros(len(mu), dtype=complex)
+        i = 0
+        while i < len(mu):
+            dists = np.abs(constellation - mu[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    def _slot_cavity_op_197(t, h2, gamma_i, alpha_i):
+        return t, h2
+    
+    def _slot_site_update_op_198(t, h2, constellation, gamma_i, alpha_i):
+        diffs = constellation - t
+        exponents = -np.abs(diffs) ** 2 / max(2.0 * h2, 1e-30)
+        max_exp = float(np.max(np.real(exponents)))
+        weights = np.exp(np.real(exponents) - max_exp)
+        w_sum = max(float(np.sum(weights)), 1e-30)
+        weights = weights / w_sum
+        mu_p = np.sum(weights * constellation)
+        sigma2_p = float(np.real(np.sum(weights * np.abs(constellation) ** 2))) - float(np.abs(mu_p) ** 2)
+        sigma2_p = max(sigma2_p, 5e-7)
+        new_alpha = 1.0 / sigma2_p - 1.0 / max(h2, 1e-30)
+        new_gamma = mu_p / sigma2_p - t / max(h2, 1e-30)
+        return new_alpha, new_gamma
+    
+    
+    def ep(H, y, sigma2, constellation):
+        damping = 0.5
+        it = 0
+        Nr = H.shape[0]
+        Nt = H.shape[1]
+        Nt = H.shape[1]
+        s2inv = 1.0 / max(sigma2, 1e-30)
+        one_m_damp = 1.0 - damping
+        gamma_ep = np.zeros(Nt, dtype=complex)
+        HtH = H.conj().T @ H
+        Hty = H.conj().T @ y
+        alpha = np.ones(Nt) * 2.0
+        HtH_scaled = HtH * s2inv
+        Hty_scaled = Hty * s2inv
+        rhs = Hty_scaled + gamma_ep
+        Sigma_q = np.linalg.inv(HtH_scaled + np.diag(alpha))
+        mu_q = Sigma_q @ rhs
+        while it < 20:
+      ... (2626 chars total)
+
+--- #15 | algo_00244628 | SER=0.000000 | score=0.006340 | verdict=PARTIAL_DEAD ---
+  Lineage: ep<-chebyshev
+  Graft ops: 18 (dead: 2)
+  Slots: 3 | Slot pops: {'ep.cavity': 9, 'ep.site_update': 8, 'ep.final_decision': 8}
+  Parents: ['ep', 'chebyshev']
+  Source:
+    def _slot_final_decision_op_199(mu, constellation):
+        x_hat = np.zeros(len(mu), dtype=complex)
+        i = 0
+        while i < len(mu):
+            dists = np.abs(constellation - mu[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    def _slot_cavity_op_197(t, h2, gamma_i, alpha_i):
+        return t, h2
+    
+    def _slot_site_update_op_198(t, h2, constellation, gamma_i, alpha_i):
+        diffs = constellation - t
+        exponents = -np.abs(diffs) ** 2 / max(2.0 * h2, 1e-30)
+        max_exp = float(np.max(np.real(exponents)))
+        weights = np.exp(np.real(exponents) - max_exp)
+        w_sum = max(float(np.sum(weights)), 1e-30)
+        weights = weights / w_sum
+        mu_p = np.sum(weights * constellation)
+        sigma2_p = float(np.real(np.sum(weights * np.abs(constellation) ** 2))) - float(np.abs(mu_p) ** 2)
+        sigma2_p = max(sigma2_p, 5e-7)
+        new_alpha = 1.0 / sigma2_p - 1.0 / max(h2, 1e-30)
+        new_gamma = mu_p / sigma2_p - t / max(h2, 1e-30)
+        return new_alpha, new_gamma
+    
+    
+    def ep(H, y, sigma2, constellation):
+        i = 0
+        damping = 0.5
+        it = 0
+        Nt = H.shape[1]
+        Nt = H.shape[1]
+        s2inv = 1.0 / max(sigma2, 1e-30)
+        one_m_damp = 1.0 - damping
+        x = np.zeros(Nt, dtype=complex)
+        rhs = H.conj().T @ y
+        gamma_ep = np.zeros(Nt, dtype=complex)
+        HtH = H.conj().T @ H
+        Hty = H.conj().T @ y
+        alpha = np.ones(Nt) * 2.0
+        HtH_scaled = HtH * s2inv
+        Hty_scaled = Hty * s2inv
+        rhs = Hty_scaled + gamma_ep
+        Sigma_q = np.linalg.inv(HtH_scaled + np.diag(
+      ... (2677 chars total)
+
+--- #16 | algo_adacc826 | SER=0.000000 | score=0.006900 | verdict=NON_TRIVIAL ---
+  Lineage: stack<-grad_descent
+  Graft ops: 6 (dead: 0)
+  Slots: 2 | Slot pops: {'stack.node_select': 8, 'stack.expand': 8}
+  Parents: ['stack', 'grad_descent']
+  Source:
+    def _slot_node_select_op_211(open_set):
+        best_idx = 0
+        best_cost = open_set[0].cost
+        i = 1
+        while i < len(open_set):
+            if open_set[i].cost < best_cost:
+                best_cost = open_set[i].cost
+                best_idx = i
+            i = i + 1
+        return best_idx
+    
+    def _slot_expand_op_212(node, y_tilde, R, constellation):
+        level = node.level
+        Nt = R.shape[1]
+        children = []
+        interf = 0.0 + 0.0j
+        j_rel = 0
+        while j_rel < len(node.symbols):
+            j = Nt - 1 - j_rel
+            interf = interf + R[level, j] * node.symbols[j_rel]
+            j_rel = j_rel + 1
+        ci = 0
+        while ci < len(constellation):
+            sym = constellation[ci]
+            residual = y_tilde[level] - R[level, level] * sym - interf
+            local_cost = float(np.abs(residual) ** 2)
+            total = node.cost + local_cost
+            child = _make_tree_node(level - 1, node.symbols + [sym], total)
+            children.append(child)
+            ci = ci + 1
+        return children
+    
+    
+    def stack(H, y, sigma2, constellation):
+        i = 0
+        nodes_expanded = 0
+        max_nodes = 2000
+        found = 0
+        _done = 0
+        Nr = H.shape[0]
+        Nt = H.shape[i]
+        Q = np.linalg.qr(H)[0]
+        R = np.linalg.qr(H)[1]
+        root = _make_tree_node(Nt - 1, [], 0.0)
+        best_complete = root
+        open_set = [root]
+        y_tilde = Q.conj().T @ y
+        while _done == 0:
+            if len(open_set) == 0:
+                _done = 1
+            if nodes_expanded >= max_nodes:
+                _done = 1
+            if _done == 0:
+                best_idx = _slot_node_select_op
+      ... (2290 chars total)
+
+--- #17 | algo_d0910c04 | SER=0.000000 | score=0.006900 | verdict=NON_TRIVIAL ---
+  Lineage: stack<-tabu
+  Graft ops: 7 (dead: 0)
+  Slots: 2 | Slot pops: {'stack.node_select': 8, 'stack.expand': 8}
+  Parents: ['stack', 'tabu']
+  Source:
+    def _slot_node_select_op_211(open_set):
+        best_idx = 0
+        best_cost = open_set[0].cost
+        i = 1
+        while i < len(open_set):
+            if open_set[i].cost < best_cost:
+                best_cost = open_set[i].cost
+                best_idx = i
+            i = i + 1
+        return best_idx
+    
+    def _slot_expand_op_212(node, y_tilde, R, constellation):
+        level = node.level
+        Nt = R.shape[1]
+        children = []
+        interf = 0.0 + 0.0j
+        j_rel = 0
+        while j_rel < len(node.symbols):
+            j = Nt - 1 - j_rel
+            interf = interf + R[level, j] * node.symbols[j_rel]
+            j_rel = j_rel + 1
+        ci = 0
+        while ci < len(constellation):
+            sym = constellation[ci]
+            residual = y_tilde[level] - R[level, level] * sym - interf
+            local_cost = float(np.abs(residual) ** 2)
+            total = node.cost + local_cost
+            child = _make_tree_node(level - 1, node.symbols + [sym], total)
+            children.append(child)
+            ci = ci + 1
+        return children
+    
+    
+    def stack(H, y, sigma2, constellation):
+        nodes_expanded = 0
+        max_nodes = 2000
+        found = 0
+        _done = 0
+        Nr = H.shape[0]
+        Nt = H.shape[1]
+        Q = np.linalg.qr(H)[0]
+        R = np.linalg.qr(H)[1]
+        root = _make_tree_node(Nt - 1, [], 0.0)
+        best_complete = root
+        open_set = [root]
+        y_tilde = Q.conj().T @ y
+        while _done == 0:
+            if len(open_set) == 0:
+                _done = 1
+            if nodes_expanded >= max_nodes:
+                _done = 1
+            if _done == 0:
+                best_idx = _slot_node_select_op_211(open_
+      ... (2280 chars total)
+
+--- #18 | algo_8cfcea95 | SER=0.000000 | score=0.006920 | verdict=PARTIAL_DEAD ---
+  Lineage: stack<-greedy
+  Graft ops: 9 (dead: 1)
+  Slots: 2 | Slot pops: {'stack.node_select': 8, 'stack.expand': 8}
+  Parents: ['stack', 'greedy']
+  Source:
+    def _slot_node_select_op_211(open_set):
+        best_idx = 0
+        best_cost = open_set[0].cost
+        i = 1
+        while i < len(open_set):
+            if open_set[i].cost < best_cost:
+                best_cost = open_set[i].cost
+                best_idx = i
+            i = i + 1
+        return best_idx
+    
+    def _slot_expand_op_212(node, y_tilde, R, constellation):
+        level = node.level
+        Nt = R.shape[1]
+        children = []
+        interf = 0.0 + 0.0j
+        j_rel = 0
+        while j_rel < len(node.symbols):
+            j = Nt - 1 - j_rel
+            interf = interf + R[level, j] * node.symbols[j_rel]
+            j_rel = j_rel + 1
+        ci = 0
+        while ci < len(constellation):
+            sym = constellation[ci]
+            residual = y_tilde[level] - R[level, level] * sym - interf
+            local_cost = float(np.abs(residual) ** 2)
+            total = node.cost + local_cost
+            child = _make_tree_node(level - 1, node.symbols + [sym], total)
+            children.append(child)
+            ci = ci + 1
+        return children
+    
+    
+    def stack(H, y, sigma2, constellation):
+        nodes_expanded = 0
+        max_nodes = 2000
+        found = 0
+        _done = 0
+        Nr = H.shape[0]
+        Nt = H.shape[1]
+        Nt = Nt
+        Q = np.linalg.qr(H)[0]
+        R = np.linalg.qr(H)[1]
+        root = _make_tree_node(Nt - 1, [], 0.0)
+        best_complete = root
+        open_set = [root]
+        y_tilde = Q.conj().T @ y
+        while _done == 0:
+            if len(open_set) == 0:
+                _done = 1
+            if nodes_expanded >= max_nodes:
+                _done = 1
+            if _done == 0:
+                best_idx = _slot_node_select_
+      ... (2292 chars total)
+
+--- #19 | algo_c4f06ed9 | SER=0.000000 | score=0.006920 | verdict=PARTIAL_DEAD ---
+  Lineage: stack<-overrelax
+  Graft ops: 14 (dead: 1)
+  Slots: 2 | Slot pops: {'stack.node_select': 8, 'stack.expand': 8}
+  Parents: ['stack', 'overrelax']
+  Source:
+    def _slot_node_select_op_211(open_set):
+        best_idx = 0
+        best_cost = open_set[0].cost
+        i = 1
+        while i < len(open_set):
+            if open_set[i].cost < best_cost:
+                best_cost = open_set[i].cost
+                best_idx = i
+            i = i + 1
+        return best_idx
+    
+    def _slot_expand_op_212(node, y_tilde, R, constellation):
+        level = node.level
+        Nt = R.shape[1]
+        children = []
+        interf = 0.0 + 0.0j
+        j_rel = 0
+        while j_rel < len(node.symbols):
+            j = Nt - 1 - j_rel
+            interf = interf + R[level, j] * node.symbols[j_rel]
+            j_rel = j_rel + 1
+        ci = 0
+        while ci < len(constellation):
+            sym = constellation[ci]
+            residual = y_tilde[level] - R[level, level] * sym - interf
+            local_cost = float(np.abs(residual) ** 2)
+            total = node.cost + local_cost
+            child = _make_tree_node(level - 1, node.symbols + [sym], total)
+            children.append(child)
+            ci = ci + 1
+        return children
+    
+    
+    def stack(H, y, sigma2, constellation):
+        nodes_expanded = 0
+        max_nodes = 2000
+        found = 0
+        _done = 0
+        Nt = H.shape[1]
+        Q = np.linalg.qr(H)[0]
+        R = np.linalg.qr(H)[1]
+        x = np.zeros(Nt, dtype=complex)
+        root = _make_tree_node(Nt - 1, [], 0.0)
+        best_complete = root
+        open_set = [root]
+        y_tilde = Q.conj().T @ y
+        while _done == 0:
+            if len(open_set) == 0:
+                _done = 1
+            if nodes_expanded >= max_nodes:
+                _done = 1
+            if _done == 0:
+                best_idx = _slot_node_sel
+      ... (2296 chars total)
+
+--- #20 | algo_4ccb2b4b | SER=0.000000 | score=0.006980 | verdict=NON_TRIVIAL ---
+  Lineage: stack<-newton
+  Graft ops: 10 (dead: 0)
+  Slots: 2 | Slot pops: {'stack.node_select': 8, 'stack.expand': 8}
+  Parents: ['stack', 'newton']
+  Source:
+    def _slot_node_select_op_211(open_set):
+        best_idx = 0
+        best_cost = open_set[0].cost
+        i = 1
+        while i < len(open_set):
+            if open_set[i].cost < best_cost:
+                best_cost = open_set[i].cost
+                best_idx = i
+            i = i + 1
+        return best_idx
+    
+    def _slot_expand_op_212(node, y_tilde, R, constellation):
+        level = node.level
+        Nt = R.shape[1]
+        children = []
+        interf = 0.0 + 0.0j
+        j_rel = 0
+        while j_rel < len(node.symbols):
+            j = Nt - 1 - j_rel
+            interf = interf + R[level, j] * node.symbols[j_rel]
+            j_rel = j_rel + 1
+        ci = 0
+        while ci < len(constellation):
+            sym = constellation[ci]
+            residual = y_tilde[level] - R[level, level] * sym - interf
+            local_cost = float(np.abs(residual) ** 2)
+            total = node.cost + local_cost
+            child = _make_tree_node(level - 1, node.symbols + [sym], total)
+            children.append(child)
+            ci = ci + 1
+        return children
+    
+    
+    def stack(H, y, sigma2, constellation):
+        nodes_expanded = 0
+        max_nodes = 2000
+        _done = 0
+        Nr = H.shape[0]
+        Nt = H.shape[1]
+        Nt = H.shape[0]
+        Q = np.linalg.qr(H)[0]
+        R = np.linalg.qr(H)[1]
+        root = _make_tree_node(Nt - 1, [], 0.0)
+        best_complete = root
+        open_set = [root]
+        y_tilde = Q.conj().T @ y
+        while _done == 0:
+            if len(open_set) == 0:
+                _done = 1
+            if nodes_expanded >= max_nodes:
+                _done = 1
+            if _done == 0:
+                best_idx = _slot_node_select_op_211
+      ... (2286 chars total)
+
+--- #21 | algo_d1eccc12 | SER=0.000000 | score=0.007020 | verdict=PARTIAL_DEAD ---
+  Lineage: stack<-frank_wolfe
+  Graft ops: 12 (dead: 2)
+  Slots: 2 | Slot pops: {'stack.node_select': 8, 'stack.expand': 8}
+  Parents: ['stack', 'frank_wolfe']
+  Source:
+    def _slot_node_select_op_211(open_set):
+        best_idx = 0
+        best_cost = open_set[0].cost
+        i = 1
+        while i < len(open_set):
+            if open_set[i].cost < best_cost:
+                best_cost = open_set[i].cost
+                best_idx = i
+            i = i + 1
+        return best_idx
+    
+    def _slot_expand_op_212(node, y_tilde, R, constellation):
+        level = node.level
+        Nt = R.shape[1]
+        children = []
+        interf = 0.0 + 0.0j
+        j_rel = 0
+        while j_rel < len(node.symbols):
+            j = Nt - 1 - j_rel
+            interf = interf + R[level, j] * node.symbols[j_rel]
+            j_rel = j_rel + 1
+        ci = 0
+        while ci < len(constellation):
+            sym = constellation[ci]
+            residual = y_tilde[level] - R[level, level] * sym - interf
+            local_cost = float(np.abs(residual) ** 2)
+            total = node.cost + local_cost
+            child = _make_tree_node(level - 1, node.symbols + [sym], total)
+            children.append(child)
+            ci = ci + 1
+        return children
+    
+    
+    def stack(H, y, sigma2, constellation):
+        nodes_expanded = 0
+        max_nodes = 2000
+        i = 0
+        found = 0
+        _done = 0
+        Nr = H.shape[0]
+        Nt = H[0]
+        Nt = H.shape[1]
+        Q = np.linalg.qr(H)[0]
+        R = np.linalg.qr(H)[1]
+        x = np.zeros(Nt, dtype=complex)
+        root = _make_tree_node(Nt - 1, [], 0.0)
+        open_set = [root]
+        y_tilde = Q.conj().T @ y
+        while _done == 0:
+            if len(open_set) == 0:
+                _done = 1
+            if nodes_expanded >= max_nodes:
+                _done = 1
+            if _done == 0:
+                best_i
+      ... (2315 chars total)
+
+--- #22 | algo_56d3129c | SER=0.000000 | score=0.007020 | verdict=PARTIAL_DEAD ---
+  Lineage: stack<-sa
+  Graft ops: 12 (dead: 2)
+  Slots: 2 | Slot pops: {'stack.node_select': 8, 'stack.expand': 8}
+  Parents: ['stack', 'sa']
+  Source:
+    def _slot_node_select_op_211(open_set):
+        best_idx = 0
+        best_cost = open_set[0].cost
+        i = 1
+        while i < len(open_set):
+            if open_set[i].cost < best_cost:
+                best_cost = open_set[i].cost
+                best_idx = i
+            i = i + 1
+        return best_idx
+    
+    def _slot_expand_op_212(node, y_tilde, R, constellation):
+        level = node.level
+        Nt = R.shape[1]
+        children = []
+        interf = 0.0 + 0.0j
+        j_rel = 0
+        while j_rel < len(node.symbols):
+            j = Nt - 1 - j_rel
+            interf = interf + R[level, j] * node.symbols[j_rel]
+            j_rel = j_rel + 1
+        ci = 0
+        while ci < len(constellation):
+            sym = constellation[ci]
+            residual = y_tilde[level] - R[level, level] * sym - interf
+            local_cost = float(np.abs(residual) ** 2)
+            total = node.cost + local_cost
+            child = _make_tree_node(level - 1, node.symbols + [sym], total)
+            children.append(child)
+            ci = ci + 1
+        return children
+    
+    
+    def stack(H, y, sigma2, constellation):
+        nodes_expanded = 0
+        max_nodes = 2000
+        found = 0
+        _done = 0
+        Nt = H.shape[1]
+        Nt = H.shape[1]
+        np.zeros(Nt, dtype=complex)
+        Nr = Nt
+        Q = np.linalg.qr(H)[0]
+        R = np.linalg.qr(H)[1]
+        root = _make_tree_node(Nt - 1, [], 0.0)
+        best_complete = root
+        open_set = [root]
+        y_tilde = Q.conj().T @ y
+        while _done == 0:
+            if len(open_set) == 0:
+                _done = 1
+            if nodes_expanded >= max_nodes:
+                _done = 1
+            if _done == 0:
+             
+      ... (2324 chars total)
+
+--- #23 | algo_24366dd2 | SER=0.000000 | score=0.008080 | verdict=NON_TRIVIAL ---
+  Lineage: osic<-parallel
+  Graft ops: 12 (dead: 0)
+  Slots: 6 | Slot pops: {'osic.ordering': 8, 'osic.sic_step': 8, 'stage1': 8, 'stage2': 8, 'merge': 8, 'hard_decision': 8}
+  Parents: ['osic', 'parallel']
+  Source:
+    def _slot_ordering_op_68(H, y, sigma2):
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        G_inv = np.linalg.inv(G)
+        snr = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            snr[i] = 1.0 / max(float(np.real(G_inv[i, i])), 1e-30) - sigma2
+            i = i + 1
+        order = []
+        used = np.zeros(Nt, dtype=complex)
+        k = 0
+        while k < Nt:
+            best = -1
+            best_val = -1e30
+            j = 0
+            while j < Nt:
+                if float(np.real(used[j])) == 0.0:
+                    if float(np.real(snr[j])) > best_val:
+                        best_val = float(np.real(snr[j]))
+                        best = j
+                j = j + 1
+            order.append(best)
+            used[best] = 1.0
+            k = k + 1
+        return order
+    
+    def _slot_sic_step_op_69(H, y, sigma2, idx, constellation):
+        Nr = H.shape[0]
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        w = np.linalg.solve(G, H.conj().T @ y)
+        x_est = w[idx]
+        dists = np.abs(constellation - x_est) ** 2
+        x_hard = constellation[np.argmin(dists)]
+        y_new = y - _col(H, idx) * x_hard
+        H_new = np.delete(H, idx, axis=1)
+        return x_hard, H_new, y_new
+    
+    def _slot_stage1_op_inl_690511(H, y, sigma2, constellation):
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        x_soft = np.linalg.solve(G, H.conj().T @ y)
+        x_hat = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            dists = np.abs(constellation - x_soft[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+      ... (3118 chars total)
+
+--- #24 | algo_28d7e98a | SER=0.000000 | score=0.009340 | verdict=NON_TRIVIAL ---
+  Lineage: osic<-three_stage
+  Graft ops: 12 (dead: 0)
+  Slots: 6 | Slot pops: {'osic.ordering': 8, 'osic.sic_step': 8, 'stage1': 8, 'refine': 8, 'hard_decision': 8}
+  Parents: ['osic', 'three_stage']
+  Source:
+    def _slot_ordering_op_68(H, y, sigma2):
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        G_inv = np.linalg.inv(G)
+        snr = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            snr[i] = 1.0 / max(float(np.real(G_inv[i, i])), 1e-30) - sigma2
+            i = i + 1
+        order = []
+        used = np.zeros(Nt, dtype=complex)
+        k = 0
+        while k < Nt:
+            best = -1
+            best_val = -1e30
+            j = 0
+            while j < Nt:
+                if float(np.real(used[j])) == 0.0:
+                    if float(np.real(snr[j])) > best_val:
+                        best_val = float(np.real(snr[j]))
+                        best = j
+                j = j + 1
+            order.append(best)
+            used[best] = 1.0
+            k = k + 1
+        return order
+    
+    def _slot_sic_step_op_69(H, y, sigma2, idx, constellation):
+        Nr = H.shape[0]
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        w = np.linalg.solve(G, H.conj().T @ y)
+        x_est = w[idx]
+        dists = np.abs(constellation - x_est) ** 2
+        x_hard = constellation[np.argmin(dists)]
+        y_new = y - _col(H, idx) * x_hard
+        H_new = np.delete(H, idx, axis=1)
+        return x_hard, H_new, y_new
+    
+    def _slot_stage1_op_inl_5e759b(H, y, sigma2, constellation):
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        x_soft = np.linalg.solve(G, H.conj().T @ y)
+        x_hat = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            dists = np.abs(constellation - x_soft[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+      ... (3947 chars total)
+
+--- #25 | algo_ca3da90e | SER=0.000000 | score=0.009720 | verdict=PARTIAL_DEAD ---
+  Lineage: amp<-consensus
+  Graft ops: 13 (dead: 2)
+  Slots: 2 | Slot pops: {'amp.amp_iterate': 8, 'amp.final_decision': 8}
+  Parents: ['amp', 'consensus']
+  Source:
+    def _slot_amp_iterate_op_101(G, Gtilde, g_scale, gtilde, yMFtilde, sigma2, x_hat, tau_s, z, constellation):
+        Nt = len(x_hat)
+        M = len(constellation)
+        tau_p = g_scale @ tau_s
+        theta_s = 0.5
+        theta_z = 0.5
+        tau_p_safe = np.maximum(tau_p, 1e-30)
+        tau_p_plus_s2 = tau_p_safe + sigma2
+        tau_z = tau_p_plus_s2 * gtilde
+        tau_z = np.maximum(tau_z, 1e-30)
+        x_new = np.zeros(Nt, dtype=complex)
+        x_var = np.zeros(Nt)
+        i = 0
+        while i < Nt:
+            w = np.zeros(M)
+            j = 0
+            max_e = -1e30
+            while j < M:
+                dist_j = float(np.abs(z[i] - constellation[j]) ** 2)
+                e = 0.0 - dist_j / max(float(tau_z[i]), 1e-30)
+                if e > max_e:
+                    max_e = e
+                w[j] = e
+                j = j + 1
+            j = 0
+            ws = 0.0
+            while j < M:
+                w[j] = np.exp(w[j] - max_e)
+                ws = ws + w[j]
+                j = j + 1
+            ws = max(ws, 1e-30)
+            j = 0
+            while j < M:
+                w[j] = w[j] / ws
+                j = j + 1
+            mu_i = 0.0 + 0.0j
+            j = 0
+            while j < M:
+                mu_i = mu_i + w[j] * constellation[j]
+                j = j + 1
+            x_new[i] = mu_i
+            v_i = 0.0
+            j = 0
+            while j < M:
+                v_i = v_i + w[j] * float(np.abs(constellation[j] - mu_i) ** 2)
+                j = j + 1
+            x_var[i] = v_i
+            i = i + 1
+        shat_old = x_hat.copy()
+        one_m_ts = 1.0 - theta_s
+        tau_s_new = theta_s * x_var + one_m_ts * tau_s
+        tau_p_new = g_scale
+      ... (2959 chars total)
+
+--- #26 | algo_636da160 | SER=0.000000 | score=0.009800 | verdict=PARTIAL_DEAD ---
+  Lineage: amp<-kbest
+  Graft ops: 20 (dead: 2)
+  Slots: 2 | Slot pops: {'amp.amp_iterate': 8, 'amp.final_decision': 8}
+  Parents: ['amp', 'kbest']
+  Source:
+    def _slot_amp_iterate_op_101(G, Gtilde, g_scale, gtilde, yMFtilde, sigma2, x_hat, tau_s, z, constellation):
+        Nt = len(x_hat)
+        M = len(constellation)
+        tau_p = g_scale @ tau_s
+        theta_s = 0.5
+        theta_z = 0.5
+        tau_p_safe = np.maximum(tau_p, 1e-30)
+        tau_p_plus_s2 = tau_p_safe + sigma2
+        tau_z = tau_p_plus_s2 * gtilde
+        tau_z = np.maximum(tau_z, 1e-30)
+        x_new = np.zeros(Nt, dtype=complex)
+        x_var = np.zeros(Nt)
+        i = 0
+        while i < Nt:
+            w = np.zeros(M)
+            j = 0
+            max_e = -1e30
+            while j < M:
+                dist_j = float(np.abs(z[i] - constellation[j]) ** 2)
+                e = 0.0 - dist_j / max(float(tau_z[i]), 1e-30)
+                if e > max_e:
+                    max_e = e
+                w[j] = e
+                j = j + 1
+            j = 0
+            ws = 0.0
+            while j < M:
+                w[j] = np.exp(w[j] - max_e)
+                ws = ws + w[j]
+                j = j + 1
+            ws = max(ws, 1e-30)
+            j = 0
+            while j < M:
+                w[j] = w[j] / ws
+                j = j + 1
+            mu_i = 0.0 + 0.0j
+            j = 0
+            while j < M:
+                mu_i = mu_i + w[j] * constellation[j]
+                j = j + 1
+            x_new[i] = mu_i
+            v_i = 0.0
+            j = 0
+            while j < M:
+                v_i = v_i + w[j] * float(np.abs(constellation[j] - mu_i) ** 2)
+                j = j + 1
+            x_var[i] = v_i
+            i = i + 1
+        shat_old = x_hat.copy()
+        one_m_ts = 1.0 - theta_s
+        tau_s_new = theta_s * x_var + one_m_ts * tau_s
+        tau_p_new = g_scale
+      ... (3012 chars total)
+
+--- #27 | algo_13744d01 | SER=0.062500 | score=0.066320 | verdict=PARTIAL_DEAD ---
+  Lineage: layer_peeling<-bp
+  Graft ops: 9 (dead: 2)
+  Slots: 2 | Slot pops: {'layer_peeling.weight': 8, 'layer_peeling.hard_decision': 8}
+  Parents: ['layer_peeling', 'bp']
+  Source:
+    def _slot_weight_op_129(H, sigma2):
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        return np.linalg.inv(G) @ H.conj().T
+    
+    def _slot_hard_decision_op_130(x_soft, constellation):
+        x_hat = np.zeros(len(x_soft), dtype=complex)
+        i = 0
+        while i < len(x_soft):
+            dists = np.abs(constellation - x_soft[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    
+    def layer_peeling_detector(H, y, sigma2, constellation):
+        k = 0
+        Nr = H.shape[0]
+        Nt = H.shape[0]
+        y_rem = y.copy()
+        H_rem = H.copy()
+        x = np.zeros(Nt, dtype=complex)
+        detected = np.zeros(Nt)
+        while k < Nt:
+            W = _slot_weight_op_129(H_rem, sigma2)
+            x_soft = W @ y_rem
+            best_j = -1
+            best_snr = -1e+30
+            j = 0
+            while j < Nt:
+                if detected[j] == 0.0:
+                    snr = float(np.real(np.abs(x_soft[j]) ** 2))
+                    if snr > best_snr:
+                        best_snr = snr
+                        best_j = j
+                j = j + 1
+            if best_j < 0:
+                best_j = 0
+            dists = np.abs(constellation - x_soft[best_j]) ** 2
+            x[best_j] = constellation[np.argmin(dists)]
+            y_rem = y_rem - _col(H, best_j) * x[best_j]
+            detected[best_j] = 1.0
+            k = k + 1
+        x_hat = _slot_hard_decision_op_130(x, constellation)
+        return x_hat
+
+--- #28 | algo_81ff5620 | SER=0.062500 | score=0.066320 | verdict=PARTIAL_DEAD ---
+  Lineage: layer_peeling<-tabu
+  Graft ops: 8 (dead: 3)
+  Slots: 2 | Slot pops: {'layer_peeling.weight': 8, 'layer_peeling.hard_decision': 8}
+  Parents: ['layer_peeling', 'tabu']
+  Source:
+    def _slot_weight_op_129(H, sigma2):
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        return np.linalg.inv(G) @ H.conj().T
+    
+    def _slot_hard_decision_op_130(x_soft, constellation):
+        x_hat = np.zeros(len(x_soft), dtype=complex)
+        i = 0
+        while i < len(x_soft):
+            dists = np.abs(constellation - x_soft[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    
+    def layer_peeling_detector(H, y, sigma2, constellation):
+        k = 0
+        Nt = H.shape[1]
+        Nt = H.shape[1]
+        y_rem = y.copy()
+        H_rem = H.copy()
+        x = np.zeros(Nt, dtype=complex)
+        detected = np.zeros(Nt)
+        while k < Nt:
+            W = _slot_weight_op_129(H_rem, sigma2)
+            x_soft = W @ y_rem
+            best_j = -1
+            best_snr = -1e+30
+            j = 0
+            while j < Nt:
+                if detected[j] == 0.0:
+                    snr = float(np.real(np.abs(x_soft[j]) ** 2))
+                    if snr > best_snr:
+                        best_snr = snr
+                        best_j = j
+                j = j + 1
+            if best_j < 0:
+                best_j = 0
+            dists = np.abs(constellation - x_soft[best_j]) ** 2
+            x[best_j] = constellation[np.argmin(dists)]
+            y_rem = y_rem - _col(H, best_j) * x[best_j]
+            detected[best_j] = 1.0
+            k = k + 1
+        x_hat = _slot_hard_decision_op_130(x, constellation)
+        return x_hat
+
+--- #29 | algo_c4e29078 | SER=0.062500 | score=0.066380 | verdict=PARTIAL_DEAD ---
+  Lineage: layer_peeling<-mh
+  Graft ops: 13 (dead: 3)
+  Slots: 2 | Slot pops: {'layer_peeling.weight': 8, 'layer_peeling.hard_decision': 8}
+  Parents: ['layer_peeling', 'mh']
+  Source:
+    def _slot_weight_op_129(H, sigma2):
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        return np.linalg.inv(G) @ H.conj().T
+    
+    def _slot_hard_decision_op_130(x_soft, constellation):
+        x_hat = np.zeros(len(x_soft), dtype=complex)
+        i = 0
+        while i < len(x_soft):
+            dists = np.abs(constellation - x_soft[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    
+    def layer_peeling_detector(H, y, sigma2, constellation):
+        j = 0
+        k = 0
+        Nt = H.shape[1]
+        Nt = H.shape[1]
+        y_rem = y.copy()
+        H_rem = H.copy()
+        detected = np.zeros(Nt)
+        x = np.zeros(Nt, dtype=complex)
+        while k < Nt:
+            W = _slot_weight_op_129(H_rem, sigma2)
+            x_soft = W @ y_rem
+            best_j = -1
+            best_snr = -1e+30
+            j = 0
+            while j < Nt:
+                if detected[j] == 0.0:
+                    snr = float(np.real(np.abs(x_soft[j]) ** 2))
+                    if snr > best_snr:
+                        best_snr = snr
+                        best_j = j
+                j = j + 1
+            if best_j < 0:
+                best_j = 0
+            dists = np.abs(constellation - x_soft[best_j]) ** 2
+            x[best_j] = constellation[np.argmin(dists)]
+            y_rem = y_rem - _col(H, best_j) * x[best_j]
+            detected[best_j] = 1.0
+            k = k + 1
+        x_hat = _slot_hard_decision_op_130(x, constellation)
+        return x_hat
+
+--- #30 | algo_7b655abb | SER=0.062500 | score=0.066400 | verdict=PARTIAL_DEAD ---
+  Lineage: layer_peeling<-projected_gd
+  Graft ops: 12 (dead: 2)
+  Slots: 2 | Slot pops: {'layer_peeling.weight': 8, 'layer_peeling.hard_decision': 8}
+  Parents: ['layer_peeling', 'projected_gd']
+  Source:
+    def _slot_weight_op_129(H, sigma2):
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        return np.linalg.inv(G) @ H.conj().T
+    
+    def _slot_hard_decision_op_130(x_soft, constellation):
+        x_hat = np.zeros(len(x_soft), dtype=complex)
+        i = 0
+        while i < len(x_soft):
+            dists = np.abs(constellation - x_soft[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    
+    def layer_peeling_detector(H, y, sigma2, constellation):
+        i = 0
+        k = 0
+        Nt = H.shape[1]
+        Nt = H.shape[1]
+        y_rem = y.copy()
+        H_rem = H.copy()
+        x = np.zeros(Nt, dtype=complex)
+        detected = np.zeros(Nt)
+        x = np.zeros(Nt, dtype=complex)
+        while k < Nt:
+            W = _slot_weight_op_129(H_rem, sigma2)
+            x_soft = W @ y_rem
+            best_j = -1
+            best_snr = -1e+30
+            j = 0
+            while j < Nt:
+                if detected[j] == 0.0:
+                    snr = float(np.real(np.abs(x_soft[j]) ** 2))
+                    if snr > best_snr:
+                        best_snr = snr
+                        best_j = j
+                j = j + 1
+            if best_j < 0:
+                best_j = 0
+            dists = np.abs(constellation - x_soft[best_j]) ** 2
+            x[best_j] = constellation[np.argmin(dists)]
+            y_rem = y_rem - _col(H, best_j) * x[best_j]
+            detected[best_j] = 1.0
+            k = k + 1
+        x_hat = _slot_hard_decision_op_130(x, constellation)
+        return x_hat
+
+--- #31 | algo_c091a864 | SER=0.062500 | score=0.066440 | verdict=PARTIAL_DEAD ---
+  Lineage: layer_peeling<-chebyshev
+  Graft ops: 14 (dead: 2)
+  Slots: 2 | Slot pops: {'layer_peeling.weight': 8, 'layer_peeling.hard_decision': 8}
+  Parents: ['layer_peeling', 'chebyshev']
+  Source:
+    def _slot_weight_op_129(H, sigma2):
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        return np.linalg.inv(G) @ H.conj().T
+    
+    def _slot_hard_decision_op_130(x_soft, constellation):
+        x_hat = np.zeros(len(x_soft), dtype=complex)
+        i = 0
+        while i < len(x_soft):
+            dists = np.abs(constellation - x_soft[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    
+    def layer_peeling_detector(H, y, sigma2, constellation):
+        k = 0
+        Nt = H.shape[1]
+        Nt = H.shape[1]
+        y_rem = y.copy()
+        H_rem = H.copy()
+        detected = np.zeros(Nt)
+        x = H.conj().T @ H
+        while k < Nt:
+            W = _slot_weight_op_129(H_rem, sigma2)
+            x_soft = W @ y_rem
+            best_j = -1
+            best_snr = -1e+30
+            j = 0
+            while j < Nt:
+                if detected[j] == 0.0:
+                    snr = float(np.real(np.abs(x_soft[j]) ** 2))
+                    if snr > best_snr:
+                        best_snr = snr
+                        best_j = j
+                j = j + 1
+            if best_j < 0:
+                best_j = 0
+            dists = np.abs(constellation - x_soft[best_j]) ** 2
+            x[best_j] = constellation[np.argmin(dists)]
+            y_rem = y_rem - _col(H, best_j) * x[best_j]
+            detected[best_j] = 1.0
+            k = k + 1
+        x_hat = _slot_hard_decision_op_130(x, constellation)
+        return x_hat
+
+--- #32 | algo_f0a46c5d | SER=0.062500 | score=0.067280 | verdict=PARTIAL_DEAD ---
+  Lineage: layer_peeling<-parallel
+  Graft ops: 4 (dead: 1)
+  Slots: 3 | Slot pops: {'layer_peeling.weight': 8, 'layer_peeling.hard_decision': 8, 'stage2': 8}
+  Parents: ['layer_peeling', 'parallel']
+  Source:
+    def _slot_weight_op_129(H, sigma2):
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        return np.linalg.inv(G) @ H.conj().T
+    
+    def _slot_hard_decision_op_130(x_soft, constellation):
+        x_hat = np.zeros(len(x_soft), dtype=complex)
+        i = 0
+        while i < len(x_soft):
+            dists = np.abs(constellation - x_soft[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    def _slot_stage2_op_inl_31a094(H, y, sigma2, constellation):
+        Nt = H.shape[1]
+        G = H.conj().T @ H
+        x_soft = np.linalg.solve(G, H.conj().T @ y)
+        x_hat = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            dists = np.abs(constellation - x_soft[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    
+    def layer_peeling_detector(H, y, sigma2, constellation):
+        x2 = _slot_stage2_op_inl_31a094(H, y, sigma2, constellation)
+        k = 0
+        Nt = H.shape[1]
+        y_rem = y.copy()
+        H_rem = H.copy()
+        x = np.zeros(Nt, dtype=complex)
+        detected = np.zeros(Nt)
+        while k < Nt:
+            W = _slot_weight_op_129(H_rem, sigma2)
+            x_soft = W @ y_rem
+            best_j = -1
+            best_snr = -1e+30
+            j = 0
+            while j < Nt:
+                if detected[j] == 0.0:
+                    snr = float(np.real(np.abs(x_soft[j]) ** 2))
+                    if snr > best_snr:
+                        best_snr = snr
+                        best_j = j
+                j = j + 1
+            if best_j < 0:
+                best_j = 0
+            dists 
+      ... (1772 chars total)
+
+SUMMARY: 7 non-trivial, 0 dead-code, 0 identity, 0 cascade, 32 total
+

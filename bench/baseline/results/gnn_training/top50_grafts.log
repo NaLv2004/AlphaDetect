@@ -1,0 +1,291 @@
+GNN Grafting Training Log
+Started: 2026-04-22 00:31:34
+Config: {'gens': 3, 'snr_start': 20.0, 'snr_target': 24.0, 'phase_thresh': 0.5, 'proposals': 20, 'top_k': 20, 'pool_size': 91, 'n_trials': 1, 'timeout': 0.3, 'eval_workers': 2, 'warmstart_gens': 0, 'warmstart_trials': 1, 'warmstart_timeout': 0.15, 'warmstart_eval_workers': 12, 'warmstart_survivor_cap': 32, 'train_steps': 5, 'train_interval': 1, 'buffer_size': 20000, 'pair_temp': 0.7, 'pair_eps': 0.1, 'region_eps': 0.1, 'donor_eps': 0.1, 'ckpt_interval': 1000, 'seed': 42, 'resume': None}
+
+
+================================================================================
+GENERATION 1 | SNR=20dB | 2 grafted in population
+================================================================================
+
+--- #1 | algo_5cde96a8 | SER=0.312500 | score=0.315020 | verdict=PARTIAL_DEAD ---
+  Lineage: multi_scale<-soft_sic
+  Graft ops: 14 (dead: 2)
+  Slots: 3 | Slot pops: {'multi_scale.linear_solve': 8, 'multi_scale.refine': 8, 'multi_scale.hard_decision': 8}
+  Parents: ['multi_scale', 'soft_sic']
+  Source:
+    def _slot_linear_solve_op_26(A, b):
+        return np.linalg.solve(A, b)
+    
+    def _slot_refine_op_27(H, y, sigma2, x, constellation):
+        r = y - H @ x
+        g = H.conj().T @ r
+        x_new = x + 0.02 * g
+        Nt = len(x_new)
+        x_hat = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            dists = np.abs(constellation - x_new[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    def _slot_hard_decision_op_28(x_soft, constellation):
+        x_hat = np.zeros(len(x_soft), dtype=complex)
+        i = 0
+        while i < len(x_soft):
+            dists = np.abs(constellation - x_soft[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    
+    def multi_scale_detector(H, y, sigma2, constellation):
+        Nt = H.shape[1]
+        Nt = H.shape[1]
+        rhs = H.conj().T @ y
+        G = Nt + sigma2 * np.eye(Nt)
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        x_coarse = _slot_linear_solve_op_26(G, rhs)
+        x = _slot_refine_op_27(H, y, sigma2, x_coarse, constellation)
+        x_hat = _slot_hard_decision_op_28(x, constellation)
+        return x_hat
+
+--- #2 | algo_904836fe | SER=0.312500 | score=0.317600 | verdict=NON_TRIVIAL ---
+  Lineage: multi_scale<-two_stage
+  Graft ops: 6 (dead: 0)
+  Slots: 3 | Slot pops: {'multi_scale.linear_solve': 8, 'multi_scale.refine': 8, 'multi_scale.hard_decision': 8, 'stage1': 8, 'refine': 8, 'hard_decision': 8}
+  Parents: ['multi_scale', 'two_stage']
+  Source:
+    def _slot_stage1_op_inl_f9af7f(H, y, sigma2, constellation):
+        Nt = H.shape[1]
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        x_soft = np.linalg.solve(G, H.conj().T @ y)
+        x_hat = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            dists = np.abs(constellation - x_soft[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    def _slot_refine_op_inl_d00751(H, y, sigma2, x, constellation):
+        r = y - H @ x
+        g = H.conj().T @ r
+        x_new = x + 0.02 * g
+        Nt = len(x_new)
+        x_hat = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            dists = np.abs(constellation - x_new[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    def _slot_hard_decision_op_inl_0fc8c5(x_soft, constellation):
+        x_hat = np.zeros(len(x_soft), dtype=complex)
+        i = 0
+        while i < len(x_soft):
+            dists = np.abs(constellation - x_soft[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    
+    def multi_scale_detector(H, y, sigma2, constellation):
+        H.conj()
+        x_init = _slot_stage1_op_inl_f9af7f(H, y, sigma2, constellation)
+        Nt = H.shape[1]
+        x_refined = _slot_refine_op_inl_d00751(H, y, sigma2, x_init, constellation)
+        x_hat = _slot_hard_decision_op_inl_0fc8c5(x_refined, constellation)
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        x_hat = x_hat
+        return x_hat
+
+SUMMARY: 1 non-trivial, 0 dead-code, 0 identity, 0 cascade, 2 total
+
+
+================================================================================
+GENERATION 2 | SNR=20dB | 2 grafted in population
+================================================================================
+
+--- #1 | algo_5cde96a8 | SER=0.312500 | score=0.315020 | verdict=PARTIAL_DEAD ---
+  Lineage: multi_scale<-soft_sic
+  Graft ops: 14 (dead: 2)
+  Slots: 3 | Slot pops: {'multi_scale.linear_solve': 8, 'multi_scale.refine': 8, 'multi_scale.hard_decision': 8}
+  Parents: ['multi_scale', 'soft_sic']
+  Source:
+    def _slot_linear_solve_op_26(A, b):
+        return np.linalg.solve(A, b)
+    
+    def _slot_refine_op_27(H, y, sigma2, x, constellation):
+        r = y - H @ x
+        g = H.conj().T @ r
+        x_new = x + 0.02 * g
+        Nt = len(x_new)
+        x_hat = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            dists = np.abs(constellation - x_new[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    def _slot_hard_decision_op_28(x_soft, constellation):
+        x_hat = np.zeros(len(x_soft), dtype=complex)
+        i = 0
+        while i < len(x_soft):
+            dists = np.abs(constellation - x_soft[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    
+    def multi_scale_detector(H, y, sigma2, constellation):
+        Nt = H.shape[1]
+        Nt = H.shape[1]
+        rhs = H.conj().T @ y
+        G = Nt + sigma2 * np.eye(Nt)
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        x_coarse = _slot_linear_solve_op_26(G, rhs)
+        x = _slot_refine_op_27(H, y, sigma2, x_coarse, constellation)
+        x_hat = _slot_hard_decision_op_28(x, constellation)
+        return x_hat
+
+--- #2 | algo_f9567994 | SER=0.312500 | score=0.315020 | verdict=PARTIAL_DEAD ---
+  Lineage: multi_scale<-soft_sic
+  Graft ops: 14 (dead: 2)
+  Slots: 3 | Slot pops: {'multi_scale.linear_solve': 8, 'multi_scale.refine': 8, 'multi_scale.hard_decision': 9}
+  Parents: ['algo_5cde96a8', 'algo_bc62f394']
+  Source:
+    def _slot_linear_solve_op_26(A, b):
+        return np.linalg.solve(A, b)
+    
+    def _slot_refine_op_27(H, y, sigma2, x, constellation):
+        r = y - H @ x
+        g = H.conj().T @ r
+        x_new = x + 0.02 * g
+        Nt = len(x_new)
+        x_hat = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            dists = np.abs(constellation - x_new[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    def _slot_hard_decision_op_28(x_soft, constellation):
+        x_hat = np.zeros(len(x_soft), dtype=complex)
+        i = 0
+        while i < len(x_soft):
+            dists = np.abs(constellation - x_soft[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    
+    def multi_scale_detector(H, y, sigma2, constellation):
+        Nt = H.shape[1]
+        Nt = H.shape[1]
+        rhs = H.conj().T @ y
+        G = Nt + sigma2 * np.eye(Nt)
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        x_coarse = _slot_linear_solve_op_26(G, rhs)
+        x = _slot_refine_op_27(H, y, sigma2, x_coarse, constellation)
+        x_hat = _slot_hard_decision_op_28(x, constellation)
+        return x_hat
+
+SUMMARY: 0 non-trivial, 0 dead-code, 0 identity, 0 cascade, 2 total
+
+
+================================================================================
+GENERATION 3 | SNR=20dB | 2 grafted in population
+================================================================================
+
+--- #1 | algo_5cde96a8 | SER=0.312500 | score=0.315020 | verdict=PARTIAL_DEAD ---
+  Lineage: multi_scale<-soft_sic
+  Graft ops: 14 (dead: 2)
+  Slots: 3 | Slot pops: {'multi_scale.linear_solve': 8, 'multi_scale.refine': 8, 'multi_scale.hard_decision': 8}
+  Parents: ['multi_scale', 'soft_sic']
+  Source:
+    def _slot_linear_solve_op_26(A, b):
+        return np.linalg.solve(A, b)
+    
+    def _slot_refine_op_27(H, y, sigma2, x, constellation):
+        r = y - H @ x
+        g = H.conj().T @ r
+        x_new = x + 0.02 * g
+        Nt = len(x_new)
+        x_hat = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            dists = np.abs(constellation - x_new[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    def _slot_hard_decision_op_28(x_soft, constellation):
+        x_hat = np.zeros(len(x_soft), dtype=complex)
+        i = 0
+        while i < len(x_soft):
+            dists = np.abs(constellation - x_soft[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    
+    def multi_scale_detector(H, y, sigma2, constellation):
+        Nt = H.shape[1]
+        Nt = H.shape[1]
+        rhs = H.conj().T @ y
+        G = Nt + sigma2 * np.eye(Nt)
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        x_coarse = _slot_linear_solve_op_26(G, rhs)
+        x = _slot_refine_op_27(H, y, sigma2, x_coarse, constellation)
+        x_hat = _slot_hard_decision_op_28(x, constellation)
+        return x_hat
+
+--- #2 | algo_f9567994 | SER=0.312500 | score=0.315020 | verdict=PARTIAL_DEAD ---
+  Lineage: multi_scale<-soft_sic
+  Graft ops: 14 (dead: 2)
+  Slots: 3 | Slot pops: {'multi_scale.linear_solve': 8, 'multi_scale.refine': 8, 'multi_scale.hard_decision': 9}
+  Parents: ['algo_5cde96a8', 'algo_bc62f394']
+  Source:
+    def _slot_linear_solve_op_26(A, b):
+        return np.linalg.solve(A, b)
+    
+    def _slot_refine_op_27(H, y, sigma2, x, constellation):
+        r = y - H @ x
+        g = H.conj().T @ r
+        x_new = x + 0.02 * g
+        Nt = len(x_new)
+        x_hat = np.zeros(Nt, dtype=complex)
+        i = 0
+        while i < Nt:
+            dists = np.abs(constellation - x_new[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    def _slot_hard_decision_op_28(x_soft, constellation):
+        x_hat = np.zeros(len(x_soft), dtype=complex)
+        i = 0
+        while i < len(x_soft):
+            dists = np.abs(constellation - x_soft[i]) ** 2
+            x_hat[i] = constellation[np.argmin(dists)]
+            i = i + 1
+        return x_hat
+    
+    
+    def multi_scale_detector(H, y, sigma2, constellation):
+        Nt = H.shape[1]
+        Nt = H.shape[1]
+        rhs = H.conj().T @ y
+        G = Nt + sigma2 * np.eye(Nt)
+        G = H.conj().T @ H + sigma2 * np.eye(Nt)
+        x_coarse = _slot_linear_solve_op_26(G, rhs)
+        x = _slot_refine_op_27(H, y, sigma2, x_coarse, constellation)
+        x_hat = _slot_hard_decision_op_28(x, constellation)
+        return x_hat
+
+SUMMARY: 0 non-trivial, 0 dead-code, 0 identity, 0 cascade, 2 total
+

@@ -181,3 +181,17 @@ These guide future research decisions and help avoid repeating mistakes.
 - **Validation**: Fixed function correctly outputs `(M_par_down + C_i)` for F_down and `max(M_down, EC1)` for F_belief.
 - **Lesson**: Any symbolic interpreter of a multi-stack VM must model ALL stacks. Never treat unrecognized instructions as float-stack pushes — they should be classified as: (a) int-stack ops (no float effect), (b) bool-stack ops (no float effect), (c) node/vector ops (no float effect), (d) cross-stack ops (pop one stack, push another), or (e) truly unknown (mark as `[?name]`).
 - **Applicable to**: Any future debugging/analysis of evolved programs. Always verify program_to_formula output against manual stack trace before concluding "what the program computes".
+
+## [2026-04-22 00:37] Algorithm-IR Warm-Start GNN: Cheap Eval Helps, Proposal Generation Dominates
+- **Context**: Phase A/B benchmark on `research/algorithm-IR/train_gnn.py` with gen-1 full pair warm-start.
+- **Lesson**:
+  - Switching scorer supervision from sparse sign labels to dense MSE targets and giving the host/donor region policies real stochastic actions makes the training signal much denser.
+  - Lightweight warm-start evaluation plus parallel batch evaluation is sufficient to make `8190` graft evaluations practical.
+  - Once that is in place, the main bottleneck becomes proposal generation itself, not evaluation.
+- **Evidence**:
+  - Warm-start gen-2 matched samples: `8190` vs baseline `20`.
+  - Warm-start gen-1 proposal generation: `~176.6s`.
+  - Warm-start gen-1 graft evaluation: `~18.2s` for all `8190` grafts.
+- **Applicable to**:
+  - Any future optimization pass on algorithm-IR training.
+  - Deciding whether to invest in a native backend: profile first, because the evaluator may no longer be the slowest stage.

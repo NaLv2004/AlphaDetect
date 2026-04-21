@@ -1,0 +1,82 @@
+{
+  "total_generations": 1,
+  "total_time_sec": 223.0,
+  "final_snr_db": 20.0,
+  "best_ser_ever": 0.0,
+  "best_algo": "algo_9b123e3a",
+  "args": {
+    "gens": 1,
+    "snr_start": 20.0,
+    "snr_target": 24.0,
+    "phase_thresh": 0.5,
+    "proposals": 20,
+    "top_k": 20,
+    "pool_size": 91,
+    "n_trials": 1,
+    "timeout": 0.3,
+    "eval_workers": 2,
+    "warmstart_gens": 1,
+    "warmstart_trials": 1,
+    "warmstart_timeout": 0.15,
+    "warmstart_eval_workers": 12,
+    "warmstart_survivor_cap": 32,
+    "train_steps": 1,
+    "train_interval": 1,
+    "buffer_size": 20000,
+    "pair_temp": 0.7,
+    "pair_eps": 0.1,
+    "region_eps": 0.1,
+    "donor_eps": 0.1,
+    "ckpt_interval": 1000,
+    "seed": 42,
+    "resume": null
+  },
+  "phase_history": [
+    {
+      "gen": 1,
+      "snr_db": 20.0,
+      "best_ser": 0.0,
+      "median_ser": 0.0625,
+      "best_ser_ever": 0.0,
+      "frac_good": 0.5604395604395604,
+      "frac_nontrivial_grafts": 0.219,
+      "gens_at_snr": 0,
+      "n_grafted": 32,
+      "pop_size": 91,
+      "elapsed_sec": 223.0,
+      "snr_changed": false,
+      "graft_quality": {
+        "n_grafted_total": 32,
+        "n_top50": 32,
+        "n_nontrivial": 7,
+        "n_dead": 0,
+        "n_identity": 0,
+        "n_cascade": 0
+      },
+      "matcher_stats": {
+        "total_proposals": 8190,
+        "total_rewards": -5820.950280000706,
+        "experience_buffer": 8190,
+        "outcome_buffer": 8190,
+        "generation": 1,
+        "reward_baseline": 0.0,
+        "warmstart_generations": 1,
+        "last_train": {},
+        "last_proposals": {
+          "warmstart": true,
+          "pair_candidates_scored": 8190,
+          "pair_candidates_selected": 8190,
+          "proposals_built": 8190
+        }
+      },
+      "engine_stats": {
+        "warmstart_active": true,
+        "macro_offspring": 45,
+        "graft_candidates": 8190,
+        "graft_successes": 8190,
+        "graft_evaluated": 8190,
+        "graft_kept": 32
+      }
+    }
+  ]
+}

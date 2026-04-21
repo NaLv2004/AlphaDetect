@@ -339,15 +339,75 @@ class FunctionIR:
         )
 
     def clone(self) -> "FunctionIR":
-        cloned = FunctionIR.from_xdsl(self.xdsl_module.clone())
-        # Preserve the arg_values list (may have had slot args removed manually)
-        cloned.arg_values = list(self.arg_values)
-        return cloned
+        """Deep-clone at the dict level so grafted ops are preserved.
+
+        The previous implementation used ``from_xdsl(self.xdsl_module.clone())``
+        which silently discarded any dict-level modifications (inlined ops,
+        removed ops, etc.) that were not reflected back into the xDSL module.
+        """
+        return self._dict_level_clone()
 
     def __deepcopy__(self, memo):
-        cloned = FunctionIR.from_xdsl(self.xdsl_module.clone())
-        cloned.arg_values = list(self.arg_values)
-        return cloned
+        return self._dict_level_clone()
+
+    def _dict_level_clone(self) -> "FunctionIR":
+        """Clone by copying Python-level dicts (ops/values/blocks).
+
+        This preserves all mutations made by graft_general() and other
+        dict-level IR transformations, unlike from_xdsl() which only
+        sees the original (stale) xDSL module.
+        """
+        from copy import deepcopy as _dc
+        # We must avoid recursion: _dc on a Value/Op/Block won't trigger
+        # FunctionIR.__deepcopy__ because they are plain dataclasses.
+        memo: dict = {}  # fresh memo to avoid cross-contamination
+        return FunctionIR(
+            id=self.id,
+            name=self.name,
+            arg_values=list(self.arg_values),
+            return_values=list(self.return_values),
+            values={
+                k: Value(
+                    id=v.id,
+                    name_hint=v.name_hint,
+                    type_hint=v.type_hint,
+                    source_span=v.source_span,
+                    def_op=v.def_op,
+                    use_ops=list(v.use_ops),
+                    attrs=dict(v.attrs),
+                )
+                for k, v in self.values.items()
+            },
+            ops={
+                k: Op(
+                    id=o.id,
+                    opcode=o.opcode,
+                    inputs=list(o.inputs),
+                    outputs=list(o.outputs),
+                    block_id=o.block_id,
+                    source_span=o.source_span,
+                    attrs=dict(o.attrs),
+                )
+                for k, o in self.ops.items()
+            },
+            blocks={
+                k: Block(
+                    id=b.id,
+                    op_ids=list(b.op_ids),
+                    preds=list(b.preds),
+                    succs=list(b.succs),
+                    attrs=dict(b.attrs),
+                )
+                for k, b in self.blocks.items()
+            },
+            entry_block=self.entry_block,
+            attrs=dict(self.attrs) if self.attrs else {},
+            # xdsl_module is intentionally NOT cloned — it is stale
+            # after dict-level edits and only kept for reference.
+            xdsl_module=self.xdsl_module,
+            xdsl_op_map=dict(self.xdsl_op_map) if self.xdsl_op_map else {},
+            xdsl_block_map=dict(self.xdsl_block_map) if self.xdsl_block_map else {},
+        )
 
 
 @dataclass
