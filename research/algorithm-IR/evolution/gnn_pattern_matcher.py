@@ -16,6 +16,10 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+try:
+    from tqdm.auto import tqdm
+except Exception:  # pragma: no cover - optional dependency
+    tqdm = None
 from torch_geometric.data import Data, Batch
 from torch_geometric.nn import GATConv, global_mean_pool
 
@@ -521,6 +525,7 @@ class GNNPatternMatcher:
         pair_exploration: float = 0.10,
         region_exploration: float = 0.10,
         donor_exploration: float = 0.10,
+        show_progress: bool = False,
         device: str | None = None,
     ):
         self.max_proposals_per_gen = max_proposals_per_gen
@@ -537,6 +542,7 @@ class GNNPatternMatcher:
         self.pair_exploration = pair_exploration
         self.region_exploration = region_exploration
         self.donor_exploration = donor_exploration
+        self.show_progress = show_progress
 
         self.device = torch.device(
             device if device else ("cuda" if torch.cuda.is_available() else "cpu")
@@ -618,7 +624,15 @@ class GNNPatternMatcher:
             if self.is_warmstart_generation(generation)
             else self.max_proposals_per_gen
         )
-        for host_entry, donor_entry, predicted_score in selected_pairs:
+        pair_iter = selected_pairs
+        if self.show_progress and tqdm is not None and selected_pairs:
+            pair_iter = tqdm(
+                selected_pairs,
+                total=len(selected_pairs),
+                desc="GNN graft proposals",
+                leave=False,
+            )
+        for host_entry, donor_entry, predicted_score in pair_iter:
             if len(proposals) >= max_proposals:
                 break
             proposal = self._propose_graft(

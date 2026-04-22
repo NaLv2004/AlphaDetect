@@ -68,9 +68,14 @@ class AlgorithmEvolutionEngine:
         self._history: list[dict[str, Any]] = []
         # Gene bank: original pool genomes kept permanently for donor lookup
         self.gene_bank: list[AlgorithmGenome] = []
+        # Historical lookup for post-hoc graft analysis/logging.
+        self.analysis_archive: dict[str, AlgorithmGenome] = {}
         # Optional lightweight evaluator for warm-start graft sweeps.
         self.graft_eval_evaluator: AlgorithmFitnessEvaluator | None = None
         self.graft_survivor_cap: int | None = None
+        # All graft samples evaluated in the most recent generation
+        # (before any survivor filtering / population selection).
+        self.last_graft_sample_pool: list[tuple[AlgorithmGenome, FitnessResult]] = []
         self.last_generation_stats: dict[str, Any] = {}
 
     # ------------------------------------------------------------------
@@ -86,6 +91,9 @@ class AlgorithmEvolutionEngine:
         self.population = []
         # Populate gene bank with original pool genomes (permanent donor source)
         self.gene_bank = list(pool)
+        self.analysis_archive = {}
+        self.last_graft_sample_pool = []
+        self._remember_genomes(self.gene_bank)
 
         if seed_genomes:
             for g in seed_genomes:
@@ -106,6 +114,7 @@ class AlgorithmEvolutionEngine:
 
         # Initial evaluation
         self.fitness = self.evaluator.evaluate_batch(self.population)
+        self._remember_genomes(self.population)
         self._update_best()
         logger.info(
             "Population initialized: %d genomes, best=%.6f",
@@ -256,6 +265,7 @@ class AlgorithmEvolutionEngine:
             selected_graft_fitness: list[FitnessResult] = []
             n_graft_evaluated = 0
             n_graft_selected = 0
+            self.last_graft_sample_pool = []
 
             # ---- RL feedback for GNN pattern matcher ----
             if graft_offspring and graft_proposals:
@@ -274,10 +284,21 @@ class AlgorithmEvolutionEngine:
                 )
                 graft_fitness_all = graft_evaluator.evaluate_batch(graft_offspring)
                 n_graft_evaluated = len(graft_fitness_all)
+                self.last_graft_sample_pool = list(zip(graft_offspring, graft_fitness_all))
 
+                proposal_to_child = {
+                    child.metadata.get("graft_proposal_id"): child
+                    for child in graft_offspring
+                }
                 for proposal, fit in zip(graft_proposals, graft_fitness_all):
                     graft_score = fit.composite_score()
                     host_score = host_scores.get(proposal.host_algo_id, 1.0)
+                    child = proposal_to_child.get(proposal.proposal_id)
+                    if child is not None:
+                        child.metadata["graft_host_score"] = host_score
+                        child.metadata["graft_score_rough"] = graft_score
+                        child.metadata["graft_ser_rough"] = fit.metrics.get("ser", float("inf"))
+                        child.metadata["graft_is_valid_rough"] = fit.is_valid
                     reward = self._compute_graft_reward(
                         graft_score=graft_score,
                         host_score=host_score,
@@ -303,6 +324,9 @@ class AlgorithmEvolutionEngine:
                         selected_graft_fitness = self.evaluator.evaluate_batch(
                             selected_graft_offspring
                         )
+                        for child, fit in zip(selected_graft_offspring, selected_graft_fitness):
+                            child.metadata["graft_score_main_eval"] = fit.composite_score()
+                            child.metadata["graft_ser_main_eval"] = fit.metrics.get("ser", float("inf"))
                     n_graft_selected = len(selected_graft_offspring)
                 else:
                     selected_graft_offspring = graft_offspring
@@ -328,6 +352,7 @@ class AlgorithmEvolutionEngine:
             survivors = self._select_with_niching(combined, cfg.pool_size)
             self.population = [g for g, _ in survivors]
             self.fitness = [f for _, f in survivors]
+            self._remember_genomes(self.population)
             self.last_generation_stats = {
                 "warmstart_active": warmstart_active,
                 "macro_offspring": len(offspring),
@@ -812,7 +837,11 @@ class AlgorithmEvolutionEngine:
                 ),
             ],
             tags=set(host_genome.tags) | {"grafted"},
-            metadata={},
+            metadata={
+                "graft_host_algo_id": host_genome.algo_id,
+                "graft_donor_algo_id": proposal.donor_algo_id,
+                "graft_proposal_id": proposal.proposal_id,
+            },
         )
 
         # Initialize SlotPopulations for new slots introduced by donor.
@@ -1174,6 +1203,28 @@ class AlgorithmEvolutionEngine:
                     host_score=host_score,
                     is_valid=is_valid,
                 )
+
+    def resolve_genome(self, algo_id: str) -> AlgorithmGenome | None:
+        """Best-effort lookup of a genome by ID for reporting/analysis."""
+        for genome in self.population:
+            if genome.algo_id == algo_id:
+                return genome
+        for genome in self.gene_bank:
+            if genome.algo_id == algo_id:
+                return genome
+        archived = self.analysis_archive.get(algo_id)
+        if archived is not None:
+            return archived
+        for genome, _ in self.hall_of_fame:
+            if genome.algo_id == algo_id:
+                return genome
+        return None
+
+    def _remember_genomes(self, genomes: list[AlgorithmGenome]) -> None:
+        """Store stable copies for later graft-effectiveness analysis."""
+        for genome in genomes:
+            if genome.algo_id not in self.analysis_archive:
+                self.analysis_archive[genome.algo_id] = genome.clone()
 
     def _check_stagnation(self) -> None:
         """Detect and handle stagnation."""

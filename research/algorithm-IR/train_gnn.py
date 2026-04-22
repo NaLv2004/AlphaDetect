@@ -22,7 +22,9 @@ import logging
 import re
 import time
 import traceback
+import warnings
 from pathlib import Path
+from typing import Callable
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -31,8 +33,13 @@ import torch
 
 from evolution.pool_types import AlgorithmEvolutionConfig, AlgorithmGenome
 from evolution.algorithm_engine import AlgorithmEvolutionEngine
-from evolution.mimo_evaluator import MIMOFitnessEvaluator, MIMOEvalConfig
-from evolution.materialize import materialize
+from evolution.mimo_evaluator import (
+    MIMOFitnessEvaluator,
+    MIMOEvalConfig,
+    generate_mimo_sample,
+    qam16_constellation,
+)
+from evolution.materialize import materialize, materialize_to_callable
 from evolution.gnn_pattern_matcher import GNNPatternMatcher
 from evolution.ir_pool import find_algslot_ops
 from evolution.fitness import FitnessResult
@@ -47,8 +54,8 @@ logger = logging.getLogger("train_gnn")
 # ── CLI args ──────────────────────────────────────────────────────────────
 parser = argparse.ArgumentParser(description="GNN-guided grafting trainer")
 parser.add_argument("--gens", type=int, default=200, help="Total generations")
-parser.add_argument("--snr-start", type=float, default=20.0, help="Initial SNR (dB)")
-parser.add_argument("--snr-target", type=float, default=24.0, help="Target SNR (dB)")
+parser.add_argument("--snr-start", type=float, default=16.0, help="Initial SNR (dB)")
+parser.add_argument("--snr-target", type=float, default=20.0, help="Target SNR (dB)")
 parser.add_argument("--phase-thresh", type=float, default=0.5,
                     help="Fraction of grafts with SER<0.1 to trigger SNR increase")
 parser.add_argument("--proposals", type=int, default=500,
@@ -63,7 +70,7 @@ parser.add_argument("--timeout", type=float, default=1.5,
                     help="Per-genome evaluation timeout in seconds (lower = faster, less accurate)")
 parser.add_argument("--eval-workers", type=int, default=1,
                     help="Parallel genome evaluations for the main evaluator")
-parser.add_argument("--warmstart-gens", type=int, default=1,
+parser.add_argument("--warmstart-gens", type=int, default=20,
                     help="Number of early generations that evaluate every host/donor pair once")
 parser.add_argument("--warmstart-trials", type=int, default=1,
                     help="Trials per graft during warm-start pair sweeps")
@@ -87,6 +94,22 @@ parser.add_argument("--region-eps", type=float, default=0.10,
                     help="Uniform exploration mix for host region sampling")
 parser.add_argument("--donor-eps", type=float, default=0.10,
                     help="Uniform exploration mix for donor region sampling")
+parser.add_argument("--effectiveness-snr", type=float, default=16.0,
+                    help="Low SNR used for behavior-difference probes of grafted algorithms")
+parser.add_argument("--effectiveness-samples", type=int, default=8,
+                    help="Number of low-SNR probe samples used for graft behavior validation (>5 recommended)")
+parser.add_argument("--effective-margin", type=float, default=0.01,
+                    help="Required rough score improvement over the host to count as performance-effective")
+parser.add_argument("--precise-topk", type=int, default=50,
+                    help="How many effective graft samples get precise SER evaluation each generation")
+parser.add_argument("--precise-target-errors", type=int, default=100,
+                    help="Stop precise SER evaluation after at least this many symbol errors")
+parser.add_argument("--precise-max-symbols", type=int, default=200000,
+                    help="Safety cap on evaluated symbols during precise SER estimation")
+parser.add_argument("--precise-timeout", type=float, default=20.0,
+                    help="Per-genome timeout for precise SER estimation")
+parser.add_argument("--progress", action="store_true",
+                    help="Show tqdm progress bars for proposal generation and evaluation")
 parser.add_argument("--ckpt-interval", type=int, default=10,
                     help="Checkpoint every N generations")
 parser.add_argument("--seed", type=int, default=42)
@@ -296,6 +319,365 @@ def _log_top50_grafts(
     }
 
 
+_BEHAVIOR_PROBE_CACHE: dict[tuple[int, int, float, int, int], list[tuple[np.ndarray, np.ndarray, np.ndarray, float, np.ndarray]]] = {}
+
+
+def _nearest_constellation_symbols(x_hat: np.ndarray, constellation: np.ndarray) -> np.ndarray:
+    x_hat = np.asarray(x_hat)
+    out = np.empty(x_hat.shape[0], dtype=complex)
+    for i in range(x_hat.shape[0]):
+        dists = np.abs(constellation - x_hat[i]) ** 2
+        out[i] = constellation[int(np.argmin(dists))]
+    return out
+
+
+def _build_behavior_probe_samples(
+    *,
+    nr: int,
+    nt: int,
+    snr_db: float,
+    n_samples: int,
+    seed: int,
+) -> list[tuple[np.ndarray, np.ndarray, np.ndarray, float, np.ndarray]]:
+    key = (nr, nt, float(snr_db), int(n_samples), int(seed))
+    cached = _BEHAVIOR_PROBE_CACHE.get(key)
+    if cached is not None:
+        return cached
+    rng = np.random.default_rng(seed)
+    constellation = qam16_constellation()
+    probes = [
+        generate_mimo_sample(nr, nt, constellation, snr_db, rng) + (constellation.copy(),)
+        for _ in range(n_samples)
+    ]
+    _BEHAVIOR_PROBE_CACHE[key] = probes
+    return probes
+
+
+def _collect_return_slice(ir) -> tuple[set[str], set[str]]:
+    slice_values: set[str] = set()
+    slice_ops: set[str] = set()
+    pending: list[str] = list(ir.return_values)
+    for op in ir.ops.values():
+        if op.opcode == "return":
+            pending.extend(op.inputs)
+    while pending:
+        vid = pending.pop()
+        if vid in slice_values:
+            continue
+        value = ir.values.get(vid)
+        if value is None:
+            continue
+        slice_values.add(vid)
+        def_op_id = value.def_op
+        if def_op_id and def_op_id in ir.ops:
+            def_op = ir.ops[def_op_id]
+            slice_ops.add(def_op_id)
+            pending.extend(def_op.inputs)
+    return slice_values, slice_ops
+
+
+def _compile_materialized_callable(genome: AlgorithmGenome) -> tuple[Callable | None, str | None, str | None]:
+    try:
+        source = materialize(genome)
+    except Exception as exc:
+        return None, None, f"materialize failed: {exc}"
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always", SyntaxWarning)
+        try:
+            fn = materialize_to_callable(genome)
+        except Exception as exc:
+            return None, source, f"compile failed: {exc}"
+
+    syntax_warnings = [
+        str(w.message)
+        for w in caught
+        if issubclass(w.category, SyntaxWarning)
+    ]
+    if syntax_warnings:
+        return None, source, "; ".join(syntax_warnings)
+    return fn, source, None
+
+
+def _analyse_effective_graft(
+    genome: AlgorithmGenome,
+    fit: FitnessResult,
+    engine: AlgorithmEvolutionEngine,
+    host_fitness_map: dict[str, FitnessResult],
+    *,
+    host_callable_cache: dict[str, tuple[Callable | None, str | None]] | None = None,
+    host_fitness_cache: dict[str, FitnessResult] | None = None,
+) -> dict:
+    result: dict[str, object] = {
+        "is_grafted": bool(genome.graft_history),
+        "graft_lineage": "",
+        "n_graft_ops": 0,
+        "n_graft_ops_in_slice": 0,
+        "n_slots": 0,
+        "slot_pop_sizes": {},
+        "structural_ok": False,
+        "behavior_ok": False,
+        "performance_ok": False,
+        "effective": False,
+        "behavior_change_rate": 0.0,
+        "host_algo_id": None,
+        "host_score": None,
+        "child_score": fit.composite_score(),
+        "quality_verdict": "NOT_GRAFTED",
+        "compile_issue": None,
+        "source": None,
+    }
+    if not genome.graft_history:
+        return result
+
+    result["graft_lineage"] = " | ".join(
+        f"{gr.host_algo_id}<-{gr.donor_algo_id}"
+        for gr in genome.graft_history
+    )
+
+    ir = genome.structural_ir
+    grafted_ops = [op for op in ir.ops.values() if op.attrs.get("grafted")]
+    result["n_graft_ops"] = len(grafted_ops)
+    result["n_slots"] = len(find_algslot_ops(ir))
+    for sid, pop in genome.slot_populations.items():
+        result["slot_pop_sizes"][sid] = len(pop.variants)
+
+    slice_values, slice_ops = _collect_return_slice(ir)
+    grafted_in_slice = [
+        op for op in grafted_ops
+        if op.id in slice_ops or any(out_vid in slice_values for out_vid in op.outputs)
+    ]
+    result["n_graft_ops_in_slice"] = len(grafted_in_slice)
+    result["structural_ok"] = len(grafted_in_slice) > 0
+
+    host_algo_id = genome.metadata.get("graft_host_algo_id")
+    if host_algo_id is None and genome.graft_history:
+        host_algo_id = genome.graft_history[-1].host_algo_id
+    result["host_algo_id"] = host_algo_id
+
+    host_genome = engine.resolve_genome(str(host_algo_id)) if host_algo_id else None
+    host_score = genome.metadata.get("graft_host_score")
+    if host_algo_id in host_fitness_map:
+        host_score = host_fitness_map[host_algo_id].composite_score()
+    elif host_genome is not None and host_fitness_cache is not None and host_algo_id is not None:
+        cached_fit = host_fitness_cache.get(str(host_algo_id))
+        if cached_fit is None:
+            cached_fit = engine.evaluator.evaluate(host_genome)
+            host_fitness_cache[str(host_algo_id)] = cached_fit
+        host_score = cached_fit.composite_score()
+
+    result["host_score"] = host_score
+    if host_score is not None:
+        result["performance_ok"] = fit.composite_score() < (float(host_score) - args.effective_margin)
+
+    # Fast-fail cheap checks before compiling/running low-SNR probes over
+    # every graft child.  "effective" requires all three checks, so if the
+    # child already fails structural connectivity or host-relative
+    # performance, we can skip the expensive behavior probe entirely.
+    if not result["structural_ok"]:
+        result["quality_verdict"] = "STRUCTURAL_FAIL"
+        return result
+    if not result["performance_ok"]:
+        result["quality_verdict"] = "PERFORMANCE_FAIL"
+        return result
+
+    if host_genome is not None:
+        child_fn, source, child_issue = _compile_materialized_callable(genome)
+        if host_callable_cache is not None and str(host_algo_id) in host_callable_cache:
+            host_fn, host_issue = host_callable_cache[str(host_algo_id)]
+        else:
+            host_fn, _, host_issue = _compile_materialized_callable(host_genome)
+            if host_callable_cache is not None:
+                host_callable_cache[str(host_algo_id)] = (host_fn, host_issue)
+        result["compile_issue"] = child_issue or host_issue
+        result["source"] = source
+        if child_fn is not None and host_fn is not None:
+            probes = _build_behavior_probe_samples(
+                nr=16,
+                nt=16,
+                snr_db=args.effectiveness_snr,
+                n_samples=max(args.effectiveness_samples, 6),
+                seed=args.seed + 1001,
+            )
+            total_changed = 0
+            total_symbols = 0
+            for H, _x_true, y, sigma2, constellation in probes:
+                try:
+                    host_out = host_fn(H, y, sigma2, constellation)
+                    child_out = child_fn(H, y, sigma2, constellation)
+                    host_sym = _nearest_constellation_symbols(np.asarray(host_out), constellation)
+                    child_sym = _nearest_constellation_symbols(np.asarray(child_out), constellation)
+                except Exception:
+                    total_changed = 0
+                    total_symbols = 0
+                    break
+                total_changed += int(np.sum(np.abs(host_sym - child_sym) > 1e-6))
+                total_symbols += len(host_sym)
+            if total_symbols > 0:
+                change_rate = total_changed / total_symbols
+                result["behavior_change_rate"] = change_rate
+                result["behavior_ok"] = change_rate > 0.0
+    else:
+        result["compile_issue"] = "host genome unresolved"
+
+    result["effective"] = bool(result["structural_ok"]) and bool(result["behavior_ok"]) and bool(result["performance_ok"])
+    if result["effective"]:
+        result["quality_verdict"] = "EFFECTIVE"
+    elif not result["behavior_ok"]:
+        result["quality_verdict"] = "BEHAVIOR_FAIL"
+    else:
+        result["quality_verdict"] = "PERFORMANCE_FAIL"
+    return result
+
+
+def _log_effective_grafts(
+    gen: int,
+    graft_samples: list[tuple[AlgorithmGenome, FitnessResult]],
+    population: list[AlgorithmGenome],
+    fitness: list[FitnessResult],
+    snr_db: float,
+    log_file: Path,
+    engine: AlgorithmEvolutionEngine,
+) -> dict:
+    evaluated_pairs = list(graft_samples)
+    evaluated_pairs.sort(key=lambda x: x[1].composite_score())
+    host_fitness_map = {g.algo_id: f for g, f in zip(population, fitness)}
+
+    analyses: dict[str, dict] = {}
+    host_callable_cache: dict[str, tuple[Callable | None, str | None]] = {}
+    host_fitness_cache: dict[str, FitnessResult] = {}
+    for genome, fit in evaluated_pairs:
+        analyses[genome.algo_id] = _analyse_effective_graft(
+            genome,
+            fit,
+            engine,
+            host_fitness_map,
+            host_callable_cache=host_callable_cache,
+            host_fitness_cache=host_fitness_cache,
+        )
+
+    effective_pairs = [
+        (g, f) for g, f in evaluated_pairs
+        if analyses[g.algo_id]["effective"]
+    ]
+    structural_fail = sum(1 for g, _ in evaluated_pairs if analyses[g.algo_id]["quality_verdict"] == "STRUCTURAL_FAIL")
+    behavior_fail = sum(1 for g, _ in evaluated_pairs if analyses[g.algo_id]["quality_verdict"] == "BEHAVIOR_FAIL")
+    performance_fail = sum(1 for g, _ in evaluated_pairs if analyses[g.algo_id]["quality_verdict"] == "PERFORMANCE_FAIL")
+
+    precise_results: dict[str, FitnessResult] = {}
+    if effective_pairs:
+        shortlist = effective_pairs[:max(1, min(args.precise_topk, len(effective_pairs)))]
+        precise_fits = engine.evaluator.evaluate_precise_batch(
+            [g for g, _ in shortlist],
+            target_errors=args.precise_target_errors,
+            max_symbols=args.precise_max_symbols,
+            timeout_sec=args.precise_timeout,
+            desc="Precise SER",
+        )
+        precise_results = {
+            genome.algo_id: precise_fit
+            for (genome, _), precise_fit in zip(shortlist, precise_fits)
+        }
+
+    effective_ser = [fit.metrics.get("ser", float("inf")) for _, fit in effective_pairs]
+    precise_ser = [fit.metrics.get("ser", float("inf")) for fit in precise_results.values()]
+
+    with open(log_file, "a", encoding="utf-8") as fh:
+        fh.write(f"\n{'='*80}\n")
+        fh.write(
+            f"GENERATION {gen} | SNR={snr_db:.0f}dB | "
+            f"{len(evaluated_pairs)} evaluated graft samples | "
+            f"{len(effective_pairs)} effective\n"
+        )
+        fh.write(f"{'='*80}\n\n")
+        fh.write(
+            "SUMMARY: "
+            f"{len(effective_pairs)} effective, "
+            f"{structural_fail} structural_fail, "
+            f"{behavior_fail} behavior_fail, "
+            f"{performance_fail} performance_fail\n"
+        )
+        fh.write(
+            "EFFECTIVE SER STATS (all evaluated graft samples): "
+            f"best={_fmt_metric(min(effective_ser) if effective_ser else None)} | "
+            f"median={_fmt_metric(float(np.median(effective_ser)) if effective_ser else None)} | "
+            f"mean={_fmt_metric(float(np.mean(effective_ser)) if effective_ser else None)} | "
+            f"n={len(effective_ser)}\n"
+        )
+        fh.write(
+            "PRECISE SER STATS (effective shortlist): "
+            f"best={_fmt_metric(min(precise_ser) if precise_ser else None)} | "
+            f"median={_fmt_metric(float(np.median(precise_ser)) if precise_ser else None)} | "
+            f"mean={_fmt_metric(float(np.mean(precise_ser)) if precise_ser else None)} | "
+            f"n={len(precise_ser)}\n\n"
+        )
+
+        fh.write("ALL EFFECTIVE GRAFT SAMPLES (full source)\n")
+        fh.write(f"{'-'*80}\n\n")
+        for rank, (genome, fit) in enumerate(effective_pairs, 1):
+            analysis = analyses[genome.algo_id]
+            ser = fit.metrics.get("ser", float("inf"))
+            score = fit.composite_score()
+            precise_fit = precise_results.get(genome.algo_id)
+            source = analysis.get("source")
+            if source is None:
+                try:
+                    source = materialize(genome)
+                except Exception as exc:
+                    source = f"<materialize failed: {exc}>"
+
+            fh.write(
+                f"--- #{rank} | {genome.algo_id} | SER={ser:.6f} | "
+                f"score={score:.6f} | verdict={analysis['quality_verdict']} ---\n"
+            )
+            fh.write(f"  Lineage: {analysis['graft_lineage']}\n")
+            fh.write(
+                f"  Effective checks: structural={analysis['structural_ok']} "
+                f"behavior={analysis['behavior_ok']} performance={analysis['performance_ok']}\n"
+            )
+            fh.write(
+                f"  Graft ops: {analysis['n_graft_ops']} "
+                f"(slice-connected: {analysis['n_graft_ops_in_slice']})\n"
+            )
+            fh.write(
+                f"  Behavior change rate @{args.effectiveness_snr:.0f}dB "
+                f"({max(args.effectiveness_samples, 6)} probes): "
+                f"{float(analysis['behavior_change_rate']):.4f}\n"
+            )
+            fh.write(f"  Host score: {analysis['host_score']} | Child score: {analysis['child_score']}\n")
+            if analysis.get("compile_issue"):
+                fh.write(f"  Compile issue: {analysis['compile_issue']}\n")
+            if precise_fit is not None:
+                fh.write(
+                    f"  Precise SER: {precise_fit.metrics.get('ser', float('inf')):.6f} "
+                    f"(errors={int(precise_fit.metrics.get('symbol_errors', 0))}, "
+                    f"symbols={int(precise_fit.metrics.get('symbols_total', 0))})\n"
+                )
+            fh.write(f"  Slots: {analysis['n_slots']} | Slot pops: {analysis['slot_pop_sizes']}\n")
+            fh.write(f"  Parents: {genome.parent_ids}\n")
+            fh.write("  Source:\n")
+            for line in str(source).split("\n"):
+                fh.write(f"    {line}\n")
+            fh.write("\n")
+        if not effective_pairs:
+            fh.write("  <none>\n\n")
+
+    return {
+        "n_graft_samples": len(evaluated_pairs),
+        "n_effective": len(effective_pairs),
+        "n_structural_fail": structural_fail,
+        "n_behavior_fail": behavior_fail,
+        "n_performance_fail": performance_fail,
+        "effective_best_ser": min(effective_ser) if effective_ser else None,
+        "effective_median_ser": float(np.median(effective_ser)) if effective_ser else None,
+        "effective_mean_ser": float(np.mean(effective_ser)) if effective_ser else None,
+        "effective_precise_best_ser": min(precise_ser) if precise_ser else None,
+        "effective_precise_median_ser": float(np.median(precise_ser)) if precise_ser else None,
+        "effective_precise_mean_ser": float(np.mean(precise_ser)) if precise_ser else None,
+        "n_effective_precise": len(precise_results),
+    }
+
+
 # ══════════════════════════════════════════════════════════════════════════
 # Core setup
 # ══════════════════════════════════════════════════════════════════════════
@@ -319,6 +701,7 @@ def make_evaluator(
         timeout_sec=timeout_sec,
         complexity_weight=0.01,
         batch_workers=batch_workers,
+        show_progress=args.progress,
         seed=args.seed,
     ))
 
@@ -337,6 +720,7 @@ gnn_matcher = GNNPatternMatcher(
     pair_exploration=args.pair_eps,
     region_exploration=args.region_eps,
     donor_exploration=args.donor_eps,
+    show_progress=args.progress,
 )
 
 if args.resume and Path(args.resume).exists():
@@ -413,6 +797,15 @@ def save_checkpoint(gen: int, tag: str = "") -> Path:
     return path
 
 
+def _fmt_metric(value: object) -> str:
+    if value is None:
+        return "NA"
+    try:
+        return f"{float(value):.6f}"
+    except Exception:
+        return str(value)
+
+
 # ── Tracking ──────────────────────────────────────────────────────────────
 best_ser_ever = float("inf")
 phase_history: list[dict] = []
@@ -446,7 +839,7 @@ for gen in range(1, args.gens + 1):
     median_ser = float(np.median(gen_sers)) if gen_sers else float("inf")
     n_good = sum(1 for s in gen_sers if s < 0.1)
     frac_good = n_good / len(gen_sers) if gen_sers else 0.0
-    n_grafted = sum(1 for g in engine.population if "grafted" in g.tags)
+    n_grafted_survivors = sum(1 for g in engine.population if "grafted" in g.tags)
 
     if best_ser < best_ser_ever:
         best_ser_ever = best_ser
@@ -454,20 +847,20 @@ for gen in range(1, args.gens + 1):
     elapsed = time.perf_counter() - t0
 
     # ── Log top-50 grafted individuals ─────────────────────────────────
-    graft_stats = _log_top50_grafts(
-        gen, engine.population, engine.fitness, current_snr, top50_log_path,
+    graft_stats = _log_effective_grafts(
+        gen, engine.last_graft_sample_pool, engine.population, engine.fitness, current_snr, top50_log_path, engine,
     )
 
     # ── SNR curriculum: escalate only when GNN has learned meaningful grafts ──
     # frac_good measures the whole population (incl. non-grafted).
-    # Use nontrivial graft fraction + minimum gens at current SNR instead.
+    # Use effective graft fraction + minimum gens at current SNR instead.
     snr_changed = False
     gens_at_current_snr = sum(1 for r in phase_history if r.get("snr_db") == current_snr)
-    n_nontrivial = graft_stats.get("n_nontrivial", 0)
-    frac_nontrivial_grafts = n_nontrivial / max(n_grafted, 1) if n_grafted > 0 else 0.0
+    n_effective = graft_stats.get("n_effective", 0)
+    frac_effective_grafts = n_effective / max(graft_stats.get("n_graft_samples", 0), 1) if graft_stats.get("n_graft_samples", 0) > 0 else 0.0
     if (
         gens_at_current_snr >= 20             # spend at least 20 gens at each SNR
-        and frac_nontrivial_grafts >= args.phase_thresh  # and most grafts must be non-trivial
+        and frac_effective_grafts >= args.phase_thresh  # and most grafts must be truly effective
         and current_snr < args.snr_target
     ):
         old_snr = current_snr
@@ -487,8 +880,8 @@ for gen in range(1, args.gens + 1):
         )
         snr_changed = True
         logger.info(
-            "*** SNR escalation: %.0fdB → %.0fdB (%d gens at %.0fdB, %.0f%% nontrivial) ***",
-            old_snr, current_snr, gens_at_current_snr, old_snr, frac_nontrivial_grafts * 100,
+            "*** SNR escalation: %.0fdB → %.0fdB (%d gens at %.0fdB, %.0f%% effective) ***",
+            old_snr, current_snr, gens_at_current_snr, old_snr, frac_effective_grafts * 100,
         )
 
     # ── Logging ────────────────────────────────────────────────────────
@@ -499,9 +892,9 @@ for gen in range(1, args.gens + 1):
         "median_ser": median_ser,
         "best_ser_ever": best_ser_ever,
         "frac_good": frac_good,
-        "frac_nontrivial_grafts": round(frac_nontrivial_grafts, 3),
+        "frac_effective_grafts": round(frac_effective_grafts, 3),
         "gens_at_snr": gens_at_current_snr,
-        "n_grafted": n_grafted,
+        "n_grafted_survivors": n_grafted_survivors,
         "pop_size": len(engine.population),
         "elapsed_sec": round(elapsed, 1),
         "snr_changed": snr_changed,
@@ -516,12 +909,25 @@ for gen in range(1, args.gens + 1):
 
     logger.info(
         "Gen %3d | SNR=%.0fdB | best_SER=%.6f | median=%.4f | "
-        "good=%.0f%% | grafted=%d (nontrivial=%d, dead=%d) | %.1fs",
+        "good=%.0f%% | graft_samples=%d effective=%d (structural_fail=%d, behavior_fail=%d, perf_fail=%d) | survivors=%d | %.1fs",
         gen, current_snr, best_ser, median_ser,
-        frac_good * 100, n_grafted,
-        graft_stats.get("n_nontrivial", 0),
-        graft_stats.get("n_dead", 0),
+        frac_good * 100, graft_stats.get("n_graft_samples", 0),
+        graft_stats.get("n_effective", 0),
+        graft_stats.get("n_structural_fail", 0),
+        graft_stats.get("n_behavior_fail", 0),
+        graft_stats.get("n_performance_fail", 0),
+        n_grafted_survivors,
         elapsed,
+    )
+    logger.info(
+        "  Effective graft SER (all samples): rough_best=%s rough_median=%s rough_mean=%s | precise_best=%s precise_median=%s precise_mean=%s (n=%s)",
+        _fmt_metric(graft_stats.get("effective_best_ser")),
+        _fmt_metric(graft_stats.get("effective_median_ser")),
+        _fmt_metric(graft_stats.get("effective_mean_ser")),
+        _fmt_metric(graft_stats.get("effective_precise_best_ser")),
+        _fmt_metric(graft_stats.get("effective_precise_median_ser")),
+        _fmt_metric(graft_stats.get("effective_precise_mean_ser")),
+        graft_stats.get("n_effective_precise", 0),
     )
     matcher_stats = gnn_matcher.get_stats()
     logger.info(

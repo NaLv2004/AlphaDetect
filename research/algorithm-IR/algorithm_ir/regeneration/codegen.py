@@ -157,6 +157,10 @@ def _emit_op(ctx: _ExprCtx, op: Op, indent: int) -> None:
             expr = f"{obj}.{attr}({arg_str})"
         else:
             func_name = ctx.expr(callable_vid)
+            if _needs_call_target_temp(func_name):
+                call_target = f"__call_target_{op.id}"
+                ctx.emit(indent, f"{call_target} = {func_name}")
+                func_name = call_target
             expr = f"{func_name}({arg_str})"
         if op.outputs:
             if len(op.outputs) > 1:
@@ -212,15 +216,29 @@ def _emit_op(ctx: _ExprCtx, op: Op, indent: int) -> None:
     if op.opcode == "get_item":
         obj = ctx.expr(op.inputs[0])
         key = ctx.expr(op.inputs[1])
+        if _needs_call_target_temp(obj):
+            target = f"__getitem_target_{op.id}"
+            ctx.emit(indent, f"{target} = {obj}")
+            obj = target
         expr = f"{obj}[{key}]"
         if op.outputs:
-            ctx.register(op.outputs[0], expr)
+            out_val = func_ir.values.get(op.outputs[0])
+            var = out_val.attrs.get("var_name") if out_val else None
+            if var:
+                ctx.emit(indent, f"{var} = {expr}")
+                ctx.register(op.outputs[0], var)
+            else:
+                ctx.register(op.outputs[0], expr)
         return
 
     if op.opcode == "set_item":
         obj = ctx.expr(op.inputs[0])
         key = ctx.expr(op.inputs[1])
         val = ctx.expr(op.inputs[2])
+        if _needs_call_target_temp(obj):
+            target = f"__setitem_target_{op.id}"
+            ctx.emit(indent, f"{target} = {obj}")
+            obj = target
         ctx.emit(indent, f"{obj}[{key}] = {val}")
         return
 
@@ -318,6 +336,21 @@ def _out_name(func_ir: FunctionIR, op: Op) -> str:
         if v:
             return v.attrs.get("var_name") or v.name_hint or op.outputs[0]
     return op.id
+
+
+def _needs_call_target_temp(expr: str) -> bool:
+    """Avoid parser warnings for odd call targets like numeric literals."""
+    if not expr:
+        return True
+    stripped = expr.strip()
+    if stripped.isidentifier():
+        return False
+    if stripped.startswith("_") and stripped.replace("_", "").isalnum():
+        return False
+    # Common simple attribute / indexing forms are safe as direct call targets.
+    if stripped[0].isalpha() or stripped[0] == "_":
+        return False
+    return True
 
 
 # ---------------------------------------------------------------------------
@@ -710,4 +743,3 @@ def _push_value(
     # Unknown defining op → push 0.0
     lo, hi = _encode_f64(0.0)
     ops.extend([CppOp.CONST_F64, lo, hi])
-

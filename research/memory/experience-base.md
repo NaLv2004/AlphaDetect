@@ -195,3 +195,45 @@ These guide future research decisions and help avoid repeating mistakes.
 - **Applicable to**:
   - Any future optimization pass on algorithm-IR training.
   - Deciding whether to invest in a native backend: profile first, because the evaluator may no longer be the slowest stage.
+
+## [2026-04-22 14:56] Effective Graft Reporting Must Separate Structure, Behavior, and Host-Relative Gain
+- **Context**: `non_trivial`/dead-code heuristics were too optimistic for algorithm-IR graft analysis.
+- **Lesson**:
+  - Structural connectivity alone is not enough; many grafts still fail because they do not change host outputs on meaningful low-SNR probes.
+  - Behavioral change alone is not enough either; some grafts materially change the detector but still lose slightly to the host and should not be counted as "effective".
+  - The most useful reporting split is:
+    1. `STRUCTURAL_FAIL`
+    2. `BEHAVIOR_FAIL`
+    3. `PERFORMANCE_FAIL`
+    4. `EFFECTIVE`
+- **Evidence**:
+  - In the 2026-04-22 smoke runs, most surviving grafts failed structurally or behaviorally even though they looked nontrivial before.
+  - One smoke run produced `11` grafted survivors but only `1` effective survivor.
+- **Applicable to**:
+  - Future algorithm-IR training dashboards and analysis scripts.
+  - Any claim that a graft "worked" should use this stricter decomposition.
+
+## [2026-04-22 14:56] Generated Python Warnings Can Come from Parser-Ambiguous Receivers
+- **Context**: Materialized grafted algorithms emitted parser warnings like `'int' object is not callable` and `'int' object is not subscriptable`.
+- **Lesson**:
+  - Some malformed IRs generate expressions where a literal/non-simple receiver is used directly as a call or subscript target (e.g. parser sees `3(...)` or `3[...]`), which produces `SyntaxWarning` even before runtime.
+  - A practical fix is to force suspicious call/subscript receivers through temporary variables in codegen. This preserves semantics for valid programs and converts malformed cases into normal runtime invalidity rather than parser noise.
+- **Applicable to**:
+  - `algorithm_ir/regeneration/codegen.py`
+  - Any future expansion of codegen ops that create call-like or indexing-like syntax.
+
+## [2026-04-22 18:15] Zero Effective Grafts Under Default Training Is Mainly an Objective-Mismatch Problem
+- **Context**: Default-config `train_gnn.py --progress --gens 2` plus earlier default-run logs through gen-11.
+- **Lesson**:
+  - Near-zero `effective_graft` is not primarily caused by using the wrong CLI parameters.
+  - The bigger issue is that post-hoc `effective` analysis and training/selection optimize different things:
+    1. scorer learns rough `graft_score`,
+    2. RL policies optimize reward derived from rough score + validity bonuses,
+    3. reporting requires structural connectivity + behavior change + host-relative improvement.
+  - As a result, the population can fill with graft-tagged survivors that are structurally ineffective yet still competitive under rough fitness.
+  - This explains the observed pattern where `mean_graft_score` and `mean_reward` stay nearly flat while `effective_graft` drops to zero in later generations.
+- **Evidence**:
+  - Default-run logs around gen-8..11 show `n_effective=0` with `n_structural_fail≈122`.
+  - Current top-graft logs contain concrete `STRUCTURAL_FAIL` survivors whose child score is only slightly worse than the host, and whose behavior-change rate is exactly `0.0`.
+- **Applicable to**:
+  - Any future redesign of reward shaping, scorer targets, or survivor filtering for algorithm-IR graft training.

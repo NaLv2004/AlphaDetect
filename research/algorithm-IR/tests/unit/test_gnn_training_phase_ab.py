@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import warnings
 import numpy as np
 import pytest
 
+from algorithm_ir.ir.model import Block, FunctionIR, Op, Value
+from algorithm_ir.regeneration.codegen import emit_python_source
 from evolution.gnn_pattern_matcher import GNNPatternMatcher
 from evolution.ir_pool import build_ir_pool
 from evolution.materialize import materialize_to_callable
@@ -64,3 +67,143 @@ def test_gnn_matcher_warmstart_uses_all_pairs_then_sampling():
     matcher._generation = 2
     sampled_pairs = matcher._select_pair_candidates(pair_scores)  # type: ignore[arg-type]
     assert len(sampled_pairs) == 2
+
+
+def test_precise_evaluation_accumulates_errors_or_hits_cap():
+    genome = build_ir_pool(np.random.default_rng(2))[0]
+    evaluator = MIMOFitnessEvaluator(MIMOEvalConfig(
+        Nr=4,
+        Nt=4,
+        mod_order=4,
+        snr_db_list=[12.0],
+        n_trials=1,
+        timeout_sec=0.5,
+        complexity_weight=0.01,
+        seed=9,
+    ))
+    fit = evaluator.evaluate_precise(
+        genome,
+        target_errors=4,
+        max_symbols=64,
+        timeout_sec=3.0,
+    )
+    assert fit.is_valid
+    assert fit.metrics["symbols_total"] > 0
+    assert (
+        fit.metrics["symbol_errors"] >= 4
+        or fit.metrics["symbols_total"] >= 64
+    )
+
+
+def test_codegen_avoids_syntaxwarning_for_non_simple_call_targets():
+    values = {
+        "v_const": Value(id="v_const", def_op="op_const"),
+        "v_ret": Value(id="v_ret", def_op="op_ret_const"),
+    }
+    ops = {
+        "op_const": Op(
+            id="op_const",
+            opcode="const",
+            inputs=[],
+            outputs=["v_const"],
+            block_id="b0",
+            attrs={"literal": 3},
+        ),
+        "op_call": Op(
+            id="op_call",
+            opcode="call",
+            inputs=["v_const"],
+            outputs=[],
+            block_id="b0",
+            attrs={"n_args": 0, "kwarg_names": []},
+        ),
+        "op_ret_const": Op(
+            id="op_ret_const",
+            opcode="const",
+            inputs=[],
+            outputs=["v_ret"],
+            block_id="b0",
+            attrs={"literal": 0},
+        ),
+        "op_return": Op(
+            id="op_return",
+            opcode="return",
+            inputs=["v_ret"],
+            outputs=[],
+            block_id="b0",
+        ),
+    }
+    block = Block(id="b0", op_ids=["op_const", "op_call", "op_ret_const", "op_return"])
+    ir = FunctionIR(
+        id="fn:test",
+        name="warn_free",
+        arg_values=[],
+        return_values=["v_ret"],
+        values=values,
+        ops=ops,
+        blocks={"b0": block},
+        entry_block="b0",
+    )
+    source = emit_python_source(ir)
+    with warnings.catch_warnings(record=True) as record:
+        warnings.simplefilter("always", SyntaxWarning)
+        compile(source, "<warn_free>", "exec")
+    assert not [w for w in record if issubclass(w.category, SyntaxWarning)]
+    assert "__call_target_op_call = 3" in source
+
+
+def test_codegen_avoids_syntaxwarning_for_non_simple_subscript_targets():
+    values = {
+        "v_const": Value(id="v_const", def_op="op_const"),
+        "v_idx": Value(id="v_idx", def_op="op_idx"),
+        "v_item": Value(id="v_item", def_op="op_getitem"),
+    }
+    ops = {
+        "op_const": Op(
+            id="op_const",
+            opcode="const",
+            inputs=[],
+            outputs=["v_const"],
+            block_id="b0",
+            attrs={"literal": 3},
+        ),
+        "op_idx": Op(
+            id="op_idx",
+            opcode="const",
+            inputs=[],
+            outputs=["v_idx"],
+            block_id="b0",
+            attrs={"literal": 0},
+        ),
+        "op_getitem": Op(
+            id="op_getitem",
+            opcode="get_item",
+            inputs=["v_const", "v_idx"],
+            outputs=["v_item"],
+            block_id="b0",
+        ),
+        "op_return": Op(
+            id="op_return",
+            opcode="return",
+            inputs=["v_item"],
+            outputs=[],
+            block_id="b0",
+        ),
+    }
+    block = Block(id="b0", op_ids=["op_const", "op_idx", "op_getitem", "op_return"])
+    ir = FunctionIR(
+        id="fn:test_item",
+        name="warn_free_item",
+        arg_values=[],
+        return_values=["v_item"],
+        values=values,
+        ops=ops,
+        blocks={"b0": block},
+        entry_block="b0",
+    )
+    source = emit_python_source(ir)
+    with warnings.catch_warnings(record=True) as record:
+        warnings.simplefilter("always", SyntaxWarning)
+        compile(source, "<warn_free_item>", "exec")
+    assert not [w for w in record if issubclass(w.category, SyntaxWarning)]
+    assert "__getitem_target_op_getitem = 3" in source

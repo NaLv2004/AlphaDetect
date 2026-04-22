@@ -230,3 +230,66 @@ Each entry includes parameters, results, and key observations.
   - Warm-start gen-1 proposer time was dominant: `176.6s` to build `8190` proposals.
   - Warm-start gen-1 graft evaluator time was `18.2s` for `8190` lightweight evaluations, so evaluation is no longer the main bottleneck.
 - **Takeaway**: Phase A/B materially increased training data density and early graft usefulness, but the dominant cost is now Python-side proposal generation rather than evaluator throughput.
+
+## [2026-04-22 14:56] Algorithm-IR GNN: Effective-Graft Logging + Precise SER + SyntaxWarning Fix
+- **Context**: Updated `research/algorithm-IR/train_gnn.py` / `evolution/mimo_evaluator.py` / `algorithm_ir/regeneration/codegen.py` to add real graft-effectiveness analysis, precise SER evaluation, and progress-bar-capable evaluation/proposal loops.
+- **Implementation**:
+  - Replaced console/log focus on heuristic `non_trivial` with three-way `effective` validation:
+    1. Structural: grafted ops must appear in the return backward slice.
+    2. Behavioral: graft child must differ from its host on fixed low-SNR probes (`16 dB`, `>=8` samples).
+    3. Performance: child rough score must beat host rough score by a margin.
+  - Added precise SER evaluation for shortlisted effective grafted survivors, stopping after enough symbol errors are observed (`target_errors`, with timeout/max-symbol safeguards).
+  - Added tqdm-ready hooks to batch evaluation and GNN proposal generation.
+  - Fixed generated-source `SyntaxWarning` noise by emitting temporary variables for suspicious call/subscript receivers, eliminating parser warnings like `'int' object is not callable/subscriptable`.
+- **Smoke runs**:
+  - `conda run -n AutoGenOld python train_gnn.py --gens 2 --proposals 20 --top-k 20 --pool-size 32 --n-trials 2 --train-steps 2 --snr-start 20 --snr-target 20 --timeout 0.5 --eval-workers 4 --warmstart-gens 1 --warmstart-trials 1 --warmstart-timeout 0.1 --warmstart-eval-workers 8 --warmstart-survivor-cap 16 --precise-topk 10 --precise-target-errors 20 --precise-max-symbols 2000 --precise-timeout 4`
+    - Gen 1: `15` grafted survivors, `3` effective; effective precise SER best/median `0.1058 / 0.1154`.
+    - Gen 2: `23` grafted survivors, `4` effective; effective precise SER best/median `0.1058 / 0.1154`.
+  - `conda run -n AutoGenOld python train_gnn.py --gens 1 ...` (same smoke config) after the codegen fix:
+    - `11` grafted survivors, `1` effective.
+    - No `SyntaxWarning` remained in stderr; remaining warnings were numeric `RuntimeWarning` / `ComplexWarning` from unstable candidate detectors.
+- **Files**:
+  - `research/algorithm-IR/train_gnn.py`
+  - `research/algorithm-IR/evolution/mimo_evaluator.py`
+  - `research/algorithm-IR/evolution/algorithm_engine.py`
+  - `research/algorithm-IR/evolution/gnn_pattern_matcher.py`
+  - `research/algorithm-IR/algorithm_ir/regeneration/codegen.py`
+  - `research/algorithm-IR/tests/unit/test_gnn_training_phase_ab.py`
+
+## [2026-04-22 18:15] Algorithm-IR GNN: Default-Config `--progress` Run Explains Near-Zero Effective Grafts
+- **Context**: Re-ran `research/algorithm-IR/train_gnn.py` with default settings except `--gens 2 --progress` to capture proposal/evaluation progress and inspect why `effective_graft` often falls to zero in later default runs.
+- **Command**:
+  - `conda run -n AutoGenOld python train_gnn.py --progress --gens 2`
+- **Observed runtime behavior**:
+  - Gen-1 warm-start evaluated all `19740` host/donor pairs (`141 * 140`), all `19740` grafts executed and were lightly evaluated, and only `48` were allowed through the warm-start survivor cap.
+  - Gen-2 trained the GNN on the gen-1 replay (`matched_samples=19740`) and then sampled `500` pairs out of `36290` scored pairs for proposal generation.
+  - Proposal generation remained a major bottleneck: gen-1 proposal sweep dominated runtime; gen-2 proposal stage still took `~14.8s` for `500` sampled pairs.
+- **Results**:
+  - Gen-1: `20` grafted survivors in population, `2` effective.
+  - Gen-2: `48` grafted survivors in population, `3` effective.
+  - Logged train stats at gen-2: `mean_graft_score≈0.9805`, `mean_reward≈-0.7152`, `baseline≈-0.0715`, `loss≈-360.9`.
+- **Diagnosis**:
+  - The scorer begins to affect pair selection at gen-2 because `warmstart_gens=1` and `train_interval=1`, but the larger issue is objective mismatch:
+    - scorer learns `graft_score` (MSE),
+    - region/donor policies learn reward,
+    - `effective` reporting requires structural connectivity + low-SNR behavior change + host-relative score gain.
+  - Many survivors are `STRUCTURAL_FAIL` yet still have near-host rough scores, so they can survive selection even though they are not effective.
+  - Example from `top50_grafts.log`: gen-2 entries `algo_6bdee22f`, `algo_040cd9d2`, `algo_daab232c`, `algo_9fe58b4c` are all `STRUCTURAL_FAIL` with `behavior_change_rate=0.0` but rough scores around `0.3147`, close to their hosts.
+- **Files**:
+  - `research/algorithm-IR/results/gnn_training/training_log.jsonl`
+  - `research/algorithm-IR/results/gnn_training/top50_grafts.log`
+
+## [2026-04-22 20:05] Algorithm-IR GNN: Effective Analysis Now Covers All Evaluated Graft Samples
+- **Context**: User requested that effective-graft analysis stop looking only at population survivors and instead cover every evaluated graft sample produced in a generation, with full-source logging for all good/effective grafts.
+- **Implementation**:
+  - `AlgorithmEvolutionEngine` now stores `last_graft_sample_pool`, i.e. all successful graft children plus their evaluation results before survivor filtering.
+  - `train_gnn.py` now runs effective analysis on that full pool, not on grafted survivors only.
+  - The log summary now reports effective SER statistics over all evaluated graft samples: best / median / mean.
+  - The log now prints the full, untruncated source code for every effective graft sample.
+  - For hosts that came from the permanent gene bank (not the live population), effective analysis now recomputes/caches true host fitness instead of falling back to a fake `host_score=1.0`.
+- **Validation**:
+  - Static compile check passed: `conda run -n AutoGenOld python -m py_compile research/algorithm-IR/train_gnn.py research/algorithm-IR/evolution/algorithm_engine.py`
+  - Smoke log shape confirmed in `results/gnn_training/top50_grafts.log`:
+    - `GENERATION 1 | SNR=20dB | 8190 evaluated graft samples | ... effective`
+    - `EFFECTIVE SER STATS (all evaluated graft samples): best / median / mean`
+    - `ALL EFFECTIVE GRAFT SAMPLES (full source)`

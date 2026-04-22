@@ -154,3 +154,15 @@ Record of major research decisions, rationale, alternatives, and impact.
 - **Alternatives**: Start immediately on a C/C++ backend under `algorithm_ir/`; keep the previous small-sample online-only GNN training loop.
 - **Impact**: The training pipeline now produces dense warm-start supervision (`8190` matched samples at gen-2 instead of `20`), while preserving a clean architectural boundary. Future native work, if needed, should target whichever stage remains dominant after proposal-generation optimizations, not evaluation by default.
 
+## [2026-04-22 14:56] Algorithm-IR GNN Logging Uses Strict Effective-Graft Criteria
+- **Decision**: For training-time reporting, replaced heuristic `non_trivial` graft counts with a stricter `effective` definition that requires structural connectivity, low-SNR behavioral change, and rough-score improvement over the host. This reporting does **not** filter the GNN replay buffer or warm-start sample collection.
+- **Rationale**: The user needed a statistic that reflects real algorithmic change rather than dead code or mathematically equivalent rewrites. At the same time, the dense warm-start training signal (`~8190` samples) must remain intact, so filtering is only for analysis/logging, not for data collection.
+- **Alternatives**: Keep using `non_trivial`; use only one or two checks (e.g. structural+behavior) without host-relative performance; filter the replay buffer itself.
+- **Impact**: Console/log output now focuses on effective graft counts and their SER, and the top-graft log distinguishes `STRUCTURAL_FAIL`, `BEHAVIOR_FAIL`, `PERFORMANCE_FAIL`, and `EFFECTIVE`.
+
+## [2026-04-22 14:56] Algorithm-IR Precise SER Shortlisting Stops on Error Count
+- **Decision**: Added a precise SER path that evaluates shortlisted effective grafted survivors until a target number of symbol errors is observed, with timeout/max-symbol caps.
+- **Rationale**: Fixed-trial rough SER is too noisy to compare good grafts, especially when rough BER/SER is already near zero. Error-count stopping gives more stable estimates for the small set of promising effective grafts.
+- **Alternatives**: Keep only fixed-trial SER; run precise evaluation on the entire population; stop on confidence intervals instead of error count.
+- **Impact**: Training logs now expose `effective_precise_best_ser` / `effective_precise_median_ser`, giving a more meaningful view of graft quality than whole-population best SER.
+

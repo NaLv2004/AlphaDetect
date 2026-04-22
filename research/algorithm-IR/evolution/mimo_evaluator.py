@@ -14,6 +14,10 @@ from dataclasses import dataclass, field
 from typing import Any, Callable
 
 import numpy as np
+try:
+    from tqdm.auto import tqdm
+except Exception:  # pragma: no cover - tqdm is optional at runtime
+    tqdm = None
 
 from evolution.fitness import FitnessResult
 from evolution.pool_types import AlgorithmFitnessEvaluator, AlgorithmGenome
@@ -103,6 +107,7 @@ class MIMOEvalConfig:
     timeout_sec: float = 5.0       # max seconds per genome
     complexity_weight: float = 0.1 # weight for complexity in composite score
     batch_workers: int = 1         # outer parallelism across genomes
+    show_progress: bool = False    # tqdm progress bars for long evaluations
     seed: int = 42
 
 
@@ -222,9 +227,25 @@ class MIMOFitnessEvaluator(AlgorithmFitnessEvaluator):
             return []
         workers = max(1, int(getattr(self.config, "batch_workers", 1)))
         if workers <= 1 or len(genomes) <= 1:
-            return [self.evaluate(g) for g in genomes]
+            if getattr(self.config, "show_progress", False) and tqdm is not None:
+                iterator = tqdm(
+                    genomes,
+                    total=len(genomes),
+                    desc="Evaluating genomes",
+                    leave=False,
+                )
+            else:
+                iterator = genomes
+            return [self.evaluate(g) for g in iterator]
 
         results: list[FitnessResult | None] = [None] * len(genomes)
+        progress = None
+        if getattr(self.config, "show_progress", False) and tqdm is not None:
+            progress = tqdm(
+                total=len(genomes),
+                desc="Evaluating genomes",
+                leave=False,
+            )
         with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as ex:
             future_to_idx = {
                 ex.submit(self.evaluate, genome): idx
@@ -239,9 +260,132 @@ class MIMOFitnessEvaluator(AlgorithmFitnessEvaluator):
                         metrics={"ser": 1.0, "batch_error": 1.0},
                         is_valid=False,
                     )
+                if progress is not None:
+                    progress.update(1)
+        if progress is not None:
+            progress.close()
         return [
             r if r is not None else FitnessResult(metrics={"ser": 1.0}, is_valid=False)
             for r in results
+        ]
+
+    def evaluate_precise(
+        self,
+        genome: AlgorithmGenome,
+        *,
+        target_errors: int = 100,
+        max_symbols: int = 200000,
+        timeout_sec: float | None = None,
+        seed: int | None = None,
+    ) -> FitnessResult:
+        """Evaluate until enough symbol errors are observed for a tighter SER estimate."""
+        cfg = self.config
+        precise_timeout = float(timeout_sec if timeout_sec is not None else max(cfg.timeout_sec, 20.0))
+
+        try:
+            fn = materialize_to_callable(genome)
+        except Exception:
+            return FitnessResult(
+                metrics={"ser": 1.0, "compile_error": 1.0},
+                is_valid=False,
+            )
+
+        rng = np.random.default_rng(cfg.seed if seed is None else seed)
+        ser_per_snr: dict[float, float] = {}
+        total_errors_all = 0
+        total_symbols_all = 0
+        total_time = 0.0
+
+        import concurrent.futures
+        per_trial_timeout = max(1.0, precise_timeout / 50.0)
+
+        for snr_db in cfg.snr_db_list:
+            errors = 0
+            total = 0
+            t0 = time.perf_counter()
+            executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+            executor_dirty = False
+
+            while errors < max(target_errors, 1) and total < max(max_symbols, cfg.Nt):
+                H, x_true, y, sigma2 = generate_mimo_sample(
+                    cfg.Nr, cfg.Nt, self.constellation, snr_db, rng,
+                )
+                if executor_dirty:
+                    executor.shutdown(wait=False)
+                    executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+                    executor_dirty = False
+                try:
+                    future = executor.submit(fn, H, y, sigma2, self.constellation)
+                    x_hat = future.result(timeout=per_trial_timeout)
+                    if x_hat is None or len(x_hat) != cfg.Nt:
+                        errors += cfg.Nt
+                    else:
+                        x_hat = _nearest_symbols(x_hat, self.constellation)
+                        errors += int(np.sum(np.abs(x_true - x_hat) > 1e-6))
+                except concurrent.futures.TimeoutError:
+                    future.cancel()
+                    errors += cfg.Nt
+                    executor_dirty = True
+                except Exception:
+                    errors += cfg.Nt
+
+                total += cfg.Nt
+                if (time.perf_counter() - t0) > precise_timeout:
+                    break
+
+            executor.shutdown(wait=False)
+            total_time += time.perf_counter() - t0
+            total_errors_all += errors
+            total_symbols_all += total
+            ser_per_snr[snr_db] = errors / max(total, 1)
+
+        avg_ser = float(np.mean(list(ser_per_snr.values()))) if ser_per_snr else 1.0
+        complexity = _estimate_complexity(genome)
+        metrics = {
+            "ser": avg_ser,
+            "complexity": complexity,
+            "eval_time": total_time,
+            "symbol_errors": float(total_errors_all),
+            "symbols_total": float(total_symbols_all),
+        }
+        for snr, ser in ser_per_snr.items():
+            metrics[f"ser_{snr:.0f}dB"] = ser
+
+        weights = {
+            "ser": 1.0,
+            "complexity": cfg.complexity_weight,
+            "eval_time": 0.0,
+            "symbol_errors": 0.0,
+            "symbols_total": 0.0,
+        }
+        for snr in ser_per_snr:
+            weights[f"ser_{snr:.0f}dB"] = 0.0
+        return FitnessResult(metrics=metrics, is_valid=True, weights=weights)
+
+    def evaluate_precise_batch(
+        self,
+        genomes: list[AlgorithmGenome],
+        *,
+        target_errors: int = 100,
+        max_symbols: int = 200000,
+        timeout_sec: float | None = None,
+        desc: str = "Precise SER",
+    ) -> list[FitnessResult]:
+        """Run tighter SER estimation on a shortlist of genomes."""
+        if not genomes:
+            return []
+        if getattr(self.config, "show_progress", False) and tqdm is not None:
+            iterator = tqdm(genomes, total=len(genomes), desc=desc, leave=False)
+        else:
+            iterator = genomes
+        return [
+            self.evaluate_precise(
+                genome,
+                target_errors=target_errors,
+                max_symbols=max_symbols,
+                timeout_sec=timeout_sec,
+            )
+            for genome in iterator
         ]
 
     def evaluate_single_result(self, result: Any) -> float:
