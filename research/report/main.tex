@@ -1,0 +1,326 @@
+
+%\include{preamble}
+\documentclass{ctexart}
+\usepackage{multicol}
+\usepackage{multirow}
+\usepackage{graphicx} % Required for inserting images
+\usepackage{booktabs}
+\usepackage[UTF8]{ctex}
+\usepackage{titlesec}
+\usepackage{booktabs}
+%\usepackage{algorithm, algorithmic}
+\usepackage{subfigure}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{subfigure}
+\usepackage{float}
+%\usepackage{subcaption}
+\geometry{left=2cm,right=2cm,top=0.5cm,bottom=2cm}
+\usepackage{amsmath}
+\usepackage{hyperref}
+\usepackage{pdfpages}
+%\documentclass[lettersize,journal]{IEEEtran}
+%\documentclass[10pt,twoside]{IEEEtran}
+
+\usepackage[title]{appendix}
+\usepackage{float}
+\usepackage{amsmath,amsfonts}
+\usepackage{amsthm}
+\usepackage{amssymb}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{color}
+\usepackage{colortbl}
+\usepackage{footnote}
+%\usepackage{xcolor}
+\usepackage{setspace}
+\usepackage{algorithm, algorithmicx}
+\usepackage{array}
+\usepackage[OT1]{fontenc}
+\usepackage{subfigure}
+%\usepackage[caption=false,font=normalsize,labelfont=sf,textfont=sf]{subfig}
+\usepackage{multicol}
+\usepackage{multirow}
+\usepackage{enumerate}
+\usepackage{tikz}
+\usepackage{textcomp}
+\usepackage{stfloats}
+\usepackage{url}
+\usepackage{verbatim}
+\usepackage{pgfplots}
+\pgfplotsset{compat=newest}
+\usepackage{graphicx}
+\usepackage{cite}
+\usepackage{bm}
+\usepackage{makecell}
+\usepackage{tabu}
+\usepackage{longtable}
+\usepackage{booktabs, dcolumn}
+\usepackage{threeparttable}
+\usepackage{algpseudocode}
+\usepackage{soul}
+\usepackage{outlines}
+\usepackage{standalone}
+\usetikzlibrary{arrows.meta} % For better arrow tips
+\usetikzlibrary{matrix}
+\usetikzlibrary{positioning, shapes.geometric, shapes.multipart, fit, calc, decorations.pathreplacing, backgrounds}
+\definecolor{mygray}{gray}{.9}
+\newcommand{\red}{\textcolor[rgb]{1.00,0.00,0.00}}
+\newcommand{\blue}{\textcolor[rgb]{0.00,0.4375,0.7461}}
+\newcommand{\midsepremove}{\aboverulesep = 0.0mm \belowrulesep = -0.08mm} \newcommand{\midsepdefault}{\aboverulesep = 0.605mm \belowrulesep = 0.984mm}
+\soulregister\cite7
+\soulregister\citep7
+\soulregister\citet7
+\soulregister\ref7
+\soulregister\pageref7
+\hyphenation{op-tical net-works semi-conduc-tor IEEE-Xplore}
+\definecolor{SeaGreen}{rgb}{0.21875,0.72265, 0.55078}
+\definecolor{Myred}{rgb}{0.90234,0.24609, 0.14843}
+\definecolor{Myyellow}{rgb}{0.87890,0.60156, 0.15625}
+\definecolor{LightBlue}{rgb}{0.39453,0.70703, 0.85156}
+\definecolor{DeepBlue}{rgb}{0.17578,0.48046, 0.69531}
+\definecolor{DeepPurple}{rgb}{0.2945  ,  0.2945  ,  0.2945}
+\definecolor{WineRed}{rgb}{0.4341  ,  0.3364  ,  0.3403}
+
+\definecolor{CblGreen}{RGB}{55,173, 105}
+\definecolor{CblBlue}{RGB}{46,123,225}
+\definecolor{CblRed}{RGB}{241, 64, 64}
+\definecolor{CblBlack}{RGB}{81, 81, 81}
+\definecolor{CblCyan}{RGB}{10, 200, 255}
+\newtheorem{Thm}{Theorem}
+\newtheorem{Lem}{Lemma}
+\newtheorem{Cor}{Corollary}
+\newtheorem{Def}{Definition}
+\newtheorem{Exam}{Example}
+\newtheorem{Alg}{Algorithm}
+\newtheorem{Prob}{Problem}
+\newtheorem{Rem}{Remark}
+
+\usepackage[utf8]{inputenc}
+\usepackage{fancyhdr}
+\usepackage{geometry}
+\geometry{a4paper, left=2cm, right=2cm, top=2.5cm, bottom=2.5cm}
+\usepackage{longtable}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{array}
+
+\definecolor{primary}{RGB}{33, 73, 133}
+%\newtheorem{proof}{Proof}
+
+%\titleformat{\section}
+\usepackage{eso-pic}
+\newcommand\BackgroundPic{ %设置seu校徽水印
+	\put(0,0){
+		\parbox[b][\paperheight]{\paperwidth}{%
+			\vfill
+			\centering
+			\includegraphics[width=\paperwidth,height=\paperheight,
+			keepaspectratio]{seubackground2.pdf}%
+			\vfill
+}}}
+\titleformat{\section}
+{\normalfont\Large\bfseries}{\thesection}{1em}{}
+\makeatother
+
+\usetikzlibrary{positioning, shapes.geometric, shapes.multipart, fit, calc, decorations.pathreplacing, backgrounds, arrows.meta}
+
+\title{周报（2026年4月22日）}
+\author{许嘉研 (jiayanxu@seu.edu.cn)}
+\date{\today}
+\begin{document}
+	\AddToShipoutPicture{\BackgroundPic}
+	\normalsize
+	\maketitle
+	\thispagestyle{fancy}
+
+% ============================================================
+\section{AlphaDetect：基于中间表示的MIMO检测算法自动发现}
+% ============================================================
+
+本周完成了 AlphaDetect 框架核心模块的实现，包括：(1) 面向MIMO检测算法的编译器中间表示（IR）设计与编译前端；(2) 以IR为操作对象的双层进化引擎，结合图神经网络（GNN）强化学习实现算法结构的智能嫁接。
+
+\subsection{算法中间表示（FunctionIR）}
+
+我们设计了一套静态单赋值（SSA）形式的算法中间表示 \texttt{FunctionIR}，将任意Python MIMO检测函数编译为可操作的图结构。如图~\ref{fig:ir}所示，IR由三类元素构成：
+\begin{itemize}
+  \item \textbf{Value}：数据节点，每个Value唯一由一个Op定义（SSA性质），可被多个Op消费，携带类型标注（标量/向量/矩阵）；
+  \item \textbf{Op}：操作节点，包含操作码（\texttt{binary}、\texttt{call}、\texttt{const}等），通过输入/输出Value列表显式描述数据流；
+  \item \textbf{Block}：控制流基本块，多个Block通过前驱/后继关系构成控制流图（CFG）。
+\end{itemize}
+
+此外，IR中引入了 \textbf{AlgSlot} 机制——一类特殊的 \texttt{call} 操作，表示算法中可抽象替换的功能模块（黑盒）。SlotPopulation 维护每个 Slot 的一组实现变体，供微观层进化独立优化。
+
+\begin{figure}[!h]
+\centering
+\begin{tikzpicture}[
+  val/.style={circle, draw=DeepBlue, fill=LightBlue!30, minimum size=7mm, font=\scriptsize},
+  op/.style={rectangle, rounded corners=2pt, draw=CblRed, fill=CblRed!15, minimum width=18mm, minimum height=7mm, font=\scriptsize},
+  slot/.style={rectangle, rounded corners=2pt, draw=CblGreen, fill=CblGreen!20, minimum width=18mm, minimum height=7mm, font=\scriptsize, dashed},
+  blk/.style={rectangle, draw=gray!60, dashed, rounded corners=4pt, inner sep=6pt},
+  arr/.style={-Stealth, thick, gray!70},
+  darr/.style={-Stealth, thick, DeepBlue},
+  >={Stealth}
+]
+
+% ---- Block b_entry ----
+\node[op] (c1) at (0,0) {\texttt{const} $\sigma^2$};
+\node[val] (vH) at (-3.2, 1.8) {$\mathbf{H}$};
+\node[val] (vy) at (-1.6, 1.8) {$\mathbf{y}$};
+\node[val] (vs2) at (0, 1.8) {$\sigma^2$};
+\node[val] (vC) at (1.6, 1.8) {$\mathcal{C}$};
+
+% matmul op
+\node[op] (mmul) at (-2.4, 0.3) {\texttt{binary} $\mathbf{H}^\dagger\mathbf{H}$};
+\node[val] (vHHd) at (-2.4, -0.8) {$v_4$};
+
+% slot: regularizer
+\node[slot] (slot1) at (0.2, -0.8) {\texttt{AlgSlot}[\textit{regularizer}]};
+\node[val] (vReg) at (0.2, -2.0) {$v_5$};
+
+% solve op
+\node[op] (solve) at (-1.1, -2.9) {\texttt{call} \texttt{linalg.solve}};
+\node[val] (vW) at (-1.1, -4.0) {$v_6\ (\mathbf{W})$};
+
+% matmul2
+\node[op] (mm2) at (-1.1, -5.0) {\texttt{binary} $\mathbf{W}\mathbf{y}$};
+\node[val] (vxh) at (-1.1, -6.1) {$v_7\ (\hat{\mathbf{x}})$};
+
+% slot: hard decision
+\node[slot] (slot2) at (2.2, -6.1) {\texttt{AlgSlot}[\textit{hard\_decision}]};
+\node[val] (vout) at (0.5, -7.2) {$v_8$};
+
+% return
+\node[op] (ret) at (0.5, -8.0) {\texttt{return}};
+
+% Block box
+\node[blk, fit=(c1)(mmul)(vHHd)(slot1)(vReg)(solve)(vW)(mm2)(vxh)(slot2)(vout)(ret), label=above:{\scriptsize\color{gray}Block $b_{\mathrm{entry}}$}] (bbox) {};
+
+% Arg values floating above
+\draw[darr] (vH) -- (mmul);
+\draw[darr] (vH) -- (mmul);
+\draw[darr] (vy) -- (mmul);
+\draw[darr] (vs2) -- (c1);
+\draw[darr] (vC) -- (slot2);
+
+\draw[darr] (c1) -- node[right, font=\tiny]{def} (vs2);
+\draw[darr] (mmul) -- (vHHd);
+\draw[darr] (vHHd) -- (solve);
+\draw[darr] (vs2) -- (slot1);
+\draw[darr] (slot1) -- (vReg);
+\draw[darr] (vReg) -- (solve);
+\draw[darr] (solve) -- (vW);
+\draw[darr] (vW) -- (mm2);
+\draw[darr] (vy) -- (mm2);
+\draw[darr] (mm2) -- (vxh);
+\draw[darr] (vxh) -- (slot2);
+\draw[darr] (slot2) -- (vout);
+\draw[darr] (vout) -- (ret);
+
+% Legend
+\node[op, minimum width=12mm, minimum height=5mm] (leg1) at (5.2, 0) {\scriptsize Op};
+\node[val, minimum size=5mm] (leg2) at (5.2, -0.9) {\scriptsize Val};
+\node[slot, minimum width=12mm, minimum height=5mm] (leg3) at (5.2, -1.8) {\scriptsize AlgSlot};
+\node[right, font=\tiny] at (5.8, 0) {操作节点};
+\node[right, font=\tiny] at (5.8, -0.9) {数据节点};
+\node[right, font=\tiny] at (5.8, -1.8) {可进化槽位};
+
+\end{tikzpicture}
+\caption{LMMSE检测器的FunctionIR示意图。蓝色圆形节点为Value（数据），红色矩形为Op（操作），绿色虚线矩形为AlgSlot（可进化黑盒槽位）。箭头表示数据流（def-use链）。}
+\label{fig:ir}
+\end{figure}
+
+\subsection{双层进化引擎与GNN引导的骨架嫁接}
+
+基于FunctionIR，我们实现了双层进化引擎（\texttt{AlgorithmEvolutionEngine}）：
+\begin{itemize}
+  \item \textbf{宏观层（Macro）}：操作算法骨架，通过PatternMatcher识别宿主（Host）IR和供体（Donor）IR中的可替换区域（Region），执行骨架嫁接（Grafting），产生跨算法族的混合子代；
+  \item \textbf{微观层（Micro）}：在每个AlgSlot的SlotPopulation内部，通过IR变异（\texttt{mutate\_ir}）和交叉（\texttt{crossover\_ir}）进行局部优化；
+  \item \textbf{评估层}：将任意AlgorithmGenome物化（Materialize）为可执行Python函数，通过MIMO Monte Carlo仿真计算误符号率（SER）作为适应度。
+\end{itemize}
+
+宏观层的核心创新是 \textbf{GNN模式匹配器}（\texttt{GNNPatternMatcher}）。如图~\ref{fig:graft}所示，该模块将Host和Donor的FunctionIR分别转化为图神经网络输入（节点=Op，边=数据流+控制流），通过图注意力网络（GAT）学习图嵌入，评分所有Host-Donor配对，并利用REINFORCE算法以嫁接后SER提升作为奖励信号在线更新网络参数。嫁接操作在IR级执行：克隆宿主IR，在宿主中插入对供体的\texttt{call}操作，重绑定输出，最终通过拓扑排序保证SSA合法性。
+
+\begin{figure}[!h]
+\centering
+\begin{tikzpicture}[
+  op/.style={rectangle, rounded corners=2pt, draw=CblRed!80, fill=CblRed!12, minimum width=14mm, minimum height=6.5mm, font=\scriptsize},
+  opH/.style={rectangle, rounded corners=2pt, draw=DeepBlue, fill=DeepBlue!15, minimum width=14mm, minimum height=6.5mm, font=\scriptsize},
+  opD/.style={rectangle, rounded corners=2pt, draw=CblGreen!80, fill=CblGreen!15, minimum width=14mm, minimum height=6.5mm, font=\scriptsize},
+  region/.style={rectangle, draw=Myred, very thick, rounded corners=4pt, dashed, inner sep=5pt},
+  gnn/.style={rectangle, rounded corners=6pt, draw=DeepPurple, fill=DeepPurple!10, minimum width=26mm, minimum height=10mm, font=\small\bfseries},
+  result/.style={rectangle, rounded corners=3pt, draw=CblGreen, fill=CblGreen!20, minimum width=28mm, minimum height=8mm, font=\scriptsize},
+  arr/.style={-Stealth, thick},
+  sarr/.style={-Stealth, thick, dashed, gray},
+  >={Stealth},
+  node distance=5mm
+]
+
+% ---- HOST IR (LMMSE, left side) ----
+\node[opH] (h1) at (-5.5, 3.5) {\texttt{binary} $\mathbf{H}^\dagger\mathbf{H}$};
+\node[opH] (h2) at (-5.5, 2.3) {\texttt{const} $\sigma^2$};
+\node[opH] (h3) at (-5.5, 1.1) {\texttt{binary} $+\sigma^2 I$};
+\node[opH, fill=Myred!25, draw=Myred] (h4) at (-5.5, -0.1) {\texttt{call solve}};
+\node[opH, fill=Myred!25, draw=Myred] (h5) at (-5.5, -1.3) {\texttt{binary} $\mathbf{W}\mathbf{y}$};
+\node[opH] (h6) at (-5.5, -2.5) {\texttt{AlgSlot}[\textit{dec}]};
+\node[opH] (h7) at (-5.5, -3.7) {\texttt{return}};
+
+\draw[arr, DeepBlue!60] (h1)--(h3); \draw[arr, DeepBlue!60] (h2)--(h3);
+\draw[arr, DeepBlue!60] (h3)--(h4); \draw[arr, DeepBlue!60] (h4)--(h5);
+\draw[arr, DeepBlue!60] (h5)--(h6); \draw[arr, DeepBlue!60] (h6)--(h7);
+
+\node[region, fit=(h4)(h5), label={[font=\tiny,Myred]above:替换Region}] (Hreg) {};
+\node[font=\small\bfseries, DeepBlue] at (-5.5, 4.5) {Host IR (LMMSE)};
+
+% ---- DONOR IR (K-Best, right side) ----
+\node[opD] (d1) at (1.0, 3.5) {\texttt{const} beam=$k$};
+\node[opD] (d2) at (1.0, 2.3) {\texttt{AlgSlot}[\textit{expand}]};
+\node[opD, fill=Myyellow!40, draw=Myyellow!80!black] (d3) at (1.0, 1.1) {\texttt{call sort}};
+\node[opD, fill=Myyellow!40, draw=Myyellow!80!black] (d4) at (1.0, -0.1) {\texttt{binary prune}};
+\node[opD] (d5) at (1.0, -1.3) {\texttt{AlgSlot}[\textit{metric}]};
+\node[opD] (d6) at (1.0, -2.5) {\texttt{call select}};
+\node[opD] (d7) at (1.0, -3.7) {\texttt{return}};
+
+\draw[arr, CblGreen!70] (d1)--(d2); \draw[arr, CblGreen!70] (d2)--(d3);
+\draw[arr, CblGreen!70] (d3)--(d4); \draw[arr, CblGreen!70] (d4)--(d5);
+\draw[arr, CblGreen!70] (d5)--(d6); \draw[arr, CblGreen!70] (d6)--(d7);
+
+\node[region, fit=(d3)(d4)(d5), label={[font=\tiny,Myyellow!80!black]above:供体Region}] (Dreg) {};
+\node[font=\small\bfseries, CblGreen!80!black] at (1.0, 4.5) {Donor IR (K-Best)};
+
+% ---- GNN block in center ----
+\node[gnn] (gnn) at (-2.25, -5.5) {GAT-GNN};
+\node[font=\tiny, DeepPurple] at (-2.25, -6.3) {Host-Donor配对打分};
+
+% arrows from IRs to GNN
+\draw[sarr, DeepBlue] (h7) -- (-5.5, -5.5) -- (gnn.west);
+\draw[sarr, CblGreen!70!black] (d7) -- (1.0, -5.5) -- (gnn.east);
+
+% Graft proposal arrow
+\node[result] (prop) at (-2.25, -8.0) {GraftProposal: Host区域$\leftarrow$Donor};
+\draw[arr, DeepPurple] (gnn) -- node[right, font=\tiny]{REINFORCE打分} (prop);
+
+% REINFORCE reward loop
+\node[font=\tiny, Myred] (reward) at (2.5, -8.0) {奖励 $r = \Delta\mathrm{SER}$};
+\draw[arr, Myred, bend left=25] (reward) to node[above, font=\tiny]{更新GNN参数} (gnn.east);
+
+% Hybrid child result
+\node[result, minimum width=32mm] (child) at (-2.25, 1.1) {混合子代 IR};
+\draw[arr, thick, CblBlack] (prop) -- (-2.25, -0.3) -- (child);
+
+% annotation
+\draw[sarr, Myred, <->] (Hreg.east) -- node[above, font=\tiny]{嫁接} (child.west);
+
+\end{tikzpicture}
+\caption{GNN引导的骨架嫁接示意图。左侧为宿主IR（LMMSE），右侧为供体IR（K-Best），均具有完整的操作节点和数据流。GNN对两者进行图编码并打分，识别出宿主替换Region（红色虚线框）和供体贡献Region（黄色虚线框），执行IR级嫁接生成混合子代，并以SER提升作为REINFORCE奖励更新GNN参数。}
+\label{fig:graft}
+\end{figure}
+
+当前已实现8个基线检测器（LMMSE、ZF、OSIC、K-Best、Stack、BP、EP、AMP）的IR编译，并在$16\times16$ 16-QAM、SNR=24\,dB条件下完成基线评估。双层进化引擎与GNN训练入口（\texttt{train\_gnn.py}）已通过242个单元/集成测试验证。
+
+% ============================================================
+\section{讨论大文章写作}
+% ============================================================
+
+\end{document}
+
+

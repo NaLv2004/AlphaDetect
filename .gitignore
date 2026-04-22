@@ -29,3 +29,8 @@ Thumbs.db
 # MSVC toolchain / large build artifacts
 code_for_reference/automl_zero/vc_link/
 *.pdb
+
+# Research report: keep only main.tex and main.pdf
+research/report/*
+!research/report/main.tex
+!research/report/main.pdf
