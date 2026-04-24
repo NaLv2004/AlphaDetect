@@ -412,11 +412,22 @@ def _build_behavior_probe_samples(
 
 
 def _collect_return_slice(ir) -> tuple[set[str], set[str]]:
+    """Backward slice from observable sinks.
+
+    Sinks are {return, branch, store, set_item}: a value/op is "live"
+    if it can affect any of these. Treating ``branch`` inputs as sinks
+    is essential for looping algorithms — otherwise the loop counter,
+    convergence test, and entire while-body get classified as dead even
+    though they obviously control what the function eventually returns.
+    See evolution/gnn_pattern_matcher._compute_return_slice_values
+    (kept in sync).
+    """
+    SINKS = ("return", "branch", "store", "set_item")
     slice_values: set[str] = set()
     slice_ops: set[str] = set()
     pending: list[str] = list(ir.return_values)
     for op in ir.ops.values():
-        if op.opcode == "return":
+        if op.opcode in SINKS:
             pending.extend(op.inputs)
     while pending:
         vid = pending.pop()
