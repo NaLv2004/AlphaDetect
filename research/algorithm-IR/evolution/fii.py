@@ -53,6 +53,8 @@ logger = logging.getLogger(__name__)
 __all__ = [
     "build_fii_ir",
     "build_fii_ir_with_provenance",
+    "build_flat_annotated_ir",
+    "strip_provenance_markers",
     "inline_all_helpers_source",
     "clear_fii_cache",
     "get_op_provenance",
@@ -153,9 +155,79 @@ def build_fii_ir_with_provenance(
 
 
 def build_fii_ir(genome) -> FunctionIR | None:
-    """Backward-compatible wrapper returning only the IR."""
+    """Backward-compatible wrapper returning only the IR (with markers)."""
     ir, _pm, _cs = build_fii_ir_with_provenance(genome)
     return ir
+
+
+# ---------------------------------------------------------------------------
+# Marker scrubbing — produces the canonical flat annotated IR
+# ---------------------------------------------------------------------------
+
+
+def _is_marker_op(op) -> bool:
+    """Return True if ``op`` is a `__fii_provmark_*` sentinel call."""
+    if op is None or op.opcode != "call":
+        return False
+    callee = op.attrs.get("callee") or op.attrs.get("name") or ""
+    if isinstance(callee, str) and callee.startswith("__fii_provmark_"):
+        return True
+    prov = op.attrs.get("_provenance") or {}
+    return bool(prov.get("is_slot_boundary"))
+
+
+def strip_provenance_markers(ir: FunctionIR) -> FunctionIR:
+    """Return a deep copy of ``ir`` with marker call ops removed.
+
+    Per-op ``_provenance`` annotations on NON-marker ops are PRESERVED —
+    they are the slot-id annotations that the single-IR design relies on.
+    Module-level ``_provenance_map`` / ``_provenance_call_sites`` are also
+    dropped (they would be stale after surgery).
+    """
+    new_ir = deepcopy(ir)
+
+    marker_ids: list[str] = []
+    for block in new_ir.blocks.values():
+        kept: list[str] = []
+        for oid in block.op_ids:
+            op = new_ir.ops.get(oid)
+            if _is_marker_op(op):
+                marker_ids.append(oid)
+                continue
+            kept.append(oid)
+        block.op_ids = kept
+
+    for mid in marker_ids:
+        op = new_ir.ops.pop(mid, None)
+        if op is None:
+            continue
+        for v in getattr(op, "outputs", []) or []:
+            vid = getattr(v, "id", None) or getattr(v, "var_name", None)
+            if vid and vid in new_ir.values:
+                new_ir.values.pop(vid, None)
+
+    if hasattr(new_ir, "attrs") and isinstance(new_ir.attrs, dict):
+        for k in ("_provenance_map", "_provenance_call_sites"):
+            new_ir.attrs.pop(k, None)
+
+    return new_ir
+
+
+def build_flat_annotated_ir(genome) -> FunctionIR | None:
+    """Single-IR construction helper.
+
+    Build the fully-inlined IR from ``genome``, strip marker ops, and
+    return the resulting flat IR. Per-op ``_provenance`` annotations
+    persist on every remaining op so slot affiliation is queryable.
+
+    Returns ``None`` on failure (caller should fall back to the raw
+    template IR; downstream code will then have ops without slot
+    annotations, which is treated as "purely structural").
+    """
+    ir = build_fii_ir(genome)
+    if ir is None:
+        return None
+    return strip_provenance_markers(ir)
 
 
 def clear_fii_cache() -> None:

@@ -234,14 +234,14 @@ class TestAlgorithmGenome:
                         values={}, ops={}, blocks={}, entry_block="b0")
         genome = AlgorithmGenome(
             algo_id="test_algo",
-            structural_ir=ir,
+            ir=ir,
             tags={"foo"},
         )
         # Patch clone to skip deep-copy of FunctionIR internals
         # (xdsl_module is None in this unit test)
         cloned = AlgorithmGenome(
             algo_id=AlgorithmGenome._make_id(),
-            structural_ir=genome.structural_ir,  # share in unit test
+            ir=genome.ir,  # share in unit test
             slot_populations={},
             constants=genome.constants.copy(),
             generation=genome.generation,
@@ -257,7 +257,7 @@ class TestAlgorithmGenome:
         from algorithm_ir.ir.model import FunctionIR
         ir = FunctionIR(id="test", name="test", arg_values=[], return_values=[],
                         values={}, ops={}, blocks={}, entry_block="b0")
-        genome = AlgorithmGenome(algo_id="t", structural_ir=ir)
+        genome = AlgorithmGenome(algo_id="t", ir=ir)
         assert len(genome.constants) == 0
 
 

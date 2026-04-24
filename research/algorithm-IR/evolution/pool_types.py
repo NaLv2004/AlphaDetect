@@ -115,23 +115,36 @@ class GraftRecord:
 
 
 # ---------------------------------------------------------------------------
-# AlgorithmGenome — two-level genome: structural template + slot sub-pops
+# AlgorithmGenome — single canonical flat IR with slot annotations
 # ---------------------------------------------------------------------------
 
 @dataclass
 class AlgorithmGenome:
-    """An evolved individual = structural template + slot sub-populations.
+    """An evolved individual = ONE flat annotated FunctionIR.
 
-    Two-level structure:
-      - structural_ir: complete algorithm IR (may contain AlgSlot placeholders)
-      - slot_populations: per-slot sub-population of implementation variants
+    Single-representation principle:
+      - ``ir``: the SOLE canonical IR. It is fully inlined / flat — every
+        slot helper has been expanded at construction time. Per-op slot
+        provenance is carried in ``op.attrs["_provenance"]`` (a dict with
+        keys ``from_slot_id``, ``call_site_id``, ``variant_idx``,
+        ``slot_pop_key``, ``is_slot_boundary``=False, ``boundary_kind``=None).
+      - ``slot_populations``: PURELY ANNOTATION-LEVEL metadata. Holds
+        snapshot history / micro-evolution candidates for each slot region
+        identified by ``from_slot_id``. Does NOT drive any IR rebuild;
+        the IR is never re-inlined from variants.
 
-    Execution materializes best variants into structural_ir to produce
-    a fully executable FunctionIR.
+    Grafting and rediscovery operate directly on ``ir``. After a graft,
+    annotations on the cloned donor ops persist; the host ops keep their
+    annotations; ``maybe_rediscover_slots`` may add new annotations for
+    cohesive regions that became unaffiliated.
+
+    The legacy field ``structural_ir`` is exposed as a read-only property
+    aliasing ``ir`` for transitional source-compat with code that has not
+    yet been migrated.
     """
 
     algo_id: str
-    structural_ir: FunctionIR
+    ir: FunctionIR
     slot_populations: dict[str, SlotPopulation] = field(default_factory=dict)
     constants: np.ndarray = field(default_factory=lambda: np.zeros(0, dtype=np.float64))
     generation: int = 0
@@ -139,6 +152,19 @@ class AlgorithmGenome:
     graft_history: list[GraftRecord] = field(default_factory=list)
     tags: set[str] = field(default_factory=set)
     metadata: dict[str, Any] = field(default_factory=dict)
+
+    # ------------------------------------------------------------------
+    # Backward-compat: ``structural_ir`` aliases ``ir``.
+    # New code MUST use ``ir`` directly. Writes are accepted only as a
+    # transitional shim; they update ``ir``.
+    # ------------------------------------------------------------------
+    @property
+    def structural_ir(self) -> FunctionIR:
+        return self.ir
+
+    @structural_ir.setter
+    def structural_ir(self, value: FunctionIR) -> None:
+        self.ir = value
 
     @staticmethod
     def _make_id() -> str:
@@ -148,7 +174,7 @@ class AlgorithmGenome:
         """Deep copy (without caches)."""
         return AlgorithmGenome(
             algo_id=AlgorithmGenome._make_id(),
-            structural_ir=deepcopy(self.structural_ir),
+            ir=deepcopy(self.ir),
             slot_populations={
                 k: SlotPopulation(
                     slot_id=v.slot_id,
@@ -171,28 +197,17 @@ class AlgorithmGenome:
     def to_entry(
         self,
         fitness: FitnessResult | None = None,
-        use_fii_view: bool = False,
+        use_fii_view: bool = True,  # kept for API compat; ignored — single IR is always exposed
     ) -> AlgorithmEntry:
         """Convert this genome into an AlgorithmEntry for PatternMatcher.
 
-        When ``use_fii_view`` is True and FII inlining succeeds, the
-        entry's ``ir`` is set to the fully-inlined IR (slot internals
-        visible as first-class ops). Falls back to ``structural_ir`` on
-        FII failure.
+        With the single-IR refactor, ``use_fii_view`` is a no-op kept for
+        call-site compatibility — the canonical flat annotated IR is the
+        only IR there is, and it is always exposed as ``entry.ir``.
         """
         from algorithm_ir.regeneration.codegen import emit_python_source
 
-        active_ir = self.structural_ir
-        fii_ir = None
-        if use_fii_view:
-            try:
-                from evolution.fii import build_fii_ir
-                fii_ir = build_fii_ir(self)
-            except Exception:
-                fii_ir = None
-            if fii_ir is not None:
-                active_ir = fii_ir
-
+        active_ir = self.ir
         source = None
         try:
             source = emit_python_source(active_ir)
@@ -229,8 +244,9 @@ class AlgorithmGenome:
             slot_tree=slot_tree,
             slot_fitness=slot_fitness_map,
         )
-        if fii_ir is not None:
-            entry.fii_ir = fii_ir
+        # Legacy alias: code that still consults ``entry.fii_ir`` (e.g.
+        # the GNN matcher) gets the same canonical IR.
+        entry.fii_ir = active_ir
         return entry
 
 

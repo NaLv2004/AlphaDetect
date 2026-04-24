@@ -1059,16 +1059,15 @@ for gen in range(1, args.gens + 1):
     frac_good = n_good / len(gen_sers) if gen_sers else 0.0
     n_grafted_survivors = sum(1 for g in engine.population if "grafted" in g.tags)
     dispatch_case_counts = dict(getattr(engine, "_dispatch_case_counts", {}) or {})
-    n_case_I = dispatch_case_counts.get("case_I", 0)
-    n_case_II = dispatch_case_counts.get("case_II", 0)
-    n_case_III_rej = dispatch_case_counts.get("case_III_rejected", 0)
-    n_dispatch_failed = sum(
+    n_single = dispatch_case_counts.get("single_path", 0)
+    n_stale = dispatch_case_counts.get("stale_region", 0)
+    n_failed = sum(
         v for k, v in dispatch_case_counts.items()
-        if k not in {"case_I", "case_II", "case_III_rejected"}
+        if k not in {"single_path", "stale_region"}
     )
     logger.info(
-        "  dispatch: I=%d II=%d III_rej=%d failed=%d (cum)",
-        n_case_I, n_case_II, n_case_III_rej, n_dispatch_failed,
+        "  graft (single-IR): success=%d stale_region=%d failed=%d (cum)",
+        n_single, n_stale, n_failed,
     )
 
     if best_ser < best_ser_ever:

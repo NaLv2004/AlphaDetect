@@ -875,82 +875,14 @@ class AlgorithmEvolutionEngine:
                     break
 
         # Execute the graft (inline — donor ops are cloned into host IR)
-        # Diagnostic: verify region ops exist in host IR before calling graft
         #
-        # FII mode: when ``use_fii_view`` is enabled, proposals reference
-        # op IDs from the host's FULLY-INLINED IR (not structural_ir).
-        # We must graft into the FII IR and produce a flat genome.
-        use_fii = self.config.use_fii_view
-        host_fii_ir = None
-        if use_fii:
-            try:
-                from evolution.fii import build_fii_ir
-                host_fii_ir = build_fii_ir(host_genome)
-            except Exception:
-                host_fii_ir = None
-
-        # ─── FII-aware graft dispatch (Case I/II/III per code_review §2.5) ───
-        # When FII view is active and proposal references FII op IDs,
-        # delegate to ``graft_dispatch`` which back-maps the region to
-        # either the affected slot variant IR (Case I) or the structural
-        # IR (Case II). Case III is rejected here in Step S4; dissolution
-        # is wired in once slot_dissolution.py lands (Step S5).
-        if host_fii_ir is not None:
-            from evolution.graft_dispatch import dispatch_graft
-
-            region_ops_in_fii = set(proposal.region.op_ids) <= set(host_fii_ir.ops.keys())
-            if region_ops_in_fii:
-                result = dispatch_graft(
-                    host_genome,
-                    proposal,
-                    host_fii_ir,
-                    generation=self.generation,
-                    donor_algo_id=proposal.donor_algo_id,
-                    accept_case_III=True,
-                )
-                # Track per-case statistics on the engine.
-                self._dispatch_case_counts = getattr(
-                    self, "_dispatch_case_counts", {},
-                )
-                self._dispatch_case_counts[result.case] = (
-                    self._dispatch_case_counts.get(result.case, 0) + 1
-                )
-                if result.child is not None:
-                    # Case III dissolves all slot populations; immediately
-                    # run rediscovery so the dissolved child still has
-                    # micro-evolution surface.
-                    if result.case == "case_III":
-                        try:
-                            from evolution.slot_rediscovery import (
-                                maybe_rediscover_slots,
-                            )
-                            maybe_rediscover_slots(
-                                result.child,
-                                self.generation,
-                                period=1,  # force-run after dissolution
-                            )
-                        except Exception as exc:
-                            logger.warning(
-                                "post-dissolution rediscovery failed: %r", exc,
-                            )
-                    logger.info(
-                        "graft dispatch [%s]: %s",
-                        result.case, result.diagnostic,
-                    )
-                    return result.child
-                # Dispatch refused (Case III or mapping failure). Log and
-                # fall through to the legacy flat-graft path so we still
-                # produce SOMETHING for the macro generation, but tag it.
-                logger.info(
-                    "graft dispatch refused [%s]: %s — falling back to flat",
-                    result.case, result.diagnostic,
-                )
-                # For Case III rejection per S4 spec, do NOT fall back:
-                # truly skip the proposal so we don't pollute the pool
-                # with un-dispatched grafts.
-                if result.case == "case_III_rejected":
-                    return None
-        host_ir_for_graft = host_fii_ir if host_fii_ir is not None else host_genome.structural_ir
+        # SINGLE-IR PATH: ``host_genome.ir`` is the canonical flat
+        # annotated IR. Proposal op IDs reference it directly. There is
+        # no FII rebuild, no Case I/II/III routing, no back-mapping —
+        # graft_general operates on the canonical IR and returns the
+        # post-graft IR. Slot annotations on cloned donor ops persist;
+        # ``maybe_rediscover_slots`` refreshes annotations afterwards.
+        host_ir_for_graft = host_genome.ir
 
         region_ops = set(proposal.region.op_ids)
         host_ops = set(host_ir_for_graft.ops.keys())
@@ -962,22 +894,43 @@ class AlgorithmEvolutionEngine:
                 host_genome.algo_id, len(host_ops),
                 sorted(missing_ops)[:3], len(missing_ops),
             )
+            self._dispatch_case_counts = getattr(self, "_dispatch_case_counts", {})
+            self._dispatch_case_counts["stale_region"] = (
+                self._dispatch_case_counts.get("stale_region", 0) + 1
+            )
             return None
-        artifact = graft_general(host_ir_for_graft, proposal)
 
-        # Build child genome.
-        # In FII mode the grafted IR has no algslot ops, so the child
-        # is flat (slot_populations = {}). In structural mode we keep
-        # the host's slot populations.
-        if host_fii_ir is not None:
-            child_slot_pops = {}
-            child_tags = set(host_genome.tags) | {"grafted", "fii-flat"}
-        else:
-            child_slot_pops = deepcopy(host_genome.slot_populations)
-            child_tags = set(host_genome.tags) | {"grafted"}
+        try:
+            artifact = graft_general(host_ir_for_graft, proposal)
+        except Exception as exc:
+            logger.warning("graft_general failed: %r", exc)
+            self._dispatch_case_counts = getattr(self, "_dispatch_case_counts", {})
+            self._dispatch_case_counts["graft_general_failed"] = (
+                self._dispatch_case_counts.get("graft_general_failed", 0) + 1
+            )
+            return None
+        if artifact is None or getattr(artifact, "ir", None) is None:
+            self._dispatch_case_counts = getattr(self, "_dispatch_case_counts", {})
+            self._dispatch_case_counts["graft_general_returned_none"] = (
+                self._dispatch_case_counts.get("graft_general_returned_none", 0) + 1
+            )
+            return None
+
+        # Build child genome with the new canonical IR.
+        # Slot populations: inherit host's snapshots (annotations on the
+        # IR itself remain authoritative; populations are only history).
+        child_slot_pops = deepcopy(host_genome.slot_populations)
+        child_tags = set(host_genome.tags) | {"grafted"}
+
+        # Track success in a single counter (dispatch routing is gone).
+        self._dispatch_case_counts = getattr(self, "_dispatch_case_counts", {})
+        self._dispatch_case_counts["single_path"] = (
+            self._dispatch_case_counts.get("single_path", 0) + 1
+        )
+
         child = AlgorithmGenome(
             algo_id=AlgorithmGenome._make_id(),
-            structural_ir=artifact.ir,
+            ir=artifact.ir,
             slot_populations=child_slot_pops,
             constants=host_genome.constants.copy(),
             generation=self.generation,
@@ -997,7 +950,7 @@ class AlgorithmEvolutionEngine:
                 "graft_host_algo_id": host_genome.algo_id,
                 "graft_donor_algo_id": proposal.donor_algo_id,
                 "graft_proposal_id": proposal.proposal_id,
-                "fii_grafted": host_fii_ir is not None,
+                "fii_grafted": True,  # legacy key; single canonical IR is always flat-annotated
             },
         )
 
@@ -1040,6 +993,16 @@ class AlgorithmEvolutionEngine:
                     fitness=[],
                     best_idx=0,
                 )
+
+        # Refresh slot annotations on the post-graft IR. Donor-cloned
+        # ops may carry stale ``_provenance`` from the donor's slot
+        # context; rediscovery scans cohesive contiguous regions and
+        # writes/updates annotations so the GNN sees a consistent view.
+        try:
+            from evolution.slot_rediscovery import maybe_rediscover_slots
+            maybe_rediscover_slots(child, self.generation, period=1)
+        except Exception as exc:
+            logger.debug("post-graft rediscovery skipped: %r", exc)
 
         return child
 

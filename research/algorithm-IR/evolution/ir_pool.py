@@ -1217,7 +1217,7 @@ def build_ir_pool(
 
         genome = AlgorithmGenome(
             algo_id=spec.algo_id,
-            structural_ir=structural_ir,
+            ir=structural_ir,  # provisional: replaced by flat annotated IR below
             slot_populations=populations,
             constants=np.zeros(0, dtype=np.float64),
             generation=0,
@@ -1230,6 +1230,20 @@ def build_ir_pool(
                 "detector_name": spec.func_name,
             },
         )
+
+        # Single-IR refactor: collapse the (template-with-slot-ops +
+        # slot_populations[best]) view into ONE flat annotated IR. After
+        # this point ``genome.ir`` is the canonical IR — slot internals
+        # are first-class ops, and per-op ``_provenance`` annotations
+        # carry slot affiliation. Any failure to inline keeps the raw
+        # template IR (purely structural, no annotations).
+        try:
+            from evolution.fii import build_flat_annotated_ir
+            flat_ir = build_flat_annotated_ir(genome)
+        except Exception:
+            flat_ir = None
+        if flat_ir is not None:
+            genome.ir = flat_ir
         pool.append(genome)
 
     return pool
