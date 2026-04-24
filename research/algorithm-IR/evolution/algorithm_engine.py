@@ -394,7 +394,10 @@ class AlgorithmEvolutionEngine:
                 "graft_successes": len(graft_offspring),
                 "graft_evaluated": n_graft_evaluated,
                 "graft_kept": n_graft_selected,
+                "slot_evo": dict(getattr(self, "_slot_evo_log", {}) or {}),
             }
+            # Reset slot evo log for the next generation.
+            self._slot_evo_log = None
 
             self._update_best()
             elapsed = time.perf_counter() - t0
@@ -438,7 +441,71 @@ class AlgorithmEvolutionEngine:
     # ------------------------------------------------------------------
 
     def _micro_evolve(self, genome: AlgorithmGenome) -> None:
-        """Evolve slot populations within one genome for a few micro-generations."""
+        """Evolve slot populations within one genome for a few micro-generations.
+
+        Phase H+3: routes through ``evolution.slot_evolution`` which uses the
+        canonical single-IR splice path (graft_general + typed binder +
+        validate_function_ir gate). The legacy path below
+        (``_micro_evolve_legacy``) is preserved for reference / fallback
+        but is no longer reachable from the main run loop.
+        """
+        from evolution import slot_evolution as _sev
+        cfg = self.config
+        snr_db = 15.0
+        eval_cfg = getattr(self.evaluator, "config", None)
+        if eval_cfg is not None and getattr(eval_cfg, "snr_db_list", None):
+            snr_db = eval_cfg.snr_db_list[len(eval_cfg.snr_db_list) // 2]
+
+        n_micro_gens = max(1, int(getattr(cfg, "micro_generations", 1)))
+        any_change = False
+        agg = {
+            "n_attempted": 0, "n_validated": 0, "n_evaluated": 0,
+            "n_improved": 0, "n_apply_failed": 0, "n_validate_failed": 0,
+            "n_eval_failed": 0,
+        }
+        deltas: list[float] = []
+        for _ in range(n_micro_gens):
+            for pop_key, pop in list(genome.slot_populations.items()):
+                if not pop.variants:
+                    continue
+                stats = _sev.step_slot_population(
+                    genome, pop_key, pop,
+                    evaluator=self.evaluator,
+                    rng=self.rng,
+                    n_children=max(1, int(getattr(cfg, "micro_pop_size", 8) // 8)),
+                    n_trials=8,
+                    timeout_sec=1.0,
+                    snr_db=snr_db,
+                    max_pop_size=max(8, int(getattr(cfg, "micro_pop_size", 16))),
+                    perturb_scale=0.15,
+                )
+                d = stats.as_dict()
+                for k in agg:
+                    agg[k] += d[k]
+                if d["n_improved"] > 0:
+                    any_change = True
+                    deltas.append(d["best_delta"])
+        if any_change:
+            _sev.commit_best_variants_to_ir(genome)
+
+        # Expose for upstream logging.
+        slot_log = getattr(self, "_slot_evo_log", None)
+        if slot_log is None:
+            slot_log = {
+                "n_attempted": 0, "n_validated": 0, "n_evaluated": 0,
+                "n_improved": 0, "n_apply_failed": 0,
+                "n_validate_failed": 0, "n_eval_failed": 0,
+                "best_delta_sum": 0.0, "best_delta_count": 0,
+            }
+            self._slot_evo_log = slot_log
+        for k, v in agg.items():
+            slot_log[k] += v
+        if deltas:
+            slot_log["best_delta_sum"] += float(sum(deltas))
+            slot_log["best_delta_count"] += len(deltas)
+
+    def _micro_evolve_legacy(self, genome: AlgorithmGenome) -> None:
+        """Pre-Phase-H+3 micro-evolution (uses materialize_with_override)."""
         cfg = self.config
         for _ in range(cfg.micro_generations):
             for slot_id, pop in genome.slot_populations.items():

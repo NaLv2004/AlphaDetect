@@ -1,6 +1,141 @@
 # algorithm-IR project status (repo memory)
 
-Last updated: 2026-04-25 — Phase H+1: typed bipartite host-donor binding
+Last updated: 2026-04-26 — Phase H+3: slot population evolution integration
+
+## Phase H+3 summary (2026-04-26)
+
+Slot-population micro-evolution had been dead code since the Phase G single-IR
+refactor — the legacy `_micro_evolve` path called `materialize_with_override`
+which scanned for `AlgSlot` ops that no longer exist on the flat IR. Every
+slot variant materialized to the same source → uniform fitness → no signal.
+This phase makes slot evolution **actually evaluate distinct splices**.
+
+New module: `evolution/slot_evolution.py` (~580 LOC).
+
+Key API:
+- `map_pop_key_to_from_slot_ids(genome, pop_key) -> set[str]` — maps pop
+  keys like `"lmmse.regularizer"` to `_provenance.from_slot_id` annotations
+  produced by FII inlining.
+- `collect_slot_region(ir, sids) -> RewriteRegion | None` — builds a
+  graftable region with **two boundary corrections** that the naive
+  "all-tagged-ops" approach misses:
+  1. Drops tagged input-snapshot assigns whose only input is non-region
+     (their outputs feed downstream loop phis as carry-ins; removing them
+     would invalidate those phis).
+  2. Absorbs un-tagged trailing assigns whose only input is region-defined
+     (the FII-emitted `output_var = <slot_internal>` assign at the call
+     site is not tagged but must be removed with the slot body).
+- `pick_real_exit_value(ir, region) -> str | None` — picks the single
+  "true" output of a slot helper (most non-phi outside uses, latest
+  in-block position) and pins it via a synthesized `BoundaryContract`
+  so `graft_general`'s positional output rebind hits the right host
+  value (e.g., `G_reg` for `lmmse.regularizer`, not a loop-phi carry).
+- `apply_slot_variant(genome, pop_key, variant_ir) -> FunctionIR | None`
+  — full splice pipeline: discover sids, build region, build pinning
+  contract, call `graft_general`, validate the result.
+- `evaluate_slot_variant(genome, pop_key, variant_ir, *, evaluator, ...)
+  -> (ser, source_or_None)` — splice + codegen + AST sanity gate +
+  subprocess SER eval. Includes an in-process fallback for tests using
+  plain `MIMOFitnessEvaluator`.
+- `_source_compiles_with_resolved_names(source) -> bool` — AST-level
+  static gate that catches the splice failures the IR validator misses
+  (loop bodies referencing values whose defs were inside the removed
+  region). Without this, those broken sources reach the subprocess
+  evaluator and silently return SER=1.0.
+- `perturb_constants_in_ir(ir, rng, *, scale, prob)` — Gaussian
+  multiplicative noise on float const literals; preserves IR validity
+  with a deepcopy fallback on validation failure.
+- `step_slot_population(genome, pop_key, pop, *, evaluator, rng,
+  n_children, n_trials, timeout_sec, snr_db, max_pop_size,
+  perturb_scale) -> SlotMicroStats` — μ+λ loop with tournament-of-2
+  parent selection, perturbation, splice+evaluate, append survivors,
+  recompute best_idx, truncate keeping idx 0 + top-K.
+- `commit_best_variants_to_ir(genome) -> bool` — at the end of a macro
+  generation, splices each pop's winning variant back into `genome.ir`
+  permanently, then resets `best_idx=0`. Without this, micro-gen
+  improvements would be discarded at the next generation.
+- `SlotMicroStats` — telemetry dataclass; counters {`n_attempted`,
+  `n_validated`, `n_evaluated`, `n_improved`, `n_apply_failed`,
+  `n_validate_failed`, `n_eval_failed`} with `as_dict()` including
+  `best_delta`.
+
+Integration:
+- `evolution/algorithm_engine.py._micro_evolve` rewritten to delegate
+  to `slot_evolution.step_slot_population` for each slot pop, accumulate
+  `SlotMicroStats` into `self._slot_evo_log`, and call
+  `commit_best_variants_to_ir(genome)` if any slot improved.
+- `self.last_generation_stats["slot_evo"]` now exposes the per-gen
+  aggregate to upstream logging.
+- `train_gnn.py` per-gen log line:
+  `slot-evo: attempted=N validated=N evaluated=N improved=N
+   (apply_fail=N val_fail=N eval_fail=N) best_delta_mean=X.XXXX`
+- The `--micro-generations` CLI flag (already existed) now controls
+  the number of slot micro-gens per macro-gen.
+
+Smoke test (`code_review/inspect_slot_evolution.py`) results on the
+91-genome pool:
+- 91/91 genomes have slot populations
+- 207/221 pops have at least one annotation
+- 207/207 build a valid region
+- 205/207 default variants splice via graft_general
+- 205/207 default-spliced IRs validate clean
+- 128/207 default-spliced IRs pass the AST name-resolution gate
+  (the rest contain loop-internal definitions the trailing-assign
+  closure cannot fully capture; those slots are gracefully skipped at
+  evaluation time)
+- 205/207 perturbed variants splice + validate
+
+End-to-end test (`code_review/inspect_slot_microgen.py`) on 4 detectors
+× 8 slot pops × 3 micro-gens with `SubprocessMIMOEvaluator`:
+- `lmmse.regularizer`: SER 0.27 (matches handwritten LMMSE), evaluated=4/4
+- `osic.sic_step`: SER 0.90, evaluated=4/4
+- `stack.expand`: SER 0.96, evaluated=4/4
+- 5/8 other pops: properly rejected by AST gate (eval_failed counter)
+- Constant-only perturbation does not improve over the handwritten
+  defaults (expected — handwritten code is already locally optimal in
+  its constants; structural mutation is a follow-up).
+
+Live train_gnn smoke (2 gens, pool=16, proposals=12, micro_gens=2):
+- Gen 1: slot-evo attempted=216 validated=216 evaluated=41 improved=16
+- Gen 2: slot-evo attempted=152 validated=144 evaluated=24 improved=4
+  best_delta_mean=-0.07
+- Best SER 0.130 → 0.125 (slot evolution contributing measurable gains)
+
+Tests:
+- `tests/unit/test_slot_evolution.py` (NEW, 5 passed + 1 skipped)
+- `tests/unit/test_ir_evolution.py` 60/60 pass after adding in-process
+  fallback to `evaluate_slot_variant` (was breaking
+  `test_micro_step_evaluates_fitness` because plain `MIMOFitnessEvaluator`
+  has no `evaluate_source_quick`).
+- 12 pre-existing failures in `test_regression_p0`, `test_frontend`,
+  `test_boundary_cut_region`, `test_gnn_*` are unchanged (verified by
+  `git stash` re-run on HEAD before this phase).
+
+Files added:
+- `evolution/slot_evolution.py`
+- `tests/unit/test_slot_evolution.py`
+- `code_review/inspect_slot_evolution.py`
+- `code_review/inspect_slot_microgen.py`
+
+Files modified:
+- `evolution/algorithm_engine.py` (`_micro_evolve` body, stats wiring)
+- `train_gnn.py` (slot-evo log line)
+
+Known gaps (deferred to next phase):
+- Loop-containing slots (`hard_decision`, `node_select`, `expand` —
+  technically `expand` works but `hard_decision` doesn't) cannot be
+  fully captured by the trailing-assign closure. A proper fix needs
+  dataflow-forward closure through phi nodes.
+- Constant perturbation is too weak to dislodge handwritten optima.
+  Need structural mutation: op-replace, sub-expr crossover between
+  variants of the same pop_key. Today, the slot bank is essentially a
+  static catalog that gets re-evaluated every generation rather than a
+  search space being explored.
+- `evolution/algorithm_engine.py._micro_evolve_legacy` is dead code
+  preserved for reference; can be removed after one more validation
+  cycle.
+
+---
 
 ## Phase H+1 summary (2026-04-25)
 
