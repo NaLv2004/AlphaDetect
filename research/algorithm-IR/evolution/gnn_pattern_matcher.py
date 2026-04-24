@@ -75,6 +75,35 @@ def _opcode_idx(opcode: str) -> int:
     return _OPCODE_VOCAB.get(opcode, _OPCODE_VOCAB["<unk>"])
 
 
+def _compute_return_slice_values(ir: FunctionIR) -> set[str]:
+    """Set of all SSA values transitively feeding any ``return`` op.
+
+    A graft region whose ``exit_values`` are disjoint from this set is
+    purely dead code: even if the donor splice succeeds at the IR level,
+    the donor's outputs do not flow to the function return and DCE
+    deletes them, manifesting downstream as a ``structural_fail`` verdict
+    in ``train_gnn``. Pre-filtering here keeps such proposals out of the
+    pipeline entirely.
+    """
+    slice_values: set[str] = set()
+    pending: list[str] = list(ir.return_values)
+    for op in ir.ops.values():
+        if op.opcode == "return":
+            pending.extend(op.inputs)
+    while pending:
+        vid = pending.pop()
+        if vid in slice_values:
+            continue
+        value = ir.values.get(vid)
+        if value is None:
+            continue
+        slice_values.add(vid)
+        def_op_id = value.def_op
+        if def_op_id and def_op_id in ir.ops:
+            pending.extend(ir.ops[def_op_id].inputs)
+    return slice_values
+
+
 def _hash_callee(name: str, dim: int = _CALLEE_FEATURES) -> list[float]:
     h = hash(name) & 0xFFFFFFFF
     return [((h >> (i * 4)) & 0xF) / 15.0 for i in range(dim)]
@@ -758,6 +787,18 @@ class GNNPatternMatcher:
                 key = f"host_{host_validity.reason}"
                 invalid_regions[key] = invalid_regions.get(key, 0) + 1
                 continue
+            # Live-region precondition: at least one of the region's
+            # exit_values must lie on the host's return-slice. Otherwise
+            # whatever the donor produces here is dead code and DCE will
+            # delete it (manifests downstream as ``structural_fail``).
+            host_return_slice = info["host_ctx"].get("return_slice_values")
+            if host_return_slice is not None:
+                exit_set = set(host_region.exit_values or [])
+                if exit_set and not (exit_set & host_return_slice):
+                    invalid_regions["host_region_dead_code"] = (
+                        invalid_regions.get("host_region_dead_code", 0) + 1
+                    )
+                    continue
             try:
                 host_contract = infer_boundary_contract(info["host_ctx"]["ir"], host_region)
             except Exception:
@@ -979,6 +1020,9 @@ class GNNPatternMatcher:
             "observable_set": observable_set,
             "observable_feats_np": observable_feats_np,
             "cut_candidate_cache": {},
+            # Live-region precondition: only regions whose exit_values
+            # intersect the host's return-slice produce non-dead grafts.
+            "return_slice_values": _compute_return_slice_values(ir),
         }
         cache[entry.algo_id] = ctx
         return ctx
