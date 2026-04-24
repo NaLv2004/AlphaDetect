@@ -1,44 +1,65 @@
-def _slot_soft_estimate_op_99(x_soft, variance, constellation):
-    Nt = len(x_soft)
-    x_out = np.zeros(Nt, dtype=complex)
+def _slot_expand_op_149(node, y_tilde, R, constellation):
+    level = node.level
+    Nt = R.shape[1]
+    children = []
+    interf = 0.0 + 0.0j
+    j_rel = 0
+    while j_rel < len(node.symbols):
+        j = Nt - 1 - j_rel
+        interf = interf + R[level, j] * node.symbols[j_rel]
+        j_rel = j_rel + 1
+    ci = 0
+    while ci < len(constellation):
+        sym = constellation[ci]
+        residual = y_tilde[level] - R[level, level] * sym - interf
+        local_cost = float(np.abs(residual) ** 2)
+        total = node.cost + local_cost
+        child = _make_tree_node(level - 1, node.symbols + [sym], total)
+        children.append(child)
+        ci = ci + 1
+    return children
+
+def _slot_prune_op_150(candidates, K):
+    n = len(candidates)
     i = 0
-    while i < Nt:
-        v = max(float(variance[i]), 1e-30) if len(variance) > i else 1.0
-        w = np.exp(-np.abs(constellation - x_soft[i]) ** 2 / v)
-        w_sum = float(np.sum(w))
-        if w_sum < 1e-30:
-            x_out[i] = x_soft[i]
-        else:
-            x_out[i] = np.sum(w * constellation) / w_sum
+    while i < n:
+        j = i + 1
+        while j < n:
+            if candidates[j].cost < candidates[i].cost:
+                tmp = candidates[i]
+                candidates[i] = candidates[j]
+                candidates[j] = tmp
+            j = j + 1
         i = i + 1
-    return x_out
-
-def _slot_hard_decision_op_100(x_soft, constellation):
-    x_hat = np.zeros(len(x_soft), dtype=complex)
-    i = 0
-    while i < len(x_soft):
-        dists = np.abs(constellation - x_soft[i]) ** 2
-        x_hat[i] = constellation[np.argmin(dists)]
-        i = i + 1
-    return x_hat
+    return candidates[:K]
 
 
-def turbo_linear_detector(H, y, sigma2, constellation):
-    j = 0
+def kbest(H, y, sigma2, constellation):
+    Nr = H.shape[0]
     Nt = H.shape[1]
-    var = np.zeros(Nt)
-    rhs = H.conj().T @ y
-    G = H.conj().T @ H + sigma2 * np.eye(Nt)
-    x = np.linalg.solve(G, rhs)
-    while j < Nt:
-        G_inv_jj = 1.0 / max(float(np.real(G[(j, j)])), 1e-30)
-        var[j] = G_inv_jj * sigma2
-        j = j + 1
-    i = 0
-    while i < 5:
-        x_soft = _slot_soft_estimate_op_99(x, var, constellation)
-        r = y - H @ x_soft
-        x = x_soft + np.linalg.solve(G, H.conj().T @ r)
-        i = i + 1
-    x_hat = _slot_hard_decision_op_100(x, constellation)
-    return x_hat
+    Q = np.linalg.qr(H)[0]
+    R = np.linalg.qr(H)[1]
+    y_tilde = Q.conj().T @ y
+    root = _make_tree_node(Nt - 1, [], 0.0)
+    candidates = [root]
+    level = Nt - 1
+    while level >= 0:
+        new_candidates = []
+        ci = 0
+        while ci < len(candidates):
+            node = candidates[ci]
+            node.level = level
+            children = _slot_expand_op_149(node, y_tilde, R, constellation)
+            new_candidates = new_candidates + children
+            ci = ci + 1
+        candidates = _slot_prune_op_150(new_candidates, 16)
+        level = level - 1
+    if len(candidates) == 0:
+        return np.zeros(Nt, dtype=complex)
+    best = candidates[0]
+    bi = 1
+    while bi < len(candidates):
+        if candidates[bi].cost < best.cost:
+            best = candidates[bi]
+        bi = bi + 1
+    return _reverse_syms(best.symbols, Nt)

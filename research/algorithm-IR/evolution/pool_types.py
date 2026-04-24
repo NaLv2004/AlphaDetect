@@ -168,21 +168,37 @@ class AlgorithmGenome:
             metadata=deepcopy(self.metadata),
         )
 
-    def to_entry(self, fitness: FitnessResult | None = None) -> AlgorithmEntry:
+    def to_entry(
+        self,
+        fitness: FitnessResult | None = None,
+        use_fii_view: bool = False,
+    ) -> AlgorithmEntry:
         """Convert this genome into an AlgorithmEntry for PatternMatcher.
 
-        The entry exposes the structural IR, any cached trace/factgraph,
-        and slot hierarchy information.
+        When ``use_fii_view`` is True and FII inlining succeeds, the
+        entry's ``ir`` is set to the fully-inlined IR (slot internals
+        visible as first-class ops). Falls back to ``structural_ir`` on
+        FII failure.
         """
         from algorithm_ir.regeneration.codegen import emit_python_source
 
+        active_ir = self.structural_ir
+        fii_ir = None
+        if use_fii_view:
+            try:
+                from evolution.fii import build_fii_ir
+                fii_ir = build_fii_ir(self)
+            except Exception:
+                fii_ir = None
+            if fii_ir is not None:
+                active_ir = fii_ir
+
         source = None
         try:
-            source = emit_python_source(self.structural_ir)
+            source = emit_python_source(active_ir)
         except Exception:
             pass
 
-        # Build slot_tree from slot_populations
         slot_tree: dict[str, SlotDescriptor] | None = None
         slot_fitness_map: dict[str, float] | None = None
         if self.slot_populations:
@@ -199,9 +215,9 @@ class AlgorithmGenome:
                 )
                 slot_fitness_map[key] = pop.best_fitness
 
-        return AlgorithmEntry(
+        entry = AlgorithmEntry(
             algo_id=self.algo_id,
-            ir=self.structural_ir,
+            ir=active_ir,
             source=source,
             trace=self.metadata.get("_cached_trace"),
             runtime_values=self.metadata.get("_cached_runtime_values"),
@@ -213,52 +229,9 @@ class AlgorithmGenome:
             slot_tree=slot_tree,
             slot_fitness=slot_fitness_map,
         )
-
-    def to_entry(self, fitness: FitnessResult | None = None) -> AlgorithmEntry:
-        """Convert this genome into an AlgorithmEntry for PatternMatcher.
-
-        The entry exposes the structural IR, any cached trace/factgraph,
-        and slot hierarchy information.
-        """
-        from algorithm_ir.regeneration.codegen import emit_python_source
-
-        source = None
-        try:
-            source = emit_python_source(self.structural_ir)
-        except Exception:
-            pass
-
-        # Build slot_tree from slot_populations
-        slot_tree: dict[str, SlotDescriptor] | None = None
-        slot_fitness_map: dict[str, float] | None = None
-        if self.slot_populations:
-            slot_tree = {}
-            slot_fitness_map = {}
-            for key, pop in self.slot_populations.items():
-                slot_tree[key] = SlotDescriptor(
-                    slot_id=pop.slot_id,
-                    short_name=pop.slot_id.split(".")[-1],
-                    level=0,
-                    depth=0,
-                    parent_slot_id=None,
-                    spec=pop.spec,
-                )
-                slot_fitness_map[key] = pop.best_fitness
-
-        return AlgorithmEntry(
-            algo_id=self.algo_id,
-            ir=self.structural_ir,
-            source=source,
-            trace=self.metadata.get("_cached_trace"),
-            runtime_values=self.metadata.get("_cached_runtime_values"),
-            factgraph=self.metadata.get("_cached_factgraph"),
-            fitness=fitness,
-            generation=self.generation,
-            provenance={"parent_ids": list(self.parent_ids)},
-            tags=set(self.tags),
-            slot_tree=slot_tree,
-            slot_fitness=slot_fitness_map,
-        )
+        if fii_ir is not None:
+            entry.fii_ir = fii_ir
+        return entry
 
 
 # ---------------------------------------------------------------------------
@@ -284,6 +257,12 @@ class AlgorithmEntry:
     level: int = 3
     slot_tree: dict[str, SlotDescriptor] | None = None
     slot_fitness: dict[str, float] | None = None
+
+    # FII view: set when ``to_entry(use_fii_view=True)`` succeeded.
+    # When non-None, grafting should operate on this IR (which has no
+    # algslot ops) and produce flat-genome offspring. When None, fall
+    # back to structural_ir flow.
+    fii_ir: FunctionIR | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -386,9 +365,9 @@ class AlgorithmEvolutionConfig:
     n_generations: int = 100
 
     # Micro layer
-    micro_pop_size: int = 8
-    micro_generations: int = 1
-    micro_mutation_rate: float = 0.3
+    micro_pop_size: int = 32
+    micro_generations: int = 3
+    micro_mutation_rate: float = 0.6
 
     # Constant perturbation
     constant_perturb_rate: float = 0.1
@@ -400,5 +379,11 @@ class AlgorithmEvolutionConfig:
     })
     depth_decay: float = 0.7
     allow_cross_level_graft: bool = True
+
+    # Fully-Inlined IR (FII) view. When True, the GNN sees slot internals
+    # as first-class ops (not opaque algslot atoms) and grafts operate on
+    # the inlined IR. Grafted offspring are FLAT (no slot populations) —
+    # micro-evolution has no effect on them. See ``evolution/fii.py``.
+    use_fii_view: bool = False
 
     seed: int = 42

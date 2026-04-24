@@ -34,7 +34,12 @@ def mutate_ir(
     If mutation_type is None, one is chosen randomly.
     """
     if mutation_type is None:
-        mutation_type = rng.choice(["point", "point", "constant_perturb", "constant_perturb"])
+        # Sample with non-zero probability for insert/delete (was 0 before).
+        # Distribution: point 30%, const 25%, insert 20%, delete 15%, swap 10%.
+        mutation_type = rng.choice(
+            ["point", "constant_perturb", "insert", "delete", "swap_lines"],
+            p=[0.30, 0.25, 0.20, 0.15, 0.10],
+        )
 
     # Clone first
     new_ir = copy.deepcopy(func_ir)
@@ -47,6 +52,8 @@ def mutate_ir(
         return _mutate_via_recompile(new_ir, rng, "insert")
     elif mutation_type == "delete":
         return _mutate_via_recompile(new_ir, rng, "delete")
+    elif mutation_type == "swap_lines":
+        return _mutate_via_recompile(new_ir, rng, "swap")
     else:
         return _mutate_point(new_ir, rng)
 
@@ -138,12 +145,36 @@ def _mutate_via_recompile(
                 lines.insert(pos, new_line)
 
         elif action == "delete" and len(lines) > 2:
-            # Delete a random non-def, non-return line
-            deletable = [
-                i for i, line in enumerate(lines)
-                if i > 0 and "return" not in line and line.strip()
-            ]
+            # Delete a random non-def, non-return line.
+            # Avoid deleting lines that define a name used later (best-effort).
+            deletable = []
+            for i, line in enumerate(lines):
+                if i == 0 or not line.strip() or "return" in line or "def " in line:
+                    continue
+                # Skip lines defining variables used later (very rough check)
+                stripped = line.strip()
+                if "=" in stripped and not stripped.startswith(("if", "while", "for", "elif", "else")):
+                    lhs = stripped.split("=", 1)[0].strip()
+                    if any(lhs in later for later in lines[i + 1:]):
+                        continue
+                deletable.append(i)
             if deletable:
+                idx = rng.choice(deletable)
+                lines.pop(idx)
+
+        elif action == "swap" and len(lines) > 3:
+            # Swap two adjacent body lines (skip def + return).
+            body_indices = [
+                i for i, line in enumerate(lines)
+                if i > 0 and i < len(lines) - 1
+                and "return" not in line and "def " not in line
+                and line.strip()
+            ]
+            if len(body_indices) >= 2:
+                pick = int(rng.integers(len(body_indices) - 1))
+                a = body_indices[pick]
+                b = body_indices[pick + 1]
+                lines[a], lines[b] = lines[b], lines[a]
                 idx = rng.choice(deletable)
                 lines.pop(idx)
 

@@ -1,0 +1,1281 @@
+{
+  "by_skeleton": {
+    "jacobi": [
+      {
+        "slot_name": "_slot_jacobi_detector__loop0",
+        "value": 20,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 7,
+        "func": "jacobi_detector"
+      }
+    ],
+    "gs": [
+      {
+        "slot_name": "_slot_gs_detector__loop0",
+        "value": 20,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 7,
+        "func": "gs_detector"
+      }
+    ],
+    "sor": [
+      {
+        "slot_name": "_slot_sor_detector__loop0",
+        "value": 20,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 7,
+        "func": "sor_detector"
+      }
+    ],
+    "ssor": [
+      {
+        "slot_name": "_slot_ssor_detector__loop0",
+        "value": 20,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 7,
+        "func": "ssor_detector"
+      }
+    ],
+    "richardson": [
+      {
+        "slot_name": "_slot_richardson_detector__loop0",
+        "value": 30,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 7,
+        "func": "richardson_detector"
+      }
+    ],
+    "neumann": [
+      {
+        "slot_name": "_slot_neumann_detector__loop0",
+        "value": 10,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 7,
+        "func": "neumann_detector"
+      }
+    ],
+    "chebyshev": [
+      {
+        "slot_name": "_slot_chebyshev_detector__loop0",
+        "value": 15,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 7,
+        "func": "chebyshev_detector"
+      }
+    ],
+    "cg": [
+      {
+        "slot_name": "_slot_cg_detector__loop0",
+        "value": 30,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 11,
+        "func": "cg_detector"
+      },
+      {
+        "slot_name": "_slot_cg_detector__c1",
+        "value": 1e-30,
+        "type": "float",
+        "role": "literal",
+        "line": 15,
+        "func": "cg_detector"
+      },
+      {
+        "slot_name": "_slot_cg_detector__c2",
+        "value": 1e-30,
+        "type": "float",
+        "role": "literal",
+        "line": 20,
+        "func": "cg_detector"
+      }
+    ],
+    "pcg": [
+      {
+        "slot_name": "_slot_pcg_detector__loop0",
+        "value": 25,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 11,
+        "func": "pcg_detector"
+      },
+      {
+        "slot_name": "_slot_pcg_detector__c1",
+        "value": 1e-30,
+        "type": "float",
+        "role": "literal",
+        "line": 15,
+        "func": "pcg_detector"
+      },
+      {
+        "slot_name": "_slot_pcg_detector__c2",
+        "value": 1e-30,
+        "type": "float",
+        "role": "literal",
+        "line": 21,
+        "func": "pcg_detector"
+      }
+    ],
+    "minres": [
+      {
+        "slot_name": "_slot_minres_detector__loop0",
+        "value": 25,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 11,
+        "func": "minres_detector"
+      },
+      {
+        "slot_name": "_slot_minres_detector__c1",
+        "value": 1e-30,
+        "type": "float",
+        "role": "literal",
+        "line": 15,
+        "func": "minres_detector"
+      },
+      {
+        "slot_name": "_slot_minres_detector__c2",
+        "value": 1e-30,
+        "type": "float",
+        "role": "literal",
+        "line": 16,
+        "func": "minres_detector"
+      },
+      {
+        "slot_name": "_slot_minres_detector__c3",
+        "value": 1e-30,
+        "type": "float",
+        "role": "literal",
+        "line": 20,
+        "func": "minres_detector"
+      },
+      {
+        "slot_name": "_slot_minres_detector__c4",
+        "value": 1e-30,
+        "type": "float",
+        "role": "literal",
+        "line": 20,
+        "func": "minres_detector"
+      }
+    ],
+    "bicgstab": [
+      {
+        "slot_name": "_slot_bicgstab_detector__loop0",
+        "value": 20,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 12,
+        "func": "bicgstab_detector"
+      },
+      {
+        "slot_name": "_slot_bicgstab_detector__c1",
+        "value": 1e-30,
+        "type": "float",
+        "role": "literal",
+        "line": 16,
+        "func": "bicgstab_detector"
+      },
+      {
+        "slot_name": "_slot_bicgstab_detector__c2",
+        "value": 1e-30,
+        "type": "float",
+        "role": "literal",
+        "line": 22,
+        "func": "bicgstab_detector"
+      },
+      {
+        "slot_name": "_slot_bicgstab_detector__c3",
+        "value": 1e-30,
+        "type": "float",
+        "role": "literal",
+        "line": 26,
+        "func": "bicgstab_detector"
+      },
+      {
+        "slot_name": "_slot_bicgstab_detector__c4",
+        "value": 1e-30,
+        "type": "float",
+        "role": "literal",
+        "line": 26,
+        "func": "bicgstab_detector"
+      }
+    ],
+    "precond_rich": [
+      {
+        "slot_name": "_slot_precond_richardson__loop0",
+        "value": 20,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 8,
+        "func": "precond_richardson"
+      },
+      {
+        "slot_name": "_slot_precond_richardson__c1",
+        "value": 0.5,
+        "type": "float",
+        "role": "literal",
+        "line": 11,
+        "func": "precond_richardson"
+      }
+    ],
+    "weighted_jacobi": [
+      {
+        "slot_name": "_slot_weighted_jacobi__loop0",
+        "value": 25,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 7,
+        "func": "weighted_jacobi"
+      }
+    ],
+    "stationary": [
+      {
+        "slot_name": "_slot_stationary_detector__loop0",
+        "value": 20,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 7,
+        "func": "stationary_detector"
+      }
+    ],
+    "grad_descent": [
+      {
+        "slot_name": "_slot_gradient_descent_detector__loop0",
+        "value": 30,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 5,
+        "func": "gradient_descent_detector"
+      }
+    ],
+    "projected_gd": [
+      {
+        "slot_name": "_slot_projected_gd_detector__loop0",
+        "value": 30,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 5,
+        "func": "projected_gd_detector"
+      }
+    ],
+    "newton": [
+      {
+        "slot_name": "_slot_newton_detector__loop0",
+        "value": 5,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 7,
+        "func": "newton_detector"
+      }
+    ],
+    "heavy_ball": [
+      {
+        "slot_name": "_slot_heavy_ball_detector__c0",
+        "value": 0.01,
+        "type": "float",
+        "role": "literal",
+        "line": 5,
+        "func": "heavy_ball_detector"
+      },
+      {
+        "slot_name": "_slot_heavy_ball_detector__c1",
+        "value": 0.8,
+        "type": "float",
+        "role": "literal",
+        "line": 6,
+        "func": "heavy_ball_detector"
+      },
+      {
+        "slot_name": "_slot_heavy_ball_detector__loop2",
+        "value": 30,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 8,
+        "func": "heavy_ball_detector"
+      }
+    ],
+    "nesterov": [
+      {
+        "slot_name": "_slot_nesterov_detector__c0",
+        "value": 0.01,
+        "type": "float",
+        "role": "literal",
+        "line": 5,
+        "func": "nesterov_detector"
+      },
+      {
+        "slot_name": "_slot_nesterov_detector__c1",
+        "value": 0.9,
+        "type": "float",
+        "role": "literal",
+        "line": 6,
+        "func": "nesterov_detector"
+      },
+      {
+        "slot_name": "_slot_nesterov_detector__loop2",
+        "value": 30,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 8,
+        "func": "nesterov_detector"
+      }
+    ],
+    "coord_descent": [
+      {
+        "slot_name": "_slot_coordinate_descent_detector__loop0",
+        "value": 10,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 5,
+        "func": "coordinate_descent_detector"
+      }
+    ],
+    "admm": [
+      {
+        "slot_name": "_slot_admm_detector__loop0",
+        "value": 30,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 7,
+        "func": "admm_detector"
+      }
+    ],
+    "proximal": [
+      {
+        "slot_name": "_slot_proximal_detector__c0",
+        "value": 0.01,
+        "type": "float",
+        "role": "literal",
+        "line": 4,
+        "func": "proximal_detector"
+      },
+      {
+        "slot_name": "_slot_proximal_detector__loop1",
+        "value": 30,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 6,
+        "func": "proximal_detector"
+      }
+    ],
+    "bb": [
+      {
+        "slot_name": "_slot_bb_detector__c0",
+        "value": 0.01,
+        "type": "float",
+        "role": "literal",
+        "line": 5,
+        "func": "bb_detector"
+      },
+      {
+        "slot_name": "_slot_bb_detector__loop1",
+        "value": 30,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 7,
+        "func": "bb_detector"
+      },
+      {
+        "slot_name": "_slot_bb_detector__c2",
+        "value": 0.01,
+        "type": "float",
+        "role": "literal",
+        "line": 10,
+        "func": "bb_detector"
+      },
+      {
+        "slot_name": "_slot_bb_detector__c3",
+        "value": 1e-30,
+        "type": "float",
+        "role": "literal",
+        "line": 12,
+        "func": "bb_detector"
+      },
+      {
+        "slot_name": "_slot_bb_detector__c4",
+        "value": 0.0001,
+        "type": "float",
+        "role": "literal",
+        "line": 13,
+        "func": "bb_detector"
+      },
+      {
+        "slot_name": "_slot_bb_detector__c5",
+        "value": 0.1,
+        "type": "float",
+        "role": "literal",
+        "line": 13,
+        "func": "bb_detector"
+      }
+    ],
+    "frank_wolfe": [
+      {
+        "slot_name": "_slot_frank_wolfe_detector__loop0",
+        "value": 30,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 5,
+        "func": "frank_wolfe_detector"
+      },
+      {
+        "slot_name": "_slot_frank_wolfe_detector__c1",
+        "value": 2.0,
+        "type": "float",
+        "role": "literal",
+        "line": 8,
+        "func": "frank_wolfe_detector"
+      },
+      {
+        "slot_name": "_slot_frank_wolfe_detector__c2",
+        "value": 2.0,
+        "type": "float",
+        "role": "literal",
+        "line": 8,
+        "func": "frank_wolfe_detector"
+      }
+    ],
+    "penalty": [
+      {
+        "slot_name": "_slot_penalty_detector__c0",
+        "value": 0.1,
+        "type": "float",
+        "role": "literal",
+        "line": 4,
+        "func": "penalty_detector"
+      },
+      {
+        "slot_name": "_slot_penalty_detector__loop1",
+        "value": 30,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 6,
+        "func": "penalty_detector"
+      },
+      {
+        "slot_name": "_slot_penalty_detector__c2",
+        "value": 0.01,
+        "type": "float",
+        "role": "literal",
+        "line": 10,
+        "func": "penalty_detector"
+      },
+      {
+        "slot_name": "_slot_penalty_detector__c3",
+        "value": 0.01,
+        "type": "float",
+        "role": "literal",
+        "line": 10,
+        "func": "penalty_detector"
+      },
+      {
+        "slot_name": "_slot_penalty_detector__c4",
+        "value": 1.05,
+        "type": "float",
+        "role": "literal",
+        "line": 11,
+        "func": "penalty_detector"
+      }
+    ],
+    "dual_ascent": [
+      {
+        "slot_name": "_slot_dual_ascent_detector__loop0",
+        "value": 30,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 6,
+        "func": "dual_ascent_detector"
+      },
+      {
+        "slot_name": "_slot_dual_ascent_detector__c1",
+        "value": 0.01,
+        "type": "float",
+        "role": "literal",
+        "line": 8,
+        "func": "dual_ascent_detector"
+      },
+      {
+        "slot_name": "_slot_dual_ascent_detector__c2",
+        "value": 0.01,
+        "type": "float",
+        "role": "literal",
+        "line": 10,
+        "func": "dual_ascent_detector"
+      }
+    ],
+    "greedy": [
+      {
+        "slot_name": "_slot_greedy_detector__c0",
+        "value": 1e+30,
+        "type": "float",
+        "role": "literal",
+        "line": 7,
+        "func": "greedy_detector"
+      }
+    ],
+    "multi_restart": [
+      {
+        "slot_name": "_slot_multi_restart_detector__c0",
+        "value": 1e+30,
+        "type": "float",
+        "role": "literal",
+        "line": 4,
+        "func": "multi_restart_detector"
+      },
+      {
+        "slot_name": "_slot_multi_restart_detector__loop1",
+        "value": 5,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 6,
+        "func": "multi_restart_detector"
+      },
+      {
+        "slot_name": "_slot_multi_restart_detector__loop2",
+        "value": 10,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 13,
+        "func": "multi_restart_detector"
+      }
+    ],
+    "sa": [
+      {
+        "slot_name": "_slot_sa_detector__c0",
+        "value": 2,
+        "type": "int",
+        "role": "literal",
+        "line": 6,
+        "func": "sa_detector"
+      },
+      {
+        "slot_name": "_slot_sa_detector__loop1",
+        "value": 100,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 12,
+        "func": "sa_detector"
+      },
+      {
+        "slot_name": "_slot_sa_detector__c2",
+        "value": 0.5,
+        "type": "float",
+        "role": "literal",
+        "line": 16,
+        "func": "sa_detector"
+      },
+      {
+        "slot_name": "_slot_sa_detector__c3",
+        "value": 0.97,
+        "type": "float",
+        "role": "literal",
+        "line": 19,
+        "func": "sa_detector"
+      }
+    ],
+    "tabu": [
+      {
+        "slot_name": "_slot_tabu_detector__c0",
+        "value": 2,
+        "type": "int",
+        "role": "literal",
+        "line": 6,
+        "func": "tabu_detector"
+      },
+      {
+        "slot_name": "_slot_tabu_detector__loop1",
+        "value": 50,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 12,
+        "func": "tabu_detector"
+      },
+      {
+        "slot_name": "_slot_tabu_detector__c2",
+        "value": 1e+30,
+        "type": "float",
+        "role": "literal",
+        "line": 15,
+        "func": "tabu_detector"
+      }
+    ],
+    "local_search": [
+      {
+        "slot_name": "_slot_local_search_detector__c0",
+        "value": 2,
+        "type": "int",
+        "role": "literal",
+        "line": 6,
+        "func": "local_search_detector"
+      }
+    ],
+    "reactive_tabu": [
+      {
+        "slot_name": "_slot_reactive_tabu_detector__c0",
+        "value": 2,
+        "type": "int",
+        "role": "literal",
+        "line": 6,
+        "func": "reactive_tabu_detector"
+      },
+      {
+        "slot_name": "_slot_reactive_tabu_detector__loop1",
+        "value": 30,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 12,
+        "func": "reactive_tabu_detector"
+      }
+    ],
+    "random_walk": [
+      {
+        "slot_name": "_slot_random_walk_detector__c0",
+        "value": 2,
+        "type": "int",
+        "role": "literal",
+        "line": 6,
+        "func": "random_walk_detector"
+      },
+      {
+        "slot_name": "_slot_random_walk_detector__loop1",
+        "value": 50,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 12,
+        "func": "random_walk_detector"
+      }
+    ],
+    "variational": [
+      {
+        "slot_name": "_slot_variational_detector__c0",
+        "value": 2,
+        "type": "int",
+        "role": "literal",
+        "line": 6,
+        "func": "variational_detector"
+      },
+      {
+        "slot_name": "_slot_variational_detector__loop1",
+        "value": 20,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 10,
+        "func": "variational_detector"
+      }
+    ],
+    "gibbs": [
+      {
+        "slot_name": "_slot_gibbs_detector__c0",
+        "value": 2,
+        "type": "int",
+        "role": "literal",
+        "line": 6,
+        "func": "gibbs_detector"
+      },
+      {
+        "slot_name": "_slot_gibbs_detector__loop1",
+        "value": 50,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 12,
+        "func": "gibbs_detector"
+      },
+      {
+        "slot_name": "_slot_gibbs_detector__c2",
+        "value": 1e+30,
+        "type": "float",
+        "role": "literal",
+        "line": 15,
+        "func": "gibbs_detector"
+      }
+    ],
+    "mh": [
+      {
+        "slot_name": "_slot_mh_detector__c0",
+        "value": 2,
+        "type": "int",
+        "role": "literal",
+        "line": 6,
+        "func": "mh_detector"
+      },
+      {
+        "slot_name": "_slot_mh_detector__loop1",
+        "value": 80,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 14,
+        "func": "mh_detector"
+      },
+      {
+        "slot_name": "_slot_mh_detector__c2",
+        "value": 0.98,
+        "type": "float",
+        "role": "literal",
+        "line": 24,
+        "func": "mh_detector"
+      }
+    ],
+    "em": [
+      {
+        "slot_name": "_slot_em_detector__c0",
+        "value": 2,
+        "type": "int",
+        "role": "literal",
+        "line": 6,
+        "func": "em_detector"
+      },
+      {
+        "slot_name": "_slot_em_detector__loop1",
+        "value": 20,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 10,
+        "func": "em_detector"
+      }
+    ],
+    "importance_sampling": [
+      {
+        "slot_name": "_slot_is_detector__c0",
+        "value": 20,
+        "type": "int",
+        "role": "literal",
+        "line": 3,
+        "func": "is_detector"
+      },
+      {
+        "slot_name": "_slot_is_detector__c1",
+        "value": 1e+30,
+        "type": "float",
+        "role": "literal",
+        "line": 5,
+        "func": "is_detector"
+      }
+    ],
+    "particle_filter": [
+      {
+        "slot_name": "_slot_particle_filter_detector__c0",
+        "value": 10,
+        "type": "int",
+        "role": "literal",
+        "line": 3,
+        "func": "particle_filter_detector"
+      },
+      {
+        "slot_name": "_slot_particle_filter_detector__loop1",
+        "value": 5,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 14,
+        "func": "particle_filter_detector"
+      },
+      {
+        "slot_name": "_slot_particle_filter_detector__c2",
+        "value": 1e-30,
+        "type": "float",
+        "role": "literal",
+        "line": 19,
+        "func": "particle_filter_detector"
+      },
+      {
+        "slot_name": "_slot_particle_filter_detector__c3",
+        "value": 1e-30,
+        "type": "float",
+        "role": "literal",
+        "line": 22,
+        "func": "particle_filter_detector"
+      }
+    ],
+    "map_relaxation": [
+      {
+        "slot_name": "_slot_map_relaxation_detector__loop0",
+        "value": 20,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 7,
+        "func": "map_relaxation_detector"
+      },
+      {
+        "slot_name": "_slot_map_relaxation_detector__c1",
+        "value": 0.01,
+        "type": "float",
+        "role": "literal",
+        "line": 9,
+        "func": "map_relaxation_detector"
+      },
+      {
+        "slot_name": "_slot_map_relaxation_detector__c2",
+        "value": 20.0,
+        "type": "float",
+        "role": "literal",
+        "line": 11,
+        "func": "map_relaxation_detector"
+      }
+    ],
+    "ec": [
+      {
+        "slot_name": "_slot_ec_detector__c0",
+        "value": 2,
+        "type": "int",
+        "role": "literal",
+        "line": 6,
+        "func": "ec_detector"
+      },
+      {
+        "slot_name": "_slot_ec_detector__loop1",
+        "value": 20,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 10,
+        "func": "ec_detector"
+      }
+    ],
+    "feedback_sic": [
+      {
+        "slot_name": "_slot_feedback_sic_detector__loop0",
+        "value": 3,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 4,
+        "func": "feedback_sic_detector"
+      },
+      {
+        "slot_name": "_slot_feedback_sic_detector__c1",
+        "value": 1e-30,
+        "type": "float",
+        "role": "literal",
+        "line": 12,
+        "func": "feedback_sic_detector"
+      },
+      {
+        "slot_name": "_slot_feedback_sic_detector__c2",
+        "value": 2,
+        "type": "int",
+        "role": "literal",
+        "line": 13,
+        "func": "feedback_sic_detector"
+      }
+    ],
+    "warm_start": [
+      {
+        "slot_name": "_slot_warm_start_detector__loop0",
+        "value": 20,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 4,
+        "func": "warm_start_detector"
+      }
+    ],
+    "iter_refine": [
+      {
+        "slot_name": "_slot_iterative_refine_detector__loop0",
+        "value": 15,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 4,
+        "func": "iterative_refine_detector"
+      }
+    ],
+    "alternating": [
+      {
+        "slot_name": "_slot_alternating_detector__loop0",
+        "value": 10,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 5,
+        "func": "alternating_detector"
+      }
+    ],
+    "residual_net": [
+      {
+        "slot_name": "_slot_residual_net_detector__loop0",
+        "value": 10,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 4,
+        "func": "residual_net_detector"
+      },
+      {
+        "slot_name": "_slot_residual_net_detector__c1",
+        "value": 0.5,
+        "type": "float",
+        "role": "literal",
+        "line": 6,
+        "func": "residual_net_detector"
+      }
+    ],
+    "block_detect": [
+      {
+        "slot_name": "_slot_block_detector__loop0",
+        "value": 5,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 7,
+        "func": "block_detector"
+      }
+    ],
+    "soft_sic": [
+      {
+        "slot_name": "_slot_soft_sic_detector__c0",
+        "value": 1e-30,
+        "type": "float",
+        "role": "literal",
+        "line": 15,
+        "func": "soft_sic_detector"
+      },
+      {
+        "slot_name": "_slot_soft_sic_detector__c1",
+        "value": "1j",
+        "type": "complex",
+        "role": "literal",
+        "line": 15,
+        "func": "soft_sic_detector"
+      },
+      {
+        "slot_name": "_slot_soft_sic_detector__c2",
+        "value": 1e-30,
+        "type": "float",
+        "role": "literal",
+        "line": 15,
+        "func": "soft_sic_detector"
+      },
+      {
+        "slot_name": "_slot_soft_sic_detector__c3",
+        "value": 2,
+        "type": "int",
+        "role": "literal",
+        "line": 16,
+        "func": "soft_sic_detector"
+      }
+    ],
+    "sparse_detect": [
+      {
+        "slot_name": "_slot_sparse_detector__c0",
+        "value": 0.1,
+        "type": "float",
+        "role": "literal",
+        "line": 4,
+        "func": "sparse_detector"
+      },
+      {
+        "slot_name": "_slot_sparse_detector__loop1",
+        "value": 30,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 6,
+        "func": "sparse_detector"
+      },
+      {
+        "slot_name": "_slot_sparse_detector__c2",
+        "value": 0.01,
+        "type": "float",
+        "role": "literal",
+        "line": 9,
+        "func": "sparse_detector"
+      }
+    ],
+    "turbo_linear": [
+      {
+        "slot_name": "_slot_turbo_linear_detector__c0",
+        "value": 1e-30,
+        "type": "float",
+        "role": "literal",
+        "line": 9,
+        "func": "turbo_linear_detector"
+      },
+      {
+        "slot_name": "_slot_turbo_linear_detector__loop1",
+        "value": 5,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 13,
+        "func": "turbo_linear_detector"
+      }
+    ],
+    "diag_dominant": [
+      {
+        "slot_name": "_slot_diag_dominant_detector__loop0",
+        "value": 5,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 11,
+        "func": "diag_dominant_detector"
+      }
+    ],
+    "mmse_init_iter": [
+      {
+        "slot_name": "_slot_mmse_init_iterate__loop0",
+        "value": 10,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 4,
+        "func": "mmse_init_iterate"
+      }
+    ],
+    "mf_refine": [
+      {
+        "slot_name": "_slot_mf_refine_detector__loop0",
+        "value": 15,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 5,
+        "func": "mf_refine_detector"
+      }
+    ],
+    "residual_iter": [
+      {
+        "slot_name": "_slot_residual_iterate_detector__loop0",
+        "value": 15,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 4,
+        "func": "residual_iterate_detector"
+      },
+      {
+        "slot_name": "_slot_residual_iterate_detector__c1",
+        "value": 0.5,
+        "type": "float",
+        "role": "literal",
+        "line": 7,
+        "func": "residual_iterate_detector"
+      }
+    ],
+    "overrelax": [
+      {
+        "slot_name": "_slot_overrelax_detector__loop0",
+        "value": 20,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 5,
+        "func": "overrelax_detector"
+      }
+    ],
+    "power_method": [
+      {
+        "slot_name": "_slot_power_method_detector__loop0",
+        "value": 20,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 7,
+        "func": "power_method_detector"
+      },
+      {
+        "slot_name": "_slot_power_method_detector__c1",
+        "value": 1e-30,
+        "type": "float",
+        "role": "literal",
+        "line": 11,
+        "func": "power_method_detector"
+      }
+    ],
+    "landweber": [
+      {
+        "slot_name": "_slot_landweber_detector__c0",
+        "value": 0.01,
+        "type": "float",
+        "role": "literal",
+        "line": 4,
+        "func": "landweber_detector"
+      },
+      {
+        "slot_name": "_slot_landweber_detector__loop1",
+        "value": 30,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 6,
+        "func": "landweber_detector"
+      }
+    ],
+    "kaczmarz": [
+      {
+        "slot_name": "_slot_kaczmarz_detector__loop0",
+        "value": 5,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 6,
+        "func": "kaczmarz_detector"
+      },
+      {
+        "slot_name": "_slot_kaczmarz_detector__c1",
+        "value": 1e-30,
+        "type": "float",
+        "role": "literal",
+        "line": 12,
+        "func": "kaczmarz_detector"
+      }
+    ],
+    "cimmino": [
+      {
+        "slot_name": "_slot_cimmino_detector__loop0",
+        "value": 10,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 6,
+        "func": "cimmino_detector"
+      },
+      {
+        "slot_name": "_slot_cimmino_detector__c1",
+        "value": 1e-30,
+        "type": "float",
+        "role": "literal",
+        "line": 13,
+        "func": "cimmino_detector"
+      }
+    ],
+    "steepest_desc": [
+      {
+        "slot_name": "_slot_steepest_descent_detector__loop0",
+        "value": 30,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 7,
+        "func": "steepest_descent_detector"
+      },
+      {
+        "slot_name": "_slot_steepest_descent_detector__c1",
+        "value": 1e-30,
+        "type": "float",
+        "role": "literal",
+        "line": 12,
+        "func": "steepest_descent_detector"
+      }
+    ],
+    "divide_conquer": [
+      {
+        "slot_name": "_slot_divide_conquer_detector__c0",
+        "value": 0.5,
+        "type": "float",
+        "role": "literal",
+        "line": 9,
+        "func": "divide_conquer_detector"
+      }
+    ],
+    "layer_peeling": [
+      {
+        "slot_name": "_slot_layer_peeling_detector__c0",
+        "value": 1e+30,
+        "type": "float",
+        "role": "literal",
+        "line": 12,
+        "func": "layer_peeling_detector"
+      },
+      {
+        "slot_name": "_slot_layer_peeling_detector__c1",
+        "value": 2,
+        "type": "int",
+        "role": "literal",
+        "line": 16,
+        "func": "layer_peeling_detector"
+      },
+      {
+        "slot_name": "_slot_layer_peeling_detector__c2",
+        "value": 2,
+        "type": "int",
+        "role": "literal",
+        "line": 23,
+        "func": "layer_peeling_detector"
+      }
+    ],
+    "consensus": [
+      {
+        "slot_name": "_slot_consensus_detector__loop0",
+        "value": 10,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 6,
+        "func": "consensus_detector"
+      }
+    ],
+    "anneal_iter": [
+      {
+        "slot_name": "_slot_anneal_iterate_detector__loop0",
+        "value": 30,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 6,
+        "func": "anneal_iterate_detector"
+      },
+      {
+        "slot_name": "_slot_anneal_iterate_detector__c1",
+        "value": 0.9,
+        "type": "float",
+        "role": "literal",
+        "line": 11,
+        "func": "anneal_iterate_detector"
+      }
+    ],
+    "dp_detect": [
+      {
+        "slot_name": "_slot_dp_detector__c0",
+        "value": 1e+30,
+        "type": "float",
+        "role": "literal",
+        "line": 8,
+        "func": "dp_detector"
+      },
+      {
+        "slot_name": "_slot_dp_detector__loop1",
+        "value": 3,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 20,
+        "func": "dp_detector"
+      }
+    ],
+    "gs_block": [
+      {
+        "slot_name": "_slot_gs_block_detector__loop0",
+        "value": 10,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 7,
+        "func": "gs_block_detector"
+      }
+    ],
+    "gpa": [
+      {
+        "slot_name": "_slot_gpa_detector__loop0",
+        "value": 30,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 5,
+        "func": "gpa_detector"
+      },
+      {
+        "slot_name": "_slot_gpa_detector__c1",
+        "value": 0.01,
+        "type": "float",
+        "role": "literal",
+        "line": 7,
+        "func": "gpa_detector"
+      }
+    ],
+    "nested_iter": [
+      {
+        "slot_name": "_slot_nested_iterate_detector__loop0",
+        "value": 5,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 4,
+        "func": "nested_iterate_detector"
+      },
+      {
+        "slot_name": "_slot_nested_iterate_detector__loop1",
+        "value": 5,
+        "type": "int",
+        "role": "loop_bound",
+        "line": 6,
+        "func": "nested_iterate_detector"
+      }
+    ]
+  },
+  "totals": {
+    "templates": 68,
+    "lifted_literals": 78,
+    "loop_bounds": 64
+  }
+}

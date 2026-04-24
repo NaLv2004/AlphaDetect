@@ -3,6 +3,7 @@ from __future__ import annotations
 import warnings
 import numpy as np
 import pytest
+import torch
 
 from algorithm_ir.ir.model import Block, FunctionIR, Op, Value
 from algorithm_ir.regeneration.codegen import emit_python_source
@@ -67,6 +68,60 @@ def test_gnn_matcher_warmstart_uses_all_pairs_then_sampling():
     matcher._generation = 2
     sampled_pairs = matcher._select_pair_candidates(pair_scores)  # type: ignore[arg-type]
     assert len(sampled_pairs) == 2
+
+
+def _proposal_signature(proposal):
+    return {
+        "host_algo_id": proposal.host_algo_id,
+        "donor_algo_id": proposal.donor_algo_id,
+        "region_op_ids": tuple(proposal.region.op_ids),
+        "region_entry_values": tuple(proposal.region.entry_values),
+        "region_exit_values": tuple(proposal.region.exit_values),
+        "donor_source": emit_python_source(proposal.donor_ir),
+        "confidence": proposal.confidence,
+        "rationale": proposal.rationale,
+    }
+
+
+def test_gnn_matcher_batched_proposals_match_unbatched_with_same_seed():
+    genomes = build_ir_pool(np.random.default_rng(123))[:5]
+    entries = [g.to_entry(None) for g in genomes]
+
+    torch.manual_seed(7)
+    np.random.seed(7)
+    matcher_ref = GNNPatternMatcher(
+        max_proposals_per_gen=50,
+        warmstart_generations=1,
+        train_interval=10,
+        enable_batched_proposals=False,
+        proposal_batch_size=1,
+    )
+
+    matcher_batch = GNNPatternMatcher(
+        max_proposals_per_gen=50,
+        warmstart_generations=1,
+        train_interval=10,
+        enable_batched_proposals=True,
+        proposal_batch_size=8,
+    )
+    matcher_batch.encoder.load_state_dict(matcher_ref.encoder.state_dict())
+    matcher_batch.scorer.load_state_dict(matcher_ref.scorer.state_dict())
+    matcher_batch.region_proposer.load_state_dict(matcher_ref.region_proposer.state_dict())
+    matcher_batch.donor_region_selector.load_state_dict(
+        matcher_ref.donor_region_selector.state_dict()
+    )
+
+    torch.manual_seed(99)
+    np.random.seed(99)
+    ref_props = matcher_ref(entries, generation=1)
+    torch.manual_seed(99)
+    np.random.seed(99)
+    batched_props = matcher_batch(entries, generation=1)
+
+    assert len(ref_props) == len(batched_props)
+    ref_sig = [_proposal_signature(p) for p in ref_props]
+    batched_sig = [_proposal_signature(p) for p in batched_props]
+    assert ref_sig == batched_sig
 
 
 def test_precise_evaluation_accumulates_errors_or_hits_cap():

@@ -159,12 +159,20 @@ class AlgorithmEvolutionEngine:
             # Only micro-evolve up to 20 best genomes per generation to
             # keep generation time bounded (~30-60s instead of 10+ min).
             _MAX_MICRO = 20
-            # Build list of (index, genome) sorted by fitness (best first)
+            # Build list of (index, genome) sorted by fitness (best first).
+            # Two policies:
+            #   * non-grafted: skip if SER > 0.95 (essentially random),
+            #     to spend compute on promising ones.
+            #   * grafted: always include — fresh grafts start poor but
+            #     micro-evolution is the main mechanism by which they
+            #     become competitive, so skipping them removes the
+            #     primary path for grafts to become "effective".
             _candidates = []
             for i, genome in enumerate(self.population):
+                is_grafted = "grafted" in getattr(genome, "tags", set())
                 if i < len(self.fitness):
                     genome_ser = self.fitness[i].metrics.get("ser", 1.0)
-                    if genome_ser > 0.5:
+                    if not is_grafted and genome_ser > 0.95:
                         continue
                     _candidates.append((self.fitness[i].composite_score(), i, genome))
                 else:
@@ -199,8 +207,9 @@ class AlgorithmEvolutionEngine:
                 for g, f in zip(self.population, self.fitness)
             }
             if self.pattern_matcher is not None:
+                use_fii = self.config.use_fii_view
                 entries = [
-                    g.to_entry(f)
+                    g.to_entry(f, use_fii_view=use_fii)
                     for g, f in zip(self.population, self.fitness)
                 ]
                 # Always include gene bank entries so expert rules can find
@@ -208,7 +217,7 @@ class AlgorithmEvolutionEngine:
                 # from the current population.
                 pop_ids = {g.algo_id for g in self.population}
                 bank_entries = [
-                    g.to_entry(None)
+                    g.to_entry(None, use_fii_view=use_fii)
                     for g in self.gene_bank
                     if g.algo_id not in pop_ids
                 ]
@@ -227,9 +236,14 @@ class AlgorithmEvolutionEngine:
                             n_graft_ok += 1
                         else:
                             host_score = host_scores.get(proposal.host_algo_id, 1.0)
+                            invalid_reward = self._compute_graft_reward(
+                                graft_score=1.5,
+                                host_score=host_score,
+                                is_valid=False,
+                            )
                             self._record_graft_reward(
                                 proposal.proposal_id,
-                                reward=-1.0,
+                                reward=invalid_reward,
                                 graft_score=1.5,
                                 host_score=host_score,
                                 is_valid=False,
@@ -237,9 +251,14 @@ class AlgorithmEvolutionEngine:
                     except Exception as exc:
                         logger.warning("Graft failed: %s", exc)
                         host_score = host_scores.get(proposal.host_algo_id, 1.0)
+                        invalid_reward = self._compute_graft_reward(
+                            graft_score=1.5,
+                            host_score=host_score,
+                            is_valid=False,
+                        )
                         self._record_graft_reward(
                             proposal.proposal_id,
-                            reward=-1.0,
+                            reward=invalid_reward,
                             graft_score=1.5,
                             host_score=host_score,
                             is_valid=False,
@@ -352,6 +371,21 @@ class AlgorithmEvolutionEngine:
             survivors = self._select_with_niching(combined, cfg.pool_size)
             self.population = [g for g, _ in survivors]
             self.fitness = [f for _, f in survivors]
+
+            # ---- Periodic auto-slot rediscovery (S5) ----
+            # Every ``period`` generations (or whenever a genome has been
+            # fully dissolved), enumerate cohesive op windows and emit
+            # new ``SlotPopulation`` shells for micro-evolution to use.
+            try:
+                from evolution.slot_rediscovery import maybe_rediscover_slots
+                _redis_period = int(getattr(cfg, "rediscovery_period", 20))
+                for _g in self.population:
+                    maybe_rediscover_slots(
+                        _g, self.generation, period=_redis_period,
+                    )
+            except Exception as _exc:
+                logger.warning("rediscovery pass failed: %r", _exc)
+
             self._remember_genomes(self.population)
             self.last_generation_stats = {
                 "warmstart_active": warmstart_active,
@@ -449,8 +483,18 @@ class AlgorithmEvolutionEngine:
 
         new_variants: list = []
 
-        # Mutation: pick a random variant, mutate it
-        if rng.random() < cfg.micro_mutation_rate and n < cfg.micro_pop_size * 2:
+        # Number of offspring to generate per micro-step: scale with target
+        # population size so that a larger micro_pop_size actually gets
+        # populated quickly (was effectively ~1/step before, now ~4/step
+        # for micro_pop_size=32).
+        target_offspring = max(1, cfg.micro_pop_size // 8)
+
+        # Mutation: pick random variants, mutate them
+        for _ in range(target_offspring):
+            if rng.random() >= cfg.micro_mutation_rate:
+                continue
+            if n + len(new_variants) >= cfg.micro_pop_size * 2:
+                break
             idx = rng.integers(0, n)
             parent = pop.variants[idx]
             try:
@@ -459,14 +503,20 @@ class AlgorithmEvolutionEngine:
             except Exception:
                 pass
 
-        # Crossover: pick two, cross
-        if n >= 2 and rng.random() < cfg.micro_mutation_rate * 0.5:
-            i1, i2 = rng.choice(n, 2, replace=False)
-            try:
-                child = crossover_ir(pop.variants[i1], pop.variants[i2], rng)
-                new_variants.append(child)
-            except Exception:
-                pass
+        # Crossover: pick pairs, cross
+        if n >= 2:
+            n_cross = max(1, target_offspring // 2)
+            for _ in range(n_cross):
+                if rng.random() >= cfg.micro_mutation_rate * 0.5:
+                    continue
+                if n + len(new_variants) >= cfg.micro_pop_size * 2:
+                    break
+                i1, i2 = rng.choice(n, 2, replace=False)
+                try:
+                    child = crossover_ir(pop.variants[i1], pop.variants[i2], rng)
+                    new_variants.append(child)
+                except Exception:
+                    pass
 
         # Evaluate each new variant
         for variant_ir in new_variants:
@@ -516,39 +566,61 @@ class AlgorithmEvolutionEngine:
 
         Returns scalar fitness (lower is better). Returns inf on failure.
         """
+        cfg = getattr(self.evaluator, "config", None)
+        snr_db = 15.0
+        if cfg and cfg.snr_db_list:
+            snr_db = cfg.snr_db_list[len(cfg.snr_db_list) // 2]
+
+        # Preferred path: route through subprocess-isolated evaluator
+        # to avoid main-process segfaults from generated numpy code.
+        eval_quick = getattr(self.evaluator, "evaluate_source_quick", None)
+        if eval_quick is not None:
+            try:
+                from evolution.materialize import (
+                    _materialize_source_with_override,
+                    _extract_func_name_from_full,
+                )
+                source = _materialize_source_with_override(
+                    genome, {slot_id: variant_ir}
+                )
+                func_name = _extract_func_name_from_full(source, genome.algo_id)
+            except Exception:
+                return float("inf")
+            try:
+                return float(eval_quick(
+                    source, func_name,
+                    algo_id=f"{genome.algo_id}_slot_{slot_id}",
+                    n_trials=5,
+                    timeout_sec=0.5,
+                    snr_db=snr_db,
+                ))
+            except Exception:
+                return float("inf")
+
+        # Fallback: in-process evaluation (legacy).
         try:
             fn = materialize_with_override(genome, {slot_id: variant_ir})
         except Exception:
             return float("inf")
 
-        # Use evaluator's quick single-result path with a few samples
         rng = np.random.default_rng(self.config.seed + self.generation)
         from evolution.mimo_evaluator import generate_mimo_sample, qam16_constellation, qpsk_constellation
 
-        # Determine constellation from evaluator
         constellation = getattr(self.evaluator, "constellation", qam16_constellation())
-        cfg = getattr(self.evaluator, "config", None)
         Nr = cfg.Nr if cfg else 4
         Nt = cfg.Nt if cfg else 4
-        snr_db = 15.0
-        if cfg and cfg.snr_db_list:
-            snr_db = cfg.snr_db_list[len(cfg.snr_db_list) // 2]
 
-        # Run a few quick trials with per-trial timeout.
-        # Use a short timeout (0.3s) and abort early on first timeout
-        # to avoid accumulating leaked threads from hung computations.
         import concurrent.futures as _cf
         n_quick = 5
         total_err = 0
         total_sym = 0
-        _timeout = 0.3  # seconds per trial — good algos finish in <0.05s
+        _timeout = 0.3
         _timeouts = 0
 
         _ex = _cf.ThreadPoolExecutor(max_workers=1)
 
         for trial in range(n_quick):
             if _timeouts >= 1:
-                # First timeout means algo is too slow — skip remaining
                 total_err += Nt * (n_quick - trial)
                 total_sym += Nt * (n_quick - trial)
                 break
@@ -569,7 +641,6 @@ class AlgorithmEvolutionEngine:
                     fut.cancel()
                     total_err += Nt
                     _timeouts += 1
-                    # Replace executor to avoid thread leak buildup
                     _ex.shutdown(wait=False)
                     _ex = _cf.ThreadPoolExecutor(max_workers=1)
                 except Exception:
@@ -805,8 +876,84 @@ class AlgorithmEvolutionEngine:
 
         # Execute the graft (inline — donor ops are cloned into host IR)
         # Diagnostic: verify region ops exist in host IR before calling graft
+        #
+        # FII mode: when ``use_fii_view`` is enabled, proposals reference
+        # op IDs from the host's FULLY-INLINED IR (not structural_ir).
+        # We must graft into the FII IR and produce a flat genome.
+        use_fii = self.config.use_fii_view
+        host_fii_ir = None
+        if use_fii:
+            try:
+                from evolution.fii import build_fii_ir
+                host_fii_ir = build_fii_ir(host_genome)
+            except Exception:
+                host_fii_ir = None
+
+        # ─── FII-aware graft dispatch (Case I/II/III per code_review §2.5) ───
+        # When FII view is active and proposal references FII op IDs,
+        # delegate to ``graft_dispatch`` which back-maps the region to
+        # either the affected slot variant IR (Case I) or the structural
+        # IR (Case II). Case III is rejected here in Step S4; dissolution
+        # is wired in once slot_dissolution.py lands (Step S5).
+        if host_fii_ir is not None:
+            from evolution.graft_dispatch import dispatch_graft
+
+            region_ops_in_fii = set(proposal.region.op_ids) <= set(host_fii_ir.ops.keys())
+            if region_ops_in_fii:
+                result = dispatch_graft(
+                    host_genome,
+                    proposal,
+                    host_fii_ir,
+                    generation=self.generation,
+                    donor_algo_id=proposal.donor_algo_id,
+                    accept_case_III=True,
+                )
+                # Track per-case statistics on the engine.
+                self._dispatch_case_counts = getattr(
+                    self, "_dispatch_case_counts", {},
+                )
+                self._dispatch_case_counts[result.case] = (
+                    self._dispatch_case_counts.get(result.case, 0) + 1
+                )
+                if result.child is not None:
+                    # Case III dissolves all slot populations; immediately
+                    # run rediscovery so the dissolved child still has
+                    # micro-evolution surface.
+                    if result.case == "case_III":
+                        try:
+                            from evolution.slot_rediscovery import (
+                                maybe_rediscover_slots,
+                            )
+                            maybe_rediscover_slots(
+                                result.child,
+                                self.generation,
+                                period=1,  # force-run after dissolution
+                            )
+                        except Exception as exc:
+                            logger.warning(
+                                "post-dissolution rediscovery failed: %r", exc,
+                            )
+                    logger.info(
+                        "graft dispatch [%s]: %s",
+                        result.case, result.diagnostic,
+                    )
+                    return result.child
+                # Dispatch refused (Case III or mapping failure). Log and
+                # fall through to the legacy flat-graft path so we still
+                # produce SOMETHING for the macro generation, but tag it.
+                logger.info(
+                    "graft dispatch refused [%s]: %s — falling back to flat",
+                    result.case, result.diagnostic,
+                )
+                # For Case III rejection per S4 spec, do NOT fall back:
+                # truly skip the proposal so we don't pollute the pool
+                # with un-dispatched grafts.
+                if result.case == "case_III_rejected":
+                    return None
+        host_ir_for_graft = host_fii_ir if host_fii_ir is not None else host_genome.structural_ir
+
         region_ops = set(proposal.region.op_ids)
-        host_ops = set(host_genome.structural_ir.ops.keys())
+        host_ops = set(host_ir_for_graft.ops.keys())
         missing_ops = region_ops - host_ops
         if missing_ops:
             logger.warning(
@@ -816,13 +963,22 @@ class AlgorithmEvolutionEngine:
                 sorted(missing_ops)[:3], len(missing_ops),
             )
             return None
-        artifact = graft_general(host_genome.structural_ir, proposal)
+        artifact = graft_general(host_ir_for_graft, proposal)
 
-        # Build child genome
+        # Build child genome.
+        # In FII mode the grafted IR has no algslot ops, so the child
+        # is flat (slot_populations = {}). In structural mode we keep
+        # the host's slot populations.
+        if host_fii_ir is not None:
+            child_slot_pops = {}
+            child_tags = set(host_genome.tags) | {"grafted", "fii-flat"}
+        else:
+            child_slot_pops = deepcopy(host_genome.slot_populations)
+            child_tags = set(host_genome.tags) | {"grafted"}
         child = AlgorithmGenome(
             algo_id=AlgorithmGenome._make_id(),
             structural_ir=artifact.ir,
-            slot_populations=deepcopy(host_genome.slot_populations),
+            slot_populations=child_slot_pops,
             constants=host_genome.constants.copy(),
             generation=self.generation,
             parent_ids=[host_genome.algo_id, proposal.donor_algo_id or ""],
@@ -836,11 +992,12 @@ class AlgorithmEvolutionEngine:
                     new_slots_created=artifact.new_slot_ids,
                 ),
             ],
-            tags=set(host_genome.tags) | {"grafted"},
+            tags=child_tags,
             metadata={
                 "graft_host_algo_id": host_genome.algo_id,
                 "graft_donor_algo_id": proposal.donor_algo_id,
                 "graft_proposal_id": proposal.proposal_id,
+                "fii_grafted": host_fii_ir is not None,
             },
         )
 
@@ -1168,16 +1325,47 @@ class AlgorithmEvolutionEngine:
         host_score: float,
         is_valid: bool,
     ) -> float:
-        """Dense reward used for online graft policy training."""
-        safe_score = graft_score if np.isfinite(graft_score) else 1.5
-        reward = 1.0 - 2.0 * min(safe_score, 1.0)
-        if is_valid:
-            reward += 0.2
-        if safe_score < 0.5:
-            reward += 0.3
-        if safe_score < host_score:
-            reward += 0.5
-        return reward
+        """Bounded reward used for online graft policy training.
+
+        The reward is dominated by the *signed* improvement over the
+        host: regression is heavily penalised, no-change is mildly
+        rewarded, and improvement gets a strong boost.  This focuses
+        the GNN on producing grafts that actually beat the host
+        rather than merely surviving the structural pipeline.
+
+        Components:
+        * Invalid graft (crash / structural failure): ``-0.7``.
+        * Validity bonus: ``+0.1`` (so any valid graft beats invalid).
+        * Improvement term ``Δ = host - graft`` (after clipping
+          scores to ``[0, 1]``).  Mapped through a piecewise linear
+          function so:
+            - Big regression (Δ ≤ -0.3): -0.5 (worse than crash).
+            - Small regression (-0.3 < Δ < 0): scaled in [-0.5, 0].
+            - No change (Δ ≈ 0): 0.
+            - Improvement (Δ > 0): ``min(1.0, 3.0 * Δ)`` — saturates
+              at +1 once the child beats the host by 33% absolute.
+        """
+        if not is_valid:
+            return -0.7
+
+        safe_score = float(np.clip(
+            graft_score if np.isfinite(graft_score) else 1.0, 0.0, 1.0
+        ))
+        safe_host = float(np.clip(
+            host_score if np.isfinite(host_score) else 1.0, 0.0, 1.0
+        ))
+
+        delta = safe_host - safe_score  # >0 means child is better
+        if delta > 0:
+            improvement = float(min(1.0, 3.0 * delta))
+        elif delta >= -0.3:
+            # Linear scale from 0 at delta=0 to -0.5 at delta=-0.3.
+            improvement = (delta / 0.3) * 0.5
+        else:
+            improvement = -0.5
+
+        reward = 0.1 + improvement
+        return float(np.clip(reward, -1.0, 1.0))
 
     def _record_graft_reward(
         self,

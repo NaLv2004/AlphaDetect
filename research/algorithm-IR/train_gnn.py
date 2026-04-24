@@ -16,6 +16,20 @@ os.environ["PYTHONUNBUFFERED"] = "1"
 sys.stdout.reconfigure(line_buffering=True)
 sys.stderr.reconfigure(line_buffering=True)
 
+# Periodically dump all thread stacks so we can diagnose silent hangs.
+# Note: a previous incarnation of this used dump_traceback_later(120, repeat=True),
+# but the watchdog dump itself segfaulted inside the xdsl printer when a frame
+# held an xdsl op + numpy array combination.  Disabled by default; re-enable
+# manually with TRAIN_GNN_WATCHDOG_SEC env var.
+import faulthandler
+faulthandler.enable()
+try:
+    _wd = int(os.environ.get("TRAIN_GNN_WATCHDOG_SEC", "0") or 0)
+    if _wd > 0:
+        faulthandler.dump_traceback_later(_wd, repeat=True)
+except Exception:
+    pass
+
 import argparse
 import json
 import logging
@@ -94,6 +108,20 @@ parser.add_argument("--region-eps", type=float, default=0.10,
                     help="Uniform exploration mix for host region sampling")
 parser.add_argument("--donor-eps", type=float, default=0.10,
                     help="Uniform exploration mix for donor region sampling")
+parser.add_argument("--proposal-batch", action="store_true",
+                    help="Enable batched GNN graft proposal forward passes")
+parser.add_argument("--proposal-batch-size", type=int, default=64,
+                    help="Batch size for batched GNN graft proposal forward passes")
+parser.add_argument("--max-boundary-outputs", type=int, default=2,
+                    help="Maximum number of BCIR output-boundary values per sampled region")
+parser.add_argument("--max-cut-values", type=int, default=3,
+                    help="Maximum number of BCIR cut-boundary values per sampled region")
+parser.add_argument("--max-region-ops", type=int, default=24,
+                    help="Maximum legal BCIR region size in ops")
+parser.add_argument("--max-region-inputs", type=int, default=8,
+                    help="Maximum legal BCIR region input count")
+parser.add_argument("--max-region-outputs", type=int, default=2,
+                    help="Maximum legal BCIR region output count")
 parser.add_argument("--effectiveness-snr", type=float, default=16.0,
                     help="Low SNR used for behavior-difference probes of grafted algorithms")
 parser.add_argument("--effectiveness-samples", type=int, default=8,
@@ -115,6 +143,35 @@ parser.add_argument("--ckpt-interval", type=int, default=10,
 parser.add_argument("--seed", type=int, default=42)
 parser.add_argument("--resume", type=str, default=None,
                     help="Path to GNN checkpoint to resume from")
+parser.add_argument("--viz-grafts-per-gen", type=int, default=3,
+                    help="How many graft samples to render as ASCII dataflow each "
+                         "generation (host/donor/grafted). 0 disables.")
+parser.add_argument("--viz-color", action="store_true", default=True,
+                    help="Emit ANSI colour escape codes in graft visualisations.")
+parser.add_argument("--no-viz-color", dest="viz_color", action="store_false",
+                    help="Disable ANSI colour codes in graft visualisations.")
+parser.add_argument("--subprocess-eval", action="store_true", default=True,
+                    help="Run each genome evaluation inside a kill-able worker "
+                         "subprocess.  Required to keep auto-repaired grafts "
+                         "(which can hang inside numpy) from saturating CPU.")
+parser.add_argument("--no-subprocess-eval", dest="subprocess_eval",
+                    action="store_false",
+                    help="Use in-process threaded evaluation (fast but unsafe "
+                         "with auto-repair-prone grafts).")
+parser.add_argument("--micro-pop-size", type=int, default=32,
+                    help="Micro-population size per slot (was 8). Larger = better "
+                         "type-aware GP exploration but slower per macro generation.")
+parser.add_argument("--micro-generations", type=int, default=3,
+                    help="Micro-evolution generations per macro generation (was 1).")
+parser.add_argument("--micro-mutation-rate", type=float, default=0.6,
+                    help="Per-individual mutation probability (was 0.3).")
+parser.add_argument("--use-fii-view", action="store_true", default=True,
+                    help="Build the Fully-Inlined IR (FII) view of each genome so "
+                         "the GNN can see slot internals and propose grafts that "
+                         "land inside slots. Disable to revert to slot-opaque "
+                         "structural-IR view.")
+parser.add_argument("--no-fii-view", dest="use_fii_view", action="store_false",
+                    help="Disable FII; GNN sees only slot-opaque structural IR.")
 args = parser.parse_args()
 
 # ── Output directory ──────────────────────────────────────────────────────
@@ -122,6 +179,7 @@ out_dir = Path("results/gnn_training")
 out_dir.mkdir(parents=True, exist_ok=True)
 log_path = out_dir / "training_log.jsonl"
 top50_log_path = out_dir / "top50_grafts.log"
+viz_log_path = out_dir / "graft_visualizations.log"
 
 # ══════════════════════════════════════════════════════════════════════════
 # Graft quality analysis utilities
@@ -530,6 +588,136 @@ def _analyse_effective_graft(
     return result
 
 
+# ══════════════════════════════════════════════════════════════════════════
+# ASCII data-flow visualisation of grafted samples
+# ══════════════════════════════════════════════════════════════════════════
+
+def _log_graft_visualizations(
+    gen: int,
+    graft_samples: list[tuple[AlgorithmGenome, FitnessResult]],
+    analyses: dict[str, dict],
+    snr_db: float,
+    log_file: Path,
+    engine: AlgorithmEvolutionEngine,
+    *,
+    n_per_gen: int,
+    color: bool,
+) -> int:
+    """Render a small sample of host/donor/graft IRs as ASCII dataflow.
+
+    Picks ``n_per_gen`` graft children, preferring those that passed the
+    three-fold ``effective`` check, then back-filling from the remaining
+    samples sorted by composite score.  For each pick, writes a
+    side-by-side dataflow listing of the host IR (with replaced region
+    in red), the grafted child IR (with inlined donor ops in green),
+    and -- when resolvable -- the donor IR (in cyan).
+
+    Returns the number of grafts actually rendered.
+    """
+    if n_per_gen <= 0 or not graft_samples:
+        return 0
+
+    try:
+        from algorithm_ir.visualize import render_graft_visualization
+    except Exception as exc:
+        logger.warning("Graft visualiser unavailable: %s", exc)
+        return 0
+
+    # Rank: effective first, then by composite score ascending
+    effective = [
+        (g, f) for g, f in graft_samples
+        if analyses.get(g.algo_id, {}).get("effective")
+    ]
+    rest = [
+        (g, f) for g, f in graft_samples
+        if not analyses.get(g.algo_id, {}).get("effective")
+    ]
+    rest.sort(key=lambda x: x[1].composite_score())
+    picks = (effective + rest)[:n_per_gen]
+
+    rendered = 0
+    with open(log_file, "a", encoding="utf-8") as fh:
+        fh.write(f"\n{'#'*80}\n")
+        fh.write(f"# GENERATION {gen} | SNR={snr_db:.0f}dB | "
+                 f"{len(picks)} graft visualisations "
+                 f"({len(effective)} effective available)\n")
+        fh.write(f"{'#'*80}\n\n")
+
+        for rank, (genome, fit) in enumerate(picks, 1):
+            analysis = analyses.get(genome.algo_id, {})
+            host_algo_id = analysis.get("host_algo_id") or genome.metadata.get("graft_host_algo_id")
+            donor_algo_id = genome.metadata.get("graft_donor_algo_id")
+
+            host_genome = engine.resolve_genome(str(host_algo_id)) if host_algo_id else None
+            donor_genome = engine.resolve_genome(str(donor_algo_id)) if donor_algo_id else None
+            grafted_ir = genome.structural_ir
+            host_ir = host_genome.structural_ir if host_genome is not None else None
+            donor_ir = donor_genome.structural_ir if donor_genome is not None else None
+
+            # Reconstruct the replaced region: original host op IDs are
+            # preserved by graft_general(); donor ops use fresh IDs.
+            # So the region == host op IDs missing from the grafted IR.
+            region_op_ids: list[str] = []
+            if host_ir is not None and grafted_ir is not None:
+                grafted_op_ids = set(grafted_ir.ops.keys())
+                region_op_ids = [
+                    op_id for op_id in host_ir.ops.keys()
+                    if op_id not in grafted_op_ids
+                ]
+
+            class _Region:
+                pass
+
+            region_proxy = _Region()
+            region_proxy.op_ids = region_op_ids
+            region_proxy.entry_values = []
+            region_proxy.exit_values = []
+
+            verdict = analysis.get("quality_verdict", "?")
+            ser = fit.metrics.get("ser", float("inf"))
+            score = fit.composite_score()
+            host_score = analysis.get("host_score")
+            host_score_repr = (
+                f"{float(host_score):.6f}" if host_score is not None else "n/a"
+            )
+            change_rate = float(analysis.get("behavior_change_rate", 0.0))
+
+            fh.write(f"\n{'='*80}\n")
+            fh.write(
+                f"[#{rank}] child={genome.algo_id}  host={host_algo_id}  "
+                f"donor={donor_algo_id}\n"
+            )
+            fh.write(
+                f"        verdict={verdict}  child_score={score:.6f}  "
+                f"host_score={host_score_repr}  child_SER={ser:.6f}  "
+                f"behavior_change={change_rate:.3f}  region_size={len(region_op_ids)}\n"
+            )
+            fh.write(f"{'='*80}\n")
+
+            if host_ir is None:
+                fh.write(f"  <host genome '{host_algo_id}' not resolvable; "
+                         f"skipping visualisation>\n")
+                continue
+
+            try:
+                viz = render_graft_visualization(
+                    host_ir=host_ir,
+                    region=region_proxy,
+                    donor_ir=donor_ir,
+                    grafted_ir=grafted_ir,
+                    color=color,
+                    show_consumers=True,
+                )
+            except Exception as exc:
+                fh.write(f"  <render failed: {exc}>\n")
+                continue
+            fh.write(viz)
+            fh.write("\n")
+            rendered += 1
+
+    return rendered
+
+
 def _log_effective_grafts(
     gen: int,
     graft_samples: list[tuple[AlgorithmGenome, FitnessResult]],
@@ -662,7 +850,7 @@ def _log_effective_grafts(
         if not effective_pairs:
             fh.write("  <none>\n\n")
 
-    return {
+    return ({
         "n_graft_samples": len(evaluated_pairs),
         "n_effective": len(effective_pairs),
         "n_structural_fail": structural_fail,
@@ -675,7 +863,7 @@ def _log_effective_grafts(
         "effective_precise_median_ser": float(np.median(precise_ser)) if precise_ser else None,
         "effective_precise_mean_ser": float(np.mean(precise_ser)) if precise_ser else None,
         "n_effective_precise": len(precise_results),
-    }
+    }, analyses, evaluated_pairs)
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -692,9 +880,18 @@ def make_evaluator(
     *,
     timeout_sec: float,
     batch_workers: int,
+    subprocess: bool | None = None,
 ) -> MIMOFitnessEvaluator:
-    """Create a MIMO evaluator at the given SNR."""
-    return MIMOFitnessEvaluator(MIMOEvalConfig(
+    """Create a MIMO evaluator at the given SNR.
+
+    If ``subprocess`` (or the global ``--subprocess-eval`` flag) is true,
+    the returned evaluator runs each genome inside a kill-able worker
+    process.  This is required for graft evaluation because
+    auto-repaired grafts can compile to code that hangs inside numpy
+    indefinitely; without process isolation the leaked OS threads
+    saturate the CPU and starve the GNN training loop.
+    """
+    cfg = MIMOEvalConfig(
         Nr=16, Nt=16, mod_order=16,
         snr_db_list=[snr_db],
         n_trials=n_trials,
@@ -703,14 +900,24 @@ def make_evaluator(
         batch_workers=batch_workers,
         show_progress=args.progress,
         seed=args.seed,
-    ))
+    )
+    use_sp = bool(getattr(args, "subprocess_eval", False)) if subprocess is None else bool(subprocess)
+    if use_sp:
+        from evolution.subprocess_evaluator import SubprocessMIMOEvaluator
+        return SubprocessMIMOEvaluator(cfg)
+    return MIMOFitnessEvaluator(cfg)
 
 
 gnn_matcher = GNNPatternMatcher(
     max_proposals_per_gen=args.proposals,
     top_k_pairs=args.top_k,
     min_region_size=1,
-    max_region_size=8,
+    max_region_size=args.max_region_ops,
+    max_boundary_outputs=args.max_boundary_outputs,
+    max_cut_values=args.max_cut_values,
+    max_region_ops=args.max_region_ops,
+    max_region_inputs=args.max_region_inputs,
+    max_region_outputs=args.max_region_outputs,
     lr=1e-3,
     buffer_size=args.buffer_size,
     train_interval=args.train_interval,
@@ -720,6 +927,8 @@ gnn_matcher = GNNPatternMatcher(
     pair_exploration=args.pair_eps,
     region_exploration=args.region_eps,
     donor_exploration=args.donor_eps,
+    enable_batched_proposals=args.proposal_batch,
+    proposal_batch_size=args.proposal_batch_size,
     show_progress=args.progress,
 )
 
@@ -727,8 +936,13 @@ if args.resume and Path(args.resume).exists():
     ckpt = torch.load(args.resume, map_location=gnn_matcher.device, weights_only=False)
     gnn_matcher.encoder.load_state_dict(ckpt["encoder"], strict=False)
     gnn_matcher.scorer.load_state_dict(ckpt["scorer"], strict=False)
-    gnn_matcher.region_proposer.load_state_dict(ckpt["region_proposer"], strict=False)
-    gnn_matcher.donor_region_selector.load_state_dict(ckpt["donor_region_selector"], strict=False)
+    boundary_state = (
+        ckpt.get("boundary_region_policy")
+        or ckpt.get("region_proposer")
+        or ckpt.get("donor_region_selector")
+    )
+    if boundary_state is not None:
+        gnn_matcher.boundary_region_policy.load_state_dict(boundary_state, strict=False)
     if "optimizer" in ckpt:
         try:
             gnn_matcher.optimizer.load_state_dict(ckpt["optimizer"])
@@ -740,7 +954,10 @@ evo_config = AlgorithmEvolutionConfig(
     pool_size=args.pool_size,
     n_generations=1,  # we drive the loop ourselves
     seed=args.seed,
-    micro_generations=1,  # Reduce from default 5: each gen is slow with functional slots
+    micro_pop_size=args.micro_pop_size,
+    micro_generations=args.micro_generations,
+    micro_mutation_rate=args.micro_mutation_rate,
+    use_fii_view=args.use_fii_view,
 )
 
 evaluator = make_evaluator(
@@ -790,6 +1007,7 @@ def save_checkpoint(gen: int, tag: str = "") -> Path:
         "snr_db": current_snr,
         "encoder": gnn_matcher.encoder.state_dict(),
         "scorer": gnn_matcher.scorer.state_dict(),
+        "boundary_region_policy": gnn_matcher.boundary_region_policy.state_dict(),
         "region_proposer": gnn_matcher.region_proposer.state_dict(),
         "donor_region_selector": gnn_matcher.donor_region_selector.state_dict(),
         "optimizer": gnn_matcher.optimizer.state_dict(),
@@ -840,6 +1058,18 @@ for gen in range(1, args.gens + 1):
     n_good = sum(1 for s in gen_sers if s < 0.1)
     frac_good = n_good / len(gen_sers) if gen_sers else 0.0
     n_grafted_survivors = sum(1 for g in engine.population if "grafted" in g.tags)
+    dispatch_case_counts = dict(getattr(engine, "_dispatch_case_counts", {}) or {})
+    n_case_I = dispatch_case_counts.get("case_I", 0)
+    n_case_II = dispatch_case_counts.get("case_II", 0)
+    n_case_III_rej = dispatch_case_counts.get("case_III_rejected", 0)
+    n_dispatch_failed = sum(
+        v for k, v in dispatch_case_counts.items()
+        if k not in {"case_I", "case_II", "case_III_rejected"}
+    )
+    logger.info(
+        "  dispatch: I=%d II=%d III_rej=%d failed=%d (cum)",
+        n_case_I, n_case_II, n_case_III_rej, n_dispatch_failed,
+    )
 
     if best_ser < best_ser_ever:
         best_ser_ever = best_ser
@@ -847,22 +1077,57 @@ for gen in range(1, args.gens + 1):
     elapsed = time.perf_counter() - t0
 
     # ── Log top-50 grafted individuals ─────────────────────────────────
-    graft_stats = _log_effective_grafts(
+    graft_stats, graft_analyses, graft_evaluated_pairs = _log_effective_grafts(
         gen, engine.last_graft_sample_pool, engine.population, engine.fitness, current_snr, top50_log_path, engine,
     )
 
-    # ── SNR curriculum: escalate only when GNN has learned meaningful grafts ──
-    # frac_good measures the whole population (incl. non-grafted).
-    # Use effective graft fraction + minimum gens at current SNR instead.
+    # ── Render ASCII data-flow visualisations of selected grafts ──────
+    if args.viz_grafts_per_gen > 0:
+        try:
+            n_viz = _log_graft_visualizations(
+                gen,
+                graft_evaluated_pairs,
+                graft_analyses,
+                current_snr,
+                viz_log_path,
+                engine,
+                n_per_gen=args.viz_grafts_per_gen,
+                color=args.viz_color,
+            )
+            if n_viz:
+                logger.info("  Wrote %d graft visualisation(s) to %s", n_viz, viz_log_path)
+        except Exception as exc:
+            logger.warning("Graft visualisation failed at gen %d: %s", gen, exc)
+
+    # ── SNR curriculum: escalate when EITHER (a) GNN learned meaningful
+    # grafts at this SNR, OR (b) the population has converged so the
+    # current SNR offers no headroom for improvement.  Convergence is
+    # detected when the median equals the best for several recent gens
+    # — this means every survivor is a clone of the best, so any
+    # improvement signal is impossible to extract at this SNR.
     snr_changed = False
     gens_at_current_snr = sum(1 for r in phase_history if r.get("snr_db") == current_snr)
     n_effective = graft_stats.get("n_effective", 0)
     frac_effective_grafts = n_effective / max(graft_stats.get("n_graft_samples", 0), 1) if graft_stats.get("n_graft_samples", 0) > 0 else 0.0
-    if (
-        gens_at_current_snr >= 20             # spend at least 20 gens at each SNR
-        and frac_effective_grafts >= args.phase_thresh  # and most grafts must be truly effective
-        and current_snr < args.snr_target
-    ):
+
+    # Convergence: median == best across the last few gens at current SNR.
+    recent_at_snr = [r for r in phase_history if r.get("snr_db") == current_snr]
+    converged = (
+        len(recent_at_snr) >= 3
+        and all(
+            abs((r.get("median_ser") or 0.0) - (r.get("best_ser") or 0.0)) < 1e-6
+            for r in recent_at_snr[-3:]
+        )
+    )
+
+    should_escalate = (
+        current_snr < args.snr_target
+        and (
+            (gens_at_current_snr >= 20 and frac_effective_grafts >= args.phase_thresh)
+            or (gens_at_current_snr >= 5 and converged)
+        )
+    )
+    if should_escalate:
         old_snr = current_snr
         current_snr = min(current_snr + snr_step, args.snr_target)
         evaluator = make_evaluator(
@@ -931,13 +1196,18 @@ for gen in range(1, args.gens + 1):
     )
     matcher_stats = gnn_matcher.get_stats()
     logger.info(
-        "  Train stats: matched=%s score=%.4f baseline=%.4f | proposals=%s pairs=%s/%s | graft_eval=%s kept=%s warmstart=%s",
+        "  Train stats: matched=%s score=%.4f baseline=%.4f | proposals=%s pairs=%s/%s | region_ops=%.2f inputs=%.2f outputs=%.2f cut=%.2f invalid=%.3f | graft_eval=%s kept=%s warmstart=%s",
         matcher_stats.get("last_train", {}).get("matched_samples"),
         matcher_stats.get("last_train", {}).get("mean_graft_score", float("nan")),
         matcher_stats.get("reward_baseline", 0.0),
         matcher_stats.get("last_proposals", {}).get("proposals_built"),
         matcher_stats.get("last_proposals", {}).get("pair_candidates_selected"),
         matcher_stats.get("last_proposals", {}).get("pair_candidates_scored"),
+        matcher_stats.get("last_proposals", {}).get("mean_region_ops", 0.0),
+        matcher_stats.get("last_proposals", {}).get("mean_region_inputs", 0.0),
+        matcher_stats.get("last_proposals", {}).get("mean_region_outputs", 0.0),
+        matcher_stats.get("last_proposals", {}).get("effective_cut_size", 0.0),
+        matcher_stats.get("last_proposals", {}).get("invalid_region_rate", 0.0),
         engine.last_generation_stats.get("graft_evaluated"),
         engine.last_generation_stats.get("graft_kept"),
         engine.last_generation_stats.get("warmstart_active"),

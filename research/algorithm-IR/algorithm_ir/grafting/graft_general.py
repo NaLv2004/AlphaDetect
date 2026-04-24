@@ -22,7 +22,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from algorithm_ir.ir.model import FunctionIR, Op, Value, Block
-from algorithm_ir.ir.validator import validate_function_ir
+from algorithm_ir.ir.validator import rebuild_def_use, validate_function_ir
 from algorithm_ir.region.selector import RewriteRegion
 
 
@@ -694,6 +694,7 @@ def graft_general(
         new_ir = deepcopy(host_ir)
     except (AttributeError, TypeError):
         new_ir = _manual_clone_ir(host_ir)
+    rebuild_def_use(new_ir)
 
     # 2. Locate region ops
     region: RewriteRegion = proposal.region
@@ -708,6 +709,12 @@ def graft_general(
 
     # 3. Boundary analysis
     entry_values, exit_values = find_region_boundary(new_ir, region_op_ids)
+    host_contract = proposal.contract
+    if host_contract is not None:
+        if getattr(host_contract, "normalized_input_ports", None):
+            entry_values = list(host_contract.normalized_input_ports)
+        if getattr(host_contract, "normalized_output_ports", None):
+            exit_values = list(host_contract.normalized_output_ports)
 
     # 4. Clone donor IR with fresh IDs
     donor_ir = proposal.donor_ir
@@ -740,7 +747,35 @@ def graft_general(
         host_arg_vids = [
             proposal.port_mapping.get(v, v) for v in entry_values
         ]
-    elif donor_ir.arg_values:
+    elif host_contract is not None and donor_ir.arg_values and (
+        len(host_contract.normalized_input_ports) == len(_function_port_signature(donor_ir)["inputs"])
+        and len(host_contract.normalized_output_ports) == len(_function_port_signature(donor_ir)["outputs"])
+    ):
+        # Strict contract path: only used when arities match exactly.
+        # When mismatched, we fall through to the name-hint matching
+        # below rather than raising — that recovers the majority of
+        # otherwise-failing port bindings without imposing a graft
+        # pattern prior.
+        donor_sig = _function_port_signature(donor_ir)
+        host_inputs = list(host_contract.normalized_input_ports)
+        host_outputs = list(host_contract.normalized_output_ports)
+        sig_in_compatible = all(
+            _strip_value_id(h) == _strip_value_id(d)
+            for h, d in zip(host_contract.port_signature["inputs"], donor_sig["inputs"])
+        )
+        sig_out_compatible = all(
+            _strip_value_id(h) == _strip_value_id(d)
+            for h, d in zip(host_contract.port_signature["outputs"], donor_sig["outputs"])
+        )
+        if sig_in_compatible and sig_out_compatible:
+            host_arg_vids = host_inputs
+        else:
+            host_contract = None  # fall through to name-hint matching
+            host_arg_vids = None
+    else:
+        host_arg_vids = None
+
+    if host_arg_vids is None and donor_ir.arg_values:
         # Name-hint matching: for each donor arg, find the host value
         # whose name_hint matches.  This is critical for trimmed donors
         # where arg_values are a subset of the original function args —
@@ -818,12 +853,45 @@ def graft_general(
                     matched_vid = new_vid
 
             host_arg_vids.append(matched_vid)
-    else:
+    elif host_arg_vids is None:
         host_arg_vids = list(entry_values)
 
     bind_donor_args_to_host_values(
         cloned_ops, cloned_values, donor_arg_new_vids, host_arg_vids,
     )
+
+    # Safety: if `host_arg_vids` is shorter than `donor_arg_new_vids`,
+    # the leftover donor args have no host binding and any cloned op
+    # that uses them will produce a dangling reference.  Materialise
+    # one ``const None`` per missing arg and rebind, so we get a
+    # syntactically valid graft (which then runs and produces a real
+    # signal — better than raising and giving the policy zero
+    # information about the structural choice).
+    if len(host_arg_vids) < len(donor_arg_new_vids):
+        entry_block = new_ir.blocks.get(new_ir.entry_block)
+        for i in range(len(host_arg_vids), len(donor_arg_new_vids)):
+            donor_vid = donor_arg_new_vids[i]
+            fill_vid = _fresh_id("v_argfill")
+            new_ir.values[fill_vid] = Value(
+                id=fill_vid,
+                name_hint=f"argfill_{i}",
+                type_hint="object",
+                attrs={"role": "const", "var_name": "None"},
+            )
+            const_oid = _fresh_id("op_argfill_const")
+            new_ir.ops[const_oid] = Op(
+                id=const_oid,
+                opcode="const",
+                inputs=[],
+                outputs=[fill_vid],
+                block_id=new_ir.entry_block,
+                attrs={"literal": None, "name": "None", "grafted": True},
+            )
+            new_ir.values[fill_vid].def_op = const_oid
+            if entry_block:
+                entry_block.op_ids.insert(0, const_oid)
+            for op in cloned_ops.values():
+                op.inputs = [fill_vid if v == donor_vid else v for v in op.inputs]
 
     # 6. Find donor return ops, extract return values
     donor_return_op_ids: list[str] = []
@@ -923,47 +991,57 @@ def graft_general(
         if bid in new_ir.blocks:
             topological_sort_block(new_ir, bid)
 
-    # 12b. Fix dangling value references — safety net for values
-    # referenced by ops but not defined by any op in the IR and not in
-    # arg_values.  These arise when trimmed-donor args with generic
-    # name_hints (e.g. "binary") aren't matched to host values.
+    # 12b. Auto-repair dangling value references — values referenced
+    # by ops but not defined by any op in the IR and not in
+    # arg_values.  These arise when port binding can't fully resolve
+    # donor-internal references (e.g. cloned-but-deleted ops, name
+    # collisions, etc.).  We materialise one ``const None`` per unique
+    # dangling vid and rewrite all uses so the graft is syntactically
+    # valid and runs.  Crashing-at-execution gives the policy a real
+    # signal (-0.5 invalid reward) about the structural choice; raising
+    # at construction time only labels every such graft "invalid"
+    # without any per-sample variability that the RL signal can use.
     arg_set = set(new_ir.arg_values)
+    dangling_vids: set[str] = set()
     for op in list(new_ir.ops.values()):
-        for inp_vid in list(op.inputs):
+        for inp_vid in op.inputs:
             if inp_vid in arg_set:
                 continue
             val = new_ir.values.get(inp_vid)
             if val is None:
+                dangling_vids.add(inp_vid)
                 continue
-            # Check if the value has a defining op that exists in the IR
             if val.def_op and val.def_op in new_ir.ops:
                 continue
-            # Dangling reference: value has no definition.
-            # Replace with a safe const 0 to prevent NameError.
-            safe_vid = _fresh_id("v_safe")
-            new_ir.values[safe_vid] = Value(
-                id=safe_vid,
-                name_hint="safe_zero",
+            dangling_vids.add(inp_vid)
+
+    if dangling_vids:
+        entry_block = new_ir.blocks.get(new_ir.entry_block)
+        rewrite: dict[str, str] = {}
+        for d_vid in dangling_vids:
+            fill_vid = _fresh_id("v_repair")
+            new_ir.values[fill_vid] = Value(
+                id=fill_vid,
+                name_hint="repair_none",
                 type_hint="object",
-                attrs={"role": "const", "var_name": "0"},
+                attrs={"role": "const", "var_name": "None"},
             )
-            safe_oid = _fresh_id("op_safe_const")
-            new_ir.ops[safe_oid] = Op(
-                id=safe_oid,
+            const_oid = _fresh_id("op_repair_const")
+            new_ir.ops[const_oid] = Op(
+                id=const_oid,
                 opcode="const",
                 inputs=[],
-                outputs=[safe_vid],
+                outputs=[fill_vid],
                 block_id=new_ir.entry_block,
-                attrs={"literal": 0, "name": "0", "grafted": True},
+                attrs={"literal": None, "name": "None", "grafted": True},
             )
-            new_ir.values[safe_vid].def_op = safe_oid
-            entry_block = new_ir.blocks.get(new_ir.entry_block)
+            new_ir.values[fill_vid].def_op = const_oid
             if entry_block:
-                entry_block.op_ids.insert(0, safe_oid)
-            # Rebind the dangling input to the safe const
-            op.inputs = [safe_vid if v == inp_vid else v for v in op.inputs]
-            if safe_vid not in new_ir.values[safe_vid].use_ops:
-                new_ir.values[safe_vid].use_ops.append(op.id)
+                entry_block.op_ids.insert(0, const_oid)
+            rewrite[d_vid] = fill_vid
+        for op in new_ir.ops.values():
+            if any(v in rewrite for v in op.inputs):
+                op.inputs = [rewrite.get(v, v) for v in op.inputs]
 
     # 13. Detect new slots from donor
     new_slot_ids: list[str] = []
@@ -976,6 +1054,11 @@ def graft_general(
 
     inlined_op_ids = [oid for oid in cloned_ops if oid in new_ir.ops]
 
+    rebuild_def_use(new_ir)
+    errors = validate_function_ir(new_ir)
+    if errors:
+        raise ValueError(f"Invalid grafted IR: {errors[:8]}")
+
     return GraftArtifact(
         ir=new_ir,
         new_slot_ids=new_slot_ids,
@@ -983,3 +1066,53 @@ def graft_general(
         inlined_op_ids=inlined_op_ids,
         id_map=id_map,
     )
+
+
+def _function_port_signature(func_ir: FunctionIR) -> dict[str, list[dict[str, Any]]]:
+    return {
+        "inputs": [_function_value_signature(func_ir, vid, "input") for vid in func_ir.arg_values],
+        "outputs": [_function_value_signature(func_ir, vid, "output") for vid in func_ir.return_values],
+    }
+
+
+def _function_value_signature(
+    func_ir: FunctionIR,
+    value_id: str,
+    direction: str,
+) -> dict[str, Any]:
+    value = func_ir.values.get(value_id)
+    if value is None:
+        return {
+            "direction": direction,
+            "type_hint": None,
+            "n_uses": 0,
+            "is_control_related": False,
+            "is_effect_related": False,
+        }
+    return {
+        "direction": direction,
+        "type_hint": value.type_hint,
+        "n_uses": len(value.use_ops),
+        "is_control_related": any(
+            func_ir.ops[use_op].opcode == "branch"
+            for use_op in value.use_ops
+            if use_op in func_ir.ops
+        ),
+        "is_effect_related": any(
+            func_ir.ops[use_op].opcode in {"set_attr", "set_item", "append", "pop"}
+            or (
+                func_ir.ops[use_op].opcode == "call"
+                and (
+                    func_ir.ops[use_op].attrs.get("effectful")
+                    or func_ir.ops[use_op].attrs.get("has_side_effect")
+                    or func_ir.ops[use_op].attrs.get("escapes")
+                )
+            )
+            for use_op in value.use_ops
+            if use_op in func_ir.ops
+        ),
+    }
+
+
+def _strip_value_id(signature_entry: dict[str, Any]) -> dict[str, Any]:
+    return {k: v for k, v in signature_entry.items() if k != "value_id"}

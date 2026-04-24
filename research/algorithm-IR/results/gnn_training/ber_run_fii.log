@@ -1,0 +1,59 @@
+# launched Fri Apr 24 11:15:35 2026 cmd=C:\ProgramData\anaconda3\envs\AutoGenOld\python.exe -B -u train_gnn.py --gens 3 --proposals 20 --pool-size 15 --n-trials 2 --warmstart-gens 0 --snr-start 16 --snr-target 16 --micro-pop-size 8 --micro-generations 1 --viz-grafts-per-gen 0 --use-fii-view
+11:15:57 INFO  evolution.algorithm_engine ！ Population initialized: 15 genomes, best=0.004880
+11:15:57 INFO  train_gnn ！ Warm-start config: gens=0 trials=1 timeout=0.50s main_workers=1 warm_workers=8 survivor_cap=48
+11:15:57 INFO  train_gnn ！ Starting GNN training: 3 gens, SNR=16dB★16dB, 20 proposals/gen, pool=15, trials=2
+11:16:15 INFO  evolution.gnn_pattern_matcher ！ GNN propose: encode=0.85s train=0.00s score=0.02s propose=0.35s -> 5 proposals from 91 entries
+11:16:15 INFO  evolution.algorithm_engine ！ graft dispatch refused [case_I_no_pop]: slot '_slot_stage1_op_19' not in host slot_populations ！ falling back to flat
+11:16:15 INFO  evolution.algorithm_engine ！ graft dispatch refused [case_II_region_unmapped]: region op 'op_18' not mappable to struct ！ falling back to flat
+11:16:15 WARNING evolution.algorithm_engine ！ Graft failed: 'RewriteRegion' object is not iterable
+11:16:15 INFO  evolution.algorithm_engine ！ graft dispatch refused [case_II_unmapped]: structural opcode-sequence alignment failed ！ falling back to flat
+11:16:15 INFO  evolution.algorithm_engine ！ graft dispatch refused [case_II_region_unmapped]: region op 'op_18' not mappable to struct ！ falling back to flat
+11:16:15 INFO  evolution.algorithm_engine ！   Structural grafts: 4/5 succeeded (propose=1.2s, graft=0.0s)
+11:16:15 INFO  evolution.algorithm_engine ！   Timing: micro=10.3s eval_micro=3.5s eval_off=0.3s (7 macro, 4 graft eval, 4 graft kept)
+11:16:15 INFO  evolution.algorithm_engine ！ Gen 1: best=0.004880 (algo_cb67a07f) elapsed=18.0s stagnation=0
+11:16:15 INFO  train_gnn ！   dispatch: I=0 II=0 III_rej=0 failed=4 (cum)
+11:16:16 INFO  train_gnn ！ Gen   1 | SNR=16dB | best_SER=0.000000 | median=0.2500 | good=20% | graft_samples=4 effective=0 (structural_fail=1, behavior_fail=0, perf_fail=3) | survivors=2 | 18.0s
+11:16:16 INFO  train_gnn ！   Effective graft SER (all samples): rough_best=NA rough_median=NA rough_mean=NA | precise_best=NA precise_median=NA precise_mean=NA (n=0)
+11:16:16 INFO  train_gnn ！   Train stats: matched=None score=nan baseline=0.0000 | proposals=5 pairs=20/8190 | region_ops=2.67 inputs=0.50 outputs=1.25 cut=0.00 invalid=0.750 | graft_eval=4 kept=4 warmstart=False
+11:16:20 INFO  evolution.gnn_pattern_matcher ！ GNN train: 5 samples, 5 steps, avg_reward=-0.0600, avg_score=1.1025, global_baseline=-0.0060, hosts_baselined=5, loss=0.6337 (mse=0.9270, rl=-0.9776, |adv|=0.2236)
+11:16:21 INFO  evolution.gnn_pattern_matcher ！ GNN propose: encode=0.21s train=1.20s score=0.01s propose=0.32s -> 4 proposals from 99 entries
+11:16:21 WARNING evolution.algorithm_engine ！ Graft failed: 'RewriteRegion' object is not iterable
+11:16:21 INFO  evolution.algorithm_engine ！ graft dispatch refused [case_I_no_pop]: slot '_slot_hard_decision_op_40' not in host slot_populations ！ falling back to flat
+11:16:21 INFO  evolution.algorithm_engine ！ graft dispatch refused [case_II_unmapped]: structural opcode-sequence alignment failed ！ falling back to flat
+11:16:21 INFO  evolution.algorithm_engine ！   Structural grafts: 3/4 succeeded (propose=1.7s, graft=0.0s)
+11:16:21 INFO  evolution.algorithm_engine ！   Timing: micro=2.3s eval_micro=0.6s eval_off=0.4s (7 macro, 3 graft eval, 3 graft kept)
+11:16:21 INFO  evolution.algorithm_engine ！ Gen 2: best=0.004880 (algo_cb67a07f) elapsed=5.4s stagnation=0
+11:16:21 INFO  train_gnn ！   dispatch: I=0 II=0 III_rej=0 failed=6 (cum)
+11:16:21 INFO  train_gnn ！ Gen   2 | SNR=16dB | best_SER=0.000000 | median=0.1875 | good=33% | graft_samples=3 effective=0 (structural_fail=2, behavior_fail=0, perf_fail=1) | survivors=2 | 5.4s
+11:16:21 INFO  train_gnn ！   Effective graft SER (all samples): rough_best=NA rough_median=NA rough_mean=NA | precise_best=NA precise_median=NA precise_mean=NA (n=0)
+11:16:21 INFO  train_gnn ！   Train stats: matched=5 score=1.1025 baseline=-0.0060 | proposals=4 pairs=20/9702 | region_ops=4.17 inputs=0.50 outputs=1.17 cut=0.00 invalid=0.800 | graft_eval=3 kept=3 warmstart=False
+11:16:28 INFO  evolution.gnn_pattern_matcher ！ GNN train: 9 samples, 5 steps, avg_reward=-0.0778, avg_score=1.1133, global_baseline=-0.0132, hosts_baselined=8, loss=0.3966 (mse=0.7997, rl=-1.3438, |adv|=0.2407)
+11:16:29 INFO  evolution.gnn_pattern_matcher ！ GNN propose: encode=0.25s train=1.32s score=0.01s propose=0.52s -> 11 proposals from 103 entries
+11:16:29 INFO  evolution.algorithm_engine ！ graft dispatch refused [case_II_region_unmapped]: region op 'op_12' not mappable to struct ！ falling back to flat
+11:16:29 WARNING evolution.algorithm_engine ！ Graft failed: 'RewriteRegion' object is not iterable
+11:16:29 INFO  evolution.algorithm_engine ！ graft dispatch refused [case_II_region_unmapped]: region op 'op_18' not mappable to struct ！ falling back to flat
+11:16:29 INFO  evolution.algorithm_engine ！ graft dispatch refused [case_II_region_unmapped]: region op 'op_34' not mappable to struct ！ falling back to flat
+11:16:29 INFO  evolution.algorithm_engine ！ graft dispatch refused [case_II_region_unmapped]: region op 'op_318' not mappable to struct ！ falling back to flat
+11:16:29 INFO  evolution.algorithm_engine ！ graft dispatch refused [case_II_region_unmapped]: region op 'op_14' not mappable to struct ！ falling back to flat
+11:16:29 INFO  evolution.algorithm_engine ！ graft dispatch [case_II]: applied to structural_ir; new_slots=[]
+11:16:29 INFO  evolution.algorithm_engine ！ graft dispatch [case_II]: applied to structural_ir; new_slots=[]
+11:16:29 INFO  evolution.algorithm_engine ！ graft dispatch refused [case_I_no_pop]: slot '_slot_hard_decision_op_63' not in host slot_populations ！ falling back to flat
+11:16:29 INFO  evolution.algorithm_engine ！ graft dispatch refused [case_II_region_unmapped]: region op 'op_423' not mappable to struct ！ falling back to flat
+11:16:29 INFO  evolution.algorithm_engine ！   Structural grafts: 10/11 succeeded (propose=2.1s, graft=0.0s)
+11:16:30 INFO  evolution.algorithm_engine ！   Timing: micro=3.9s eval_micro=0.9s eval_off=1.3s (7 macro, 10 graft eval, 10 graft kept)
+11:16:30 INFO  evolution.algorithm_engine ！ Gen 3: best=0.004880 (algo_cb67a07f) elapsed=9.1s stagnation=1
+11:16:30 INFO  train_gnn ！   dispatch: I=0 II=2 III_rej=0 failed=13 (cum)
+11:16:30 INFO  train_gnn ！ Gen   3 | SNR=16dB | best_SER=0.000000 | median=0.0000 | good=80% | graft_samples=10 effective=0 (structural_fail=7, behavior_fail=0, perf_fail=3) | survivors=2 | 9.1s
+11:16:30 INFO  train_gnn ！   Effective graft SER (all samples): rough_best=NA rough_median=NA rough_mean=NA | precise_best=NA precise_median=NA precise_mean=NA (n=0)
+11:16:30 INFO  train_gnn ！   Train stats: matched=9 score=1.1133 baseline=-0.0132 | proposals=11 pairs=20/10506 | region_ops=3.41 inputs=0.35 outputs=1.24 cut=0.00 invalid=0.450 | graft_eval=10 kept=10 warmstart=False
+
+============================================================
+GNN TRAINING COMPLETE
+Total time: 33.2s (0.0h)
+Generations: 3
+Final SNR: 16dB
+Best SER ever: 0.000000
+Best algo: algo_cb67a07f
+Results: results\gnn_training
+Top-50 log: results\gnn_training\top50_grafts.log
+============================================================

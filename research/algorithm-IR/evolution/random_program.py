@@ -6,6 +6,7 @@ then compiles to FunctionIR via algorithm_ir.frontend.ir_builder.
 
 from __future__ import annotations
 
+import logging
 import textwrap
 from typing import Any
 
@@ -14,6 +15,16 @@ import numpy as np
 from algorithm_ir.frontend.ir_builder import compile_source_to_ir
 from algorithm_ir.ir.model import FunctionIR
 from evolution.skeleton_registry import ProgramSpec
+from evolution.types_lattice import (
+    PRIMITIVE_TYPES,
+    TENSOR_TYPES,
+    TYPE_TOP,
+    default_value,
+    is_subtype,
+)
+
+
+logger = logging.getLogger(__name__)
 
 
 # Available binary operators (safe for numerical evolution)
@@ -36,6 +47,39 @@ def random_ir_program(
     to FunctionIR via compile_function_to_ir().
     """
     body_expr = _random_expr(spec.param_names, rng, max_depth, use_safe_ops)
+
+    # Type-lattice-aware fallback value (Sec 4.1 integration).  The
+    # random expression above is mostly scalar-float; when the spec
+    # demands a tensor / complex / matrix return type, a plain float
+    # tree is wrong.  Consult ``types_lattice`` to decide whether the
+    # random expression is type-compatible with the declared return
+    # type; if not, substitute a type-correct literal via
+    # ``default_value`` and let mutation / grafting evolve it.
+    ret_t = getattr(spec, "return_type", TYPE_TOP)
+    _expr_type = "float"  # current expression tree is always float-ish
+    if not is_subtype(_expr_type, ret_t):
+        try:
+            logger.debug(
+                "random_program: spec=%s return_type=%s incompatible "
+                "with random-float expression; applying types_lattice "
+                "coercion", spec.name, ret_t,
+            )
+            # Prefer coercing through a type-compatible parameter
+            # (yields an IR op chain, not a literal).
+            _coerced = False
+            for _n, _pt in zip(spec.param_names, spec.param_types):
+                if is_subtype(_pt, ret_t):
+                    body_expr = f"({_n} * 0)"
+                    _coerced = True
+                    break
+            if not _coerced and ret_t in PRIMITIVE_TYPES:
+                body_expr = repr(default_value(ret_t))
+            elif not _coerced and ret_t in TENSOR_TYPES:
+                # No compatible param: synthesise a zero vector of length 1.
+                body_expr = "(0.0,)"  # tuple literal; most tensor specs
+                                       # accept iterable constructor
+        except Exception as _exc:
+            logger.debug("types_lattice fallback failed: %r", _exc)
 
     if spec.return_type == "bool":
         # Wrap expression in a comparison

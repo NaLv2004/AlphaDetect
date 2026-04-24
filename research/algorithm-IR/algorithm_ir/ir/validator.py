@@ -29,6 +29,72 @@ ALLOWED_OPCODES = {
 }
 
 
+def rebuild_def_use(func_ir: FunctionIR) -> FunctionIR:
+    """Rebuild SSA def/use bookkeeping from ops.
+
+    This function is intentionally strict and deterministic:
+    - every output value gets exactly one ``def_op`` if the producing op exists
+    - every input edge contributes exactly one entry to ``use_ops``
+    - stale/missing bookkeeping is overwritten from structural truth
+    """
+    for value in func_ir.values.values():
+        value.def_op = None
+        value.use_ops = []
+
+    for op_id, op in func_ir.ops.items():
+        for value_id in op.outputs:
+            value = func_ir.values.get(value_id)
+            if value is not None:
+                value.def_op = op_id
+
+    for op_id, op in func_ir.ops.items():
+        for value_id in op.inputs:
+            value = func_ir.values.get(value_id)
+            if value is not None:
+                value.use_ops.append(op_id)
+
+    return func_ir
+
+
+def validate_def_use(func_ir: FunctionIR) -> list[str]:
+    """Validate that def/use metadata matches the op graph exactly."""
+    errors: list[str] = []
+
+    expected_defs: dict[str, str | None] = {value_id: None for value_id in func_ir.values}
+    expected_uses: dict[str, list[str]] = {value_id: [] for value_id in func_ir.values}
+
+    for op_id, op in func_ir.ops.items():
+        for value_id in op.outputs:
+            if value_id not in func_ir.values:
+                errors.append(f"Op {op_id} outputs missing value {value_id}")
+                continue
+            prev = expected_defs[value_id]
+            if prev is not None and prev != op_id:
+                errors.append(
+                    f"Value {value_id} has multiple defining ops: {prev}, {op_id}"
+                )
+            expected_defs[value_id] = op_id
+        for value_id in op.inputs:
+            if value_id not in func_ir.values:
+                errors.append(f"Op {op_id} inputs missing value {value_id}")
+                continue
+            expected_uses[value_id].append(op_id)
+
+    for value_id, value in func_ir.values.items():
+        if value.def_op != expected_defs[value_id]:
+            errors.append(
+                f"Value {value_id} def_op mismatch: stored={value.def_op} "
+                f"expected={expected_defs[value_id]}"
+            )
+        if list(value.use_ops) != expected_uses[value_id]:
+            errors.append(
+                f"Value {value_id} use_ops mismatch: stored={list(value.use_ops)} "
+                f"expected={expected_uses[value_id]}"
+            )
+
+    return errors
+
+
 def validate_function_ir(func_ir: FunctionIR) -> list[str]:
     errors: list[str] = []
     if func_ir.entry_block not in func_ir.blocks:
@@ -61,4 +127,5 @@ def validate_function_ir(func_ir: FunctionIR) -> list[str]:
             if use_op not in func_ir.ops:
                 errors.append(f"Value {value_id} references missing use op {use_op}")
 
+    errors.extend(validate_def_use(func_ir))
     return errors

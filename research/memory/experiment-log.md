@@ -293,3 +293,41 @@ Each entry includes parameters, results, and key observations.
     - `GENERATION 1 | SNR=20dB | 8190 evaluated graft samples | ... effective`
     - `EFFECTIVE SER STATS (all evaluated graft samples): best / median / mean`
     - `ALL EFFECTIVE GRAFT SAMPLES (full source)`
+
+## [2026-04-22 21:05] Algorithm-IR GNN: Added Optional Batched Graft-Proposal Forward Path
+- **Context**: User requested optional batching for the `graft_proposal` stage with configurable batch size, while requiring identical proposal outputs under the same RNG seed when batching is disabled vs enabled.
+- **Implementation**:
+  - Added `enable_batched_proposals` and `proposal_batch_size` to `GNNPatternMatcher`.
+  - Added CLI flags to `train_gnn.py`:
+    - `--proposal-batch`
+    - `--proposal-batch-size`
+  - Refactored proposal generation into a batch-size-invariant two-pass scheduler:
+    1. compute host-region logits for all candidate pairs,
+    2. sample host-region actions in pair order,
+    3. compute donor-region logits,
+    4. sample donor actions in pair order and finalize proposals.
+  - Added batched forward helpers for:
+    - `RegionProposer` over repeated host graphs with stacked donor embeddings
+    - `DonorRegionSelectorGNN` over padded host/donor feature batches
+  - Sampling order is now deterministic across batch settings, so batch-on vs batch-off uses the same RNG draws in the same pair order.
+- **Correctness validation**:
+  - New unit test in `research/algorithm-IR/tests/unit/test_gnn_training_phase_ab.py` compares proposal semantics under identical seeds and confirms batched vs unbatched outputs match exactly.
+  - Ad-hoc larger comparison:
+    - `12` entries (`132` ordered pairs)
+    - batched vs unbatched proposals: same count and semantic signatures, `identical=true`
+- **Benchmark**:
+  - Proposal-only benchmark on `24` entries (`552` ordered pairs):
+    - unbatched `2.60s`
+    - batched (`batch_size=64`) `1.10s`
+    - speedup `2.36x`
+  - Proposal-only benchmark on `40` entries (`1560` ordered pairs):
+    - unbatched `7.53s`
+    - batched (`batch_size=64`) `2.78s`
+    - speedup `2.71x`
+  - Batch-size sweep on `40` entries showed the best observed speedup at `batch_size=128`:
+    - unbatched `9.47s`
+    - batched `2.75s`
+    - speedup `3.44x`
+- **Takeaway**:
+  - Batch proposal generation is now correct and meaningfully faster.
+  - The speedup is substantial but did **not** reach `5x` in the current implementation because Python-side proposal finalization (`build_trimmed_donor_ir`, region construction, experience bookkeeping) still dominates part of the wall-clock time.

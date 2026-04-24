@@ -2831,10 +2831,91 @@ def _build_specs() -> list[SkeletonSpec]:
 # Module-level cache
 _SPECS: list[SkeletonSpec] | None = None
 
+# ---------------------------------------------------------------------------
+# Const-lifter audit (S1 / code_review.md §3.13.4)
+# ---------------------------------------------------------------------------
+#
+# On first access to ``get_extended_specs``, run ``const_lifter.lift_source``
+# against each skeleton template and write a manifest of hardcoded numeric
+# literals / loop bounds to ``results/const_lift_audit.json``.  This turns
+# const_lifter into an active consumer rather than dead code and produces
+# the audit required by Sec. 3.13 item 4 of the code review.
+# The audit is read-only: it does NOT rewrite templates in place (that
+# would require coordinated changes to slot wiring and is the next
+# migration step — flagged in ``pool_changes.md``).
+
+_AUDIT_WRITTEN = False
+
+
+def _run_const_lift_audit(specs: "list[SkeletonSpec]") -> dict:
+    """Analyse every template for hardcoded literals; return manifest."""
+    import json
+    import logging
+    from pathlib import Path
+
+    try:
+        from evolution.const_lifter import lift_source
+    except Exception as exc:  # pragma: no cover — defensive
+        logging.getLogger(__name__).warning(
+            "const_lifter unavailable: %r", exc,
+        )
+        return {}
+
+    manifest: dict = {"by_skeleton": {}, "totals": {
+        "templates": 0, "lifted_literals": 0, "loop_bounds": 0,
+    }}
+    aggressive_exempt = {0, 1, -1, 0.0, 1.0, -1.0}
+    for spec in specs:
+        res = lift_source(spec.source, exempt=aggressive_exempt)
+        if not res.lifted:
+            continue
+        manifest["by_skeleton"][spec.algo_id] = [
+            {
+                "slot_name": L.slot_name,
+                "value": L.original_value,
+                "type": L.type_hint,
+                "role": L.role,
+                "line": L.line,
+                "func": L.func_name,
+            } for L in res.lifted
+        ]
+        manifest["totals"]["templates"] += 1
+        for L in res.lifted:
+            if L.role == "loop_bound":
+                manifest["totals"]["loop_bounds"] += 1
+            else:
+                manifest["totals"]["lifted_literals"] += 1
+
+    out = Path(__file__).resolve().parent.parent / "results" / "const_lift_audit.json"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(manifest, indent=2, default=str), encoding="utf-8")
+    logging.getLogger(__name__).info(
+        "const_lift audit: %d templates with %d literals + %d loop bounds "
+        "(manifest: %s)",
+        manifest["totals"]["templates"],
+        manifest["totals"]["lifted_literals"],
+        manifest["totals"]["loop_bounds"],
+        out.name,
+    )
+    return manifest
+
 
 def get_extended_specs() -> list[SkeletonSpec]:
-    """Return all skeleton specs (cached)."""
-    global _SPECS
+    """Return all skeleton specs (cached).
+
+    On first call, runs the const-lifter audit pass and writes a
+    manifest to ``results/const_lift_audit.json``.
+    """
+    global _SPECS, _AUDIT_WRITTEN
     if _SPECS is None:
         _SPECS = _build_specs()
+    if not _AUDIT_WRITTEN:
+        try:
+            _run_const_lift_audit(_SPECS)
+        except Exception:
+            import logging
+            logging.getLogger(__name__).warning(
+                "const-lift audit failed", exc_info=True,
+            )
+        _AUDIT_WRITTEN = True
     return _SPECS
