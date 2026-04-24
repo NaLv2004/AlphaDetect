@@ -43,6 +43,7 @@ from copy import deepcopy
 from typing import Any
 
 from algorithm_ir.ir.model import FunctionIR
+from algorithm_ir.ir.validator import rebuild_def_use
 from algorithm_ir.frontend.ir_builder import compile_source_to_ir
 
 from evolution.materialize import materialize
@@ -209,6 +210,14 @@ def strip_provenance_markers(ir: FunctionIR) -> FunctionIR:
     if hasattr(new_ir, "attrs") and isinstance(new_ir.attrs, dict):
         for k in ("_provenance_map", "_provenance_call_sites"):
             new_ir.attrs.pop(k, None)
+
+    # CRITICAL: marker removal leaves stale ``use_ops`` / ``def_op``
+    # references on every value that the removed marker ops touched.
+    # Additionally, the upstream frontend can emit duplicated ``use_ops``
+    # entries for phi backedges (loop bodies). Rebuild def/use from the
+    # ops dict — the structural truth — so the resulting IR satisfies
+    # ``validate_function_ir``.
+    rebuild_def_use(new_ir)
 
     return new_ir
 

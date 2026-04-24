@@ -1098,6 +1098,11 @@ def get_slot_ids(func_ir: FunctionIR) -> list[str]:
 # Build the full IR pool
 # ═══════════════════════════════════════════════════════════════════════════
 
+# Manifest of pool rejections from the most recent ``build_ir_pool`` call.
+# Inspect via ``from evolution.ir_pool import _POOL_REJECTIONS``.
+_POOL_REJECTIONS: list[dict] = []
+
+
 def build_ir_pool(
     rng: np.random.Generator | None = None,
     n_random_variants: int = 7,
@@ -1117,6 +1122,7 @@ def build_ir_pool(
         rng = np.random.default_rng(42)
 
     pool: list[AlgorithmGenome] = []
+    _POOL_REJECTIONS.clear()
 
     for spec in _DETECTOR_SPECS:
         # 1. Compile template (skip on failure — some templates use
@@ -1244,6 +1250,24 @@ def build_ir_pool(
             flat_ir = None
         if flat_ir is not None:
             genome.ir = flat_ir
+
+        # Hard validation gate (Phase H+2): every genome admitted to the
+        # pool MUST have a structurally consistent IR. Stale def/use
+        # references or duplicated uses corrupt every downstream
+        # consumer (region selection, GNN graphs, graft surgery,
+        # materialization). Reject — and record — any genome that fails.
+        try:
+            from algorithm_ir.ir.validator import validate_function_ir
+            errs = validate_function_ir(genome.ir)
+        except Exception as exc:
+            errs = [f"validator crashed: {exc!r}"]
+        if errs:
+            _POOL_REJECTIONS.append({
+                "algo_id": spec.algo_id,
+                "n_errors": len(errs),
+                "first_errors": errs[:5],
+            })
+            continue
         pool.append(genome)
 
     return pool
