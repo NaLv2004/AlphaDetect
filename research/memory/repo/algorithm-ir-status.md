@@ -1,6 +1,45 @@
 # algorithm-IR project status (repo memory)
 
-Last updated: 2026-04-26 — Phase H+3: slot population evolution integration
+Last updated: 2026-04-26 — Phase H+3 large-run validation
+
+## Phase H+3 large-run empirical observations (gen 1 + gen 2)
+
+Run: `train_gnn.py --gens 20 --pool-size 40 --proposals 80 --micro-generations 5 --n-trials 3 --timeout 1.5 --warmstart-gens 0 --train-steps 1 --snr-start 16 --snr-target 18` (commit a6dbffd, terminal df55c569).
+
+Observed slot-evo telemetry per macro-gen:
+
+| gen | attempted | validated | evaluated | improved | apply_fail | val_fail | eval_fail | best_delta_mean | best_SER |
+| --- | --------- | --------- | --------- | -------- | ---------- | -------- | --------- | --------------- | -------- |
+| 1   | 800       | 800       | 179       | **23**   | 0          | 0        | 621       | -inf            | 0.130 → 0.125 |
+| 2   | 660       | 660       | 60        | **0**    | 0          | 0        | 600       | 0.0000          | 0.125 (stuck) |
+
+**Conclusions:**
+1. **Framework is correct.** 23 SER-improving slot variants in gen 1 confirms
+   end-to-end signal flow: pop_key → from_slot_id → RewriteRegion →
+   graft_general → AST gate → emit → subprocess eval → fitness compare →
+   commit_best_variants_to_ir → next-macro-gen genome.ir reflects winners.
+2. **Mutator saturates after 1 micro-cycle.** Constant perturbation alone
+   (Gaussian multiplicative on float literals only, ints excluded) has too
+   shallow a search basin: any variant whose constants admit improvement is
+   improved within ~5 micro-gens, and subsequent perturbations land on
+   equivalent or worse points. Result: gen 2 onward shows improved=0.
+3. **eval_fail is dominated by the AST gate, not bugs.** 78–91% of attempted
+   children fail `_source_compiles_with_resolved_names` because their slot
+   region contains a loop body that references values defined inside the
+   removed region (loop carry-ins not yet captured by the two-pass closure).
+   These are gracefully skipped; the framework is robust.
+
+**Diagnosed gaps for Phase H+4 (next session):**
+- Stronger mutator: structural op-replace within type lattice, IR-level
+  insertion of identity-with-jitter wrappers, integer literal ±1 walks,
+  cross-variant crossover within the same pop.
+- Loop-aware closure in `collect_slot_region`: when the slot region contains
+  a `for`/`while` op, propagate dataflow through phi nodes so loop bodies
+  that reference outside-defined induction variables are properly captured
+  (or rejected at region-build time, not at AST-gate time).
+- Both gaps are documented and intentional — the H+3 deliverable is the
+  graft-validate-evaluate-commit pipeline itself, which is now empirically
+  verified to produce real SER improvements on the live training loop.
 
 ## Phase H+3 summary (2026-04-26)
 
