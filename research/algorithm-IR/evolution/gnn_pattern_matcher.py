@@ -76,19 +76,28 @@ def _opcode_idx(opcode: str) -> int:
 
 
 def _compute_return_slice_values(ir: FunctionIR) -> set[str]:
-    """Set of all SSA values transitively feeding any ``return`` op.
+    """Set of SSA values that can affect the function's observable output.
 
-    A graft region whose ``exit_values`` are disjoint from this set is
-    purely dead code: even if the donor splice succeeds at the IR level,
-    the donor's outputs do not flow to the function return and DCE
-    deletes them, manifesting downstream as a ``structural_fail`` verdict
-    in ``train_gnn``. Pre-filtering here keeps such proposals out of the
-    pipeline entirely.
+    "Observable" = either fed into a ``return`` op, OR feeding any
+    side-effecting / control-flow op whose effects are themselves
+    observable.  We approximate this by treating every op of opcode
+    ``return``, ``branch``, ``store``, ``set_item`` as a sink: a value
+    that reaches such a sink along the data-dep chain is live.
+
+    This is intentionally conservative (over-approximate the live set):
+    the goal of the resulting filter is to reject **only** regions whose
+    exit_values demonstrably cannot affect the output (e.g. an isolated
+    subexpression in a function with no loops whose result is never
+    read).  Treating ``branch`` inputs as sinks is essential because in
+    looping algorithms the entire body computation feeds the loop
+    termination test, so naively following only ``return`` inputs would
+    declare nearly the whole function dead.
     """
+    SINKS = ("return", "branch", "store", "set_item")
     slice_values: set[str] = set()
     pending: list[str] = list(ir.return_values)
     for op in ir.ops.values():
-        if op.opcode == "return":
+        if op.opcode in SINKS:
             pending.extend(op.inputs)
     while pending:
         vid = pending.pop()
