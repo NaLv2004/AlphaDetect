@@ -83,6 +83,8 @@ class SlotMicroStats:
     n_apply_failed: int = 0       # graft_general failed / returned None
     n_validate_failed: int = 0    # validation rejected the spliced IR
     n_eval_failed: int = 0        # subprocess returned 1.0 / inf
+    skipped_no_sids: int = 0      # pop_key has no matching from_slot_id (annotation lost)
+    skipped_no_variants: int = 0  # pop has zero variants
 
     def as_dict(self) -> dict:
         return {
@@ -96,6 +98,8 @@ class SlotMicroStats:
             "n_apply_failed": self.n_apply_failed,
             "n_validate_failed": self.n_validate_failed,
             "n_eval_failed": self.n_eval_failed,
+            "skipped_no_sids": self.skipped_no_sids,
+            "skipped_no_variants": self.skipped_no_variants,
             "best_delta": self.best_after - self.best_before,
         }
 
@@ -383,6 +387,20 @@ def apply_slot_variant(genome: "AlgorithmGenome",
         logger.debug("apply_slot_variant: post-graft validation rejected "
                      "%s (%d errs): %s", pop_key, len(errs), errs[:2])
         return None
+
+    # Re-annotate newly introduced ops so the slot stays discoverable
+    # by ``map_pop_key_to_from_slot_ids`` on subsequent micro-gens. The
+    # graft inlines fresh ops without _provenance.from_slot_id matching
+    # the original pop_key; without re-annotation, the next call to
+    # ``apply_slot_variant`` for the same pop_key would find no sids and
+    # silently no-op (the bug that froze slot-evo from gen ~4 onward).
+    anchor_sid = next(iter(sids))
+    pre_op_ids = set(genome.ir.ops.keys())
+    for op_id, op in artifact.ir.ops.items():
+        if op_id in pre_op_ids:
+            continue
+        prov = op.attrs.setdefault("_provenance", {})
+        prov.setdefault("from_slot_id", anchor_sid)
     return artifact.ir
 
 
@@ -621,11 +639,13 @@ def step_slot_population(genome: "AlgorithmGenome",
 
     # Skip if no variants at all.
     if not pop.variants:
+        stats.skipped_no_variants = 1
         return stats
 
     # Skip if the genome has no annotations matching this pop_key.
     sids = map_pop_key_to_from_slot_ids(genome, pop_key)
     if not sids:
+        stats.skipped_no_sids = 1
         return stats
 
     # Bootstrap baseline fitness for the current best.

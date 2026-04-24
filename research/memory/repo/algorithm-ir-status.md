@@ -1,8 +1,55 @@
 # algorithm-IR project status (repo memory)
 
-Last updated: 2026-04-26 — Phase H+3 large-run validation
+Last updated: 2026-04-26 — Phase H+3.1 annotation-preservation hotfix
 
-## Phase H+3 large-run empirical observations (gen 1 + gen 2)
+## Phase H+3.1 — slot annotation preservation (fix for gen-4+ silent death)
+
+The 20-gen large run uncovered a real framework bug: `slot-evo: attempted=0`
+starting from gen 4, persisting through gen 20. Diagnosis: each successful
+slot-evo commit calls `apply_slot_variant` → `graft_general` which produces a
+new flat IR whose freshly-introduced ops carry NO `_provenance.from_slot_id`
+annotation. On the next macro-gen, `map_pop_key_to_from_slot_ids(genome, pop_key)`
+returns an empty set, `step_slot_population` returns `attempted=0`, and the
+slot is effectively erased from the evolution loop — silently and
+permanently. The `commit_best_variants_to_ir` swap-into-position-0 made
+things worse: every commit was a one-way ratchet that deleted the slot's
+discoverability.
+
+**Fix** (commit pending): in `apply_slot_variant`, after the post-graft
+`validate_function_ir` passes, iterate `artifact.ir.ops` and for every op
+ID NOT present in the original `genome.ir.ops`, write
+`op.attrs["_provenance"]["from_slot_id"] = anchor_sid` where `anchor_sid`
+is any one of the original slot's `from_slot_id` values. This keeps the
+slot discoverable across an unbounded number of commits.
+
+New telemetry: `SlotMicroStats.skipped_no_sids` and `skipped_no_variants`
+surface why a pop didn't fire, exposed via train_gnn `skip_no_sids=N
+skip_no_var=N` in the per-gen log line.
+
+**Validation** (5-gen smoke after fix, `logs/slot_evo_h3b/train.log`):
+
+| gen | attempted | evaluated | improved | skip_no_sids |
+|-----|-----------|-----------|----------|--------------|
+| 1   | 456       | 68        | **11**   | 12 |
+| 2   | 336       | 12        | **4**    | 39 |
+| 3   | 156       | 0         | 0        | 78 |
+| 4   | 12        | 0         | 0        | 114 |
+| 5   | 24        | 0         | 0        | 114 |
+
+Compare to pre-fix 20-gen run where gens 4–20 all had `attempted=0`. The
+slot-evo loop now keeps firing for as long as any pop retains at least
+one discoverable slot.
+
+**Note on remaining `skip_no_sids` growth**: the structural-graft pipeline
+(`_build_child_from_graft`) inherits `slot_populations` via deepcopy from
+the host but produces an IR whose donor-region ops carry NO original
+provenance. When a graft replaces a region containing slot ops, that slot
+legitimately ceases to exist in the new IR — the pop_key persists in
+`slot_populations` only as orphaned metadata. This is **not** a bug; it
+reflects genuine slot deletion by structural mutation. Pruning these
+phantom pops is a cosmetic improvement deferred to Phase H+4.
+
+## Phase H+3 large-run empirical observations (gen 1 + gen 2 of pre-fix run)
 
 Run: `train_gnn.py --gens 20 --pool-size 40 --proposals 80 --micro-generations 5 --n-trials 3 --timeout 1.5 --warmstart-gens 0 --train-steps 1 --snr-start 16 --snr-target 18` (commit a6dbffd, terminal df55c569).
 

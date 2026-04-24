@@ -462,6 +462,7 @@ class AlgorithmEvolutionEngine:
             "n_attempted": 0, "n_validated": 0, "n_evaluated": 0,
             "n_improved": 0, "n_apply_failed": 0, "n_validate_failed": 0,
             "n_eval_failed": 0,
+            "skipped_no_sids": 0, "skipped_no_variants": 0,
         }
         deltas: list[float] = []
         for _ in range(n_micro_gens):
@@ -495,6 +496,7 @@ class AlgorithmEvolutionEngine:
                 "n_attempted": 0, "n_validated": 0, "n_evaluated": 0,
                 "n_improved": 0, "n_apply_failed": 0,
                 "n_validate_failed": 0, "n_eval_failed": 0,
+                "skipped_no_sids": 0, "skipped_no_variants": 0,
                 "best_delta_sum": 0.0, "best_delta_count": 0,
             }
             self._slot_evo_log = slot_log
