@@ -38,6 +38,10 @@ class GraftArtifact:
     replaced_op_ids: list[str]        # Original ops that were removed
     inlined_op_ids: list[str]         # Donor ops inlined into host
     id_map: dict[str, str] = field(default_factory=dict)  # donor_id → host_id
+    # Provenance from the typed-bipartite binding layer.  ``None`` when
+    # the legacy name-hint / positional matcher was used (e.g. donor had
+    # no args or every candidate was lattice-incompatible).
+    typed_binding: dict[str, object] | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -775,6 +779,40 @@ def graft_general(
     else:
         host_arg_vids = None
 
+    # ------------------------------------------------------------------
+    # Typed bipartite binding (lattice-driven, Hungarian-optimal).
+    # Inserted between the strict-contract path and the legacy
+    # name-hint matcher.  When the lattice rejects every candidate for
+    # any donor arg, this layer returns ``None`` and we fall through to
+    # the legacy matcher; that preserves backwards compatibility while
+    # still upgrading the majority of bindings.
+    # ------------------------------------------------------------------
+    if host_arg_vids is None and donor_ir.arg_values:
+        try:
+            from algorithm_ir.grafting.typed_binding import bind_typed
+            tb_result = bind_typed(
+                donor_ir, new_ir, region_op_ids, require_feasible=True,
+            )
+        except Exception as exc:  # pragma: no cover — defensive
+            logger.debug("typed_binding raised: %r", exc)
+            tb_result = None
+        if tb_result is not None and tb_result.feasible:
+            host_arg_vids = [tb_result.mapping[d] for d in donor_ir.arg_values]
+            # Stash diagnostics so callers can inspect what the lattice
+            # decided.  (graft_general returns this via GraftArtifact's
+            # provenance dict; see below.)
+            _typed_bind_diag = tb_result.diagnostics
+            _typed_bind_used = True
+            _typed_bind_cost = tb_result.cost
+        else:
+            _typed_bind_diag = None
+            _typed_bind_used = False
+            _typed_bind_cost = None
+    else:
+        _typed_bind_diag = None
+        _typed_bind_used = False
+        _typed_bind_cost = None
+
     if host_arg_vids is None and donor_ir.arg_values:
         # Name-hint matching: for each donor arg, find the host value
         # whose name_hint matches.  This is critical for trimmed donors
@@ -1065,6 +1103,14 @@ def graft_general(
         replaced_op_ids=replaced_op_ids,
         inlined_op_ids=inlined_op_ids,
         id_map=id_map,
+        typed_binding=(
+            {
+                "used": True,
+                "cost": _typed_bind_cost,
+                "diagnostics": _typed_bind_diag,
+            }
+            if _typed_bind_used else None
+        ),
     )
 
 

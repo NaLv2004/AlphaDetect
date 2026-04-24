@@ -927,6 +927,16 @@ class AlgorithmEvolutionEngine:
         self._dispatch_case_counts["single_path"] = (
             self._dispatch_case_counts.get("single_path", 0) + 1
         )
+        # Track typed-binding usage for visibility into how often the
+        # lattice-driven binder fires vs. the legacy name-hint matcher.
+        if getattr(artifact, "typed_binding", None) is not None:
+            self._dispatch_case_counts["typed_bind_used"] = (
+                self._dispatch_case_counts.get("typed_bind_used", 0) + 1
+            )
+        else:
+            self._dispatch_case_counts["typed_bind_skipped"] = (
+                self._dispatch_case_counts.get("typed_bind_skipped", 0) + 1
+            )
 
         child = AlgorithmGenome(
             algo_id=AlgorithmGenome._make_id(),
@@ -951,6 +961,7 @@ class AlgorithmEvolutionEngine:
                 "graft_donor_algo_id": proposal.donor_algo_id,
                 "graft_proposal_id": proposal.proposal_id,
                 "fii_grafted": True,  # legacy key; single canonical IR is always flat-annotated
+                "typed_binding": getattr(artifact, "typed_binding", None),
             },
         )
 

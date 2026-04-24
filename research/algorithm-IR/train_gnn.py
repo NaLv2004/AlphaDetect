@@ -1074,11 +1074,16 @@ for gen in range(1, args.gens + 1):
     n_stale = dispatch_case_counts.get("stale_region", 0)
     n_failed = sum(
         v for k, v in dispatch_case_counts.items()
-        if k not in {"single_path", "stale_region"}
+        if k not in {"single_path", "stale_region",
+                     "typed_bind_used", "typed_bind_skipped"}
     )
+    n_typed_used = dispatch_case_counts.get("typed_bind_used", 0)
+    n_typed_skipped = dispatch_case_counts.get("typed_bind_skipped", 0)
     logger.info(
-        "  graft (single-IR): success=%d stale_region=%d failed=%d (cum)",
+        "  graft (single-IR): success=%d stale_region=%d failed=%d "
+        "typed_bind=%d/%d (cum)",
         n_single, n_stale, n_failed,
+        n_typed_used, n_typed_used + n_typed_skipped,
     )
 
     if best_ser < best_ser_ever:

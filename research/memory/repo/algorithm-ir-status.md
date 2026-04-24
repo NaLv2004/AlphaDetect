@@ -1,5 +1,199 @@
 # algorithm-IR project status (repo memory)
 
+Last updated: 2026-04-25 — Phase H+1: typed bipartite host-donor binding
+
+## Phase H+1 summary (2026-04-25)
+
+The Phase-H lattice is now USED to fix a concrete behavioral defect in
+`graft_general`. Previously, when the strict port-signature contract
+failed to match, the binder fell back to a name-hint matcher and then to
+positional const-None fill — which routinely produced type-incoherent
+bindings (mat_cx donor arg bound to a vec_cx host slot, etc.).
+
+A new typed bipartite layer was inserted between the strict-contract
+path and the legacy name-hint matcher.
+
+Files added / modified:
+
+- `algorithm_ir/grafting/typed_binding.py` (NEW, ~280 LOC)
+  - `bind_typed(donor_ir, host_ir, splice_op_ids, *, require_feasible)`
+  - Cost matrix: `WEIGHT_TYPE=10` lattice cost (0 exact / 1 subtype /
+    1.5 wildcard / 2 unify-able / INFEASIBLE if `unify == "any"`),
+    `WEIGHT_NAME=1` (filters generic names like `binary`, `call`,
+    `phi`), `WEIGHT_DATAFLOW=0.1` (post-splice candidates → INFEASIBLE),
+    `WEIGHT_CALL_CONF=0.5` (small bonus when the host candidate is
+    produced by a `call` op with a `qualified_name`).
+  - Solved with `scipy.optimize.linear_sum_assignment` on a padded
+    `[n_donor, max(n_host, n_donor)]` matrix.
+  - Returns `TypedBindingResult(mapping, feasible, cost, diagnostics)`.
+- `algorithm_ir/grafting/graft_general.py`: `GraftArtifact` gained a
+  `typed_binding: dict | None` field; the binder runs between strict
+  contract and legacy fallback; `require_feasible=True` so it refuses
+  to bind anything where `unify` collapses to `"any"`.
+- `evolution/algorithm_engine.py._execute_graft`: added
+  `typed_bind_used` / `typed_bind_skipped` counters and stashed
+  `typed_binding` into child `metadata`.
+- `train_gnn.py`: per-gen log line now reports `typed_bind=u/total`,
+  and the new counters are excluded from the failed-graft tally.
+
+Tests:
+
+- `tests/unit/test_typed_binding.py` (NEW, 5 tests):
+  picks matching lattice type, refuses incompatible candidates, breaks
+  ties by name, swaps mis-ordered `solve(A, b)` arg pairs, visibility
+  filter excludes post-splice values.
+- `tests/unit/test_graft_contract_binding.py`: rewrote
+  `test_graft_general_rejects_incompatible_port_signature` — typed
+  binder correctly handles arity-only mismatches that the old test
+  expected to fail; new assertion enforces lattice rejection on
+  type-incompatible ports.
+- 160/160 unit tests pass.
+
+Live verification:
+
+- `code_review/inspect_typed_binding.py` (NEW): drives `graft_general`
+  directly on 30 random (host, donor) pairs from the 91-genome pool.
+  Result: typed binder fired on 29/30 attempts (1 unrelated graft
+  error), 0 lattice mismatches across 116 individual bindings.
+  Sample: `particle_filter <- turbo_linear` → mat_cx→mat_cx,
+  vec_cx→vec_cx, float→float, vec_cx→vec_cx (cost 0.40).
+- `train_gnn.py --gens 2 --proposals 30 --pool-size 20`: 22 grafts
+  succeeded, 0 failed, typed_bind fired 5/22 times (the rest hit the
+  strict-contract fast path).
+
+## Phase H summary (2026-04-24, commit 8dd8809)
+
+`evolution/types_lattice.py` was promoted to `algorithm_ir/ir/type_lattice.py`
+(types are an IR concept, not an evolutionary engine concept). The legacy
+path stays alive as a thin re-export shim. The lattice was extended with a
+complete type algebra: predicates (`is_numeric`, `is_array_like`,
+`is_real`, `is_complex`), dtype/rank algebra (`promote_dtype` i<f<c,
+`promote_rank` = max), `combine_binary_type` covering arith / bitwise /
+compare / matmul (handles broadcasting, Python true division
+int/int → float, matmul shape rules), `combine_unary_type`, and a
+callable registry (`infer_call_return_type`, `register_callable_return`,
+`callable_return_type`) seeded with ~70 numpy / scipy / builtin entries
+(np.linalg.inv → mat_cx, np.linalg.solve(mat_cx, vec_cx) → vec_cx, etc.).
+`algorithm_ir/ir/type_info.py` now delegates to the lattice.
+The lifter (`ir_builder.py`) was patched: `_emit_call` routes results
+through `infer_call_return_type` using the callee's stored
+`qualified_name`; `_load_global` / `_load_resolved_global` record
+`qualified_name` on callable globals; `_resolve_annotation` falls back
+to a name-based prior (`_ARG_NAME_TYPE_PRIOR`: H → mat_cx, y → vec_cx,
+sigma2 → float, constellation → vec_cx, …) so unannotated detector
+templates still get useful arg types; `_ANNOTATION_TYPE_MAP` defaults
+changed from `"object"` to `"any"` (= TYPE_TOP).
+
+Empirical effect across the 91-genome IR pool
+(`code_review/type_hint_audit.py`):
+
+|                          | before | after |
+|---|---|---|
+| values tagged `object`   | 9934 / 14539 (68%) | 2885 / 14539 (20%) |
+| values with lattice tags | 0      | 13429 / 14539 (92.4%) |
+| worst detector (osic)    | ~80% non-lattice | 32% non-lattice |
+
+Tests: 151/151 pass in `tests/unit/test_types_lattice.py`,
+`test_algorithm_pool.py`, `test_ir_evolution.py`.
+
+Open follow-ups: the remaining ~7.6% non-lattice tags are on global
+callables (`function`, `module`, `ufunc`, `_ArrayFunctionDispatcher`).
+These don't poison arithmetic flow but should eventually be normalized
+to a lattice `callable` / `module` atom for cleanliness.
+
+---
+
+## Phase G summary
+
+## TL;DR (current state)
+
+The genome representation has been collapsed to a SINGLE canonical flat IR
+per `AlgorithmGenome`. Slot affiliation is annotation-only (per-op
+`_provenance` dict on `op.attrs`). All dispatch / FII rebuild / Case
+I/II/III routing is GONE. One graft path remains:
+`graft_general(host_genome.ir, proposal)`.
+
+## Architecture
+
+- `AlgorithmGenome`:
+  - `.ir: FunctionIR` — the SOLE canonical IR (flat, fully inlined,
+    annotated). Built once at construction time from
+    `build_flat_annotated_ir = build_fii_ir + strip_provenance_markers`.
+  - `.slot_populations: dict[str, SlotPopulation]` — purely metadata
+    (snapshot history per slot id). Does NOT drive any IR rebuild.
+  - `.structural_ir` is a backward-compat property aliasing `.ir`.
+
+- Per-op annotations on `op.attrs["_provenance"]`:
+  - `from_slot_id: str | None` — slot owner, or None for purely structural
+  - `slot_pop_key`, `variant_idx`, `call_site_id` — provenance metadata
+  - `is_slot_boundary: False` (markers stripped from canonical IR)
+  - `boundary_kind: None`
+
+## Files modified
+
+- `evolution/pool_types.py` — `AlgorithmGenome` field renamed to `ir`.
+- `evolution/fii.py` — added `strip_provenance_markers` and
+  `build_flat_annotated_ir`.
+- `evolution/ir_pool.py` — `build_ir_pool` builds genomes with flat
+  annotated IR.
+- `evolution/algorithm_engine.py` — `_execute_graft` unified to single
+  path. After graft, `maybe_rediscover_slots` refreshes annotations.
+- `train_gnn.py` — dispatch logging replaced with single
+  `graft (single-IR):` counter.
+
+## Files DELETED
+
+- `evolution/graft_dispatch.py` (Case I/II/III router + back-mappers)
+- `evolution/slot_dissolution.py` (Case III dissolution policy)
+- `tests/unit/test_dissolution.py`
+
+Net diff: -817 lines (1114 deletions, 297 insertions).
+
+## Validation
+
+### Unit tests (post-refactor)
+- `tests/unit/test_algorithm_pool.py` — 72/72 pass (1.5s)
+- `tests/unit/test_ir_evolution.py` — 60/60 pass (~28 min)
+- Total: 132/132 pass.
+
+### Single-IR construction smoke
+- `build_ir_pool()` -> 91 genomes
+- `lmmse` genome: 83 ops in canonical IR, 25 carry slot annotations,
+  2 slot_populations as metadata.
+
+### Training metrics (3 parallel 3-gen runs, pool=141, props=500)
+
+Pre-refactor baseline (gen 86, full training):
+- Structural correctness: 16.6% (449 / 2703 dispatched)
+- Effective graft rate: 0%
+
+Post-refactor:
+- Structural correctness: **100%** (cumulative 964/964 grafts succeeded
+  across the three runs)
+- `graft (single-IR): success=964 stale_region=0 failed=0`
+- Effective grafts per gen: 0-2 (early warming-up)
+
+The structural acceptance bar (>50%) is **MASSIVELY exceeded (100%)**.
+A 30-gen validation training is in progress (PID 35052) to confirm
+the effective rate (>2%) over a longer horizon. Log is being written
+to `research/algorithm-IR/validation_run.log`.
+
+## Git
+
+- Commit: 79d238d "Refactor: collapse to single canonical flat IR per genome"
+- Pushed to origin/master.
+
+## Next session
+
+- Inspect `research/algorithm-IR/validation_run.log` for final 30-gen
+  metrics; check effective_rate cumulative.
+- If effective rate <2% after 30 gens, the GNN policy may need
+  annotation-aware features OR the donor region selection may need
+  re-tuning.
+- Future: remove the flat-graft fallback entirely; expose slot_id as
+  a first-class GNN node feature.
+# algorithm-IR project status (repo memory)
+
 Last updated: 2026-04-24 (Phase 10 integration gap-closure: types_lattice + const_lifter now have production call sites; FII dispatcher exercised live in --use-fii-view training; Case II=2 succeeded, Case I/III evaluated)
 
 ## TL;DR
