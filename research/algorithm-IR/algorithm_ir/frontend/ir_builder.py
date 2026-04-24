@@ -86,11 +86,55 @@ _ANNOTATION_TYPE_MAP = {
     "float": "float",
     "bool": "bool",
     "str": "str",
-    "complex": "complex",
-    "list": "list",
-    "dict": "dict",
-    "tuple": "tuple",
-    "None": "none",
+    "complex": "cx",
+    "list": "list<any>",
+    "dict": "dict<any>",
+    "tuple": "tuple<any>",
+    "None": "void",
+    # numpy / scipy / typing aliases commonly used in annotations
+    "ndarray": "any",
+    "NDArray": "any",
+    "ArrayLike": "any",
+    "Array": "any",
+    "Matrix": "mat_cx",
+    "Vector": "vec_cx",
+    "Scalar": "float",
+}
+
+# Heuristic prior on argument name → lattice type, applied when an argument
+# has no explicit annotation.  This reflects the conventions used across
+# the detector pool (H = channel matrix, y = received vector, sigma2 =
+# noise variance, constellation = symbol alphabet, …).  When a name does
+# not match the prior, the argument falls back to ``any`` (top of the
+# lattice) so downstream lattice ops do not get poisoned by ``object``.
+_ARG_NAME_TYPE_PRIOR: dict[str, str] = {
+    # Channel / matrix-shaped inputs
+    "H": "mat_cx", "Heq": "mat_cx", "H_eq": "mat_cx",
+    "G": "mat_cx", "G_inv": "mat_cx", "Ginv": "mat_cx",
+    "A": "mat_cx", "B": "mat_cx", "M": "mat_cx",
+    "Q": "mat_cx", "R": "mat_cx", "L": "mat_cx", "U": "mat_cx",
+    "P": "mat_cx", "Sigma": "mat_cx", "Cov": "mat_cx",
+    "F": "mat_cx", "K": "mat_cx",
+    # Received / transmitted / estimate vectors
+    "y": "vec_cx", "x": "vec_cx", "x_hat": "vec_cx",
+    "z": "vec_cx", "r": "vec_cx", "s": "vec_cx",
+    "b": "vec_cx", "v": "vec_cx", "w": "vec_cx",
+    "x0": "vec_cx", "x_init": "vec_cx",
+    # Real-valued vectors
+    "p": "vec_f", "d": "vec_f", "g": "vec_f",
+    "alpha": "vec_f", "beta": "vec_f", "gamma": "vec_f",
+    # Noise / scalar parameters
+    "sigma2": "float", "sigma": "float", "noise_var": "float",
+    "snr": "float", "snr_db": "float", "tol": "float", "lr": "float",
+    "step": "float", "lambda_": "float", "lam": "float",
+    "n_iter": "int", "iters": "int", "max_iter": "int",
+    "k": "int", "K": "int", "Nt": "int", "Nr": "int", "N": "int",
+    # Constellations / alphabets
+    "constellation": "vec_cx", "symbols": "vec_cx",
+    "alphabet": "vec_cx", "modulation": "vec_cx",
+    # Probability / soft information
+    "p_table": "prob_table", "probs": "prob_table",
+    "llr": "vec_f", "soft": "vec_f",
 }
 
 
@@ -168,21 +212,26 @@ class IRBuilder:
         return self._build_function_ir(arg_values, xdsl_module)
 
     def _resolve_annotation(self, arg: ast.arg) -> str:
-        """Parse type annotation from ast.arg, return type hint string."""
+        """Parse type annotation from ast.arg, return type hint string.
+
+        When no annotation is present, fall back to the argument-name
+        prior (`_ARG_NAME_TYPE_PRIOR`) so that detector pool functions
+        without type hints still get useful lattice tags on their inputs.
+        """
         if arg.annotation is None:
-            return "object"
+            return _ARG_NAME_TYPE_PRIOR.get(arg.arg, "any")
         if isinstance(arg.annotation, ast.Name):
-            return _ANNOTATION_TYPE_MAP.get(arg.annotation.id, "object")
+            return _ANNOTATION_TYPE_MAP.get(arg.annotation.id, "any")
         if isinstance(arg.annotation, ast.Constant):
-            return _ANNOTATION_TYPE_MAP.get(str(arg.annotation.value), "object")
+            return _ANNOTATION_TYPE_MAP.get(str(arg.annotation.value), "any")
         if isinstance(arg.annotation, ast.Attribute):
             # e.g. typing.List → just "list"
-            return _ANNOTATION_TYPE_MAP.get(arg.annotation.attr, "object")
+            return _ANNOTATION_TYPE_MAP.get(arg.annotation.attr, "any")
         if isinstance(arg.annotation, ast.Subscript):
             # e.g. list[float] → "list"
             if isinstance(arg.annotation.value, ast.Name):
-                return _ANNOTATION_TYPE_MAP.get(arg.annotation.value.id, "object")
-        return "object"
+                return _ANNOTATION_TYPE_MAP.get(arg.annotation.value.id, "any")
+        return "any"
 
     def _assert_supported(self, node: ast.AST) -> None:
         for child in ast.walk(node):
@@ -518,7 +567,11 @@ class IRBuilder:
             name_hint=name,
             type_hint=type(obj).__name__,
             source=source_span(node),
-            attrs={"literal": obj, "scope": "global"},
+            attrs={
+                "literal": obj,
+                "scope": "global",
+                "qualified_name": name,
+            },
         )
         self._emit_const(obj, value_id, node, const_name=name)
         self.state.global_constants[name] = value_id
@@ -597,9 +650,25 @@ class IRBuilder:
         kwarg_names = kwarg_names or []
         kwarg_values = kwarg_values or []
         all_inputs = [func_value] + args + kwarg_values
-        out = self._new_value("call", "object", source_span(node), {})
+        # Lattice-aware call-result type: consult the callable registry
+        # using the callee's recorded qualified_name (set by _load_global
+        # / _load_resolved_global).  Falls back to TYPE_TOP when unknown,
+        # never to the lying "object" tag the lifter used to emit.
+        from algorithm_ir.ir.type_lattice import infer_call_return_type
+        callee_val = self.state.values.get(func_value)
+        callee_qname = (
+            callee_val.attrs.get("qualified_name") if callee_val else None
+        )
+        arg_types = [
+            (self.state.values[a].type_hint or "any")
+            for a in args if a in self.state.values
+        ]
+        result_type = infer_call_return_type(callee_qname, arg_types)
+        out = self._new_value("call", result_type, source_span(node), {})
         op_id = self._next_op_id()
         attrs: dict[str, Any] = {"n_args": len(args)}
+        if callee_qname:
+            attrs["qualified_name"] = callee_qname
         if kwarg_names:
             attrs["kwarg_names"] = kwarg_names
             attrs["n_kwargs"] = len(kwarg_names)
@@ -633,14 +702,23 @@ class IRBuilder:
         return out
 
     def _load_resolved_global(self, name: str, obj: Any, node: ast.AST) -> str:
-        """Load a resolved global (e.g. math.sqrt) as a const."""
+        """Load a resolved global (e.g. math.sqrt) as a const.
+
+        Records ``qualified_name`` on the value's attrs so that
+        downstream ``_emit_call`` can route the result type through the
+        callable registry.
+        """
         if name in self.state.global_constants:
             return self.state.global_constants[name]
         value_id = self._new_value(
             name_hint=name,
             type_hint=type(obj).__name__,
             source=source_span(node),
-            attrs={"literal": obj, "scope": "global"},
+            attrs={
+                "literal": obj,
+                "scope": "global",
+                "qualified_name": name,
+            },
         )
         self._emit_const(obj, value_id, node, const_name=name)
         self.state.global_constants[name] = value_id
