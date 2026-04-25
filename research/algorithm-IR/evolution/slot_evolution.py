@@ -80,6 +80,7 @@ class SlotMicroStats:
     n_apply_failed: int = 0       # graft_general failed / returned None
     n_validate_failed: int = 0    # validation rejected the spliced IR
     n_eval_failed: int = 0        # subprocess returned 1.0 / inf
+    n_noop_behavior: int = 0      # R6: child SER ≈ parent SER (no behavior change)
     skipped_no_sids: int = 0      # pop_key has no matching from_slot_id (annotation lost)
     skipped_no_variants: int = 0  # pop has zero variants
 
@@ -95,6 +96,7 @@ class SlotMicroStats:
             "n_apply_failed": self.n_apply_failed,
             "n_validate_failed": self.n_validate_failed,
             "n_eval_failed": self.n_eval_failed,
+            "n_noop_behavior": self.n_noop_behavior,
             "skipped_no_sids": self.skipped_no_sids,
             "skipped_no_variants": self.skipped_no_variants,
             "best_delta": self.best_after - self.best_before,

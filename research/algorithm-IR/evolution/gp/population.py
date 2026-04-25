@@ -236,6 +236,26 @@ def micro_population_step(
             pop.fitness.append(float("inf"))
             continue
 
+        # R6: behavior signature gate. The structural gates (1/2/3/7)
+        # only check IR uniqueness; two structurally-distinct IRs can
+        # still produce identical behavior (synonyms — e.g. swapping a
+        # constant by an amount below evaluator resolution, or adding
+        # an op whose output never reaches the contract surface). Drop
+        # such children to prevent pool bloat by behavioral synonyms.
+        # Tolerance 1e-9 is below the 1/(n_trials*N_symbols) granularity
+        # of any single-bit decoding flip, so genuine behavior change
+        # always exceeds it.
+        parent_ser = pop.fitness[parent_idx]
+        if (
+            np.isfinite(parent_ser)
+            and abs(ser - parent_ser) < 1e-9
+        ):
+            stats.n_noop_behavior += 1
+            op_stats.n_noop_behavior += 1
+            # Do NOT add to pop — behavior-identical variants would just
+            # consume slots in the (mu+lambda) truncation step.
+            continue
+
         stats.n_evaluated += 1
         op_stats.n_evaluated += 1
         pop.variants.append(child)
