@@ -271,6 +271,21 @@ def _emit_op(ctx: _ExprCtx, op: Op, indent: int) -> None:
             ctx.register(op.outputs[0], expr)
         return
 
+    if op.opcode == "build_slice":
+        has_lo = op.attrs.get("has_lower", True)
+        has_hi = op.attrs.get("has_upper", True)
+        has_st = op.attrs.get("has_step", True)
+        lo = ctx.expr(op.inputs[0]) if has_lo else ""
+        hi = ctx.expr(op.inputs[1]) if has_hi else ""
+        st = ctx.expr(op.inputs[2]) if has_st else ""
+        if has_st:
+            slice_str = f"{lo}:{hi}:{st}"
+        else:
+            slice_str = f"{lo}:{hi}"
+        if op.outputs:
+            ctx.register(op.outputs[0], slice_str)
+        return
+
     if op.opcode == "append":
         obj = ctx.expr(op.inputs[0])
         val = ctx.expr(op.inputs[1])

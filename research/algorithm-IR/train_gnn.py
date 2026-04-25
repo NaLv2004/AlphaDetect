@@ -1107,6 +1107,23 @@ for gen in range(1, args.gens + 1):
             slot_evo.get("skipped_no_variants", 0),
             bd_mean,
         )
+        # S6: per-cause failure breakdown — only emit if any non-zero so
+        # we don't spam the log when the rejected causes haven't been
+        # populated yet (e.g. running with an older engine build).
+        cause_fields = (
+            ("graft_fail", "n_apply_graft_failed"),
+            ("validator_fail", "n_apply_validator_failed"),
+            ("codegen_fail", "n_eval_codegen_failed"),
+            ("runtime_exc", "n_eval_runtime_exception"),
+            ("timeout", "n_eval_timeout"),
+            ("shape_err", "n_eval_shape_error"),
+            ("ser_bad", "n_eval_ser_bad"),
+        )
+        cause_total = sum(int(slot_evo.get(field, 0)) for _, field in cause_fields)
+        if cause_total > 0:
+            cause_str = " ".join(f"{label}={int(slot_evo.get(field, 0))}"
+                                 for label, field in cause_fields)
+            logger.info("  slot-evo causes: %s", cause_str)
 
     if best_ser < best_ser_ever:
         best_ser_ever = best_ser

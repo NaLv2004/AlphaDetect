@@ -67,7 +67,7 @@ def stub_pipeline(monkeypatch):
     make evaluate_slot_variant return the constant SER 0.1."""
     monkeypatch.setattr(
         se_mod, "apply_slot_variant",
-        lambda genome, pop_key, child: child,
+        lambda genome, pop_key, child, **_kw: child,
     )
     monkeypatch.setattr(
         se_mod, "evaluate_slot_variant",
@@ -118,7 +118,7 @@ def test_behavior_gate_passes_real_improvement(monkeypatch):
     g, pop = _make_genome()
     monkeypatch.setattr(
         se_mod, "apply_slot_variant",
-        lambda genome, pop_key, child: child,
+        lambda genome, pop_key, child, **_kw: child,
     )
     # Each call returns a slightly better SER so every child is an improvement.
     counter = {"n": 0}

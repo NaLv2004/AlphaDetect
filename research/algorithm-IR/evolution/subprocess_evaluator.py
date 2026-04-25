@@ -21,12 +21,17 @@ import struct
 import subprocess
 import sys
 import time
-from typing import Any
+from typing import Any, TYPE_CHECKING
+
+import numpy as np
 
 from evolution.fitness import FitnessResult
 from evolution.pool_types import AlgorithmFitnessEvaluator, AlgorithmGenome
 from evolution.mimo_evaluator import MIMOEvalConfig
 from evolution.materialize import materialize, _extract_func_name_from_full
+
+if TYPE_CHECKING:
+    from algorithm_ir.ir.model import FunctionIR
 
 logger = logging.getLogger(__name__)
 
@@ -253,6 +258,112 @@ class SubprocessMIMOEvaluator(AlgorithmFitnessEvaluator):
             return float(back["metrics"].get("ser", 1.0))
         except Exception:
             return 1.0
+
+    def evaluate_ir_quick(
+        self,
+        ir: "FunctionIR",
+        *,
+        algo_id: str = "quick",
+        n_trials: int = 5,
+        timeout_sec: float = 0.5,
+        snr_db: float | None = None,
+    ) -> float:
+        """S5: IR-only evaluator boundary.
+
+        The evaluator is the SOLE component permitted to materialise
+        FunctionIR -> Python source -> exec. Callers (slot_evolution,
+        gp.population, etc.) must hand a FunctionIR here, never source.
+        """
+        from algorithm_ir.regeneration.codegen import emit_python_source
+        try:
+            source = emit_python_source(ir)
+        except Exception:
+            return 1.0
+        func_name = getattr(ir, "name", None) or "detector"
+        safe = "".join(c if c.isalnum() or c == "_" else "_" for c in str(func_name))
+        if not safe or safe[0].isdigit():
+            safe = "_" + safe
+        return self.evaluate_source_quick(
+            source, safe,
+            algo_id=algo_id,
+            n_trials=n_trials,
+            timeout_sec=timeout_sec,
+            snr_db=snr_db,
+        )
+
+    def evaluate_source_returning_xhat(
+        self,
+        source: str,
+        func_name: str,
+        *,
+        algo_id: str = "probe",
+        n_trials: int = 8,
+        timeout_sec: float = 0.5,
+        snr_db: float = 14.0,
+        n_tx: int = 4,
+        n_rx: int = 4,
+        seed: int = 0xB17,
+    ) -> "np.ndarray | None":
+        """S4: probe a detector and return the concatenated xhat array.
+
+        Used by the behavior-hash gate. The probe is fully deterministic
+        — fixed seed, fixed channel/noise sequence, fixed constellation —
+        so two structurally-different IRs that produce identical xhats
+        on this probe are behavioral synonyms.
+
+        Returns None on failure.
+        """
+        overrides: dict = {
+            "n_trials": int(n_trials),
+            "timeout_sec": float(timeout_sec),
+            "snr_db_list": [float(snr_db)],
+            "return_xhat": True,
+            "probe_seed": int(seed),
+            "probe_n_tx": int(n_tx),
+            "probe_n_rx": int(n_rx),
+        }
+        payload = (algo_id, source, func_name, 0.0, overrides)
+
+        self._ensure_pool()
+        if not self._workers:
+            return None
+        worker = self._workers.pop(0)
+        deadline = time.perf_counter() + float(timeout_sec) * 4.0 + 1.0
+        try:
+            worker.send(payload)
+        except (BrokenPipeError, OSError):
+            worker.kill()
+            return None
+
+        msg = None
+        while time.perf_counter() < deadline:
+            have, msg = worker.try_recv()
+            if have:
+                break
+            time.sleep(0.005)
+        if msg is None:
+            worker.kill()
+            return None
+
+        worker.calls += 1
+        if worker.calls >= self.max_calls_per_worker or not worker.is_alive():
+            worker.kill()
+        else:
+            self._workers.append(worker)
+
+        try:
+            tag, back = msg
+        except Exception:
+            return None
+        if tag != "ok":
+            return None
+        xhat = back.get("xhat") if isinstance(back, dict) else None
+        if xhat is None:
+            return None
+        try:
+            return np.asarray(xhat, dtype=complex)
+        except Exception:
+            return None
 
     def evaluate(self, genome: AlgorithmGenome) -> FitnessResult:
         try:

@@ -18,6 +18,7 @@ ALLOWED_OPCODES = {
     "build_list",
     "build_tuple",
     "build_dict",
+    "build_slice",
     "append",
     "pop",
     "iter_init",

@@ -2,6 +2,18 @@
 
 > 基于 `FunctionIR` 的 MIMO 检测器自动进化框架。宏观层执行骨架嫁接（structural grafting），微观层在每个算法的槽位子种群内做变异/交叉。GNN 模式匹配器（`gnn_pattern_matcher.py`）通过图注意力网络在线学习最优嫁接配对。
 
+## Phase H+5 验收门 (gates)
+
+| ID | 名称 | 状态 | 说明 |
+|----|------|------|------|
+| R1 | structural_unique | ✅ | `canonical_ir_hash` 唯一性，去重重复结构变体 |
+| R2 | dry_run_emit | ✅ | 在 evaluate 之前必须 `emit_python_source` 通过 |
+| R3 | validate_function_ir | ✅ | 每次 graft 后调用 `validate_function_ir` |
+| R4 | typed contract | ✅ | `SlotContract` 来源于 `SlotPopulation.spec` (无 TYPE_TOP fallback) |
+| R5 | typed cx/mut | ✅ | `cx_subtree_typed`/`mut_subtree_typed` 接受类型一致的 region；S3 后主循环正确传递 `parent2_ir` |
+| R6 | behavior_hash | ✅ | 微进化用 `evaluate_source_returning_xhat` (固定 seed/SNR/probe) 算子比对 sha1(xhat) — 完全等价的孩子被剔除，避免行为同义体 |
+| R7 | telemetry split | ✅ | `SlotMicroStats` 分 7 个失败原因 (graft/validator/codegen/runtime/timeout/shape/ser_bad)，train_gnn 输出 `slot-evo causes:` 行 |
+
 ---
 
 ## 模块结构
@@ -114,7 +126,9 @@ class SlotPopulation:
     variants: list[FunctionIR]      # 实现变体列表
     fitness: list[float]            # 对应适应度
     best_idx: int                   # 最佳变体索引
-    source_variants: list[str|None] # Python 源码缓存
+    # 注：S5 之后 SlotPopulation 不再缓存 Python 源码 — 唯一表示原则
+    # 要求所有 GP/选择逻辑都在 FunctionIR 上工作；源码仅在 evaluator
+    # 内部短暂存在 (SubprocessMIMOEvaluator.evaluate_ir_quick)。
 ```
 
 ### GraftProposal (`pool_types.py`)
@@ -524,7 +538,7 @@ python -m pytest tests/ -v
 
 - `random_program.random_ir_program()` 会先拼出随机 Python 函数字符串，再调用 `compile_source_to_ir()` 得到 `FunctionIR`。
 - `IRGenome.deserialize()` 反序列化时，也通过 `compile_source_to_ir()` 把源码恢复成 IR。
-- `operators._mutate_via_recompile()`（插入/删除突变）同样走“源码编辑→重新编译到 IR”的路径。
+- 插入/删除等结构突变 operators 全部直接在 `FunctionIR` 上工作 (typed-subtree mut/cx)；不再有“源码编辑→重新编译到 IR”的路径 (S5 之后)。
 
 ### 3.3 代码再生后端来自 `algorithm_ir.regeneration`
 

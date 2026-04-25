@@ -54,13 +54,14 @@ logger = logging.getLogger(__name__)
 class _OperatorPick:
     name: str
     weight: float
+    is_crossover: bool = False
 
 
 def _build_operator_pool() -> list[_OperatorPick]:
     pool: list[_OperatorPick] = []
-    for name, (_factory, weight, _is_xover) in OPERATOR_REGISTRY.items():
+    for name, (_factory, weight, is_xover) in OPERATOR_REGISTRY.items():
         if weight > 0:
-            pool.append(_OperatorPick(name=name, weight=weight))
+            pool.append(_OperatorPick(name=name, weight=weight, is_crossover=bool(is_xover)))
     return pool
 
 
@@ -199,8 +200,29 @@ def micro_population_step(
         )
         parent_hash = canonical_ir_hash(parent)
 
+        # S3: For crossover operators, supply a second parent drawn from
+        # the current population (excluding the chosen parent). If the
+        # population has only one variant, fall back to mutation-style
+        # call (parent2_ir=None) so the operator can no-op gracefully.
+        parent2_ir = None
+        if pick.is_crossover and n_parents > 1:
+            other_indices = [i for i in range(n_parents)
+                             if i != parent_idx and pop.variants[i] is not None]
+            if other_indices:
+                # Tournament-of-2 among the rest, biased by fitness if finite.
+                ja, jb = rng.integers(0, len(other_indices), size=2)
+                ia = other_indices[int(ja)]
+                ib = other_indices[int(jb)]
+                fa, fb = pop.fitness[ia], pop.fitness[ib]
+                if np.isfinite(fa) and np.isfinite(fb):
+                    pick2 = ia if fa <= fb else ib
+                else:
+                    pick2 = ia if np.isfinite(fa) else ib
+                parent2_ir = pop.variants[pick2]
+
         result = run_operator_with_gates(
-            op_instance, ctx, parent, parent_hash, stats=op_stats
+            op_instance, ctx, parent, parent_hash,
+            parent2_ir=parent2_ir, stats=op_stats,
         )
         if not result.accepted_structurally or result.child_ir is None:
             # Logged to op_stats already; account in coarse stats so the
@@ -216,7 +238,7 @@ def micro_population_step(
             continue
 
         # Splice + validate (gate inside apply_slot_variant).
-        flat_ir = apply_slot_variant(genome, pop_key, child)
+        flat_ir = apply_slot_variant(genome, pop_key, child, stats=stats)
         if flat_ir is None:
             stats.n_apply_failed += 1
             continue
@@ -227,6 +249,7 @@ def micro_population_step(
             genome, pop_key, child,
             evaluator=evaluator,
             n_trials=n_trials, timeout_sec=timeout_sec, snr_db=snr_db,
+            stats=stats,
         )
         if not np.isfinite(ser) or ser >= 1.0:
             stats.n_eval_failed += 1
@@ -236,20 +259,52 @@ def micro_population_step(
             pop.fitness.append(float("inf"))
             continue
 
-        # R6: behavior signature gate. The structural gates (1/2/3/7)
-        # only check IR uniqueness; two structurally-distinct IRs can
-        # still produce identical behavior (synonyms — e.g. swapping a
-        # constant by an amount below evaluator resolution, or adding
-        # an op whose output never reaches the contract surface). Drop
-        # such children to prevent pool bloat by behavioral synonyms.
-        # Tolerance 1e-9 is below the 1/(n_trials*N_symbols) granularity
-        # of any single-bit decoding flip, so genuine behavior change
-        # always exceeds it.
+        # R6: behavior signature gate. Two structurally-distinct IRs
+        # can still produce identical decoded symbols (synonyms). The
+        # SER-equality fallback (abs(ser - parent_ser) < 1e-9) is fine
+        # when the evaluator does not expose decoded x_hat. When the
+        # evaluator DOES support `evaluate_source_returning_xhat`, we
+        # use sha1(x_hat.tobytes()) as a much stronger behavior key:
+        # genuine behavior change flips at least one symbol -> hash
+        # mismatch, even if the SER tie-rounds to the same float.
         parent_ser = pop.fitness[parent_idx]
-        if (
-            np.isfinite(parent_ser)
-            and abs(ser - parent_ser) < 1e-9
-        ):
+        is_noop_behavior = False
+        eval_xhat = getattr(evaluator, "evaluate_source_returning_xhat", None)
+        emit_src = getattr(evaluator, "_emit_source_for_ir", None)  # optional helper
+        if eval_xhat is not None:
+            try:
+                # Materialise child + parent through the same probe,
+                # compare hashed x_hat. Source emission is owned by the
+                # evaluator (S5 contract) — we only pass IR via emit
+                # helper if available; otherwise we degrade silently.
+                from algorithm_ir.regeneration.codegen import emit_python_source
+                # Splice parent through apply_slot_variant for a fair
+                # comparison (both children evaluated against the same
+                # surrounding genome state).
+                parent_flat = apply_slot_variant(genome, pop_key, parent)
+                if parent_flat is not None:
+                    src_parent = emit_python_source(parent_flat)
+                    src_child = emit_python_source(flat_ir)
+                    fname_p = (parent_flat.name or "detector")
+                    fname_c = (flat_ir.name or "detector")
+                    xhat_p = eval_xhat(src_parent, fname_p, snr_db=14.0)
+                    xhat_c = eval_xhat(src_child, fname_c, snr_db=14.0)
+                    if xhat_p is not None and xhat_c is not None:
+                        import hashlib
+                        h_p = hashlib.sha1(np.asarray(xhat_p, dtype=complex).tobytes()).hexdigest()
+                        h_c = hashlib.sha1(np.asarray(xhat_c, dtype=complex).tobytes()).hexdigest()
+                        is_noop_behavior = (h_p == h_c)
+            except Exception as _exc:
+                logger.debug("R6 behavior_hash probe failed: %r — falling back to SER", _exc)
+                is_noop_behavior = (
+                    np.isfinite(parent_ser) and abs(ser - parent_ser) < 1e-9
+                )
+        else:
+            # SER-equality fallback (legacy path).
+            is_noop_behavior = (
+                np.isfinite(parent_ser) and abs(ser - parent_ser) < 1e-9
+            )
+        if is_noop_behavior:
             stats.n_noop_behavior += 1
             op_stats.n_noop_behavior += 1
             # Do NOT add to pop — behavior-identical variants would just

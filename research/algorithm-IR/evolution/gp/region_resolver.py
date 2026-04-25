@@ -96,7 +96,57 @@ def resolve_slot_region(
             tier="provenance",
         )
 
+    # Tier 3: callee-name scan. Slot helpers that could not be inlined
+    # (e.g. call sites embedded inside larger expressions like
+    # ``-_slot_score_op_NN(...)`` or ``np.exp(-_slot_score_op_NN(...))``)
+    # remain as ``call`` ops referencing the helper by name. Locate every
+    # such call op so the slot is still considered resolvable. The region
+    # is just the call op itself — variants are swapped at the source level
+    # by replacing the helper definition.
+    callee_ops, callee_sids = _scan_callee_name(ir, short)
+    if callee_ops:
+        return SlotRegionInfo(
+            slot_key=slot_key,
+            short_name=short,
+            op_ids=frozenset(callee_ops),
+            sids=frozenset(callee_sids),
+            tier="callee_name",
+        )
+
     return None
+
+
+def _scan_callee_name(ir: FunctionIR, short: str) -> tuple[set[str], set[str]]:
+    """Return (op_ids, synthetic_sids) for ``call`` ops whose callee name
+    matches ``_slot_<short>_*`` or ``slot_<short>``.
+
+    Used as a structural fallback when provenance markers are absent
+    (typical for slot helper invocations embedded inside larger
+    expressions, which the inliner cannot lift to top-level statements).
+    """
+    op_ids: set[str] = set()
+    sids: set[str] = set()
+    needle_prefix = f"_slot_{short}"
+    needle_alt = f"slot_{short}"
+    for oid, op in ir.ops.items():
+        if op.opcode != "call" or not op.inputs:
+            continue
+        callee_vid = op.inputs[0]
+        callee_val = ir.values.get(callee_vid)
+        def_op = None
+        if callee_val is not None and callee_val.def_op is not None:
+            def_op = ir.ops.get(callee_val.def_op)
+        if def_op is None:
+            continue
+        if def_op.opcode != "const":
+            continue
+        name = def_op.attrs.get("name") or def_op.attrs.get("module_name") or ""
+        if not isinstance(name, str):
+            continue
+        if name == needle_prefix or name == needle_alt or name.startswith(needle_prefix + "_"):
+            op_ids.add(oid)
+            sids.add(name)
+    return op_ids, sids
 
 
 def is_resolvable(genome: "AlgorithmGenome", slot_key: str) -> bool:

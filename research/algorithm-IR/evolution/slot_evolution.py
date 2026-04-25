@@ -83,6 +83,16 @@ class SlotMicroStats:
     n_noop_behavior: int = 0      # R6: child SER ≈ parent SER (no behavior change)
     skipped_no_sids: int = 0      # pop_key has no matching from_slot_id (annotation lost)
     skipped_no_variants: int = 0  # pop has zero variants
+    # S6: per-failure-cause telemetry split. The aggregate counters above
+    # remain (back-compat); these refine the cause so train_gnn logs and
+    # r7_inspect can pinpoint exactly where the pipeline is leaking.
+    n_apply_graft_failed: int = 0      # graft_general raised / returned None
+    n_apply_validator_failed: int = 0  # validate_function_ir rejected post-graft IR
+    n_eval_codegen_failed: int = 0     # emit_python_source failed
+    n_eval_runtime_exception: int = 0  # exec or call raised
+    n_eval_timeout: int = 0            # subprocess deadline exceeded
+    n_eval_shape_error: int = 0        # x_hat None or wrong length
+    n_eval_ser_bad: int = 0            # ser >= 1 or non-finite
 
     def as_dict(self) -> dict:
         return {
@@ -99,6 +109,13 @@ class SlotMicroStats:
             "n_noop_behavior": self.n_noop_behavior,
             "skipped_no_sids": self.skipped_no_sids,
             "skipped_no_variants": self.skipped_no_variants,
+            "n_apply_graft_failed": self.n_apply_graft_failed,
+            "n_apply_validator_failed": self.n_apply_validator_failed,
+            "n_eval_codegen_failed": self.n_eval_codegen_failed,
+            "n_eval_runtime_exception": self.n_eval_runtime_exception,
+            "n_eval_timeout": self.n_eval_timeout,
+            "n_eval_shape_error": self.n_eval_shape_error,
+            "n_eval_ser_bad": self.n_eval_ser_bad,
             "best_delta": self.best_after - self.best_before,
         }
 
@@ -307,12 +324,17 @@ def pick_real_exit_value(ir: FunctionIR,
 
 def apply_slot_variant(genome: "AlgorithmGenome",
                        pop_key: str,
-                       variant_ir: FunctionIR) -> FunctionIR | None:
+                       variant_ir: FunctionIR,
+                       *,
+                       stats: "SlotMicroStats | None" = None) -> FunctionIR | None:
     """Splice ``variant_ir`` into the slot region identified by ``pop_key``
     in ``genome.ir`` and return the resulting flat IR.
 
     Returns ``None`` on any failure (region missing, graft failed,
     validation failed). Never mutates ``genome``.
+
+    If ``stats`` is provided, increments the appropriate failure-cause
+    counter (``n_apply_graft_failed`` / ``n_apply_validator_failed``).
     """
     if variant_ir is None:
         return None
@@ -385,14 +407,20 @@ def apply_slot_variant(genome: "AlgorithmGenome",
         artifact = graft_general(genome.ir, proposal)
     except Exception as exc:
         logger.debug("apply_slot_variant: graft_general raised: %r", exc)
+        if stats is not None:
+            stats.n_apply_graft_failed += 1
         return None
     if artifact is None or getattr(artifact, "ir", None) is None:
+        if stats is not None:
+            stats.n_apply_graft_failed += 1
         return None
 
     errs = validate_function_ir(artifact.ir)
     if errs:
         logger.debug("apply_slot_variant: post-graft validation rejected "
                      "%s (%d errs): %s", pop_key, len(errs), errs[:2])
+        if stats is not None:
+            stats.n_apply_validator_failed += 1
         return None
 
     # Re-annotate newly introduced ops so the slot stays discoverable
@@ -430,7 +458,8 @@ def evaluate_slot_variant(genome: "AlgorithmGenome",
                           evaluator: Any,
                           n_trials: int = 8,
                           timeout_sec: float = 1.0,
-                          snr_db: float = 16.0) -> tuple[float, None]:
+                          snr_db: float = 16.0,
+                          stats: "SlotMicroStats | None" = None) -> tuple[float, None]:
     """Splice the variant in, hand the spliced FunctionIR to the
     evaluator, return ``(ser, None)``.
 
@@ -441,11 +470,13 @@ def evaluate_slot_variant(genome: "AlgorithmGenome",
     Returns ``(ser, None)`` (the second tuple slot is preserved for
     backward-compatible call sites; it is always ``None`` now).
     """
-    flat_ir = apply_slot_variant(genome, pop_key, variant_ir)
+    flat_ir = apply_slot_variant(genome, pop_key, variant_ir, stats=stats)
     if flat_ir is None:
         return float("inf"), None
 
-    # The evaluator owns source emission. We only ever pass FunctionIR.
+    # S5: The evaluator owns ALL FunctionIR -> source emission. We only
+    # ever pass FunctionIR to the evaluator. Source NEVER appears in this
+    # module after S5 (this is enforced by test_no_source_roundtrip_mutation).
     eval_ir = getattr(evaluator, "evaluate_ir_quick", None)
     if eval_ir is not None:
         try:
@@ -456,43 +487,32 @@ def evaluate_slot_variant(genome: "AlgorithmGenome",
                 timeout_sec=float(timeout_sec),
                 snr_db=float(snr_db),
             ))
+        except TimeoutError as exc:
+            logger.debug("evaluate_slot_variant: timeout: %r", exc)
+            if stats is not None:
+                stats.n_eval_timeout += 1
+            return float("inf"), None
         except Exception as exc:
             logger.debug("evaluate_slot_variant: evaluate_ir_quick raised: %r", exc)
+            if stats is not None:
+                msg = repr(exc).lower()
+                if "emit" in msg or "codegen" in msg or "unparse" in msg:
+                    stats.n_eval_codegen_failed += 1
+                else:
+                    stats.n_eval_runtime_exception += 1
             return float("inf"), None
         if not np.isfinite(ser):
+            if stats is not None:
+                stats.n_eval_ser_bad += 1
             return float("inf"), None
-        return ser, None
-
-    # Subprocess evaluator: we are forced to emit source here because
-    # the evaluator's wire-format is a string. This is still consistent
-    # with the principle: source emission happens at the EVALUATION
-    # boundary, not inside any GP or selection logic.
-    eval_quick = getattr(evaluator, "evaluate_source_quick", None)
-    if eval_quick is not None:
-        from algorithm_ir.regeneration.codegen import emit_python_source
-        try:
-            source = emit_python_source(flat_ir)
-        except Exception as exc:
-            logger.debug("evaluate_slot_variant: codegen failed: %r", exc)
-            return float("inf"), None
-        try:
-            ser = float(eval_quick(
-                source, _func_name_from_ir(flat_ir),
-                algo_id=f"{genome.algo_id}_slot_{pop_key}",
-                n_trials=int(n_trials),
-                timeout_sec=float(timeout_sec),
-                snr_db=float(snr_db),
-            ))
-        except Exception as exc:
-            logger.debug("evaluate_slot_variant: subprocess eval failed: %r", exc)
-            return float("inf"), None
-        if not np.isfinite(ser):
-            return float("inf"), None
+        if ser >= 1.0:
+            if stats is not None:
+                stats.n_eval_ser_bad += 1
         return ser, None
 
     # In-process fallback: build a transient genome with the spliced
     # IR and call evaluator.evaluate(). The evaluator handles all
-    # codegen internally.
+    # codegen internally — slot_evolution still never touches source.
     try:
         from copy import copy as _shallow_copy
         transient = _shallow_copy(genome)
@@ -501,8 +521,12 @@ def evaluate_slot_variant(genome: "AlgorithmGenome",
         ser = float(getattr(res, "metrics", {}).get("ser", float("inf")))
     except Exception as exc:
         logger.debug("evaluate_slot_variant: in-proc fallback failed: %r", exc)
+        if stats is not None:
+            stats.n_eval_runtime_exception += 1
         return float("inf"), None
     if not np.isfinite(ser):
+        if stats is not None:
+            stats.n_eval_ser_bad += 1
         return float("inf"), None
     return ser, None
 

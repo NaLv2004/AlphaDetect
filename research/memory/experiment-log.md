@@ -331,3 +331,70 @@ Each entry includes parameters, results, and key observations.
 - **Takeaway**:
   - Batch proposal generation is now correct and meaningfully faster.
   - The speedup is substantial but did **not** reach `5x` in the current implementation because Python-side proposal finalization (`build_trimmed_donor_ir`, region construction, experience bookkeeping) still dominates part of the wall-clock time.
+## [2026-04-25 00:06] Algorithm-IR Formal Code Review Report Saved
+- **Context**: User requested a formal detailed code review report for `research/algorithm-IR`.
+- **Action**: Created `research/algorithm-IR/code_review/review_codex.md` summarizing architecture, verification commands, failing tests, invalid IR pool findings, representation-contract risks, mutation bugs, evaluator risks, and recommended fix order.
+- **Artifacts**:
+  - `research/algorithm-IR/code_review/review_codex.md`
+- **Key finding recorded**: Current trunk is not test-green and many `build_ir_pool()` genomes fail `validate_function_ir()`, so IR invariant restoration and pool-health gating should precede further long GNN runs.
+
+## [2026-04-25 13:35] Algorithm-IR Code Review Report Overwritten
+- **Context**: User requested overwriting the old `code_review.md` with the updated strict review, emphasizing that current slot evolution only performs constant perturbation and must become a true typed GP framework.
+- **Action**: Replaced `research/algorithm-IR/code_review/code_review.md` with a detailed Chinese review report covering current verification status, remaining P0/P1 issues, slot evolution limitations, and a complete typed GP redesign proposal.
+- **Artifacts**:
+  - `research/algorithm-IR/code_review/code_review.md`
+- **Key finding recorded**: Pool validation has improved, but frontend def/use tests still fail and `slot_evolution.py` remains an insufficient micro-evolution mechanism because its effective search is dominated by numeric constant perturbation rather than type-safe structural GP operators.
+
+## [2026-04-25 15:07] Algorithm-IR Typed-GP Re-Review After External Changes
+- **Context**: User requested a fresh review after another AI modified the code, with emphasis on whether the new implementation satisfies the pure-IR typed-GP requirement and resolves the prior `code_review.md` findings.
+- **Validation**:
+  - New GP-focused tests passed: `43 passed, 1 skipped` for `test_gp_foundation.py`, `test_gp_typed_operators.py`, `test_gp_micro_population.py`, and `test_slot_evolution.py`.
+  - Frontend/regression subset still fails: `8 failed, 15 passed`, with the same loop/phi def-use mismatch pattern and a `list<any>` vs `list` annotation regression.
+  - Integration/cross-lang still fails: `2 failed, 13 passed`, both grafting demos rejected by `validate_function_ir()` due to duplicate/stale `use_ops`.
+  - Pool health remains improved: `build_ir_pool()` produced `91` genomes with `0` invalid canonical IRs.
+- **Key findings**:
+  - `evolution/operators.py` removed the old source-roundtrip `_mutate_via_recompile` path and the `swap_lines` NameError path.
+  - New `evolution/gp/*` framework exists and registers six IR-only point/value mutation operators, but it lacks typed insert/delete/subtree crossover/synthesis operators.
+  - Slot coverage is superficially `221/221` via `region_resolver`, but the 14 legacy `slot_op` regions still cannot be applied: `apply_slot_variant()` remains provenance-only, so all `kbest`, `bp`, `soft_sic`, `turbo_linear`, `particle_filter`, and `importance_sampling` legacy-slot apply attempts returned `False`.
+  - `slot_evolution.py` still contains AST/source checks and a legacy constant-perturbation path behind `use_typed_gp=False`; `source_variants` also remains semantically active in materialization.
+
+## [2026-04-25 15:11] Algorithm-IR Code Review Updated With Typed-GP Re-Review
+- **Context**: User requested overwriting `research/algorithm-IR/code_review/code_review.md` with the latest re-review and remediation opinions.
+- **Action**: Replaced the report with a Chinese formal review focused on the pure-IR typed-GP requirement, current verification results, resolved vs unresolved prior issues, and mandatory S0-S5 remediation steps.
+- **Artifacts**:
+  - `research/algorithm-IR/code_review/code_review.md`
+- **Key finding recorded**: Current changes are directionally correct but incomplete: source-roundtrip mutation was removed from `operators.py`, yet `slot_evolution.py` still contains AST/source gates, `source_variants` remains semantically active, legacy `slot_op` slots cannot actually be applied, and structural typed GP operators are still missing.
+
+## [2026-04-25 16:25] Algorithm-IR Typed-GP Re-Review After Second External Change
+- **Context**: User requested another re-review after further AI modifications.
+- **Validation**:
+  - Frontend/regression subset improved to `1 failed, 22 passed`; remaining failure is `list<any>` vs expected `list` annotation.
+  - Integration/cross-lang passed: `15 passed`.
+  - GP-focused tests including structural operators passed: `49 passed`.
+  - Pool probe: `91` genomes, `0` invalid IRs, `207` slot populations, all `207` resolvable; default `apply_slot_variant()` succeeded for `205/207`.
+- **Key findings**:
+  - `source_variants` has been removed from `SlotPopulation` and no longer appears in evolution code except stale README text.
+  - `slot_evolution.py` removed the AST name-binding gate and the legacy `use_typed_gp=False` path.
+  - New structural operators are registered, but `cx_subtree_typed` is currently ineffective in `micro_population_step` because no `parent2_ir` is ever supplied.
+  - The 14 previously unresolved core slot populations (`kbest`, `bp`, `soft_sic`, `turbo_linear`, `particle_filter`, `importance_sampling`) are no longer present in the pool because `ir_pool` prunes phantom pops rather than making legacy `slot_op` regions evolvable.
+  - Two remaining slot defaults, `sa.accept` and `mh.accept`, resolve but cannot apply because their collected regions have no exit values.
+
+## [2026-04-25 17:29] Algorithm-IR R6/R7 Claims Re-Review
+- **Context**: User asked to verify another AI's R6/R7 claims: SER-tolerance behavior gate, per-operator telemetry, live R5 demo, and an 8-generation run.
+- **Validation**:
+  - Confirmed commits `abffd7e`, `e55065b`, and `58ba08b` are present.
+  - Confirmed `code_review/r7_demo_output.txt` shows each R5 structural operator creating a structurally distinct child on a synthetic 18-op IR.
+  - Aggregated `results/gnn_training/training_log.jsonl`: `2250` slot mutations attempted, `1312` structurally validated, `26` evaluated, `4` improved, `30` SER-identical children dropped by the R6 gate.
+  - Integration/cross-lang tests passed (`15 passed`); a full `pytest -q` run timed out locally after 244 seconds, so the claimed full green suite was not independently confirmed in this pass.
+- **Key findings**:
+  - The R6 "behavior signature" is actually a scalar SER equality tolerance (`abs(ser-parent_ser)<1e-9`), not a fixed-probe output signature or held-out behavior hash.
+  - `cx_subtree_typed` is still inactive in the main micro-population path: logs show `117` attempts, `117` proposed-none, `0` structurally accepted/evaluated because `parent2_ir` is never supplied by `micro_population_step`.
+  - The R7 telemetry is useful and mostly supports the raw counts, but it also shows structural operators have very low downstream survival: `mut_insert_typed` and `mut_primitive_inject` had many structurally accepted proposals but `0` evaluated and `0` improved.
+  - Core algorithm families (`kbest`, `bp`, `soft_sic`, `turbo_linear`, `particle_filter`, `importance_sampling`) still have zero slot populations after phantom pruning, so the framework's search space remains narrowed rather than truly fixed.
+
+## [2026-04-25 18:35] Algorithm-IR Code Review Overwritten With R6/R7 Assessment
+- **Context**: User requested overwriting `research/algorithm-IR/code_review/code_review.md` with the latest R6/R7 review and concrete remediation recommendations.
+- **Action**: Replaced `code_review.md` with a formal Chinese report that distinguishes verified R6/R7 evidence from over-optimistic claims and lists S1-S7 required fixes.
+- **Artifacts**:
+  - `research/algorithm-IR/code_review/code_review.md`
+- **Key finding recorded**: R6/R7 demonstrate real progress toward structural IR mutation and useful telemetry, but the framework still lacks true behavior signatures, active crossover in the main path, core-slot coverage for important algorithm families, robust executable structural mutations, and a fully evaluator-owned IR-to-source boundary.

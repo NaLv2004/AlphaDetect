@@ -81,7 +81,6 @@ def main() -> None:
             eff_n_trials = int(overrides.get("n_trials", eff_n_trials))
             eff_timeout_sec = float(overrides.get("timeout_sec", eff_timeout_sec))
             eff_snr_list = overrides.get("snr_db_list", eff_snr_list)
-
         try:
             ns = _default_exec_namespace()
             exec(compile(source, f"<materialized:{algo_id}>", "exec"), ns)
@@ -103,6 +102,42 @@ def main() -> None:
         ser_per_snr: dict = {}
         total_time = 0.0
         _trial_timeout = max(1.0, eff_timeout_sec / max(eff_n_trials, 1) * 3)
+
+        # S4: probe mode — return per-trial xhat array for behavior_hash gate.
+        if overrides and overrides.get("return_xhat"):
+            probe_seed = int(overrides.get("probe_seed", 0xB17))
+            probe_n_tx = int(overrides.get("probe_n_tx", cfg.Nt))
+            probe_n_rx = int(overrides.get("probe_n_rx", cfg.Nr))
+            probe_snr = float(eff_snr_list[0]) if eff_snr_list else 14.0
+            prng = np.random.default_rng(probe_seed)
+            xhats: list = []
+            t0 = time.perf_counter()
+            _ex = _cf.ThreadPoolExecutor(max_workers=1)
+            try:
+                for _ in range(eff_n_trials):
+                    H, _x_true, y, sigma2 = generate_mimo_sample(
+                        probe_n_rx, probe_n_tx, constellation, probe_snr, prng,
+                    )
+                    try:
+                        future = _ex.submit(fn, H, y, sigma2, constellation)
+                        x_hat = future.result(timeout=_trial_timeout)
+                    except BaseException:
+                        x_hat = None
+                    if x_hat is None or len(x_hat) != probe_n_tx:
+                        xhats.append(np.zeros(probe_n_tx, dtype=complex))
+                    else:
+                        xhats.append(_nearest_symbols(np.asarray(x_hat, dtype=complex), constellation))
+            finally:
+                _ex.shutdown(wait=False)
+            xhat_arr = np.concatenate(xhats) if xhats else np.zeros(0, dtype=complex)
+            _write_frame(stdout, ("ok", {
+                "metrics": {"ser": 0.0, "complexity": complexity,
+                            "eval_time": time.perf_counter() - t0},
+                "is_valid": True,
+                "xhat": xhat_arr,
+                "weights": {"ser": 0.0, "complexity": cfg.complexity_weight, "eval_time": 0.0},
+            }))
+            continue
 
         for snr_db in eff_snr_list:
             errors = 0

@@ -237,3 +237,14 @@ These guide future research decisions and help avoid repeating mistakes.
   - Current top-graft logs contain concrete `STRUCTURAL_FAIL` survivors whose child score is only slightly worse than the host, and whose behavior-change rate is exactly `0.0`.
 - **Applicable to**:
   - Any future redesign of reward shaping, scorer targets, or survivor filtering for algorithm-IR graft training.
+## [2026-04-24 23:59] Algorithm-IR Code Review Findings
+- Reviewed `research/algorithm-IR` architecture and ran focused tests in `AutoGenOld`.
+- Key finding: current trunk is not test-green. Focused unit subset reported 8 failures, and integration/cross-lang subset reported 2 failures. Failures center on frontend-generated IR def/use bookkeeping for loops and grafting demos.
+- Additional risk: many `build_ir_pool()` flat annotated genomes fail `validate_function_ir()` due to duplicated/stale `use_ops`, so downstream region selection, GNN features, and grafting may operate on structurally invalid IR.
+- Engineering lesson: before further long GNN runs, restore IR invariants at the frontend/FII boundary and add pool-health validation as a hard gate.
+
+## [2026-04-25 00:30] Algorithm-IR Re-Review After External AI Changes
+- Re-ran focused tests after external modifications. `build_ir_pool()` now admits 91 genomes with `valid_errs=0` and zero recorded pool rejections, indicating the flat pool path now rebuilds/validates def-use successfully.
+- Frontend/regression/integration failures still remain unchanged: focused unit subset still has 8 failures; integration/cross-lang subset still has 2 failures, all centered on direct `compile_function_to_ir()` def/use mismatches for loop/grafting examples.
+- New slot evolution path (`evolution/slot_evolution.py`) can splice flat-IR provenance slots for many genomes, but only 207/221 slot populations had matching `_provenance.from_slot_id` regions. Important remaining `slot`-op genomes such as `kbest`, `bp`, `soft_sic`, `turbo_linear`, `importance_sampling`, and `particle_filter` are skipped by the new provenance-based slot evolution.
+- Slot micro-evolution is currently narrow: it only perturbs float constants in variants; only 54/221 default slot variants and 134/1768 total variants had perturbable float constants in the audit run. This limits structural discovery and makes many slots effectively no-op under micro-evolution.

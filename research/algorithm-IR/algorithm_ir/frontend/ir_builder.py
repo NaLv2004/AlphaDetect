@@ -78,6 +78,12 @@ SUPPORTED_AST = (
     ast.BinOp,
     ast.UnaryOp,
     ast.Compare,
+    # Extended (S1.0): expression-level control flow and slicing
+    ast.IfExp,
+    ast.BoolOp,
+    ast.And,
+    ast.Or,
+    ast.Slice,
 )
 
 # Python type annotation name → IR type hint
@@ -369,10 +375,17 @@ class IRBuilder:
             self._emit_jump(test_block, stmt, loop_backedge=True)
 
         self.state.current_block = exit_block
-        self.state.name_env = {
+        # Build the post-loop name env: phi outputs for variables that
+        # existed before the loop, PLUS any names introduced inside the
+        # body (Python's `while` does not establish a scope).
+        post_env: dict[str, str] = {
             name: self.state.ops[phi_op_id].outputs[0]
             for name, (phi_op_id, _) in loop_phi_inputs.items()
         }
+        for name, vid in body_env.items():
+            if name not in post_env:
+                post_env[name] = vid
+        self.state.name_env = post_env
 
     def _compile_for(self, stmt: ast.For) -> None:
         """
@@ -440,11 +453,210 @@ class IRBuilder:
             self._emit_jump(test_block, stmt, loop_backedge=True)
 
         self.state.current_block = exit_block
-        # After the for loop, use phi outputs for all variables
-        self.state.name_env = {
+        # After the for loop: phi outputs for pre-loop names + any names
+        # introduced inside the body (Python `for` does not establish a scope).
+        post_env: dict[str, str] = {
             name: self.state.ops[phi_op_id].outputs[0]
             for name, (phi_op_id, _) in loop_phi_inputs.items()
         }
+        for name, vid in body_env.items():
+            if name not in post_env:
+                post_env[name] = vid
+        self.state.name_env = post_env
+
+    # ------------------------------------------------------------------
+    # Expression-level control flow (S1.0)
+    # ------------------------------------------------------------------
+
+    def _compile_branching_expr(
+        self,
+        cond_id: str,
+        then_fn,
+        else_fn,
+        node: ast.AST,
+        result_hint: str,
+    ) -> str:
+        """Shared implementation for IfExp / BoolOp short-circuit.
+
+        Emits branch-on-cond + then/else blocks + merge with phi over the
+        single result value. ``then_fn`` and ``else_fn`` are zero-arg
+        callables that return a value-id when invoked in their respective
+        block. Returns the merged result value-id; current block is set to
+        the merge block on return.
+        """
+        then_block = self._new_block(f"{result_hint}_then")
+        else_block = self._new_block(f"{result_hint}_else")
+        merge_block = self._new_block(f"{result_hint}_merge")
+        self._emit_branch(cond_id, then_block, else_block, node)
+
+        before_env = dict(self.state.name_env)
+        before_versions = dict(self.state.name_versions)
+
+        # Allocate a stable temp name materialized in both branches so the
+        # source emitter sees a real assignment statement rather than just
+        # phi-merging dangling expression values (those would be elided as
+        # dead code in either branch and produce empty `if`/`else` bodies).
+        temp_name = f"__{result_hint}_tmp_{self._gensym_counter()}"
+
+        # then branch
+        self.state.current_block = then_block
+        self.state.name_env = dict(before_env)
+        self.state.name_versions = dict(before_versions)
+        then_val = then_fn()
+        # Materialize: temp_name = then_val  (creates an `assign` op)
+        self._assign_target(ast.Name(id=temp_name, ctx=ast.Store(),
+                                     lineno=getattr(node, 'lineno', 0),
+                                     col_offset=getattr(node, 'col_offset', 0)),
+                            then_val)
+        then_temp_value = self.state.name_env[temp_name]
+        if not self._block_terminated(self.state.current_block):
+            self._emit_jump(merge_block, node)
+        then_end = self.state.current_block
+        then_env = dict(self.state.name_env)
+
+        # else branch
+        self.state.current_block = else_block
+        self.state.name_env = dict(before_env)
+        self.state.name_versions = dict(before_versions)
+        else_val = else_fn()
+        self._assign_target(ast.Name(id=temp_name, ctx=ast.Store(),
+                                     lineno=getattr(node, 'lineno', 0),
+                                     col_offset=getattr(node, 'col_offset', 0)),
+                            else_val)
+        else_temp_value = self.state.name_env[temp_name]
+        if not self._block_terminated(self.state.current_block):
+            self._emit_jump(merge_block, node)
+        else_end = self.state.current_block
+        else_env = dict(self.state.name_env)
+
+        # merge
+        self.state.current_block = merge_block
+
+        # Phi for the materialized temp variable
+        result_type = unify_type_infos(
+            self._value_type_info(then_temp_value),
+            self._value_type_info(else_temp_value),
+        )
+        result_value = self._new_versioned_name(
+            temp_name, node,
+            type_hint=type_hint_from_info(result_type),
+            attrs={"type_info": result_type.to_dict()},
+        )
+        self._emit_phi(
+            [then_temp_value, else_temp_value], result_value,
+            [then_end, else_end], node,
+            var_name=temp_name,
+        )
+
+        # Phi for any other names that diverged (defensive — uncommon for
+        # pure IfExp but possible if then_fn / else_fn caused side effects)
+        merged_env = dict(before_env)
+        merged_env[temp_name] = result_value
+        keys = (set(before_env) | set(then_env) | set(else_env)) - {temp_name}
+        for key in keys:
+            t_val = then_env.get(key, before_env.get(key))
+            e_val = else_env.get(key, before_env.get(key))
+            if t_val != e_val and t_val is not None and e_val is not None:
+                phi_type = unify_type_infos(
+                    self._value_type_info(t_val), self._value_type_info(e_val)
+                )
+                phi_value = self._new_versioned_name(
+                    key, node,
+                    type_hint=type_hint_from_info(phi_type),
+                    attrs={"type_info": phi_type.to_dict()},
+                )
+                self._emit_phi([t_val, e_val], phi_value, [then_end, else_end], node, var_name=key)
+                merged_env[key] = phi_value
+            elif t_val is not None:
+                merged_env[key] = t_val
+            elif e_val is not None:
+                merged_env[key] = e_val
+        self.state.name_env = merged_env
+
+        return result_value
+
+    def _gensym_counter(self) -> int:
+        cnt = getattr(self.state, "_gensym_counter", 0)
+        self.state._gensym_counter = cnt + 1
+        return cnt
+
+    def _compile_if_expr(self, expr: ast.IfExp) -> str:
+        cond = self._compile_expr(expr.test)
+        return self._compile_branching_expr(
+            cond,
+            then_fn=lambda: self._compile_expr(expr.body),
+            else_fn=lambda: self._compile_expr(expr.orelse),
+            node=expr,
+            result_hint="ifexp",
+        )
+
+    def _compile_bool_op(self, expr: ast.BoolOp) -> str:
+        # Short-circuit: fold left-to-right.
+        # `a and b and c` -> `((a and b) and c)`
+        # `a or b or c`   -> `((a or b) or c)`
+        is_and = isinstance(expr.op, ast.And)
+        result = self._compile_expr(expr.values[0])
+        for next_expr in expr.values[1:]:
+            if is_and:
+                # a and b -> if a: b else: a
+                result = self._compile_branching_expr(
+                    result,
+                    then_fn=lambda ne=next_expr: self._compile_expr(ne),
+                    else_fn=lambda r=result: r,
+                    node=expr,
+                    result_hint="and",
+                )
+            else:
+                # a or b -> if a: a else: b
+                result = self._compile_branching_expr(
+                    result,
+                    then_fn=lambda r=result: r,
+                    else_fn=lambda ne=next_expr: self._compile_expr(ne),
+                    node=expr,
+                    result_hint="or",
+                )
+        return result
+
+    def _compile_slice(self, sl: ast.Slice) -> str:
+        """Compile an ast.Slice into a 'build_slice' op returning a value.
+
+        The op has up to 3 inputs (lower, upper, step); missing components
+        are emitted as None constants. Source emission produces ``lo:hi:step``
+        when consumed inside a get_item / set_item.
+        """
+        def _none_const() -> str:
+            return self._compile_constant(None, sl)
+
+        lo = self._compile_expr(sl.lower) if sl.lower is not None else _none_const()
+        hi = self._compile_expr(sl.upper) if sl.upper is not None else _none_const()
+        st = self._compile_expr(sl.step) if sl.step is not None else _none_const()
+
+        out_id = self._new_value(
+            name_hint="slice",
+            type_hint="slice",
+            source=source_span(sl),
+            attrs={
+                "has_lower": sl.lower is not None,
+                "has_upper": sl.upper is not None,
+                "has_step": sl.step is not None,
+            },
+        )
+        op_id = self._next_op_id()
+        op = Op(
+            id=op_id,
+            opcode="build_slice",
+            inputs=[lo, hi, st],
+            outputs=[out_id],
+            block_id=self.state.current_block,
+            source_span=source_span(sl),
+            attrs={
+                "has_lower": sl.lower is not None,
+                "has_upper": sl.upper is not None,
+                "has_step": sl.step is not None,
+            },
+        )
+        self._register_op(op)
+        return out_id
 
     # ------------------------------------------------------------------
     # Assignment targets
@@ -468,7 +680,10 @@ class IRBuilder:
             self._emit_set_attr(owner, value_id, target.attr, target)
         elif isinstance(target, ast.Subscript):
             owner = self._compile_expr(target.value)
-            index = self._compile_expr(target.slice)
+            if isinstance(target.slice, ast.Slice):
+                index = self._compile_slice(target.slice)
+            else:
+                index = self._compile_expr(target.slice)
             self._emit_set_item(owner, index, value_id, target)
         else:
             raise NotImplementedError(f"Unsupported assignment target {type(target).__name__}")
@@ -513,7 +728,10 @@ class IRBuilder:
             return self._emit_get_attr(owner, expr.attr, expr)
         if isinstance(expr, ast.Subscript):
             owner = self._compile_expr(expr.value)
-            index = self._compile_expr(expr.slice)
+            if isinstance(expr.slice, ast.Slice):
+                index = self._compile_slice(expr.slice)
+            else:
+                index = self._compile_expr(expr.slice)
             return self._emit_get_item(owner, index, expr)
         if isinstance(expr, ast.List):
             items = [self._compile_expr(item) for item in expr.elts]
@@ -527,6 +745,10 @@ class IRBuilder:
                 kv_pairs.append(self._compile_expr(key))
                 kv_pairs.append(self._compile_expr(value))
             return self._emit_build_dict(kv_pairs, len(expr.keys), expr)
+        if isinstance(expr, ast.IfExp):
+            return self._compile_if_expr(expr)
+        if isinstance(expr, ast.BoolOp):
+            return self._compile_bool_op(expr)
         raise NotImplementedError(f"Unsupported expression {type(expr).__name__}")
 
     def _compile_constant(self, value: Any, node: ast.AST) -> str:
@@ -1233,25 +1455,54 @@ def compile_source_to_ir(
     """
     tree = ast.parse(source)
     func_node = None
+    sibling_names: list[str] = []
     for node in tree.body:
         if isinstance(node, ast.FunctionDef):
-            if func_name is None or node.name == func_name:
+            if func_node is None and (func_name is None or node.name == func_name):
                 func_node = node
-                break
+            else:
+                sibling_names.append(node.name)
     if func_node is None:
         raise ValueError(
             f"No function '{func_name or '<any>'}' found in source."
         )
+    # Sibling functions defined in the same module are visible to the main
+    # function at runtime via module globals. Register them as placeholder
+    # callables in globals_dict so the IR builder's name resolution
+    # succeeds. The actual callable identity is irrelevant for IR shape.
+    effective_globals = dict(globals_dict or {})
+    for sname in sibling_names:
+        if sname not in effective_globals:
+            effective_globals[sname] = _SiblingHelperPlaceholder(sname)
     parsed = ParsedFunction(
         tree=func_node,
         source=source,
         filename=f"<dynamic_{func_node.name}>",
-        globals_dict=globals_dict or {},
+        globals_dict=effective_globals,
     )
     func_ir = IRBuilder(parsed).build()
     # R3: see compile_function_to_ir.
     from algorithm_ir.ir.validator import rebuild_def_use
     return rebuild_def_use(func_ir)
+
+
+class _SiblingHelperPlaceholder:
+    """Marker for module-level sibling helper functions referenced from
+    the function being compiled. Exists solely so global name resolution
+    in the IR builder succeeds; never actually invoked."""
+
+    __slots__ = ("name",)
+
+    def __init__(self, name: str) -> None:
+        self.name = name
+
+    def __repr__(self) -> str:  # pragma: no cover - debug only
+        return f"<sibling helper {self.name!r}>"
+
+    def __call__(self, *args, **kwargs):  # pragma: no cover - never invoked
+        raise RuntimeError(
+            f"sibling helper placeholder for {self.name!r} should not be called"
+        )
 
 
 def _filter_extra_attrs(op: Op) -> dict[str, Any]:

@@ -696,7 +696,28 @@ def inline_all_helpers_source(
         slot_variant_idx=slot_variant_idx,
     )
 
-    new_tree = ast.Module(body=other_stmts + [main_func], type_ignores=[])
+    # Some helpers may not be inlinable at every call site (e.g. when the
+    # call is embedded inside a larger expression like ``-helper(x)`` or
+    # ``np.exp(-helper(x))``). Such call sites remain as Name references
+    # in the main function body. Keep their helper definitions in the
+    # final module so the IR builder can resolve those names.
+    surviving_helpers: list[ast.stmt] = []
+    if helpers:
+        # Collect all Name references inside main_func to detect surviving
+        # helper call sites without invoking ast.unparse (which requires
+        # location info that has not yet been fixed up).
+        referenced: set[str] = set()
+        for n in ast.walk(main_func):
+            if isinstance(n, ast.Name):
+                referenced.add(n.id)
+        for hname, hdef in helpers.items():
+            if hname in referenced:
+                surviving_helpers.append(hdef)
+
+    new_tree = ast.Module(
+        body=other_stmts + surviving_helpers + [main_func],
+        type_ignores=[],
+    )
     ast.fix_missing_locations(new_tree)
     new_source = ast.unparse(new_tree)
 
