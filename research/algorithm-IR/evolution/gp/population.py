@@ -34,7 +34,7 @@ import numpy as np
 from algorithm_ir.ir.model import FunctionIR
 
 from evolution.gp.canonical_hash import canonical_ir_hash
-from evolution.gp.contract import SlotContract, TypedPort
+from evolution.gp.contract import SlotContract, TypedPort, build_slot_contract
 from evolution.gp.operators.base import (
     GPContext,
     OPERATOR_REGISTRY,
@@ -76,19 +76,21 @@ def _weighted_pick(rng: np.random.Generator, pool: list[_OperatorPick]) -> _Oper
 
 def _make_contract_from_region(slot_key: str,
                                complexity_cap: int) -> SlotContract:
-    """Build a minimal SlotContract.
+    """Deprecated stub kept only for back-compat imports.
 
-    The Phase H+4 typed contract framework requires SlotContract for
-    the operators' complexity_cap and human-readable name. Until
-    SlotSpec→SlotContract auto-derivation lands, we build a minimal
-    contract here from the slot_key alone.
+    R4: real contracts are derived from ``SlotPopulation.spec`` via
+    :func:`evolution.gp.contract.build_slot_contract`. This wrapper
+    survives only because a handful of tests imported it directly; it
+    now emits the same minimal contract shape but using the
+    ``type_lattice`` ``TYPE_TOP`` token so the meaning is explicit.
     """
+    from algorithm_ir.ir.type_lattice import TYPE_TOP
     short = slot_key.split(".")[-1]
     return SlotContract(
         slot_key=slot_key,
         short_name=short,
-        input_ports=(TypedPort("in", "any"),),
-        output_ports=(TypedPort("out", "any"),),
+        input_ports=(TypedPort("in", TYPE_TOP),),
+        output_ports=(TypedPort("out", TYPE_TOP),),
         complexity_cap=complexity_cap,
     )
 
@@ -135,7 +137,9 @@ def micro_population_step(
         stats.skipped_no_sids = 1
         return stats
 
-    contract = _make_contract_from_region(pop_key, complexity_cap=complexity_cap)
+    contract = build_slot_contract(
+        pop, slot_key=pop_key, complexity_cap=complexity_cap,
+    )
     # NB: region_info.op_ids are op_ids in genome.ir, but the parent IRs we
     # mutate here are the slot-body variants (pop.variants[i]) which have
     # totally different op_ids. The variant IR IS the slot body, so the
