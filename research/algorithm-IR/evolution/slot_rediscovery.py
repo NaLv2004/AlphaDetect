@@ -427,7 +427,6 @@ def apply_rediscovered_slots(
             variants=[seed_ir],
             fitness=[float("inf")],
             best_idx=0,
-            source_variants=[],
         )
         genome.slot_populations[p.slot_id] = pop
         logger.info(

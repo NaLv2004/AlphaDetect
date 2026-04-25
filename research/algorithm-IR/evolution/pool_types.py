@@ -76,11 +76,6 @@ class SlotPopulation:
     variants: list[FunctionIR] = field(default_factory=list)
     fitness: list[float] = field(default_factory=list)
     best_idx: int = 0
-    # Optional source strings for variants that cannot be compiled to IR
-    # (e.g. complex defaults using keyword args unsupported by IR builder).
-    # When present, materialization prefers source_variants[i] over
-    # emit_python_source(variants[i]).
-    source_variants: list[str | None] = field(default_factory=list)
 
     @property
     def best_variant(self) -> FunctionIR:
@@ -182,7 +177,6 @@ class AlgorithmGenome:
                     variants=[deepcopy(ir) for ir in v.variants],
                     fitness=list(v.fitness),
                     best_idx=v.best_idx,
-                    source_variants=list(v.source_variants) if v.source_variants else [],
                 )
                 for k, v in self.slot_populations.items()
             },

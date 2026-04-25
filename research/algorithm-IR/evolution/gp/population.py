@@ -230,16 +230,12 @@ def micro_population_step(
             # Record the failed variant so we don't keep regenerating it.
             pop.variants.append(child)
             pop.fitness.append(float("inf"))
-            if pop.source_variants is not None:
-                pop.source_variants.append(None)
             continue
 
         stats.n_evaluated += 1
         op_stats.n_evaluated += 1
         pop.variants.append(child)
         pop.fitness.append(ser)
-        if pop.source_variants is not None:
-            pop.source_variants.append(None)
         if ser < stats.best_before - 1e-9:
             stats.n_improved += 1
             op_stats.n_improved += 1
@@ -265,14 +261,6 @@ def micro_population_step(
         keep_sorted = sorted(keep)
         pop.variants = [pop.variants[i] for i in keep_sorted]
         pop.fitness = [pop.fitness[i] for i in keep_sorted]
-        if pop.source_variants:
-            new_sources = []
-            for i in keep_sorted:
-                if i < len(pop.source_variants):
-                    new_sources.append(pop.source_variants[i])
-                else:
-                    new_sources.append(None)
-            pop.source_variants = new_sources
         best_i = min(range(len(pop.fitness)), key=lambda i: pop.fitness[i])
         pop.best_idx = best_i
         stats.best_after = pop.fitness[best_i]

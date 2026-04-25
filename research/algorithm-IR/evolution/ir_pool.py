@@ -1197,17 +1197,20 @@ def build_ir_pool(
 
             # Compile default implementation (may return None)
             default_ir = compile_slot_default(default_key)
-            default_source = SLOT_DEFAULTS.get(default_key)
 
-            # Generate random variants
-            variants: list[FunctionIR | None] = [default_ir]
-            source_variants: list[str | None] = [default_source]
+            # Single-representation principle: variants are FunctionIR
+            # only. If the default cannot be compiled to IR, we skip the
+            # entire population (materialize will emit a pass-through
+            # stub for this slot).
+            if default_ir is None:
+                continue
+
+            variants: list[FunctionIR] = [default_ir]
             fitness_vals = [float("inf")]
             for _ in range(n_random_variants):
                 try:
                     v = random_ir_program(desc.spec, rng, max_depth=4)
                     variants.append(v)
-                    source_variants.append(None)
                     fitness_vals.append(float("inf"))
                 except Exception:
                     pass
@@ -1218,7 +1221,6 @@ def build_ir_pool(
                 variants=variants,
                 fitness=fitness_vals,
                 best_idx=0,
-                source_variants=source_variants,
             )
 
         genome = AlgorithmGenome(

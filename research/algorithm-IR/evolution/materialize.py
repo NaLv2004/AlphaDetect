@@ -85,16 +85,12 @@ def materialize(genome: AlgorithmGenome) -> str:
             slot_impls[op_id] = f"def _slot_{slot_id}(*args):\n    return args[0] if args else None\n"
             continue
 
-        # Get best variant IR and optional source
+        # Get best variant IR
         best_idx = pop.best_idx
         best_ir = pop.variants[best_idx] if best_idx < len(pop.variants) else None
 
-        # Prefer stored source (handles complex defaults with keyword args)
         variant_source = None
-        if pop.source_variants and best_idx < len(pop.source_variants):
-            variant_source = pop.source_variants[best_idx]
-
-        if variant_source is None and best_ir is not None:
+        if best_ir is not None:
             variant_source = emit_python_source(best_ir)
 
         if variant_source is None:
@@ -274,9 +270,7 @@ def _materialize_source_with_override(
         best_ir = pop.variants[best_idx] if best_idx < len(pop.variants) else None
 
         variant_source = None
-        if pop.source_variants and best_idx < len(pop.source_variants):
-            variant_source = pop.source_variants[best_idx]
-        if variant_source is None and best_ir is not None:
+        if best_ir is not None:
             variant_source = emit_python_source(best_ir)
         if variant_source is None:
             slot_names[op_id] = f"_slot_{slot_id}"

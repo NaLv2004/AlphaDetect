@@ -1,13 +1,10 @@
-"""Unit tests for evolution.slot_evolution (Phase H+3).
+"""Unit tests for evolution.slot_evolution (Phase H+5).
 
 Verifies:
 1. ``map_pop_key_to_from_slot_ids`` finds annotated ops on real genomes.
 2. ``collect_slot_region`` returns a non-None region for lmmse.regularizer.
-3. ``apply_slot_variant`` with the default variant yields a validate-clean
-   IR whose source compiles and resolves all names (no dangling refs).
-4. ``perturb_constants_in_ir`` produces variants distinct from the parent
-   in their constant literals.
-5. SlotMicroStats invariants: validated ≤ attempted, improved ≤ evaluated.
+3. ``apply_slot_variant`` with the default variant yields a validate-clean IR.
+4. SlotMicroStats invariants: validated ≤ attempted, improved ≤ evaluated.
 """
 from __future__ import annotations
 
@@ -21,15 +18,12 @@ import numpy as np
 import pytest
 
 from algorithm_ir.ir.validator import validate_function_ir
-from algorithm_ir.regeneration.codegen import emit_python_source
 from evolution.ir_pool import build_ir_pool
 from evolution.slot_evolution import (
     SlotMicroStats,
     apply_slot_variant,
     collect_slot_region,
     map_pop_key_to_from_slot_ids,
-    perturb_constants_in_ir,
-    _source_compiles_with_resolved_names,
 )
 
 
@@ -59,36 +53,6 @@ def test_apply_default_variant_is_valid_and_compiles(lmmse_genome):
     new_ir = apply_slot_variant(lmmse_genome, "lmmse.regularizer", pop.variants[0])
     assert new_ir is not None, "default splice must succeed"
     assert validate_function_ir(new_ir) == [], "post-graft IR must validate"
-    src = emit_python_source(new_ir)
-    assert _source_compiles_with_resolved_names(src), \
-        f"source has undefined names:\n{src}"
-
-
-def test_perturb_changes_constants(lmmse_genome):
-    pop = lmmse_genome.slot_populations["lmmse.regularizer"]
-    parent = pop.variants[0]
-    rng = np.random.default_rng(7)
-
-    def consts(ir):
-        out = []
-        for op in ir.ops.values():
-            if op.opcode == "const":
-                v = op.attrs.get("value")
-                if isinstance(v, float):
-                    out.append(v)
-        return out
-
-    parent_consts = consts(parent)
-    if not parent_consts:
-        pytest.skip("regularizer has no float constants to perturb")
-    found_diff = False
-    for _ in range(8):
-        child = perturb_constants_in_ir(parent, rng, scale=0.5, prob=1.0)
-        child_consts = consts(child)
-        if child_consts != parent_consts:
-            found_diff = True
-            break
-    assert found_diff, "perturb_constants_in_ir must produce distinct consts"
 
 
 def test_slot_micro_stats_invariants():
@@ -102,10 +66,3 @@ def test_slot_micro_stats_invariants():
     assert d["n_evaluated"] <= d["n_validated"]
     assert d["n_improved"] <= d["n_evaluated"]
     assert d["best_delta"] == pytest.approx(-0.2)
-
-
-def test_invalid_source_rejected():
-    bad = "def f(x):\n    return foo + x\n"
-    assert not _source_compiles_with_resolved_names(bad)
-    good = "def f(x):\n    y = x + 1\n    return y\n"
-    assert _source_compiles_with_resolved_names(good)

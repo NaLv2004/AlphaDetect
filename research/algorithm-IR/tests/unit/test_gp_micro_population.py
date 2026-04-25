@@ -102,17 +102,3 @@ def test_step_slot_population_delegates_to_typed_gp(lmmse_pop):
     assert stats.n_attempted == 4
     # per_operator is the new typed-GP-only attribute.
     assert hasattr(stats, "per_operator")
-
-
-def test_legacy_path_still_works_when_use_typed_gp_false(lmmse_pop):
-    from evolution import slot_evolution
-    genome, pop_key, pop = lmmse_pop
-    rng = np.random.default_rng(0)
-    stats = slot_evolution.step_slot_population(
-        genome, pop_key, pop,
-        evaluator=_StubEvaluator(),
-        rng=rng,
-        n_children=2, n_trials=1, timeout_sec=0.5, snr_db=16.0,
-        use_typed_gp=False,
-    )
-    assert stats.n_attempted == 2

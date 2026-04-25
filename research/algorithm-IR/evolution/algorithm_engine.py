@@ -478,7 +478,6 @@ class AlgorithmEvolutionEngine:
                     timeout_sec=1.0,
                     snr_db=snr_db,
                     max_pop_size=max(8, int(getattr(cfg, "micro_pop_size", 16))),
-                    perturb_scale=0.15,
                 )
                 d = stats.as_dict()
                 for k in agg:
@@ -1053,9 +1052,6 @@ class AlgorithmEvolutionEngine:
                     variants=[deepcopy(v) for v in donor_pop.variants],
                     fitness=list(donor_pop.fitness),
                     best_idx=donor_pop.best_idx,
-                    source_variants=list(donor_pop.source_variants)
-                    if donor_pop.source_variants
-                    else [],
                 )
             else:
                 # Fallback: create an empty population (will use stub)
