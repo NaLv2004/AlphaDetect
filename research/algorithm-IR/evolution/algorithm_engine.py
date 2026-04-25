@@ -461,10 +461,11 @@ class AlgorithmEvolutionEngine:
         agg = {
             "n_attempted": 0, "n_validated": 0, "n_evaluated": 0,
             "n_improved": 0, "n_apply_failed": 0, "n_validate_failed": 0,
-            "n_eval_failed": 0,
+            "n_eval_failed": 0, "n_noop_behavior": 0,
             "skipped_no_sids": 0, "skipped_no_variants": 0,
         }
         deltas: list[float] = []
+        per_op_agg: dict[str, dict] = {}
         for _ in range(n_micro_gens):
             for pop_key, pop in list(genome.slot_populations.items()):
                 if not pop.variants:
@@ -485,6 +486,15 @@ class AlgorithmEvolutionEngine:
                 if d["n_improved"] > 0:
                     any_change = True
                     deltas.append(d["best_delta"])
+                # Merge per-operator stats so we can inspect which operators
+                # actually proposed/accepted/improved children.
+                op_dict = getattr(stats, "per_operator", None) or {}
+                for op_name, op_stats in op_dict.items():
+                    od = op_stats.__dict__ if hasattr(op_stats, "__dict__") else dict(op_stats)
+                    bucket = per_op_agg.setdefault(op_name, {})
+                    for kk, vv in od.items():
+                        if isinstance(vv, (int, float)):
+                            bucket[kk] = bucket.get(kk, 0) + vv
         if any_change:
             _sev.commit_best_variants_to_ir(genome)
 
@@ -495,6 +505,7 @@ class AlgorithmEvolutionEngine:
                 "n_attempted": 0, "n_validated": 0, "n_evaluated": 0,
                 "n_improved": 0, "n_apply_failed": 0,
                 "n_validate_failed": 0, "n_eval_failed": 0,
+                "n_noop_behavior": 0,
                 "skipped_no_sids": 0, "skipped_no_variants": 0,
                 "best_delta_sum": 0.0, "best_delta_count": 0,
             }
@@ -504,6 +515,13 @@ class AlgorithmEvolutionEngine:
         if deltas:
             slot_log["best_delta_sum"] += float(sum(deltas))
             slot_log["best_delta_count"] += len(deltas)
+        # Merge per-operator stats into slot_log so the upstream logger
+        # / training_log.jsonl can persist them across generations.
+        per_op_log = slot_log.setdefault("per_operator", {})
+        for op_name, bucket in per_op_agg.items():
+            sink = per_op_log.setdefault(op_name, {})
+            for kk, vv in bucket.items():
+                sink[kk] = sink.get(kk, 0) + vv
 
     def _micro_evolve_legacy(self, genome: AlgorithmGenome) -> None:
         """Pre-Phase-H+3 micro-evolution (uses materialize_with_override)."""

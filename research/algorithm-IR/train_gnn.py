@@ -1093,7 +1093,7 @@ for gen in range(1, args.gens + 1):
         bd_mean = slot_evo.get("best_delta_sum", 0.0) / bd_count if slot_evo.get("best_delta_count", 0) else 0.0
         logger.info(
             "  slot-evo: attempted=%d validated=%d evaluated=%d improved=%d "
-            "(apply_fail=%d val_fail=%d eval_fail=%d skip_no_sids=%d skip_no_var=%d) "
+            "(apply_fail=%d val_fail=%d eval_fail=%d noop_beh=%d skip_no_sids=%d skip_no_var=%d) "
             "best_delta_mean=%.4f",
             slot_evo.get("n_attempted", 0),
             slot_evo.get("n_validated", 0),
@@ -1102,6 +1102,7 @@ for gen in range(1, args.gens + 1):
             slot_evo.get("n_apply_failed", 0),
             slot_evo.get("n_validate_failed", 0),
             slot_evo.get("n_eval_failed", 0),
+            slot_evo.get("n_noop_behavior", 0),
             slot_evo.get("skipped_no_sids", 0),
             slot_evo.get("skipped_no_variants", 0),
             bd_mean,
