@@ -12,6 +12,9 @@ from evolution.gp.operators.base import (
     measure_complexity,
 )
 
+# Importing typed_mutations registers operators in OPERATOR_REGISTRY.
+from evolution.gp.operators import typed_mutations as _typed_mutations  # noqa: F401
+
 __all__ = [
     "GPContext",
     "Operator",
