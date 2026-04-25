@@ -184,11 +184,23 @@ class TestBuildIRPool:
     def test_genomes_have_slot_populations(self):
         from evolution.ir_pool import build_ir_pool
         pool = build_ir_pool(np.random.default_rng(42), n_random_variants=2)
+        # R2: detectors whose only slot helpers use IR-incompatible Python
+        # constructs (e.g. IfExp ternaries in kbest.expand) get pruned to
+        # zero evolvable slots at admission. They remain as stable host
+        # programs but cannot participate in slot micro-evolution.
+        no_slot_allowed = {
+            "zf",
+            # R2: single-slot detectors whose only slot helper uses
+            # IR-incompatible Python (IfExp ternaries, kwargs, ...)
+            # are pruned to zero slot pops at admission.
+            "bp", "importance_sampling", "kbest",
+            "particle_filter", "soft_sic", "turbo_linear",
+        }
         for g in pool:
-            if g.algo_id not in ("zf",):
-                # Most detectors should have slot populations
-                assert len(g.slot_populations) > 0, \
-                    f"{g.algo_id} has no slot populations"
+            if g.algo_id in no_slot_allowed:
+                continue
+            assert len(g.slot_populations) > 0, \
+                f"{g.algo_id} has no slot populations"
 
     def test_algo_ids_present(self):
         from evolution.ir_pool import build_ir_pool

@@ -1212,7 +1212,13 @@ class IRBuilder:
 
 def compile_function_to_ir(fn: pytypes.FunctionType) -> FunctionIR:
     parsed = parse_function(fn)
-    return IRBuilder(parsed).build()
+    func_ir = IRBuilder(parsed).build()
+    # R3: phi backedge rewrites in _compile_while/_compile_for leave
+    # stale entries in Value.use_ops (the second phi input was first
+    # registered against ``incoming_value`` and then rewritten to
+    # ``backedge_value``). Recompute def-use to repair.
+    from algorithm_ir.ir.validator import rebuild_def_use
+    return rebuild_def_use(func_ir)
 
 
 def compile_source_to_ir(
@@ -1242,7 +1248,10 @@ def compile_source_to_ir(
         filename=f"<dynamic_{func_node.name}>",
         globals_dict=globals_dict or {},
     )
-    return IRBuilder(parsed).build()
+    func_ir = IRBuilder(parsed).build()
+    # R3: see compile_function_to_ir.
+    from algorithm_ir.ir.validator import rebuild_def_use
+    return rebuild_def_use(func_ir)
 
 
 def _filter_extra_attrs(op: Op) -> dict[str, Any]:
