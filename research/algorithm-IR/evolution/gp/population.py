@@ -136,7 +136,12 @@ def micro_population_step(
         return stats
 
     contract = _make_contract_from_region(pop_key, complexity_cap=complexity_cap)
-    region_op_ids = region_info.op_ids
+    # NB: region_info.op_ids are op_ids in genome.ir, but the parent IRs we
+    # mutate here are the slot-body variants (pop.variants[i]) which have
+    # totally different op_ids. The variant IR IS the slot body, so the
+    # entire variant is in scope — pass an empty frozenset to disable the
+    # region filter inside operators.
+    region_op_ids: frozenset[str] = frozenset()
 
     # Bootstrap baseline fitness for the current best.
     bi = pop.best_idx
@@ -194,7 +199,9 @@ def micro_population_step(
             op_instance, ctx, parent, parent_hash, stats=op_stats
         )
         if not result.accepted_structurally or result.child_ir is None:
-            # Logged to op_stats already.
+            # Logged to op_stats already; account in coarse stats so the
+            # train_gnn telemetry doesn't show silent failures.
+            stats.n_validate_failed += 1
             continue
 
         child = result.child_ir
