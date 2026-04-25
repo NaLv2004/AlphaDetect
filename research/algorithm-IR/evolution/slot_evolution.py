@@ -622,19 +622,30 @@ def step_slot_population(genome: "AlgorithmGenome",
                          timeout_sec: float = 1.0,
                          snr_db: float = 16.0,
                          max_pop_size: int = 16,
-                         perturb_scale: float = 0.1) -> SlotMicroStats:
+                         perturb_scale: float = 0.1,
+                         use_typed_gp: bool = True) -> SlotMicroStats:
     """Run one (μ+λ) micro-generation on ``pop``.
 
-    Steps:
-      1. Ensure baseline fitness for the current best variant exists.
-      2. Generate ``n_children`` mutated children by perturbing constants
-         of randomly picked parents.
-      3. Splice + materialize + evaluate each child via subprocess.
-      4. Append survivors to ``pop.variants`` / ``pop.fitness``.
-      5. Recompute ``pop.best_idx``; truncate to ``max_pop_size``.
+    Phase H+4: by default, this delegates to the typed GP framework
+    (``evolution.gp.population.micro_population_step``). The legacy
+    constant-perturbation-only kernel can still be invoked by passing
+    ``use_typed_gp=False`` (used by older tests during the rollout).
 
-    Mutates ``pop`` in place. Returns ``SlotMicroStats``.
+    The legacy ``perturb_scale`` kwarg is accepted for API compatibility
+    but ignored when ``use_typed_gp=True``.
     """
+    if use_typed_gp:
+        # Delegate to the typed GP framework.
+        from evolution.gp.population import micro_population_step
+        return micro_population_step(
+            genome, pop_key, pop,
+            evaluator=evaluator, rng=rng,
+            n_children=n_children, n_trials=n_trials,
+            timeout_sec=timeout_sec, snr_db=snr_db,
+            max_pop_size=max_pop_size,
+        )
+
+    # ----- Legacy path (constant-perturbation only) -----
     stats = SlotMicroStats(slot_pop_key=pop_key)
 
     # Skip if no variants at all.
