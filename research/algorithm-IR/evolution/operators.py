@@ -2,6 +2,17 @@
 
 All operations work on FunctionIR objects from algorithm_ir.ir.model.
 Mutations clone-first, then modify, then validate.
+
+Phase H+4 S0.0 — Single-representation principle:
+   This module MUST NOT import or call ``emit_python_source`` /
+   ``compile_source_to_ir`` / ``ast.parse`` / ``compile()``.
+   Mutations operate exclusively on the FunctionIR data structure.
+   Python source materialization happens only at the evaluation
+   boundary (evaluator.py). The legacy ``_mutate_via_recompile``
+   path that did ``IR -> emit_python_source -> textual edit ->
+   compile_source_to_ir -> IR`` was removed in Phase H+4 S0.0 because
+   it violated this principle (and harbored a NameError in the
+   ``swap`` branch).
 """
 
 from __future__ import annotations
@@ -12,8 +23,6 @@ from typing import Any
 import numpy as np
 
 from algorithm_ir.ir.model import FunctionIR, Op, Value
-from algorithm_ir.frontend.ir_builder import compile_source_to_ir
-from algorithm_ir.regeneration.codegen import emit_python_source
 
 
 # Binary op names that can be swapped
@@ -30,16 +39,20 @@ def mutate_ir(
 ) -> FunctionIR:
     """Mutate a FunctionIR. Returns a new (cloned) FunctionIR.
 
-    Mutation types: "point", "constant_perturb", "insert", "delete".
-    If mutation_type is None, one is chosen randomly.
+    Mutation types (pure IR, no source roundtrip):
+      - "point" : swap binary opcode / compare opcode in-place
+      - "constant_perturb" : Gaussian-perturb a numeric literal in-place
+
+    If ``mutation_type`` is None, one is sampled uniformly.
+
+    Phase H+4 S0.0 removed the ``insert``/``delete``/``swap_lines``
+    modes because they were implemented via Python source roundtrip
+    (see the new typed ``mut_insert_typed`` / ``mut_delete_typed`` /
+    ``cx_block_typed`` operators in ``evolution.gp.operators`` for
+    the IR-native replacements).
     """
     if mutation_type is None:
-        # Sample with non-zero probability for insert/delete (was 0 before).
-        # Distribution: point 30%, const 25%, insert 20%, delete 15%, swap 10%.
-        mutation_type = rng.choice(
-            ["point", "constant_perturb", "insert", "delete", "swap_lines"],
-            p=[0.30, 0.25, 0.20, 0.15, 0.10],
-        )
+        mutation_type = rng.choice(["point", "constant_perturb"], p=[0.5, 0.5])
 
     # Clone first
     new_ir = copy.deepcopy(func_ir)
@@ -48,12 +61,6 @@ def mutate_ir(
         return _mutate_point(new_ir, rng)
     elif mutation_type == "constant_perturb":
         return _mutate_constant_perturb(new_ir, rng)
-    elif mutation_type == "insert":
-        return _mutate_via_recompile(new_ir, rng, "insert")
-    elif mutation_type == "delete":
-        return _mutate_via_recompile(new_ir, rng, "delete")
-    elif mutation_type == "swap_lines":
-        return _mutate_via_recompile(new_ir, rng, "swap")
     else:
         return _mutate_point(new_ir, rng)
 
@@ -112,88 +119,15 @@ def _mutate_constant_perturb(
     return func_ir
 
 
-def _mutate_via_recompile(
-    func_ir: FunctionIR,
-    rng: np.random.Generator,
-    action: str,
-) -> FunctionIR:
-    """Insert or delete by modifying Python source and recompiling.
-
-    This is a safe approach: regenerate source → edit → recompile.
-    If recompilation fails, return original unchanged.
-    """
-    try:
-        source = emit_python_source(func_ir)
-        lines = source.split("\n")
-
-        if action == "insert" and len(lines) >= 2:
-            # Insert a random assignment at a random position
-            # Simple: add "x_tmp = param1 + param2" type line
-            indent = "    "
-            # Pick a random insertion point (after def line)
-            pos = rng.integers(1, max(2, len(lines)))
-            param_names = []
-            for vid in func_ir.arg_values:
-                v = func_ir.values[vid]
-                name = v.attrs.get("var_name") or v.name_hint or "x"
-                param_names.append(name)
-            if param_names:
-                a = rng.choice(param_names)
-                b = rng.choice(param_names)
-                op = rng.choice(["+", "-", "*"])
-                new_line = f"{indent}_tmp = {a} {op} {b}"
-                lines.insert(pos, new_line)
-
-        elif action == "delete" and len(lines) > 2:
-            # Delete a random non-def, non-return line.
-            # Avoid deleting lines that define a name used later (best-effort).
-            deletable = []
-            for i, line in enumerate(lines):
-                if i == 0 or not line.strip() or "return" in line or "def " in line:
-                    continue
-                # Skip lines defining variables used later (very rough check)
-                stripped = line.strip()
-                if "=" in stripped and not stripped.startswith(("if", "while", "for", "elif", "else")):
-                    lhs = stripped.split("=", 1)[0].strip()
-                    if any(lhs in later for later in lines[i + 1:]):
-                        continue
-                deletable.append(i)
-            if deletable:
-                idx = rng.choice(deletable)
-                lines.pop(idx)
-
-        elif action == "swap" and len(lines) > 3:
-            # Swap two adjacent body lines (skip def + return).
-            body_indices = [
-                i for i, line in enumerate(lines)
-                if i > 0 and i < len(lines) - 1
-                and "return" not in line and "def " not in line
-                and line.strip()
-            ]
-            if len(body_indices) >= 2:
-                pick = int(rng.integers(len(body_indices) - 1))
-                a = body_indices[pick]
-                b = body_indices[pick + 1]
-                lines[a], lines[b] = lines[b], lines[a]
-                idx = rng.choice(deletable)
-                lines.pop(idx)
-
-        new_source = "\n".join(lines)
-        namespace: dict[str, Any] = {"__builtins__": __builtins__}
-
-        def _safe_div(a, b): return a / b if abs(b) > 1e-30 else 0.0
-        def _safe_log(a):
-            import math; return math.log(max(a, 1e-30))
-        def _safe_sqrt(a):
-            import math; return math.sqrt(max(a, 0.0))
-
-        namespace["_safe_div"] = _safe_div
-        namespace["_safe_log"] = _safe_log
-        namespace["_safe_sqrt"] = _safe_sqrt
-
-        return compile_source_to_ir(new_source, func_ir.name, namespace)
-    except Exception:
-        return func_ir
+# NOTE: ``_mutate_via_recompile`` was deleted in Phase H+4 S0.0 along with
+# the ``insert``/``delete``/``swap_lines`` mutation modes that depended on
+# it. Those modes performed a Python-source roundtrip
+# (``emit_python_source`` -> textual edit -> ``compile_source_to_ir``)
+# which violated the single-representation principle (see
+# ``code_review/typed_gp_remediation_plan.md`` §10.0). Their semantics
+# are now provided by the IR-native typed operators in
+# ``evolution.gp.operators`` (``mut_insert_typed``, ``mut_delete_typed``,
+# ``cx_block_typed``).
 
 
 def crossover_ir(
