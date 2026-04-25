@@ -39,12 +39,20 @@
 
 ## 2. 设计原则
 
-1. **Type-safety first**: 每个 mutation/crossover 必须显式断言保持 slot signature, 失败则丢弃, 不靠 validator 兜底.
-2. **Single canonical IR**: 所有 typed GP 操作的对象仍是 `FunctionIR`. 不引入新 IR 层. 不破坏 single-IR 不变量.
-3. **Provenance preservation**: 所有新增/移动的 op 必须重新写入 `_provenance.from_slot_id` (H+3.1 已部分做到, S2 系统化).
-4. **No silent failure**: 每条算子路径都必须在 `OperatorStats` 里留下 `attempted / succeeded / noop / type_rejected / validate_rejected / probe_rejected / behavior_unchanged` 七个计数.
-5. **Held-out before commit**: micro-evolution 内部 fitness ≠ commit 决策 fitness; 后者用单独 seed.
-6. **Reuse, not rewrite**: 复用 `algorithm_ir.ir.type_lattice` (已有 tuple/list/dict/数值 lattice 与 `available_ops_for_type`) 和 `algorithm_ir.region.contract.BoundaryContract` (已有 multi-port 字段). 不另起类型系统.
+1. **Single representation, no exceptions** *(最高优先级, 不可妥协)*: GP 的全部读/写/比较/哈希操作都只作用在 `FunctionIR` 上. **禁止**任何 GP 算子去 emit / parse / mutate / hash Python 源码或 AST. Python 源码只在唯一的边界出现 — 执行 IR 以获取 fitness/probe 输出时, 由 `emit_python_source(ir)` + `exec` 在评估器内部一次性完成. 即:
+   - 所有 mutation 直接改 `FunctionIR.ops` / `attrs` / 边;
+   - 所有 crossover 在 IR 层 splice 子图;
+   - 所有相等性 / 去重 / novelty 哈希都基于 **IR canonical serialize** (见 §4.2 `ir_hash`), **不**基于源码字符串;
+   - 所有 gate 在 IR 层做结构判定 (`validate_function_ir` + 类型 lattice + contract); 编译/语法层面的失败由「执行 IR 时崩」自然暴露 (§8.3 gate 4), 而不是当成独立 GP gate;
+   - frontend (`ir_builder`) 把人写的 Python 解析成 IR — 这只发生在 pool admission 之前, 是边界外的事, 不属于 GP.
+   - **特别说明 — 源码 round-trip mutation 严禁存在**: 当前 `evolution/operators.py:_mutate_via_recompile` 实现了 `FunctionIR → emit_python_source → 改改 Python 行 → compile_source_to_ir → FunctionIR` 的往返路径, 被 `"insert"` / `"delete"` / `"swap_lines"` 三个 mutation 模式调用. 这三条路径本质上是「源码编辑 + 重新编译」, **不是 IR mutation**, 必须在 S0.0 上手之初被删除 — 详见 §10.0 和 §11 阶段表. 他们的语义后续由 typed `mut_insert_typed` / `mut_delete_typed` / (可选) `mut_block_reorder_typed` 纯 IR 实现覆盖, 不仅都不会丢路径.
+   - 为防回流, S2.2 的静态审计测试 `test_no_source_in_gp.py` 除了扫 `gp/**` 还必须扫 `evolution/operators.py` `evolution/slot_evolution.py` `evolution/algorithm_engine.py` 等任何在 GP / micro-evolution 调用链上的文件, 确保不存在 `emit_python_source` / `compile_source_to_ir` / `ast.parse` / `ast.unparse` / `compile()` 的导入或调用 (唯一例外: probe 评估器内部 `evaluator.py`, 及 frontend `algorithm_ir/frontend/ir_builder.py`).
+2. **Type-safety first**: 每个 mutation/crossover 必须显式断言保持 slot signature, 失败则丢弃, 不靠 validator 兜底.
+3. **Single canonical IR**: 所有 typed GP 操作的对象仍是 `FunctionIR`. 不引入新 IR 层. 不破坏 single-IR 不变量.
+4. **Provenance preservation**: 所有新增/移动的 op 必须重新写入 `_provenance.from_slot_id` (H+3.1 已部分做到, S2 系统化).
+5. **No silent failure**: 每条算子路径都必须在 `OperatorStats` 里留下 `attempted / succeeded / noop / type_rejected / validate_rejected / probe_rejected / behavior_unchanged` 七个计数.
+6. **Held-out before commit**: micro-evolution 内部 fitness ≠ commit 决策 fitness; 后者用单独 seed.
+7. **Reuse, not rewrite**: 复用 `algorithm_ir.ir.type_lattice` (已有 tuple/list/dict/数值 lattice 与 `available_ops_for_type`) 和 `algorithm_ir.region.contract.BoundaryContract` (已有 multi-port 字段). 不另起类型系统.
 
 ---
 
@@ -77,7 +85,10 @@ research/algorithm-IR/evolution/
     fitness.py                 (train/val/heldout split + complexity penalty)
     lineage.py                 (MutationRecord + diff dump)
     region_resolver.py         (provenance OR slot-op OR explicit binding)
-  operators.py                 (legacy; 仅修 swap_lines bug, 后续逐步迁出)
+  operators.py                 (legacy; **S0.0 必须**: 删除 `_mutate_via_recompile` 及 `"insert"`/`"delete"`/`"swap_lines"`
+                                三个 mutation 模式 — 这三条路径走源码 round-trip, 违反 §2 原则一.
+                                保留 `"point"` `"constant_perturb"` 两个纯 IR 模式 作为过渡,
+                                后续由 `gp/operators/*.py` 完全取代.)
 
 tests/unit/
   test_gp_contract.py
@@ -142,12 +153,14 @@ class SlotIndividual:
     fitness_val:   float = inf          # heldout, 仅 commit 前算
     novelty:       float = 0.0
     complexity:    int = 0
-    source_hash:   str = ""             # sha1(emit_python_source(ir))
+    ir_hash:       str = ""             # sha1(canonical_ir_serialize(ir)) — 见下
     behavior_hash: str = ""             # 见 §6.2
     lineage:       list[MutationRecord] = field(default_factory=list)
     operator_origin: str = "seed"       # 谁生的
-    parents: tuple[str, ...] = ()       # 父代 source_hash
+    parents: tuple[str, ...] = ()       # 父代 ir_hash
 ```
+
+**`canonical_ir_serialize`** *(IR-only, 不走 Python 源码)*: 在 `algorithm_ir/ir/utils.py` 中已有/新增的纯 IR 序列化函数, 输出固定字段顺序的 JSON-like dict (op_id, kind, type, attrs.literal, sorted input edges, output edges), 然后 sha1. 等价 IR 必须哈希一致, 不依赖 op 插入顺序; 不调用 `emit_python_source`. 这是 §2 单一表示原则的具体落实.
 
 ### 4.3 `gp.lineage.MutationRecord`
 
@@ -435,18 +448,21 @@ novelty_signature = float[k] = flatten(out)[:k]    # k=64 默认
 
 ### 8.3 Gates (硬条件, 任一不过即 reject)
 
+所有 gate 都在 IR 层裁决, 唯一例外是 gate 4 (probe), 它在评估边界把 IR materialize 成 Python 源码并 exec — 这是 §2 允许的唯一源码出现点. 因此**没有**独立的 "source-compile gate": 编译失败由 probe 抛出, 归并到 gate 4.
+
 每个 OperatorResult 必须依次通过:
 
 1. `child_ir is not None`
-2. `validate_function_ir(child_ir) == []`
-3. `_source_compiles_with_resolved_names(emit_python_source(child_ir))` (现有)
-4. probe run 不 raise
-5. probe 输出 type/shape 与 contract.output_ports 一致
-6. `source_hash != parent.source_hash` (否则 noop)
-7. `behavior_hash != parent.behavior_hash` (否则 noop_behavior)
-8. `complexity <= contract.complexity_cap`
+2. `validate_function_ir(child_ir) == []`  *(IR 结构: SSA / def-use / type infer)*
+3. `child.ir_hash != parent.ir_hash` *(IR 层面去重, 否则 noop)*
+4. probe 运行成功 — 即 `emit_python_source(child_ir)` + `exec` + 调用通过, 不抛 (编译错误 / 运行错误统一在此被吃掉, 计 `n_probe_rejected`)
+5. probe 输出 type/shape 与 `contract.output_ports` 一致
+6. `child.behavior_hash != parent.behavior_hash` *(否则 noop_behavior)*
+7. `complexity <= contract.complexity_cap`
 
 通过的 child 才进 μ+λ 池. 不通过的全部进 `OperatorStats` 计数, 不删除.
+
+**反约束**: 严禁在 gate 1-3, 5-7 中调用 `emit_python_source`, `ast.parse`, `compile()`, 或任何源码字符串操作. 这些都属于 GP 内部, 必须保持纯 IR.
 
 ### 8.4 Commit gate
 
@@ -473,11 +489,10 @@ class SlotMicroStats:
     n_attempted: int        = 0     # operator.propose 调用数
     n_type_rejected: int    = 0     # gate 1/5 失败
     n_validate_rejected: int = 0    # gate 2 失败
-    n_compile_rejected: int  = 0    # gate 3 失败
-    n_probe_rejected: int    = 0    # gate 4 失败
-    n_noop_source: int       = 0    # gate 6 失败
-    n_noop_behavior: int     = 0    # gate 7 失败
-    n_complexity_rejected: int = 0  # gate 8 失败
+    n_noop_ir: int           = 0    # gate 3 失败 (ir_hash 未变, 纯 IR 判定)
+    n_probe_rejected: int    = 0    # gate 4 失败 (含编译失败 / 运行失败, 都在执行边界)
+    n_noop_behavior: int     = 0    # gate 6 失败
+    n_complexity_rejected: int = 0  # gate 7 失败
     n_accepted: int          = 0    # 进入 μ+λ
     n_evaluated: int         = 0    # 真正算了 SER
     n_improved_train: int    = 0
@@ -488,9 +503,11 @@ class SlotMicroStats:
     operator_breakdown: dict[str, OperatorStats] = field(default_factory=dict)
 ```
 
+注: 取消了 `n_compile_rejected` 计数 — 编译错误已合并进 `n_probe_rejected`, 因为唯一一次 IR→source 转换发生在 probe 边界 (§2 / §8.3). 这样 telemetry 也反映单一表示原则.
+
 train_gnn 日志行随之扩展:
 ```
-slot-evo: att=N typ=N val=N cmp=N prb=N noopS=N noopB=N cap=N acc=N eval=N
+slot-evo: att=N typ=N val=N noopIR=N prb=N noopB=N cap=N acc=N eval=N
          imp_train=N imp_val=N committed=N | skip_no_sid=N skip_no_var=N
 ```
 
@@ -503,15 +520,33 @@ slot-evo ops: mut_subtree_replace 18/120=15% | mut_insert_typed 22/100=22% | ...
 
 ## 10. P0/P1 基础设施修复 (与 typed GP 并行)
 
-### 10.1 `swap_lines` bug (P1, 立即可修)
+### 10.0 删除源码 round-trip mutation 路径 *(§2 原则一落地, P0)*
 
-文件: `evolution/operators.py:178`
-变更: 删除以下两行
-```python
-                idx = rng.choice(deletable)
-                lines.pop(idx)
-```
-swap 分支应该只 swap, 不 pop. 加 unit test `test_swap_lines_does_not_raise_nameerror`.
+问题: 在 `evolution/operators.py` 中, `mutate_ir` 的 `"insert"` / `"delete"` / `"swap_lines"` 三个模式都调用 `_mutate_via_recompile`, 后者走了一个完整的「`emit_python_source` → 按行编辑 Python 源码 → `compile_source_to_ir` → 新 `FunctionIR`」往返. 这 **实质上是源码 mutation, 不是 IR mutation**, 与 §2 原则一正面冲突. 另外这三条路径本身也却一直被证明不可靠: 1) 被插入的 Python 行是手写模板而非 typed primitive, 产生的 IR op 常带错类型; 2) 行级别删除 / swap 不考虑 def-use, 产生的源码在 `compile_source_to_ir` 重新走一遍 frontend 后结果不可预测; 3) 本轮中已识别出 `swap` 分支依赖未定义 `deletable` 变量, 运行时 NameError. 
+
+变更 (三项):
+
+1. **删除** `evolution/operators.py` 中:
+   - 整个 `_mutate_via_recompile(...)` 函数定义 (上~80 LOC);
+   - `mutate_ir` 中 `"insert"` / `"delete"` / `"swap_lines"` 三个 `elif` 分支;
+   - 文件顶部 `from algorithm_ir.frontend.ir_builder import compile_source_to_ir` 和 `from algorithm_ir.regeneration.codegen import emit_python_source` 两条 import;
+   - `mutate_ir` 默认 mode 列表从 `["point", "constant_perturb", "insert", "delete", "swap_lines"]` 压缩为 `["point", "constant_perturb"]` (这两个仅余的是纯 IR mutation, 可保留为过渡).
+
+2. **验证** `mutate_ir` 的三个调用点 (`evolution/algorithm_engine.py:518, 570, 862`) 均使用默认 mode, 压缩后仍能运行; 如任一调用点显式传了 `"insert"`/`"delete"`/`"swap_lines"`, 同步拆除.
+
+3. **加测试** `tests/unit/test_no_source_roundtrip_mutation.py`:
+   - assert `"_mutate_via_recompile"` 不在 `evolution.operators.__dict__`;
+   - assert `"compile_source_to_ir"` 不在 `evolution.operators` 的 imported names;
+   - assert `"emit_python_source"` 不在 `evolution.operators` `evolution.slot_evolution` `evolution.algorithm_engine` 的 imported names;
+   - assert `mutate_ir(ir, rng)` 连调 200 次不抛 NameError / SyntaxError.
+
+4. **commit message**: `Phase H+4 S0.0: remove source-roundtrip mutation path (insert/delete/swap_lines via _mutate_via_recompile) per single-representation principle`.
+
+**与 typed GP 的衔接**: insert / delete / block-reorder 的语义不丢, 由 S2.3-S2.5 的 `mut_insert_typed` `mut_delete_typed` `cx_block_typed` (可选 `mut_block_reorder_typed`) 全面接手, 都以类型安全 + 纯 IR 提供. 在过渡期 (S0.0 完成 → S2.3 上线), `mutate_ir` 只运行 `"point"` + `"constant_perturb"`, 这与 H+3 / H+3.1 smoke 原本就是默认路径一致, 不会引入回归.
+
+### 10.1 ~~`swap_lines` bug 单点修复~~ — 被 §10.0 含盖
+
+原计划中考虑在 `_mutate_via_recompile` 的 `swap` 分支里删除两行代码以修复 NameError. **现赋予 §10.0 后该修复作废**: 整个 `_mutate_via_recompile` 连同三个调用分支都会在 S0.0 删掉, NameError 路径随之消失. 原计划中的 `test_swap_lines_does_not_raise_nameerror` 合并进 §10.0 的 `test_no_source_roundtrip_mutation.py` 第 4 点断言.
 
 ### 10.2 frontend def-use (P0-1, S0 必修)
 
@@ -537,11 +572,12 @@ if not _passes_behavior_gate(child, host_genome, evaluator):
 
 | 阶段 | 文件改动 | 测试 gate | 预期 LOC |
 |---|---|---|---|
+| **S0.0** 删除源码 round-trip mutation | `evolution/operators.py` (-100 LOC: 删 `_mutate_via_recompile` + 3 elif + 2 imports + 压缩 default mode list) | `test_no_source_roundtrip_mutation.py` (4 点断言) + 原有全部单元测试不回归 | ~120 |
 | **S0** frontend def-use | `ir_builder.py` + util | `test_frontend.py` `test_regression_p0.py` `test_grafting_demo.py` 全绿 | ~80 |
-| **S0.1** swap_lines hotfix | `operators.py` (-2 lines) + 1 test | 新 test 通过 | ~20 |
+| ~~S0.1 swap_lines hotfix~~ | 被 S0.0 含盖, 跳过 | — | 0 |
 | **S1** region resolver | `gp/region_resolver.py` + `_register_slot_binding` 三处 + `_prune_phantom_pops` | `test_gp_region_resolver.py` (221/221) | ~250 |
 | **S2.1** type lattice 强化 | `algorithm_ir/ir/type_lattice.py` 补 InsertTemplate signature | `test_gp_contract.py` | ~150 |
-| **S2.2** OperatorResult + Gates | `gp/operators/base.py` `gp/individual.py` `gp/lineage.py` | `test_gp_contract.py` `test_gp_context.py` | ~300 |
+| **S2.2** OperatorResult + Gates + canonical_ir_serialize + 源码调用审计 | `gp/operators/base.py` `gp/individual.py` `gp/lineage.py` `algorithm_ir/ir/utils.py` (canonical serialize) + 全 GP 模块审计无 `emit_python_source`/`ast`/`compile` 调用 | `test_gp_contract.py` `test_gp_context.py` `test_canonical_ir_hash.py` (等价 IR → 同 hash; α-rename / op-id-renumber 不变) `test_no_source_in_gp.py` (静态 import 扫描) | ~350 |
 | **S2.3** 三个最简算子 | `mut_const.py` (扩展) `mut_point_typed.py` `mut_insert_typed.py` | `test_gp_operators_const/point/insert.py` 100 次随机全过 | ~400 |
 | **S2.4** 删除 + 子树 + 合成 | `mut_delete_typed.py` `mut_subtree_replace.py` `synthesis.py` | `test_gp_operators_delete/subtree.py` `test_gp_synthesis.py` | ~500 |
 | **S2.5** crossover + loop_body + const_promote + primitive_inject | 4 文件 + library | `test_gp_operators_crossover.py` 等 | ~600 |
@@ -614,10 +650,12 @@ if not _passes_behavior_gate(child, host_genome, evaluator):
 H+3.1 已经修了 "annotation 丢失" 这个最阻塞的问题. 本方案在此基础上:
 
 - **保留** H+3.1 的 `apply_slot_variant` 末尾 re-annotate 逻辑 — 是 typed GP 的必要前置.
-- **保留** `_source_compiles_with_resolved_names` AST gate — 升级为 §8.3 gate 3.
+- **下放** 现有 `_source_compiles_with_resolved_names` 检查 — 不再作为独立 GP gate 出现 (违反 §2 单一表示原则). 该 AST 编译 sanity 现在仅作为 probe 评估器内部的一步, 失败统一计入 `n_probe_rejected` (§8.3 gate 4).
 - **替换** `step_slot_population` 内部的 `perturb_constants_in_ir` 单一算子调用为 `MicroPopulation.evolve()`.
 - **保留** `commit_best_variants_to_ir` 的 swap-to-position-0, 但加 §8.4 holdout gate.
 - **删除** `_micro_evolve_legacy` (Phase G 残留死代码), 同时清理 `materialize_with_override` 调用点.
+- **删除** (S0.0) `_mutate_via_recompile` 及 `"insert"`/`"delete"`/`"swap_lines"` 三个 mutation 模式 — 详见 §10.0. H+3.1 期间他们只在 `mutate_ir` 默认随机 mode 中被概率性命中 (5 选 1), 删除后默认随机造出的 child 纯度 100% 为纯 IR mutation.
+- **审计并清除** 任何在 GP 路径里 (operators / population / synthesis / fitness / slot_evolution / algorithm_engine 的 micro-evolution 分支) 调用 `emit_python_source` / `compile_source_to_ir` / `ast.parse` / `ast.unparse` / `compile()` 的地方 — 这是 §2 落地的前置审计任务, 列入 S2.2 (透过 `test_no_source_in_gp.py` 静态扫描强制).
 
 ---
 
@@ -625,4 +663,6 @@ H+3.1 已经修了 "annotation 丢失" 这个最阻塞的问题. 本方案在此
 
 按用户 "不要停止" 的方针, 在等待用户对本方案 sign-off 的同时, 从最低风险且必要前置的 **S0.1 (swap_lines hotfix)** 开始落地. S0 (frontend def-use) 因涉及 ir_builder 内部, 单独立 PR. typed GP 主体 (S2..S3) 在 S0/S1 通过后启动.
 
-落地顺序: **S0.1 → S0 → S1 → S2.1 → S2.2 → S2.3 → S2.4 → S2.5 → S3 → S3.1 → S3.2 → S4 → S5**.
+落地顺序: **S0.0 → S0 → S1 → S2.1 → S2.2 → S2.3 → S2.4 → S2.5 → S3 → S3.1 → S3.2 → S4 → S5**.
+
+S0.0 提前于 S0 是因为它仅动 `evolution/operators.py` 内部 (不调用 frontend), 风险最小且是 §2 原则落地的第一步; 完成后立刻跟一轮现有 5-gen smoke (默认 mode 只剩 point + constant_perturb), SER 不应回归 > 0.005.
