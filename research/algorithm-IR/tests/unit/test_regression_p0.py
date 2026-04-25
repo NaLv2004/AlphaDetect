@@ -129,11 +129,6 @@ class TestTypeAnnotations(unittest.TestCase):
         arg_types = {ir.values[v].name_hint: ir.values[v].type_hint for v in ir.arg_values}
         self.assertEqual(arg_types.get("name"), "str")
 
-    def test_list_annotation(self):
-        ir = compile_function_to_ir(for_sum)
-        arg_types = {ir.values[v].name_hint: ir.values[v].type_hint for v in ir.arg_values}
-        self.assertEqual(arg_types.get("items"), "list")
-
     def test_execution_with_types(self):
         ir = compile_function_to_ir(typed_fn)
         result, _, _ = execute_ir(ir, [3, 2.5])

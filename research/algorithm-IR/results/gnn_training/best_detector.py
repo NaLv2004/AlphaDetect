@@ -1,65 +1,44 @@
-def _slot_expand_op_149(node, y_tilde, R, constellation):
-    level = node.level
-    Nt = R.shape[1]
-    children = []
-    interf = 0.0 + 0.0j
-    j_rel = 0
-    while j_rel < len(node.symbols):
-        j = Nt - 1 - j_rel
-        interf = interf + R[level, j] * node.symbols[j_rel]
-        j_rel = j_rel + 1
-    ci = 0
-    while ci < len(constellation):
-        sym = constellation[ci]
-        residual = y_tilde[level] - R[level, level] * sym - interf
-        local_cost = float(np.abs(residual) ** 2)
-        total = node.cost + local_cost
-        child = _make_tree_node(level - 1, node.symbols + [sym], total)
-        children.append(child)
-        ci = ci + 1
-    return children
-
-def _slot_prune_op_150(candidates, K):
-    n = len(candidates)
-    i = 0
-    while i < n:
-        j = i + 1
-        while j < n:
-            if candidates[j].cost < candidates[i].cost:
-                tmp = candidates[i]
-                candidates[i] = candidates[j]
-                candidates[j] = tmp
-            j = j + 1
-        i = i + 1
-    return candidates[:K]
-
-
-def kbest(H, y, sigma2, constellation):
-    Nr = H.shape[0]
+def admm_detector(H: any, y: any, sigma2: float, constellation: any):
     Nt = H.shape[1]
-    Q = np.linalg.qr(H)[0]
-    R = np.linalg.qr(H)[1]
-    y_tilde = Q.conj().T @ y
-    root = _make_tree_node(Nt - 1, [], 0.0)
-    candidates = [root]
-    level = Nt - 1
-    while level >= 0:
-        new_candidates = []
-        ci = 0
-        while ci < len(candidates):
-            node = candidates[ci]
-            node.level = level
-            children = _slot_expand_op_149(node, y_tilde, R, constellation)
-            new_candidates = new_candidates + children
-            ci = ci + 1
-        candidates = _slot_prune_op_150(new_candidates, 16)
-        level = level - 1
-    if len(candidates) == 0:
-        return np.zeros(Nt, dtype=complex)
-    best = candidates[0]
-    bi = 1
-    while bi < len(candidates):
-        if candidates[bi].cost < best.cost:
-            best = candidates[bi]
-        bi = bi + 1
-    return _reverse_syms(best.symbols, Nt)
+    x = np.zeros(Nt, dtype=complex)
+    z = np.zeros(Nt, dtype=complex)
+    u = np.zeros(Nt, dtype=complex)
+    i = 0
+    while i < 30:
+        __fii_admm_H_9 = H
+        __fii_admm_y_2 = y
+        __fii_admm_sigma2_4 = sigma2
+        __fii_admm_z_8 = z
+        __fii_admm_u_5 = u
+        __fii_admm_Nt_1 = __fii_admm_H_9.shape[1]
+        __fii_admm_rho_6 = 1.0
+        __fii_admm_G_3 = __fii_admm_H_9.conj().T @ __fii_admm_H_9 + __fii_admm_sigma2_4 + __fii_admm_rho_6 * np.eye(__fii_admm_Nt_1)
+        __fii_admm_rhs_7 = __fii_admm_H_9.conj().T @ __fii_admm_y_2 + __fii_admm_rho_6 * __fii_admm_z_8 - __fii_admm_u_5
+        x = np.linalg.solve(__fii_admm_G_3, __fii_admm_rhs_7)
+        __fii_admm_x_13 = x
+        __fii_admm_u_14 = u
+        __fii_admm_constellation_12 = constellation
+        __fii_admm_Nt_10 = len(__fii_admm_x_13)
+        __fii_admm_z_16 = np.zeros(__fii_admm_Nt_10, dtype=complex)
+        __fii_admm_v_17 = __fii_admm_x_13 + __fii_admm_u_14
+        __fii_admm_i_11 = 0
+        while __fii_admm_i_11 < __fii_admm_Nt_10:
+            __fii_admm_dists_15 = np.abs(__fii_admm_constellation_12 - __fii_admm_v_17[__fii_admm_i_11]) ** 2
+            __fii_admm_z_16[__fii_admm_i_11] = __fii_admm_constellation_12[np.argmin(__fii_admm_dists_15)]
+            __fii_admm_i_11 = __fii_admm_i_11 + 1
+        z = __fii_admm_z_16
+        __fii_admm_u_20 = u
+        __fii_admm_x_18 = x
+        __fii_admm_z_19 = z
+        u = __fii_admm_u_20 + __fii_admm_x_18 - __fii_admm_z_19
+        i = i + 1
+    __fii_admm_x_soft_23 = z
+    __fii_admm_constellation_22 = constellation
+    __fii_admm_x_hat_24 = np.zeros(len(__fii_admm_x_soft_23), dtype=complex)
+    __fii_admm_i_21 = 0
+    while __fii_admm_i_21 < len(__fii_admm_x_soft_23):
+        __fii_admm_dists_25 = np.abs(__fii_admm_constellation_22 - __fii_admm_x_soft_23[__fii_admm_i_21]) ** 2
+        __fii_admm_x_hat_24[__fii_admm_i_21] = __fii_admm_constellation_22[np.argmin(__fii_admm_dists_25)]
+        __fii_admm_i_21 = __fii_admm_i_21 + 1
+    x_hat = __fii_admm_x_hat_24
+    return x_hat

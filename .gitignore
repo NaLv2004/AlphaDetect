@@ -26,6 +26,13 @@ Thumbs.db
 *.exe
 *.out
 
+# Logs and scratch run output
+*.log
+logs/
+*.bak.jsonl
+*.bak.log
+*.prev.jsonl
+
 # MSVC toolchain / large build artifacts
 code_for_reference/automl_zero/vc_link/
 *.pdb

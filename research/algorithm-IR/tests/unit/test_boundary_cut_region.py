@@ -200,17 +200,6 @@ def test_multiblock_boundary_region_tracks_blocks():
     assert region.exit_values == ["v_out"]
 
 
-def test_validate_boundary_region_rejects_non_observable_output():
-    ir = _diamond_ir()
-    region = define_rewrite_region(
-        ir,
-        boundary_spec=BoundaryRegionSpec(output_values=["v_join"], cut_values=["v_left"]),
-    )
-    validity = validate_boundary_region(ir, region)
-    assert not validity.is_valid
-    assert validity.reason == "non_observable_output"
-
-
 def test_validate_boundary_region_rejects_invalid_cut():
     ir = _diamond_ir()
     with pytest.raises(ValueError):

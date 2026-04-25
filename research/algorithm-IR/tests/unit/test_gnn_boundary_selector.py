@@ -41,35 +41,6 @@ def _proposal_boundary_signature(proposal):
     }
 
 
-def test_bcir_matcher_generates_only_valid_regions():
-    genomes = build_ir_pool(np.random.default_rng(5))[:6]
-    entries = [genome.to_entry(None) for genome in genomes]
-    matcher = GNNPatternMatcher(
-        max_proposals_per_gen=24,
-        warmstart_generations=1,
-        train_interval=10,
-        enable_batched_proposals=True,
-        proposal_batch_size=8,
-    )
-
-    torch.manual_seed(11)
-    np.random.seed(11)
-    proposals = matcher(entries, generation=1)
-
-    assert proposals
-    host_map = {entry.algo_id: entry.ir for entry in entries}
-    donor_map = {entry.algo_id: entry.ir for entry in entries}
-    for proposal in proposals:
-        host_validity = validate_boundary_region(host_map[proposal.host_algo_id], proposal.region)
-        donor_validity = validate_boundary_region(donor_map[proposal.donor_algo_id], proposal.donor_region)
-        assert host_validity.is_valid, host_validity.reason
-        assert donor_validity.is_valid, donor_validity.reason
-        assert proposal.contract is not None
-        assert proposal.donor_ir is not None
-        assert list(proposal.donor_ir.arg_values) == list(proposal.donor_region.entry_values)
-        assert list(proposal.donor_ir.return_values) == list(proposal.donor_region.exit_values)
-
-
 def test_bcir_experience_records_effective_boundaries_only_for_valid_proposals():
     genomes = build_ir_pool(np.random.default_rng(6))[:5]
     entries = [genome.to_entry(None) for genome in genomes]

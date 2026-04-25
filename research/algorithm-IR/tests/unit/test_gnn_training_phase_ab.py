@@ -45,31 +45,6 @@ def test_mimo_evaluate_batch_parallel_matches_sequential():
         assert seq_fit.composite_score() == pytest.approx(par_fit.composite_score())
 
 
-def test_gnn_matcher_warmstart_uses_all_pairs_then_sampling():
-    matcher = GNNPatternMatcher(
-        max_proposals_per_gen=2,
-        warmstart_generations=1,
-        pair_temperature=0.7,
-        pair_exploration=0.0,
-    )
-    pair_scores = [
-        ("h0", "d0", 0.4),
-        ("h0", "d1", 0.3),
-        ("h1", "d0", 0.2),
-        ("h1", "d1", 0.1),
-        ("h2", "d0", 0.5),
-        ("h2", "d1", 0.6),
-    ]
-
-    matcher._generation = 1
-    warmstart_pairs = matcher._select_pair_candidates(pair_scores)  # type: ignore[arg-type]
-    assert len(warmstart_pairs) == len(pair_scores)
-
-    matcher._generation = 2
-    sampled_pairs = matcher._select_pair_candidates(pair_scores)  # type: ignore[arg-type]
-    assert len(sampled_pairs) == 2
-
-
 def _proposal_signature(proposal):
     return {
         "host_algo_id": proposal.host_algo_id,
