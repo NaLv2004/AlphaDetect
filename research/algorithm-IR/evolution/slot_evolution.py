@@ -317,18 +317,10 @@ def apply_slot_variant(genome: "AlgorithmGenome",
 
     # R2: route through the unified region resolver. Provenance tier is
     # the production path; binding tier is reserved for future explicit
-    # bindings; slot_op tier is handled separately below.
+    # bindings.
     from evolution.gp.region_resolver import resolve_slot_region
     info = resolve_slot_region(genome, pop_key)
     if info is None:
-        return None
-
-    if info.tier == "slot_op":
-        # R2: legacy slot ops are eliminated by FII inline at pool
-        # admission time, so this tier should not be reached in
-        # production. Keep an explicit reject so any regression is
-        # immediately visible in telemetry.
-        logger.debug("apply_slot_variant: slot_op tier seen for %s", pop_key)
         return None
 
     sids = set(info.sids)

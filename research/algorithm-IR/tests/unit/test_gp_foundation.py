@@ -117,7 +117,7 @@ class TestRegionResolver:
             # the legacy admission path created. The point of this test
             # is that prune_phantom_pops can clean them up.
             if info is not None:
-                assert info.tier in ("binding", "provenance", "slot_op")
+                assert info.tier in ("binding", "provenance")
                 assert info.short_name == slot_key.split(".")[-1]
 
     def test_prune_phantom_pops_does_not_drop_resolvable_slots(self, pool):

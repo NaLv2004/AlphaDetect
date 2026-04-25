@@ -1,6 +1,7 @@
 """Region resolver — locate the IR sub-graph corresponding to a slot.
 
-Three-tier strategy (per Phase H+4 §5):
+Two-tier strategy (Phase H+5 R2 — the legacy ``slot_op`` tier was
+removed):
 
   Tier 1: explicit binding stored on the genome (set during pool admission
           / FII materialization / post-graft). Highest priority.
@@ -8,11 +9,11 @@ Three-tier strategy (per Phase H+4 §5):
   Tier 2: provenance annotation ``op.attrs["_provenance"]["from_slot_id"]``
           matching the slot key (the path used by Phase H+3).
 
-  Tier 3: legacy `slot` op-kind (kbest / bp / soft_sic / amp templates
-          that still hold AlgSlot ops at FII-time).
-
 Returns ``SlotRegionInfo`` containing the op_ids that constitute the
-region, or ``None`` when no resolution succeeds.
+region, or ``None`` when no resolution succeeds. Slot populations whose
+bodies could not be FII-inlined (e.g. helpers using Python ``IfExp``
+ternaries that the IR builder rejects) become unresolvable and MUST be
+pruned by the caller via :func:`prune_phantom_pops`.
 """
 from __future__ import annotations
 
@@ -31,7 +32,7 @@ class SlotRegionInfo:
     short_name: str
     op_ids: frozenset[str]
     sids: frozenset[str]               # provenance from_slot_id values that matched
-    tier: str                          # "binding" | "provenance" | "slot_op"
+    tier: str                          # "binding" | "provenance"
 
 
 def _scan_provenance(ir: FunctionIR, short: str) -> tuple[set[str], set[str]]:
@@ -49,20 +50,6 @@ def _scan_provenance(ir: FunctionIR, short: str) -> tuple[set[str], set[str]]:
             op_ids.add(oid)
             sids.add(sid)
     return op_ids, sids
-
-
-def _scan_slot_ops(ir: FunctionIR, short: str) -> set[str]:
-    """Return op_ids of any ``slot`` opcode whose slot_id matches ``short``."""
-    op_ids: set[str] = set()
-    for oid, op in ir.ops.items():
-        if op.opcode != "slot":
-            continue
-        sid = op.attrs.get("slot_id") if op.attrs else None
-        if isinstance(sid, str) and (
-            sid == short or sid.endswith(f".{short}") or sid.endswith(f"_{short}")
-        ):
-            op_ids.add(oid)
-    return op_ids
 
 
 def resolve_slot_region(
@@ -107,17 +94,6 @@ def resolve_slot_region(
             op_ids=frozenset(op_ids),
             sids=frozenset(sids),
             tier="provenance",
-        )
-
-    # Tier 3: legacy slot ops
-    slot_op_ids = _scan_slot_ops(ir, short)
-    if slot_op_ids:
-        return SlotRegionInfo(
-            slot_key=slot_key,
-            short_name=short,
-            op_ids=frozenset(slot_op_ids),
-            sids=frozenset(),
-            tier="slot_op",
         )
 
     return None

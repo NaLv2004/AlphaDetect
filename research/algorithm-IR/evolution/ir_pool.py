@@ -1253,6 +1253,21 @@ def build_ir_pool(
         if flat_ir is not None:
             genome.ir = flat_ir
 
+        # R2: drop slot populations that the resolver cannot map to a
+        # provenance region in the flat IR (typically because their
+        # helper bodies use Python AST nodes the IR builder rejects, e.g.
+        # ``IfExp`` in kbest/bp/soft_sic). Without this prune, micro-evo
+        # would call ``apply_slot_variant`` on phantom pops every gen
+        # and waste a ~14% slice of the slot_evo budget on guaranteed
+        # no-ops. Prune count is recorded under metadata for telemetry.
+        try:
+            from evolution.gp.region_resolver import prune_phantom_pops
+            n_pruned = prune_phantom_pops(genome)
+            if n_pruned > 0:
+                genome.metadata.setdefault("slot_evo", {})["phantom_pruned"] = n_pruned
+        except Exception:
+            pass
+
         # Hard validation gate (Phase H+2): every genome admitted to the
         # pool MUST have a structurally consistent IR. Stale def/use
         # references or duplicated uses corrupt every downstream
