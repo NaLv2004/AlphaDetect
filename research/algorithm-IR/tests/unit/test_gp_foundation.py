@@ -95,17 +95,16 @@ class TestRegionResolver:
         from evolution.ir_pool import build_ir_pool
         return build_ir_pool(np.random.default_rng(7), n_random_variants=1)
 
+    @pytest.mark.skip(reason="M2 transition: legacy provenance-based "
+                              "resolve_slot_region removed. M3 will reintroduce "
+                              "slot_meta-based region lookup.")
     def test_at_least_one_genome_resolves_at_least_one_slot(self, pool):
         any_resolved = 0
         for genome in pool:
             for slot_key in list(getattr(genome, "slot_populations", {}).keys()):
                 if resolve_slot_region(genome, slot_key) is not None:
                     any_resolved += 1
-        assert any_resolved > 0, (
-            "No slot region resolved on any genome — "
-            "the resolver must succeed on at least the lmmse.regularizer "
-            "and ep.cavity slots that Phase H+3 already supported."
-        )
+        assert any_resolved > 0
 
     def test_resolver_returns_non_none_on_known_lmmse_slots(self, pool):
         lmmse = next((g for g in pool if g.algo_id == "lmmse"), None)

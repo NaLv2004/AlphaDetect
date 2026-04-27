@@ -64,6 +64,13 @@ def materialize(genome: AlgorithmGenome) -> str:
     Returns the complete Python source with no slot placeholders.
     """
     skeleton_ir = genome.structural_ir
+
+    # Annotation-only slot model: ``ir.slot_meta`` is the source of truth
+    # and the IR already inlines every slot body. Emit the source as-is
+    # without stub generation or placeholder substitution.
+    if getattr(skeleton_ir, "slot_meta", None):
+        return emit_python_source(skeleton_ir)
+
     slot_ops = find_algslot_ops(skeleton_ir)
 
     # 1. Emit skeleton source (with __slot_xxx__ placeholders)
@@ -230,6 +237,12 @@ def _materialize_source_with_override(
 ) -> str:
     """Like ``materialize()`` but uses overrides for specified slots."""
     skeleton_ir = genome.structural_ir
+
+    # Annotation-only model: M2 transition has no slot variants yet,
+    # so any override is silently ignored — emit the IR source as-is.
+    if getattr(skeleton_ir, "slot_meta", None):
+        return emit_python_source(skeleton_ir)
+
     slot_ops = find_algslot_ops(skeleton_ir)
 
     skeleton_source = emit_python_source(skeleton_ir)

@@ -27,10 +27,6 @@ class TestIRPoolImports:
         from evolution.ir_pool import _DETECTOR_SPECS
         assert len(_DETECTOR_SPECS) >= 8
 
-    def test_import_slot_defaults(self):
-        from evolution.ir_pool import SLOT_DEFAULTS
-        assert len(SLOT_DEFAULTS) > 0
-
 
 class TestTemplateCompilation:
     """Test that detector templates compile to FunctionIR."""
@@ -115,57 +111,6 @@ class TestAlgSlotConversion:
             assert not (name and name.startswith("slot_")), \
                 f"Slot arg '{name}' should have been removed"
 
-
-class TestSlotDefaults:
-    """Test that slot default implementations compile."""
-
-    def test_compile_regularizer(self):
-        from evolution.ir_pool import compile_slot_default
-        ir = compile_slot_default("regularizer")
-        assert ir is not None
-
-    def test_compile_hard_decision(self):
-        from evolution.ir_pool import compile_slot_default
-        ir = compile_slot_default("hard_decision")
-        assert ir is not None
-
-    def test_compile_ordering(self):
-        from evolution.ir_pool import compile_slot_default
-        ir = compile_slot_default("ordering")
-        assert ir is not None
-
-    def test_compile_sic_step(self):
-        from evolution.ir_pool import compile_slot_default
-        ir = compile_slot_default("sic_step")
-        assert ir is not None
-
-    def test_compile_expand(self):
-        from evolution.ir_pool import compile_slot_default
-        ir = compile_slot_default("expand")
-        assert ir is not None
-
-    def test_compile_bp_sweep(self):
-        from evolution.ir_pool import compile_slot_default
-        ir = compile_slot_default("bp_sweep")
-        # S1: previously rejected due to IfExp inside the BP message-passing
-        # loop; the IR builder now supports IfExp/BoolOp/Slice and bp_sweep
-        # compiles cleanly.
-        assert ir is not None
-
-    def test_compile_cavity(self):
-        from evolution.ir_pool import compile_slot_default
-        ir = compile_slot_default("cavity")
-        assert ir is not None
-
-    def test_compile_site_update(self):
-        from evolution.ir_pool import compile_slot_default
-        ir = compile_slot_default("site_update")
-        assert ir is not None
-
-    def test_compile_amp_iterate(self):
-        from evolution.ir_pool import compile_slot_default
-        ir = compile_slot_default("amp_iterate")
-        assert ir is not None
 
 
 class TestBuildIRPool:

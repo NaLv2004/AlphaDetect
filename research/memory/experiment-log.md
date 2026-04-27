@@ -398,3 +398,87 @@ Each entry includes parameters, results, and key observations.
 - **Artifacts**:
   - `research/algorithm-IR/code_review/code_review.md`
 - **Key finding recorded**: R6/R7 demonstrate real progress toward structural IR mutation and useful telemetry, but the framework still lacks true behavior signatures, active crossover in the main path, core-slot coverage for important algorithm families, robust executable structural mutations, and a fully evaluator-owned IR-to-source boundary.
+
+## [2026-04-25 19:10] Algorithm-IR Post-S1-S7 Re-Review
+- **Context**: User requested another strict review after external AI changes, emphasizing slot evolution and GNN training integration.
+- **Validation**:
+  - Latest inspected commit: `a05ebce` (`S1-S7 remediation: extend IR (IfExp/BoolOp/Slice), restore 14 core slots`).
+  - Targeted slot/GP tests passed: `23 passed` for `test_no_source_roundtrip_mutation.py`, `test_behavior_gate.py`, `test_gp_micro_population.py`, `test_slot_evolution.py`, and `test_structural_operators.py`.
+  - Integration/cross-lang tests passed: `15 passed`.
+  - Full unit suite did not complete locally: `conda run -n AutoGenOld python -m pytest tests/unit -q` timed out after about `308s`, so a full green suite was not independently confirmed.
+- **Slot pool probe**:
+  - `build_ir_pool()` produced `91` genomes, `0` invalid canonical IRs, `221` slot populations.
+  - Default `apply_slot_variant()` succeeded for `217/221` slots.
+  - Four defaults still fail to apply: `sa.accept`, `mh.accept`, `importance_sampling.score`, and `particle_filter.score`.
+  - Core slots are restored for `kbest`, `bp`, `sa`, `mh`, `importance_sampling`, `particle_filter`, `soft_sic`, and `turbo_linear`; this fixes the previous phantom-pruning loss, but apply coverage is not yet complete.
+- **Training-log probe**:
+  - Current `results/gnn_training/training_log.jsonl` covers `5` generations: `242` slot mutations attempted, `200` validated, only `5` evaluated, `0` improved, `192` eval failures, and `3` no-op behavior rejections.
+  - `cx_subtree_typed` is now active in the main path (`11` attempts, `8` structurally accepted, `1` evaluated), but it has not produced improvements.
+  - Detailed eval failure counters are not populated: `n_eval_failed=192` while `n_eval_codegen_failed`, `n_eval_runtime_exception`, `n_eval_timeout`, `n_eval_shape_error`, and `n_eval_ser_bad` all remain `0`.
+- **Key remaining risks**:
+  - `evolution/gp/population.py` still directly imports/calls `emit_python_source()` for the behavior-hash gate, violating the intended evaluator-owned IR-to-source boundary.
+  - `apply_slot_variant()` still reduces resolver output to `info.sids` and `collect_slot_region()`, so `callee_name`/control-style slots are not handled robustly.
+  - Slot-evo telemetry is present but not diagnostically reliable; the main GNN training loop logs slot-evo stats but does not yet use operator success/failure as reward or proposal feedback.
+
+## [2026-04-25 19:45] Algorithm-IR Typed-GP Variant Probe
+- **Context**: User asked why typed GP effectiveness is low and why most proposals die during evaluation.
+- **Actions**:
+  - Ran direct probes over current typed-GP operators, splicing generated child slot IRs back into full detector IRs and evaluating through `SubprocessMIMOEvaluator`.
+  - First broad probe over large slots showed many `bp.bp_sweep` variants fail at `emit_python_source()` with `RecursionError`, before runtime semantics are tested.
+  - Parent/default SER audit for medium slots (`4..90` ops) showed only `8/201` slot defaults had SER `<0.75`; `181/201` were already SER `1.0`, so many eval failures are inherited from poor/noncompetitive base regions rather than newly caused by GP.
+  - Focused probe on four good parent slots (`lmmse.regularizer`, `warm_start.iterate`, `iter_refine.iterate`, `weight_apply_wrap.weight`) produced: `25` similar children, `14` worse-by-0.10+ children, `18` SER=1 deaths, and `31` structural rejects.
+- **Concrete generated variants**:
+  - `mut_binary_swap` on `lmmse.regularizer`: `Mult -> Pow`, parent SER `0.2266`, child SER `0.8125`.
+  - `mut_insert_typed` on `lmmse.regularizer`: changed solve regularizer into `G + sigma2*I + __r5_c_0`, child SER `1.0`.
+  - `mut_primitive_inject` on `lmmse.regularizer`: generated code referencing `__r5_c_0`/`__r5_c_1` without emitted definitions; direct call raised `NameError: name '__r5_c_0' is not defined`.
+  - `mut_insert_typed` on `warm_start.iterate`: changed residual to `solve(...) - I@x - __r5_c_0` or gradient to `I.T @ r * __r5_c_0`, both child SER `1.0`.
+- **Key diagnosis**:
+  - Low effectiveness is caused by a combination of weak parent pool filtering, hidden codegen/runtime failures collapsed to SER=1.0, structural operators that perturb sensitive numeric/control expressions too aggressively, and telemetry that does not expose these causes.
+
+## [2026-04-25 20:15] Algorithm-IR Default Slot / Type-Lattice Audit
+- **Context**: User asked why default slots perform poorly, why codegen cannot emit many variants, and whether GP really uses `type_lattice`.
+- **Findings**:
+  - Full genome baseline is much healthier than per-slot default re-apply: all `91` genomes compiled, `47/91` had SER `<0.75`, and only `13/91` had SER `1.0` in an 8-trial probe.
+  - Re-applying individual default slot variants through `apply_slot_variant()` is much worse: `221` slots, `133` compiled, `84` `RecursionError` codegen failures, `4` apply failures, `198` SER `1.0`, and only `9` SER `<0.75`.
+  - Therefore many "default slot is bad" observations are caused by the slot re-graft/codegen path, not by the original genome baseline alone.
+  - A traceback for `jacobi.hard_decision` default re-apply shows `emit_python_source()` recursively cycling through `_emit_block()` / `_emit_branch()` after inline grafting a nested loop slot into an outer loop CFG.
+  - GP imports `algorithm_ir.ir.type_lattice`, but the effective value type coverage remains weak: across slot default variants, `any/object/<none>` account for about `34.5%` of values; non-lattice Python runtime type strings also appear (`builtin_function_or_method`, `_ArrayFunctionDispatcher`, `ufunc`, `module`, `type`, `function`, plain `tuple`, plain `list`).
+  - Contract types are mostly normalized (`vec_cx`, `mat_cx`, `float`), but some legacy aliases still collapse to `any`, and operators treat `TYPE_TOP` as compatible.
+- **Implication**:
+  - The current implementation partially follows the requested `type_lattice` direction, but it is not yet a strong typed GP system. The lattice is used as a vocabulary/check helper, while the actual IR still contains many unknown or non-lattice type hints and lacks semantic roles/shapes.
+## 2026-04-26 00:50 — Algorithm-IR train_gnn Slot-GP Evaluate-Stage Monitor
+- **Command**: Started `conda run -n AutoGenOld python train_gnn.py --gens 8 --progress --subprocess-eval --eval-workers 4 --warmstart-eval-workers 4 --proposals 80 --pool-size 120 --n-trials 4 --timeout 1.5 --warmstart-gens 1 --warmstart-trials 2 --warmstart-timeout 1.0 --micro-pop-size 32 --micro-generations 3 --micro-mutation-rate 0.6 --seed 20260426`.
+- **Artifacts**: Background run logs in `research/algorithm-IR/code_review/train_monitor_20260426_002927/`; continuous monitor PID recorded there.
+- **Interim result**: Through generation 7, slot GP attempted 3264 variants, 1539 passed pre-evaluate validation/executable gates, but only 25 survived evaluator/probe into `n_evaluated`. Aggregate `validated/attempted=0.472`, `evaluated/validated=0.016`, `evaluated/attempted=0.008`.
+- **Interpretation**: The old “cannot reach evaluate” failure has shifted: many variants now reach the evaluator boundary, but almost all die during evaluator/probe or behavior filtering. Generations 3–7 had `n_evaluated=0`, so the effective slot mutation yield remains extremely low.
+## [2026-04-26 01:57] Algorithm-IR Evaluate-Stage Failure Diagnosis and Slot-Graft Repair
+- **Context**: Continued diagnosis after the large `train_gnn` monitor showed `evaluated/validated` still near zero.
+- **Concrete root causes confirmed by direct execution probes**:
+  - Evaluate-stage death is now dominated by **runtime exceptions**, not just poor SER. In a 60-slot default-variant probe after compile/codegen, counts were: `runtime NameError=13`, `TypeError=13`, `IndexError=10`, `ValueError=5`, `UnboundLocalError=3`, `ZeroDivisionError=1`, and only `3` variants produced a finite non-1.0 SER.
+  - Before that runtime call, the materialized source usually compiled successfully, so many former `n_eval_failed` were not codegen failures but dynamically broken programs.
+  - A concrete graft bug was confirmed: default slot re-splice for `osic.ordering` used to emit `None(...)` in place of `np.zeros` / `np.eye`. Root cause: `apply_slot_variant()` pinned only one host exit, while the flattened slot region leaked multiple live-out helper values to downstream loop phis and later slot bodies. `graft_general()` then auto-repaired the remaining dangling values with `const None`.
+- **Code changes**:
+  - `evolution/materialize.py`: `_default_exec_namespace()` now registers lattice type tokens so annotations like `H: mat_cx` stop failing at `exec` time.
+  - `evolution/slot_evolution.py`: added multi-live-out donor/host rebinding by matching host exit values to donor internal values (name/type based) and extending donor return wiring during slot graft. This removes the previous `None(...)` fallback in `osic.ordering`.
+  - `tests/unit/test_slot_evolution.py`: added a regression test ensuring `osic.ordering` default splice no longer emits `None(` / `None[` in generated source.
+- **Verification**:
+  - Focused regression: `tests/unit/test_slot_evolution.py`, `test_gp_micro_population.py`, `test_core_slots_evolvable.py` all green (`26 passed`).
+  - Full default-slot splice audit now reports `181/221` slots can be reapplied successfully under the stricter graft path (remaining 40 slots still fail due unresolved region/output mismatch).
+  - `osic.ordering` default splice now succeeds and no longer emits `None(...)`, but quick SER is still `1.0`, so malformed graft was only part of the evaluator bottleneck.
+
+## [2026-04-26 10:38] Algorithm-IR Runtime Error Repair and train_gnn Slot-Evo Probe
+- **Context**: User asked to continue fixing frequent runtime errors until the proportion of slot mutations passing the evaluate stage increases.
+- **Fixes applied**:
+  - `algorithm_ir/regeneration/codegen.py`: repaired legacy string call-target temps such as `__call_target = 'absolute'` by resolving them only at call-target sites to NumPy/runtime helper callables.
+  - `evolution/materialize.py`: fixed `_default_exec_namespace()` so lattice annotation aliases no longer shadow built-in constructors like `complex`, `float`, and `int`.
+  - `algorithm_ir/frontend/ir_builder.py` + `algorithm_ir/regeneration/codegen.py`: recorded branch `control_kind` and stopped reconstructing nested `if` blocks inside loops as `while` loops.
+  - `algorithm_ir/regeneration/codegen.py`: preserved expression precedence for binary/unary/subscript expressions with parentheses, fixing cases like `2.0 / (i + 2.0)` and `(H.conj().T @ y)[j]`.
+  - `evolution/skeleton_library.py`: split nested slot calls in `importance_sampling` and `particle_filter` into temporaries so FII can inline them.
+  - `evolution/_eval_worker.py`: added numeric runtime failure counters (`timeout_count`, `runtime_exception_count`, `shape_error_count`) without adding nonnumeric strings to fitness metrics.
+- **Verification**:
+  - Initial genome evaluator smoke: `91/91` genomes now produce `SER < 1.0` under subprocess evaluation (`n_trials=2`, `timeout=0.8s`, SNR 16 dB). Earlier probes had many `TypeError`, `IndexError`, `ValueError`, and `NameError` deaths.
+  - Focused slot unit test remains green: `tests/unit/test_slot_evolution.py` -> `5 passed`.
+  - Slot micro-evolution probe over 68 sampled slot populations: `272` attempted, `180` validated, `14` evaluated, `2` improved, with `0` codegen/runtime/timeout/shape failures. Remaining `158` eval failures were `ser_bad`, i.e. runnable but poor-performing variants.
+  - End-to-end `train_gnn.py` small run (`gens=2`, `pool-size=40`, subprocess eval) completed without engine exceptions. Slot-evo ratios by generation: gen1 `47 attempted / 32 validated / 3 evaluated`, gen2 `41 / 26 / 2`, giving `evaluated/validated ≈ 7.7-9.4%` versus the previous large-run baseline around `1.8%`.
+- **Remaining caveat**:
+  - Default slot re-apply audit over all `221` slot populations now reports `179` successful executable re-splices and `42` `apply_none` failures. These are slot-boundary/port-matching failures, not runtime errors, and remain a separate slot-evolution coverage issue.

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from copy import deepcopy as _stdlib_deepcopy
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -7,6 +8,34 @@ from xdsl.dialects.func import FuncOp
 
 
 SourceSpan = tuple[int, int, int, int] | None
+
+
+def _safe_deepcopy_attrs(
+    attrs: dict[str, Any] | None,
+    memo: dict,
+    *,
+    skip_keys: frozenset[str] | set[str] | tuple[str, ...] = (),
+) -> dict[str, Any]:
+    """Deep-copy an attrs dict, sharing references for non-cloneable values.
+
+    Some IR attrs hold xDSL singletons or live module references that cannot
+    be pickled. We deep-copy each value individually and fall back to the
+    original reference if deepcopy raises (TypeError on modules, etc.).
+    Keys listed in ``skip_keys`` are always shared without attempting copy.
+    """
+    if not attrs:
+        return {}
+    out: dict[str, Any] = {}
+    skip = set(skip_keys) if skip_keys else set()
+    for k, v in attrs.items():
+        if k in skip:
+            out[k] = v
+            continue
+        try:
+            out[k] = _stdlib_deepcopy(v, memo)
+        except Exception:
+            out[k] = v
+    return out
 
 
 @dataclass
@@ -419,7 +448,7 @@ class FunctionIR:
                     source_span=v.source_span,
                     def_op=v.def_op,
                     use_ops=list(v.use_ops),
-                    attrs=dict(v.attrs),
+                    attrs=_safe_deepcopy_attrs(v.attrs, memo),
                 )
                 for k, v in self.values.items()
             },
@@ -431,7 +460,7 @@ class FunctionIR:
                     outputs=list(o.outputs),
                     block_id=o.block_id,
                     source_span=o.source_span,
-                    attrs=dict(o.attrs),
+                    attrs=_safe_deepcopy_attrs(o.attrs, memo),
                 )
                 for k, o in self.ops.items()
             },
@@ -441,12 +470,12 @@ class FunctionIR:
                     op_ids=list(b.op_ids),
                     preds=list(b.preds),
                     succs=list(b.succs),
-                    attrs=dict(b.attrs),
+                    attrs=_safe_deepcopy_attrs(b.attrs, memo),
                 )
                 for k, b in self.blocks.items()
             },
             entry_block=self.entry_block,
-            attrs=dict(self.attrs) if self.attrs else {},
+            attrs=self._clone_func_attrs(memo),
             # xdsl_module is intentionally NOT cloned — it is stale
             # after dict-level edits and only kept for reference.
             xdsl_module=self.xdsl_module,
@@ -464,6 +493,12 @@ class FunctionIR:
                 for k, m in self.slot_meta.items()
             },
         )
+
+    def _clone_func_attrs(self, memo: dict) -> dict[str, Any]:
+        """Deep-copy func-level attrs but skip non-cloneable xDSL singletons."""
+        if not self.attrs:
+            return {}
+        return _safe_deepcopy_attrs(self.attrs, memo, skip_keys={"xdsl_module"})
 
 
 @dataclass

@@ -248,3 +248,38 @@ These guide future research decisions and help avoid repeating mistakes.
 - Frontend/regression/integration failures still remain unchanged: focused unit subset still has 8 failures; integration/cross-lang subset still has 2 failures, all centered on direct `compile_function_to_ir()` def/use mismatches for loop/grafting examples.
 - New slot evolution path (`evolution/slot_evolution.py`) can splice flat-IR provenance slots for many genomes, but only 207/221 slot populations had matching `_provenance.from_slot_id` regions. Important remaining `slot`-op genomes such as `kbest`, `bp`, `soft_sic`, `turbo_linear`, `importance_sampling`, and `particle_filter` are skipped by the new provenance-based slot evolution.
 - Slot micro-evolution is currently narrow: it only perturbs float constants in variants; only 54/221 default slot variants and 134/1768 total variants had perturbable float constants in the audit run. This limits structural discovery and makes many slots effectively no-op under micro-evolution.
+
+## [2026-04-25 00:00] Algorithm-IR Typed Executability Gate for Slot GP
+- Implemented lattice normalization, callable/container/method inference, and `validate_function_ir(..., check_types=True)` plus `is_executable_ir()` as a compile-level executability gate.
+- Fixed slot grafting bugs that prevented reliable default-slot validation: donor terminator target attrs are now remapped with cloned block IDs, control terminators are excluded from predicate slot regions, callee-name regions can seed collection directly, and slot entry ports are ordered by donor arg names rather than arbitrary sorted SSA values.
+- Validation evidence: 91/91 IR pool entries pass structural+type validation with zero non-lattice tokens; focused slot/GP tests pass; all 221 slot populations resolve, apply, type-check, and codegen/compile through the new executable gate.
+- Remaining caveat: several generated slot-audit sources still emit Python `SyntaxWarning` about `NoneType` call sites. They compile under the current gate but should be treated as a follow-up runtime-quality issue before claiming all generated programs execute successfully under actual evaluator inputs.
+## [2026-04-26 01:57] Evaluate-Stage Death Is Mostly Runtime-Broken IR, Not Just Weak Fitness
+- **Context**: Follow-up diagnosis after the compile-level executability gate made more slot mutations reach the evaluator boundary.
+- **Lesson**:
+  - Once annotation `NameError` at `exec` time is fixed, the dominant remaining failure mode is **runtime exception inside the materialized detector**, not merely high SER from semantically valid but weak mutations.
+  - Flattened FII slot regions can leak multiple live-out helper values (loop-carried phis, reused helper-local constants, later slot dependencies). If slot grafting rewires only one semantic return and drops the other live-outs, `graft_general()` may auto-repair dangling values with `None`, producing syntactically valid but dynamically broken programs.
+  - Therefore, compile-only executability is insufficient as a GP gate. Slot evolution needs either full multi-live-out rebinding or conservative rejection of slots whose semantic output cannot be aligned to the host region boundary.
+- **Evidence**:
+  - 60-slot direct execution probe after compile/codegen: `NameError=13`, `TypeError=13`, `IndexError=10`, `ValueError=5`, `UnboundLocalError=3`, `ZeroDivisionError=1`, only `3` finite non-1.0 SER results.
+  - `osic.ordering` used to materialize `None(...)` at former `np.zeros` / `np.eye` call sites; after multi-live-out rebinding, those `None(...)` lines disappeared.
+  - Even after that repair, only `181/221` default slot re-splices succeed, which shows unresolved slot-boundary mismatches remain a first-class problem.
+- **Applicable to**:
+  - Any future redesign of slot discovery, FII boundary hygiene, slot-region contracts, or evaluator telemetry for algorithm-IR GP.
+
+## [2026-04-26 10:38] Codegen Correctness Bugs Can Masquerade as GP Runtime Failure
+- **Context**: Follow-up runtime-error repair for algorithm-IR slot evolution.
+- **Lesson**:
+  - A low evaluate-stage survival rate can be dominated by materialization bugs even when IR validation and Python compilation pass. In this case, all 91 baseline genomes could be made runnable by fixing codegen/exec-namespace issues rather than changing GP operators.
+  - Avoid using `object` as a blanket alias for annotation names: it can shadow real built-in constructors (`complex`, `float`, `int`) in the exec namespace and convert valid detector code into `object(...)` runtime failures.
+  - Branch reconstruction must distinguish loop branches from nested `if` branches using explicit control metadata; reachability-to-current-block is not sufficient inside loops.
+  - Regenerated Python must preserve expression precedence. Parenthesize binary/unary/subscript receivers conservatively; otherwise valid IR can become `2.0 / i + 2.0` or `H.T @ y[j]` and fail at runtime.
+  - Evaluator diagnostics should remain numeric or out-of-band. Putting string error messages directly into `FitnessResult.metrics` breaks weighted composite scoring.
+- **Evidence**:
+  - Before these repairs, baseline/evolved detectors frequently died with `TypeError object() takes no arguments`, `IndexError index 16`, `ValueError matmul scalar`, and unresolved `_slot_*` names.
+  - After repairs, a subprocess smoke test over `91/91` initial genomes produced finite `SER < 1.0`; a small `train_gnn` run completed and improved slot-evo `evaluated/validated` to roughly `8-9%`.
+- **Applicable to**:
+  - `algorithm_ir/regeneration/codegen.py`
+  - `evolution/materialize.py`
+  - `evolution/_eval_worker.py`
+  - Future IR executable gates and slot-GP telemetry.
