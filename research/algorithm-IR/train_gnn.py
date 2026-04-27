@@ -165,13 +165,6 @@ parser.add_argument("--micro-generations", type=int, default=3,
                     help="Micro-evolution generations per macro generation (was 1).")
 parser.add_argument("--micro-mutation-rate", type=float, default=0.6,
                     help="Per-individual mutation probability (was 0.3).")
-parser.add_argument("--use-fii-view", action="store_true", default=True,
-                    help="Build the Fully-Inlined IR (FII) view of each genome so "
-                         "the GNN can see slot internals and propose grafts that "
-                         "land inside slots. Disable to revert to slot-opaque "
-                         "structural-IR view.")
-parser.add_argument("--no-fii-view", dest="use_fii_view", action="store_false",
-                    help="Disable FII; GNN sees only slot-opaque structural IR.")
 args = parser.parse_args()
 
 # ── Output directory ──────────────────────────────────────────────────────
@@ -968,7 +961,6 @@ evo_config = AlgorithmEvolutionConfig(
     micro_pop_size=args.micro_pop_size,
     micro_generations=args.micro_generations,
     micro_mutation_rate=args.micro_mutation_rate,
-    use_fii_view=args.use_fii_view,
 )
 
 evaluator = make_evaluator(
@@ -1111,7 +1103,7 @@ for gen in range(1, args.gens + 1):
         # we don't spam the log when the rejected causes haven't been
         # populated yet (e.g. running with an older engine build).
         cause_fields = (
-            ("graft_fail", "n_apply_graft_failed"),
+            ("signature_fail", "n_apply_signature_failed"),
             ("validator_fail", "n_apply_validator_failed"),
             ("codegen_fail", "n_eval_codegen_failed"),
             ("runtime_exc", "n_eval_runtime_exception"),

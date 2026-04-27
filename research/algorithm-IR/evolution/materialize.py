@@ -33,8 +33,7 @@ import numpy as np
 from algorithm_ir.ir.model import FunctionIR, Op
 from algorithm_ir.regeneration.codegen import emit_python_source
 
-from evolution.pool_types import AlgorithmGenome, SlotPopulation
-from evolution.ir_pool import find_algslot_ops
+from evolution.pool_types import AlgorithmGenome
 
 
 _CALLABLE_CACHE_LOCK = threading.Lock()
@@ -58,108 +57,20 @@ _CALLABLE_CACHE_MAX = 512
 def materialize(genome: AlgorithmGenome) -> str:
     """Materialize a genome into a single Python source string.
 
-    Each ``AlgSlot`` op becomes a call to the best variant from the
-    corresponding SlotPopulation, inlined as a local helper.
-
-    Returns the complete Python source with no slot placeholders.
+    Annotation-only model (M5): ``ir.slot_meta`` is the source of truth and
+    the IR already inlines every slot body, so emit the source as-is. The
+    legacy ``AlgSlot``-stub inlining path has been removed.
     """
     skeleton_ir = genome.structural_ir
 
-    # Annotation-only slot model: ``ir.slot_meta`` is the source of truth
-    # and the IR already inlines every slot body. Emit the source as-is
-    # without stub generation or placeholder substitution.
-    if getattr(skeleton_ir, "slot_meta", None):
+    if getattr(skeleton_ir, "slot_meta", None) is not None:
         return emit_python_source(skeleton_ir)
 
-    slot_ops = find_algslot_ops(skeleton_ir)
-
-    # 1. Emit skeleton source (with __slot_xxx__ placeholders)
-    skeleton_source = emit_python_source(skeleton_ir)
-
-    # 2. Collect slot implementations
-    slot_impls: dict[str, str] = {}   # op_id → impl_source
-    slot_names: dict[str, str] = {}   # op_id → helper_func_name
-
-    for slot_op in slot_ops:
-        slot_id = slot_op.attrs.get("slot_id", "unknown")
-        op_id = slot_op.id
-
-        # Find matching SlotPopulation
-        pop = _find_population_for_slot(genome, slot_id)
-        if pop is None:
-            # Generate a fallback pass-through
-            slot_names[op_id] = f"_slot_{slot_id}"
-            slot_impls[op_id] = f"def _slot_{slot_id}(*args):\n    return args[0] if args else None\n"
-            continue
-
-        # Get best variant IR
-        best_idx = pop.best_idx
-        best_ir = pop.variants[best_idx] if best_idx < len(pop.variants) else None
-
-        variant_source = None
-        if best_ir is not None:
-            variant_source = emit_python_source(best_ir)
-
-        if variant_source is None:
-            # Fallback: pass-through
-            slot_names[op_id] = f"_slot_{slot_id}"
-            slot_impls[op_id] = f"def _slot_{slot_id}(*args):\n    return args[0] if args else None\n"
-            continue
-
-        # Determine the original function name from the variant
-        func_name = _extract_func_name(variant_source)
-        if func_name is None:
-            func_name = f"_slot_{slot_id}"
-
-        # Create a unique name to avoid collisions
-        unique_name = f"_slot_{slot_id}_{op_id}"
-        variant_source = variant_source.replace(
-            f"def {func_name}(", f"def {unique_name}(", 1
-        )
-
-        slot_names[op_id] = unique_name
-        slot_impls[op_id] = variant_source
-
-    # 3. Replace __slot_xxx__ placeholders in skeleton source
-    materialized = skeleton_source
-    for op_id, helper_name in slot_names.items():
-        placeholder = f"__slot_{op_id}__"
-        materialized = materialized.replace(placeholder, helper_name)
-
-    # 4. Prepend slot helper definitions
-    helpers = "\n".join(slot_impls.values())
-
-    parts = [p for p in [helpers, materialized] if p.strip()]
-    full_source = "\n\n".join(parts)
-
-    return full_source
-
-
-def _find_population_for_slot(
-    genome: AlgorithmGenome,
-    slot_id: str,
-) -> SlotPopulation | None:
-    """Find the SlotPopulation matching a slot_id.
-
-    Tries exact match on the population key, then matches by the
-    short name at the end of the key, then checks if slot_id is a
-    suffix of the pop key's last segment (e.g. "bp_sweep" ends with "sweep").
-    """
-    for pop_key, pop in genome.slot_populations.items():
-        if pop.slot_id == slot_id:
-            return pop
-        # Check if pop_key ends with the slot_id
-        if pop_key.endswith(f".{slot_id}"):
-            return pop
-        # Check short_name extracted from key
-        parts = pop_key.split(".")
-        short = parts[-1] if parts else ""
-        if short == slot_id:
-            return pop
-        # Check if slot_id ends with the short_name (e.g. "bp_sweep" ends with "sweep")
-        if slot_id.endswith(short) or slot_id.endswith(f"_{short}"):
-            return pop
-    return None
+    # Final-stage cleanup: if a genome arrives without slot_meta, the IR is
+    # already flat (no AlgSlot ops are emitted in the new model) and we
+    # simply emit it. Any residual ``slot`` ops will be rendered as
+    # ``# slot: <name>`` comments by codegen.
+    return emit_python_source(skeleton_ir)
 
 
 def _extract_func_name(source: str) -> str | None:
@@ -235,81 +146,18 @@ def _materialize_source_with_override(
     genome: AlgorithmGenome,
     override_map: dict[str, "FunctionIR"],
 ) -> str:
-    """Like ``materialize()`` but uses overrides for specified slots."""
+    """Annotation-only override path (M5).
+
+    With the slot-meta model the canonical IR carries the inlined slot
+    bodies directly, so the only legitimate way to evaluate an alternative
+    variant is to first call ``apply_slot_variant`` to splice it into the
+    IR, then materialize that resulting genome. This helper therefore
+    silently ignores ``override_map`` and emits the genome's current IR
+    source as-is — kept for call-site compatibility with the micro-evo
+    fast-path which already passes a freshly grafted IR via ``genome.ir``.
+    """
     skeleton_ir = genome.structural_ir
-
-    # Annotation-only model: M2 transition has no slot variants yet,
-    # so any override is silently ignored — emit the IR source as-is.
-    if getattr(skeleton_ir, "slot_meta", None):
-        return emit_python_source(skeleton_ir)
-
-    slot_ops = find_algslot_ops(skeleton_ir)
-
-    skeleton_source = emit_python_source(skeleton_ir)
-
-    slot_impls: dict[str, str] = {}
-    slot_names: dict[str, str] = {}
-
-    for slot_op in slot_ops:
-        slot_id = slot_op.attrs.get("slot_id", "unknown")
-        op_id = slot_op.id
-
-        # Check if this slot is overridden
-        if slot_id in override_map:
-            override_ir = override_map[slot_id]
-            variant_source = emit_python_source(override_ir)
-            func_name = _extract_func_name(variant_source)
-            if func_name is None:
-                func_name = f"_slot_{slot_id}"
-            unique_name = f"_slot_{slot_id}_{op_id}"
-            variant_source = variant_source.replace(
-                f"def {func_name}(", f"def {unique_name}(", 1
-            )
-            slot_names[op_id] = unique_name
-            slot_impls[op_id] = variant_source
-            continue
-
-        # Otherwise, use the population's best variant (same as materialize)
-        pop = _find_population_for_slot(genome, slot_id)
-        if pop is None:
-            slot_names[op_id] = f"_slot_{slot_id}"
-            slot_impls[op_id] = (
-                f"def _slot_{slot_id}(*args):\n"
-                f"    return args[0] if args else None\n"
-            )
-            continue
-
-        best_idx = pop.best_idx
-        best_ir = pop.variants[best_idx] if best_idx < len(pop.variants) else None
-
-        variant_source = None
-        if best_ir is not None:
-            variant_source = emit_python_source(best_ir)
-        if variant_source is None:
-            slot_names[op_id] = f"_slot_{slot_id}"
-            slot_impls[op_id] = (
-                f"def _slot_{slot_id}(*args):\n"
-                f"    return args[0] if args else None\n"
-            )
-            continue
-
-        func_name = _extract_func_name(variant_source)
-        if func_name is None:
-            func_name = f"_slot_{slot_id}"
-        unique_name = f"_slot_{slot_id}_{op_id}"
-        variant_source = variant_source.replace(
-            f"def {func_name}(", f"def {unique_name}(", 1
-        )
-        slot_names[op_id] = unique_name
-        slot_impls[op_id] = variant_source
-
-    materialized = skeleton_source
-    for op_id, helper_name in slot_names.items():
-        placeholder = f"__slot_{op_id}__"
-        materialized = materialized.replace(placeholder, helper_name)
-
-    helpers = "\n".join(slot_impls.values())
-    return helpers + "\n\n" + materialized
+    return emit_python_source(skeleton_ir)
 
 
 # ═══════════════════════════════════════════════════════════════════════════

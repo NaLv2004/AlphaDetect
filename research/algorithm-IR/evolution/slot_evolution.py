@@ -87,7 +87,7 @@ class SlotMicroStats:
     # S6: per-failure-cause telemetry split. The aggregate counters above
     # remain (back-compat); these refine the cause so train_gnn logs and
     # r7_inspect can pinpoint exactly where the pipeline is leaking.
-    n_apply_graft_failed: int = 0      # graft_general raised / returned None
+    n_apply_signature_failed: int = 0  # donor-under-signature sampling aborted (mask=0) or graft_general raised
     n_apply_validator_failed: int = 0  # validate_function_ir rejected post-graft IR
     n_eval_codegen_failed: int = 0     # emit_python_source failed
     n_eval_runtime_exception: int = 0  # exec or call raised
@@ -110,7 +110,7 @@ class SlotMicroStats:
             "n_noop_behavior": self.n_noop_behavior,
             "skipped_no_sids": self.skipped_no_sids,
             "skipped_no_variants": self.skipped_no_variants,
-            "n_apply_graft_failed": self.n_apply_graft_failed,
+            "n_apply_signature_failed": self.n_apply_signature_failed,
             "n_apply_validator_failed": self.n_apply_validator_failed,
             "n_eval_codegen_failed": self.n_eval_codegen_failed,
             "n_eval_runtime_exception": self.n_eval_runtime_exception,
@@ -385,7 +385,7 @@ def apply_slot_variant(genome: "AlgorithmGenome",
     validation failed). Never mutates ``genome``.
 
     If ``stats`` is provided, increments the appropriate failure-cause
-    counter (``n_apply_graft_failed`` / ``n_apply_validator_failed``).
+    counter (``n_apply_signature_failed`` / ``n_apply_validator_failed``).
 
     Accepts either a ``FunctionIR`` (legacy / mutation-children path) or
     a ``SubgraphSnapshot`` (M3+ default-variant path). Snapshots are not
@@ -491,11 +491,11 @@ def apply_slot_variant(genome: "AlgorithmGenome",
     except Exception as exc:
         logger.debug("apply_slot_variant: graft_general raised: %r", exc)
         if stats is not None:
-            stats.n_apply_graft_failed += 1
+            stats.n_apply_signature_failed += 1
         return None
     if artifact is None or getattr(artifact, "ir", None) is None:
         if stats is not None:
-            stats.n_apply_graft_failed += 1
+            stats.n_apply_signature_failed += 1
         return None
 
     errs = validate_function_ir(artifact.ir)

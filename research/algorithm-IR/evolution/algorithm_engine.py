@@ -207,9 +207,8 @@ class AlgorithmEvolutionEngine:
                 for g, f in zip(self.population, self.fitness)
             }
             if self.pattern_matcher is not None:
-                use_fii = self.config.use_fii_view
                 entries = [
-                    g.to_entry(f, use_fii_view=use_fii)
+                    g.to_entry(f)
                     for g, f in zip(self.population, self.fitness)
                 ]
                 # Always include gene bank entries so expert rules can find
@@ -217,7 +216,7 @@ class AlgorithmEvolutionEngine:
                 # from the current population.
                 pop_ids = {g.algo_id for g in self.population}
                 bank_entries = [
-                    g.to_entry(None, use_fii_view=use_fii)
+                    g.to_entry(None)
                     for g in self.gene_bank
                     if g.algo_id not in pop_ids
                 ]
@@ -231,6 +230,41 @@ class AlgorithmEvolutionEngine:
                         child = self._execute_graft(proposal)
                         if child is not None:
                             child.generation = self.generation
+                            # M6b §6.7 — Track B hook: only for Case II
+                            # offspring, ask the matcher whether the
+                            # post-graft IR exposes a stampable cohesive
+                            # sub-DAG. Successful stampings update the
+                            # child's slot inventory in place.
+                            if (
+                                getattr(proposal, "case", "II") == "II"
+                                and hasattr(self.pattern_matcher, "propose_slot_stampings")
+                            ):
+                                try:
+                                    child_entry = child.to_entry(None)
+                                    stamp_proposals = (
+                                        self.pattern_matcher.propose_slot_stampings(
+                                            [child_entry], n=1,
+                                        )
+                                    )
+                                    if stamp_proposals:
+                                        from evolution.slot_dissolve import (
+                                            apply_slot_stamping,
+                                        )
+                                        for sp in stamp_proposals:
+                                            ok = apply_slot_stamping(child, sp)
+                                            if ok:
+                                                self._dispatch_case_counts = (
+                                                    getattr(self, "_dispatch_case_counts", {})
+                                                )
+                                                self._dispatch_case_counts["track_b_stamped"] = (
+                                                    self._dispatch_case_counts.get(
+                                                        "track_b_stamped", 0
+                                                    ) + 1
+                                                )
+                                except Exception as exc:
+                                    logger.debug(
+                                        "Track B stamping skipped: %r", exc,
+                                    )
                             graft_offspring.append(child)
                             graft_proposals.append(proposal)
                             n_graft_ok += 1
@@ -915,17 +949,35 @@ class AlgorithmEvolutionEngine:
                 r_pop.fitness.append(float("inf"))
 
     def _execute_graft(self, proposal) -> AlgorithmGenome | None:
-        """Execute a GraftProposal via graft_general() and produce a new genome.
+        """Execute a GraftProposal via graft_general() + Case I/II/III dispatch.
 
-        Steps:
-          0. Trim donor IR to avoid inlining the entire donor
-          1. Call graft_general() for IR-level op surgery
-          2. Discover new slots introduced by the donor
-          3. Initialize SlotPopulations for new slots
-          4. Build and return a new AlgorithmGenome
+        Per major_refactor.md §6.5 a proposal carries a ``case`` label
+        (set by the matcher via :func:`graft_classifier.classify_region`)
+        and the engine routes it as follows:
+
+        * **Case I** (slot-aligned): the host region matches some slot
+          ``S`` exactly. After ``graft_general`` we re-scan the post-graft
+          IR for ops tagged with ``slot_id=S.pop_key`` (donor ops cloned
+          into the slot retain the tag because the typed binder rewrote
+          them in-place), refresh ``slot_meta[S.pop_key]``, and append the
+          donor's :class:`SubgraphSnapshot` as a new variant inside the
+          slot's :class:`SlotPopulation`.
+        * **Case II** (slot-disjoint): graft proceeds straight through;
+          ``slot_meta`` is untouched. The post-graft refresh from M3+M4
+          handles transient slot_meta inconsistencies.
+        * **Case III** (half-cut): every half-cut slot is *dissolved*
+          (annotations + meta + population archived to
+          ``metadata['dissolved_slots']``) **before** the splice, then
+          the proposal is treated as Case II.
+
+        Legacy proposals without a ``case`` field default to Case II.
         """
         from algorithm_ir.grafting.graft_general import graft_general
-        from evolution.ir_pool import find_algslot_ops
+        from evolution.graft_classifier import (
+            BoundarySignature, classify_region,
+        )
+        from evolution.slot_dissolve import dissolve_slot
+        from evolution.pool_types import SubgraphSnapshot
 
         # --- Step 0: Trim donor IR ---
         # GNN proposals already carry a GNN-selected trimmed donor (skip).
@@ -960,15 +1012,66 @@ class AlgorithmEvolutionEngine:
                     donor_genome = g
                     break
 
-        # Execute the graft (inline — donor ops are cloned into host IR)
-        #
-        # SINGLE-IR PATH: ``host_genome.ir`` is the canonical flat
-        # annotated IR. Proposal op IDs reference it directly. There is
-        # no FII rebuild, no Case I/II/III routing, no back-mapping —
-        # graft_general operates on the canonical IR and returns the
-        # post-graft IR. Slot annotations on cloned donor ops persist;
-        # ``maybe_rediscover_slots`` refreshes annotations afterwards.
-        host_ir_for_graft = host_genome.ir
+        # Resolve the dispatch case. Legacy proposals (older matchers,
+        # tests) may omit the field — default to Case II so they keep
+        # working unchanged.
+        case = getattr(proposal, "case", None) or "II"
+        attribution_key: str | None = getattr(
+            proposal, "attribution_slot_pop_key", None,
+        )
+        half_cut_slots: tuple[str, ...] = tuple(
+            getattr(proposal, "half_cut_slots", ()) or ()
+        )
+
+        # If the proposal didn't classify itself, do it now so dispatch
+        # is always grounded in the actual host IR. This also covers the
+        # legacy-matcher path without forcing every caller to update.
+        if case == "II" and not attribution_key and not half_cut_slots:
+            try:
+                live_classification = classify_region(
+                    proposal.region,
+                    host_genome.ir.slot_meta or {},
+                    host_genome.ir,
+                )
+                case = live_classification.case
+                attribution_key = live_classification.attribution_slot_pop_key
+                half_cut_slots = live_classification.half_cut_slots
+            except Exception as exc:
+                logger.debug("live classification failed (%r); defaulting to Case II", exc)
+
+        self._dispatch_case_counts = getattr(self, "_dispatch_case_counts", {})
+        self._dispatch_case_counts[f"case_{case}_attempted"] = (
+            self._dispatch_case_counts.get(f"case_{case}_attempted", 0) + 1
+        )
+
+        # ── Step 0.5: Case III pre-pass — dissolve half-cut slots ──
+        # We deep-clone the host genome's IR + slot_populations into a
+        # working child so the original host stays intact even if the
+        # subsequent graft fails.
+        from copy import deepcopy as _deepcopy
+        working_host = host_genome  # default for Case I/II
+        if case == "III" and half_cut_slots:
+            working_host = AlgorithmGenome(
+                algo_id=AlgorithmGenome._make_id(),
+                ir=_deepcopy(host_genome.ir),
+                slot_populations={
+                    k: _deepcopy(v)
+                    for k, v in host_genome.slot_populations.items()
+                },
+                constants=host_genome.constants.copy(),
+                generation=self.generation,
+                parent_ids=[host_genome.algo_id],
+                graft_history=list(host_genome.graft_history),
+                tags=set(host_genome.tags),
+                metadata=_deepcopy(host_genome.metadata),
+            )
+            for pk in half_cut_slots:
+                dissolve_slot(working_host, pk)
+            # Update the proposal's region op_ids: dissolution clears
+            # ``slot_id`` tags but does not change op identity, so the
+            # region remains valid in the working IR.
+
+        host_ir_for_graft = working_host.ir
 
         region_ops = set(proposal.region.op_ids)
         host_ops = set(host_ir_for_graft.ops.keys())
@@ -980,38 +1083,143 @@ class AlgorithmEvolutionEngine:
                 host_genome.algo_id, len(host_ops),
                 sorted(missing_ops)[:3], len(missing_ops),
             )
-            self._dispatch_case_counts = getattr(self, "_dispatch_case_counts", {})
             self._dispatch_case_counts["stale_region"] = (
                 self._dispatch_case_counts.get("stale_region", 0) + 1
             )
             return None
 
+        # ── Case I pre-pass: clear slot_meta[attribution_key] BEFORE the
+        # graft so graft_general's internal validator does not complain
+        # about output value-ids that the splice is about to invalidate.
+        # We reinstate the meta entry post-graft from the live ops.
+        case_I_pop_snapshot = None
+        case_I_meta_snapshot = None
+        if case == "I" and attribution_key:
+            ir = working_host.ir
+            if attribution_key in ir.slot_meta:
+                case_I_meta_snapshot = ir.slot_meta[attribution_key]
+                # Strip slot_id tags on the about-to-be-replaced ops.
+                for op_id in case_I_meta_snapshot.op_ids:
+                    op = ir.ops.get(op_id)
+                    if op is None:
+                        continue
+                    attrs = getattr(op, "attrs", None)
+                    if attrs and attrs.get("slot_id") == attribution_key:
+                        attrs.pop("slot_id", None)
+                # Pop the meta entry; we'll rebuild it post-graft.
+                del ir.slot_meta[attribution_key]
+            if attribution_key in working_host.slot_populations:
+                case_I_pop_snapshot = working_host.slot_populations[
+                    attribution_key
+                ]
+
         try:
             artifact = graft_general(host_ir_for_graft, proposal)
         except Exception as exc:
             logger.warning("graft_general failed: %r", exc)
-            self._dispatch_case_counts = getattr(self, "_dispatch_case_counts", {})
             self._dispatch_case_counts["graft_general_failed"] = (
                 self._dispatch_case_counts.get("graft_general_failed", 0) + 1
             )
             return None
         if artifact is None or getattr(artifact, "ir", None) is None:
-            self._dispatch_case_counts = getattr(self, "_dispatch_case_counts", {})
             self._dispatch_case_counts["graft_general_returned_none"] = (
                 self._dispatch_case_counts.get("graft_general_returned_none", 0) + 1
             )
             return None
 
-        # Build child genome with the new canonical IR.
-        # Slot populations: inherit host's snapshots (annotations on the
-        # IR itself remain authoritative; populations are only history).
-        child_slot_pops = deepcopy(host_genome.slot_populations)
-        child_tags = set(host_genome.tags) | {"grafted"}
+        post_ir = artifact.ir
 
-        # Track success in a single counter (dispatch routing is gone).
-        self._dispatch_case_counts = getattr(self, "_dispatch_case_counts", {})
-        self._dispatch_case_counts["single_path"] = (
-            self._dispatch_case_counts.get("single_path", 0) + 1
+        # ── Case I post-pass: rebuild slot_meta[attribution_key] from
+        # the post-graft IR. The donor's cloned ops should already carry
+        # ``slot_id=attribution_key`` if the matcher tagged them; if not,
+        # we tag every op that lives strictly inside the spliced region.
+        if case == "I" and attribution_key:
+            from algorithm_ir.ir.model import SlotMeta
+            # Determine the new op set inside the slot. graft_general's
+            # artifact tracks ``new_op_ids`` for ops introduced by the
+            # donor; combine that with any op still tagged with the key.
+            new_op_ids: list[str] = []
+            for op_id, op in post_ir.ops.items():
+                attrs = getattr(op, "attrs", None) or {}
+                if attrs.get("slot_id") == attribution_key:
+                    new_op_ids.append(op_id)
+            # If donor ops weren't tagged, fall back to the artifact's
+            # introduced-op set.
+            if not new_op_ids and hasattr(artifact, "new_op_ids"):
+                for op_id in artifact.new_op_ids:
+                    op = post_ir.ops.get(op_id)
+                    if op is None:
+                        continue
+                    attrs = getattr(op, "attrs", None)
+                    if attrs is None:
+                        continue
+                    attrs["slot_id"] = attribution_key
+                    new_op_ids.append(op_id)
+            # Recompute slot inputs/outputs from outward-consumer scan.
+            new_op_set = set(new_op_ids)
+            input_ports: list[str] = []
+            output_ports: list[str] = []
+            seen_in: set[str] = set()
+            seen_out: set[str] = set()
+            for op_id in new_op_ids:
+                op = post_ir.ops.get(op_id)
+                if op is None:
+                    continue
+                for vid in getattr(op, "inputs", ()) or ():
+                    val = post_ir.values.get(vid)
+                    if val is None:
+                        continue
+                    def_op = getattr(val, "def_op", None)
+                    def_id = getattr(def_op, "id", None) if def_op else None
+                    if def_id is None or def_id not in new_op_set:
+                        if vid not in seen_in:
+                            input_ports.append(vid)
+                            seen_in.add(vid)
+                for vid in getattr(op, "outputs", ()) or ():
+                    val = post_ir.values.get(vid)
+                    if val is None:
+                        continue
+                    use_ops = getattr(val, "use_ops", ()) or ()
+                    if any(u not in new_op_set for u in use_ops):
+                        if vid not in seen_out:
+                            output_ports.append(vid)
+                            seen_out.add(vid)
+                    elif vid in (post_ir.return_values or ()):
+                        if vid not in seen_out:
+                            output_ports.append(vid)
+                            seen_out.add(vid)
+            output_names = (
+                case_I_meta_snapshot.output_names
+                if case_I_meta_snapshot is not None
+                else tuple(f"out_{i}" for i in range(len(output_ports)))
+            )
+            parent = (
+                case_I_meta_snapshot.parent
+                if case_I_meta_snapshot is not None else None
+            )
+            post_ir.slot_meta[attribution_key] = SlotMeta(
+                pop_key=attribution_key,
+                op_ids=tuple(new_op_ids),
+                inputs=tuple(input_ports),
+                outputs=tuple(output_ports),
+                output_names=output_names,
+                parent=parent,
+            )
+
+        # Build child genome with the new canonical IR.
+        # Slot populations: inherit working_host's (already includes
+        # Case III dissolutions and Case I baseline). Case I appends
+        # the donor body as a new variant after we construct the child.
+        child_slot_pops = _deepcopy(working_host.slot_populations)
+        child_tags = set(host_genome.tags) | {"grafted"}
+        if case == "III":
+            child_tags.add("graft_case_III")
+        elif case == "I":
+            child_tags.add("graft_case_I")
+
+        # Track success in the dispatch counter.
+        self._dispatch_case_counts[f"case_{case}_succeeded"] = (
+            self._dispatch_case_counts.get(f"case_{case}_succeeded", 0) + 1
         )
         # Track typed-binding usage for visibility into how often the
         # lattice-driven binder fires vs. the legacy name-hint matcher.
@@ -1026,7 +1234,7 @@ class AlgorithmEvolutionEngine:
 
         child = AlgorithmGenome(
             algo_id=AlgorithmGenome._make_id(),
-            ir=artifact.ir,
+            ir=post_ir,
             slot_populations=child_slot_pops,
             constants=host_genome.constants.copy(),
             generation=self.generation,
@@ -1043,13 +1251,39 @@ class AlgorithmEvolutionEngine:
             ],
             tags=child_tags,
             metadata={
+                **(_deepcopy(working_host.metadata) if case == "III" else {}),
                 "graft_host_algo_id": host_genome.algo_id,
                 "graft_donor_algo_id": proposal.donor_algo_id,
                 "graft_proposal_id": proposal.proposal_id,
-                "fii_grafted": True,  # legacy key; single canonical IR is always flat-annotated
+                "graft_case": case,
+                "graft_attribution_slot_pop_key": attribution_key,
+                "graft_half_cut_slots": list(half_cut_slots),
+                "fii_grafted": True,
                 "typed_binding": getattr(artifact, "typed_binding", None),
             },
         )
+
+        # ── Case I final step: append the donor's body as a new variant
+        # of the attribution slot's SlotPopulation. The donor IR carried
+        # by the proposal already represents the new slot body.
+        if case == "I" and attribution_key:
+            pop = child.slot_populations.get(attribution_key)
+            if pop is not None and proposal.donor_ir is not None:
+                pop.variants.append(_deepcopy(proposal.donor_ir))
+                pop.fitness.append(float("inf"))
+                # Record that the attribution variant joined this slot.
+                snapshot_archive = child.metadata.setdefault(
+                    "slot_snapshots", {}
+                )
+                try:
+                    snapshot_archive[attribution_key] = SubgraphSnapshot.extract(
+                        post_ir, attribution_key,
+                    )
+                except Exception as exc:
+                    logger.debug(
+                        "Case I snapshot capture failed for %s: %r",
+                        attribution_key, exc,
+                    )
 
         # Initialize SlotPopulations for new slots introduced by donor.
         # When a donor genome is available, copy its slot populations so
@@ -1067,7 +1301,7 @@ class AlgorithmEvolutionEngine:
                 child.slot_populations[slot_id] = SlotPopulation(
                     slot_id=slot_id,
                     spec=donor_pop.spec,
-                    variants=[deepcopy(v) for v in donor_pop.variants],
+                    variants=[_deepcopy(v) for v in donor_pop.variants],
                     fitness=list(donor_pop.fitness),
                     best_idx=donor_pop.best_idx,
                 )
@@ -1088,15 +1322,17 @@ class AlgorithmEvolutionEngine:
                     best_idx=0,
                 )
 
-        # Refresh slot annotations on the post-graft IR. Donor-cloned
-        # ops may carry stale ``_provenance`` from the donor's slot
-        # context; rediscovery scans cohesive contiguous regions and
-        # writes/updates annotations so the GNN sees a consistent view.
-        try:
-            from evolution.slot_rediscovery import maybe_rediscover_slots
-            maybe_rediscover_slots(child, self.generation, period=1)
-        except Exception as exc:
-            logger.debug("post-graft rediscovery skipped: %r", exc)
+        # Refresh slot annotations on the post-graft IR for Case II/III
+        # (Case I already rebuilt its meta entry above). Donor-cloned
+        # ops may carry stale tags from the donor's slot context;
+        # rediscovery scans cohesive contiguous regions and writes /
+        # updates annotations so the GNN sees a consistent view.
+        if case != "I":
+            try:
+                from evolution.slot_rediscovery import maybe_rediscover_slots
+                maybe_rediscover_slots(child, self.generation, period=1)
+            except Exception as exc:
+                logger.debug("post-graft rediscovery skipped: %r", exc)
 
         return child
 

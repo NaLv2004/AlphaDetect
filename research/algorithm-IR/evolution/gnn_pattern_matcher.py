@@ -29,6 +29,7 @@ from torch_geometric.data import Batch, Data
 from torch_geometric.nn import GATConv, global_mean_pool
 
 from algorithm_ir.ir.model import FunctionIR
+from algorithm_ir.ir.type_lattice import is_subtype
 from algorithm_ir.region.contract import infer_boundary_contract
 from algorithm_ir.region.extract import extract_region_ir
 from algorithm_ir.region.selector import BoundaryRegionSpec, RewriteRegion, define_rewrite_region
@@ -38,7 +39,12 @@ from algorithm_ir.region.slicer import (
     validate_boundary_region,
 )
 from evolution.pattern_matchers import _fresh_id
-from evolution.pool_types import AlgorithmEntry, GraftProposal
+from evolution.pool_types import AlgorithmEntry, GraftProposal, SlotStampingProposal
+from evolution.graft_classifier import (
+    BoundarySignature,
+    classify_region,
+    signature_for_region,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -293,12 +299,31 @@ class BoundaryRegionPolicy(nn.Module):
         self,
         value_feats: torch.Tensor,
         context: torch.Tensor,
+        mask: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Score every candidate value as a potential output port.
+
+        ``mask`` is an optional 1-D ``BoolTensor`` (or 0/1 ``Tensor``) of
+        the same length as ``value_feats``. ``True`` (=1) means the
+        candidate is *eligible* (e.g. type-compatible with the host port
+        being filled); ``False`` (=0) means it must be vetoed. Vetoed
+        positions receive ``-inf`` logits so the subsequent softmax
+        assigns them zero probability. ``mask=None`` disables masking.
+        """
         value_embs = self.encode_values(value_feats)
         if value_embs.shape[0] == 0:
             return context.new_zeros((0,)), context.new_zeros((1,))
         ctx = context.unsqueeze(0).expand(value_embs.shape[0], -1)
         logits = self.output_head(torch.cat([value_embs, ctx], dim=-1)).squeeze(-1)
+        if mask is not None:
+            mask = mask.to(device=logits.device, dtype=torch.bool)
+            if mask.shape != logits.shape:
+                raise ValueError(
+                    f"BoundaryRegionPolicy.output_logits: mask shape "
+                    f"{tuple(mask.shape)} does not match logits "
+                    f"{tuple(logits.shape)}"
+                )
+            logits = logits.masked_fill(~mask, float("-inf"))
         stop = self.output_stop_head(
             torch.cat([context, value_embs.mean(dim=0)], dim=-1)
         ).reshape(-1)
@@ -309,13 +334,31 @@ class BoundaryRegionPolicy(nn.Module):
         value_feats: torch.Tensor,
         context: torch.Tensor,
         output_summary: torch.Tensor,
+        mask: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Score every candidate value as a potential cut (entry) port.
+
+        ``mask`` works identically to :meth:`output_logits` — an optional
+        1-D Bool/0-1 tensor with one entry per candidate; ``False``
+        positions are forced to ``-inf`` before softmaxing. Used by the
+        donor sampler to enforce per-step type compatibility against the
+        host's :class:`BoundarySignature`.
+        """
         value_embs = self.encode_values(value_feats)
         if value_embs.shape[0] == 0:
             return context.new_zeros((0,)), context.new_zeros((1,))
         ctx = context.unsqueeze(0).expand(value_embs.shape[0], -1)
         out_sum = output_summary.unsqueeze(0).expand(value_embs.shape[0], -1)
         logits = self.cut_head(torch.cat([value_embs, ctx, out_sum], dim=-1)).squeeze(-1)
+        if mask is not None:
+            mask = mask.to(device=logits.device, dtype=torch.bool)
+            if mask.shape != logits.shape:
+                raise ValueError(
+                    f"BoundaryRegionPolicy.cut_logits: mask shape "
+                    f"{tuple(mask.shape)} does not match logits "
+                    f"{tuple(logits.shape)}"
+                )
+            logits = logits.masked_fill(~mask, float("-inf"))
         stop = self.cut_stop_head(torch.cat([context, output_summary], dim=-1)).reshape(-1)
         return logits, stop
 
@@ -479,6 +522,159 @@ class GNNPatternMatcher:
             len(proposals),
             len(entries),
         )
+        return proposals
+
+    # ------------------------------------------------------------------
+    # M6b §6.7 — Track B: slot stamping (slot discovery)
+    # ------------------------------------------------------------------
+    def propose_slot_stampings(
+        self,
+        entries: list[AlgorithmEntry],
+        n: int = 4,
+    ) -> list[SlotStampingProposal]:
+        """Suggest *new* SESE regions to be stamped as slots.
+
+        Track B runs the same boundary policy as Track A but in
+        single-IR mode (``mask=None``): for each host genome, sample a
+        set of output values, then a set of cut values, build a SESE
+        region via :func:`define_rewrite_region`, validate that the
+        region is structurally cohesive, and reject any region whose
+        op-set overlaps an existing slot's transitive op set.
+
+        Returned :class:`SlotStampingProposal`\\s are consumed by the
+        orchestrator after a Case II graft succeeds: they are applied
+        via :func:`evolution.slot_dissolve.apply_slot_stamping` which
+        tags ops, inserts a fresh ``SlotMeta`` entry, and seeds a
+        :class:`SlotPopulation` whose first variant is a
+        :class:`SubgraphSnapshot` extracted from the stamped region.
+
+        Parameters
+        ----------
+        entries
+            Pool snapshot. Must already be encoded (caches populated by
+            a prior :meth:`__call__`); ``propose_slot_stampings`` does
+            not invoke the GNN trainer.
+        n
+            Maximum number of stamping proposals to emit across the
+            pool. Acts as a hard cap.
+
+        Returns
+        -------
+        list[SlotStampingProposal]
+        """
+        if n <= 0 or not entries:
+            return []
+        # Use whatever embeddings are already cached. Track B is a
+        # passive observer of the pool's structure; it does not retrain.
+        proposals: list[SlotStampingProposal] = []
+        context_cache: dict[str, dict[str, Any] | None] = {}
+        temperature = self._policy_temperature()
+        for entry in entries:
+            if len(proposals) >= n:
+                break
+            ctx = self._get_entry_context(entry, context_cache)
+            if ctx is None:
+                continue
+            ir = ctx["ir"]
+            # Skip if there's no slack for a new slot (every op is
+            # already tagged).
+            already_tagged: set[str] = set()
+            for key in (ir.slot_meta or {}).keys():
+                already_tagged |= set(ir.slot_full_op_ids(key))
+            untagged_ops = set(ir.ops.keys()) - already_tagged
+            if not untagged_ops:
+                continue
+            # ── Policy roll: outputs first ─────────────────────────
+            out_logits_list = self._compute_output_logits_batch([
+                {
+                    "candidate_feats_np": ctx["observable_feats_np"],
+                    # Use the host's own embedding as "context" — Track
+                    # B has no donor; the policy is being asked "find a
+                    # cohesive sub-DAG inside this IR".
+                    "context_emb_np": ctx["emb"].detach().cpu().numpy(),
+                }
+            ])
+            if not out_logits_list:
+                continue
+            out_logits, out_stop = out_logits_list[0]
+            outputs = self._sample_value_sequence(
+                ctx["observable_values"],
+                out_logits,
+                out_stop,
+                max_selected=self.max_boundary_outputs,
+                allow_empty=False,
+                temperature=temperature,
+                exploration=self.region_exploration,
+            )
+            if not outputs:
+                continue
+            # ── Cuts ───────────────────────────────────────────────
+            cut_ctx = self._get_cut_context(ctx, outputs)
+            if not cut_ctx["candidate_ids"]:
+                continue
+            cut_logits_list = self._compute_cut_logits_batch([
+                {
+                    "candidate_feats_np": cut_ctx["candidate_feats_np"],
+                    "context_emb_np": ctx["emb"].detach().cpu().numpy(),
+                    "output_summary_np": self._summarize_selected_value_feats(
+                        ctx["observable_values"],
+                        ctx["observable_feats_np"],
+                        outputs,
+                    ),
+                }
+            ])
+            if not cut_logits_list:
+                continue
+            cut_logits, cut_stop = cut_logits_list[0]
+            cuts = self._sample_value_sequence(
+                cut_ctx["candidate_ids"],
+                cut_logits,
+                cut_stop,
+                max_selected=self.max_cut_values,
+                allow_empty=True,
+                temperature=temperature,
+                exploration=self.region_exploration,
+            )
+            # ── Build & validate SESE region ───────────────────────
+            built = self._build_boundary_region(
+                ir, output_values=outputs, cut_values=cuts,
+            )
+            if built is None:
+                continue
+            region, validity = built
+            if not validity.is_valid:
+                continue
+            region_op_set = set(region.op_ids)
+            # Reject if the region overlaps any existing slot.
+            overlaps_existing = False
+            for key in (ir.slot_meta or {}).keys():
+                if region_op_set & set(ir.slot_full_op_ids(key)):
+                    overlaps_existing = True
+                    break
+            if overlaps_existing:
+                continue
+            # Suggest a deterministic pop_key derived from the op set.
+            import hashlib as _hashlib
+            digest = _hashlib.sha1(
+                ",".join(sorted(region_op_set)).encode("utf-8")
+            ).hexdigest()[:8]
+            suggested_key = f"auto_{digest}"
+            confidence = float(
+                1.0 / (1.0 + max(0.0, float(validity.n_inputs + validity.n_outputs)))
+            )
+            proposals.append(SlotStampingProposal(
+                host_algo_id=entry.algo_id,
+                op_ids=tuple(sorted(region_op_set)),
+                inputs=tuple(region.entry_values),
+                outputs=tuple(region.exit_values),
+                suggested_pop_key=suggested_key,
+                confidence=confidence,
+                rationale=(
+                    f"Track-B stamp: n_ops={validity.n_ops} "
+                    f"n_inputs={validity.n_inputs} "
+                    f"n_outputs={validity.n_outputs}"
+                ),
+            ))
         return proposals
 
     # ------------------------------------------------------------------
@@ -818,11 +1014,19 @@ class GNNPatternMatcher:
             info["host_contract"] = host_contract
             info["host_effective_outputs"] = list(host_region.provenance.get("effective_output_values", info["host_selected_outputs"]))
             info["host_effective_cuts"] = list(host_region.provenance.get("effective_cut_values", host_cuts))
+            # M6a §6.7: derive the typed boundary signature once the host
+            # region is built. The signature drives the donor-side type
+            # masks and is stamped on the proposal so the engine can log
+            # Case I/II/III dispatch counts and the trainer can record
+            # mask-empty aborts as negative samples.
+            host_signature = signature_for_region(info["host_ctx"]["ir"], host_region)
+            info["host_signature"] = host_signature
             host_region_metrics.append((host_validity.n_ops, host_validity.n_inputs, host_validity.n_outputs))
             effective_cut_sizes.append(len(info["host_effective_cuts"]))
             host_valid_infos.append(info)
 
-        # Donor outputs
+        # Donor outputs (batched logits — masking is applied per-step
+        # inside ``_sample_donor_under_signature`` below).
         for info, out in zip(
             host_valid_infos,
             self._compute_output_logits_batch([
@@ -835,54 +1039,33 @@ class GNNPatternMatcher:
         ):
             info["donor_output_logits"] = out
 
+        # Per-host signature-driven donor sampling. This replaces the
+        # previous "sample outputs → batch cut logits → sample cuts"
+        # flow with a positional, type-masked sampler. Aborts (all-zero
+        # mask at any step) are recorded as negative training samples
+        # under ``signature_mask_empty`` and the proposal is dropped.
         donor_cut_infos: list[dict[str, Any]] = []
         for info in host_valid_infos:
-            donor_outputs = self._sample_value_sequence(
-                info["donor_ctx"]["observable_values"],
-                info["donor_output_logits"][0],
-                info["donor_output_logits"][1],
-                max_selected=self.max_boundary_outputs,
-                allow_empty=False,
-                temperature=donor_temperature,
-                exploration=self.donor_exploration,
+            sig: BoundarySignature = info["host_signature"]
+            sampled = self._sample_donor_under_signature(
+                info, sig, donor_temperature,
             )
+            if sampled is None:
+                invalid_regions["signature_mask_empty"] = (
+                    invalid_regions.get("signature_mask_empty", 0) + 1
+                )
+                continue
+            donor_outputs, donor_cuts = sampled
             if not donor_outputs:
                 invalid_regions["donor_no_output"] = invalid_regions.get("donor_no_output", 0) + 1
                 continue
             info["donor_selected_outputs"] = donor_outputs
-            info["donor_cut_ctx"] = self._get_cut_context(info["donor_ctx"], donor_outputs)
+            info["donor_selected_cuts"] = donor_cuts
             donor_cut_infos.append(info)
-
-        # Donor cuts
-        for info, out in zip(
-            donor_cut_infos,
-            self._compute_cut_logits_batch([
-                {
-                    "candidate_feats_np": info["donor_cut_ctx"]["candidate_feats_np"],
-                    "context_emb_np": info["host_ctx"]["emb"].detach().cpu().numpy(),
-                    "output_summary_np": self._summarize_selected_value_feats(
-                        info["donor_ctx"]["observable_values"],
-                        info["donor_ctx"]["observable_feats_np"],
-                        info["donor_selected_outputs"],
-                    ),
-                }
-                for info in donor_cut_infos
-            ]),
-        ):
-            info["donor_cut_logits"] = out
 
         proposals: list[GraftProposal] = []
         for info in donor_cut_infos:
-            donor_cuts = self._sample_value_sequence(
-                info["donor_cut_ctx"]["candidate_ids"],
-                info["donor_cut_logits"][0],
-                info["donor_cut_logits"][1],
-                max_selected=self.max_cut_values,
-                allow_empty=True,
-                temperature=donor_temperature,
-                exploration=self.donor_exploration,
-            )
-            info["donor_selected_cuts"] = donor_cuts
+            donor_cuts = info["donor_selected_cuts"]
             donor_build = self._build_boundary_region(
                 info["donor_ctx"]["ir"],
                 output_values=info["donor_selected_outputs"],
@@ -905,6 +1088,14 @@ class GNNPatternMatcher:
             info["donor_validity"] = donor_validity
             info["donor_effective_outputs"] = list(donor_region.provenance.get("effective_output_values", info["donor_selected_outputs"]))
             info["donor_effective_cuts"] = list(donor_region.provenance.get("effective_cut_values", donor_cuts))
+            # M6a §6.4 + §6.5: classify the host region against the
+            # host's slot_meta so the engine can dispatch through the
+            # correct Case I / II / III pipeline.
+            host_ir = info["host_ctx"]["ir"]
+            classification = classify_region(
+                info["host_region"], host_ir.slot_meta or {}, host_ir,
+            )
+            info["region_classification"] = classification
             proposal = self._make_boundary_proposal(
                 info,
                 donor_trim=donor_trim,
@@ -963,6 +1154,17 @@ class GNNPatternMatcher:
             "contract_signature": dict(info["host_contract"].port_signature),
         })
         confidence = float(1.0 / (1.0 + max(float(info["pair_score"]), 0.0)))
+        classification = info.get("region_classification")
+        signature = info.get("host_signature")
+        case = classification.case if classification is not None else "II"
+        attrib_key = (
+            classification.attribution_slot_pop_key
+            if classification is not None else None
+        )
+        half_cut = (
+            classification.half_cut_slots
+            if classification is not None else ()
+        )
         return GraftProposal(
             proposal_id=proposal_id,
             host_algo_id=info["host_entry"].algo_id,
@@ -974,12 +1176,17 @@ class GNNPatternMatcher:
             dependency_overrides=[],
             confidence=confidence,
             rationale=(
-                f"BCIR graft: host_out={len(info['host_effective_outputs'])} "
+                f"BCIR graft (case {case}): "
+                f"host_out={len(info['host_effective_outputs'])} "
                 f"host_cut={len(info['host_effective_cuts'])} "
                 f"donor_out={len(info['donor_effective_outputs'])} "
                 f"donor_cut={len(info['donor_effective_cuts'])} "
                 f"pred_score={float(info['pair_score']):.3f}"
             ),
+            case=case,
+            attribution_slot_pop_key=attrib_key,
+            boundary_signature=signature,
+            half_cut_slots=tuple(half_cut),
         )
 
     def _append_experience(self, record: dict[str, Any]) -> None:
@@ -1176,6 +1383,189 @@ class GNNPatternMatcher:
 
     def _policy_temperature(self) -> float:
         return max(0.3, 2.0 - 0.04 * self._generation)
+
+    # ------------------------------------------------------------------
+    # M6a §6.7 — Signature-driven donor sampling
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _value_static_type(ir: FunctionIR, value_id: str) -> str:
+        """Best-effort static type tag for a value (mirrors graft_classifier)."""
+        val = ir.values.get(value_id)
+        if val is None:
+            return "unknown"
+        type_hint = getattr(val, "type_hint", None)
+        if type_hint:
+            return str(type_hint)
+        attrs = getattr(val, "attrs", None) or {}
+        for key in ("type", "static_type", "dtype"):
+            v = attrs.get(key)
+            if v:
+                return str(v)
+        return "unknown"
+
+    @staticmethod
+    def _types_compatible(donor_t: str, host_t: str) -> bool:
+        """Lattice subtype check tolerant of unknown / any tags.
+
+        ``unknown`` (or empty) on either side is treated as a wildcard so
+        the mask never fully zeroes a candidate purely for missing static
+        type info — the GNN policy still has to score it. The lattice
+        check is applied positionally (donor → host) so the typed-binder
+        downstream sees a port mapping it can accept.
+        """
+        if not host_t or host_t in ("unknown", "any", "object"):
+            return True
+        if not donor_t or donor_t in ("unknown", "any", "object"):
+            return True
+        try:
+            return is_subtype(donor_t, host_t) or is_subtype(host_t, donor_t)
+        except Exception:
+            return True  # fall back to permissive on lattice errors
+
+    def _build_donor_mask(
+        self,
+        donor_ir: FunctionIR,
+        candidate_ids: list[str],
+        already_chosen_idx: set[int],
+        host_type: str,
+    ) -> torch.Tensor:
+        """Per-step positional mask for donor candidates.
+
+        Returns a 1-D BoolTensor of length ``len(candidate_ids)``. Index
+        ``i`` is ``True`` iff (a) it has not already been picked at an
+        earlier step, and (b) the candidate's type is lattice-compatible
+        with ``host_type``.
+        """
+        mask = torch.zeros(len(candidate_ids), dtype=torch.bool)
+        for i, vid in enumerate(candidate_ids):
+            if i in already_chosen_idx:
+                continue
+            cand_t = self._value_static_type(donor_ir, vid)
+            if self._types_compatible(cand_t, host_type):
+                mask[i] = True
+        return mask
+
+    def _sample_under_signature_step(
+        self,
+        candidate_ids: list[str],
+        full_logits: torch.Tensor,
+        mask: torch.Tensor,
+        temperature: float,
+    ) -> int | None:
+        """Sample a single index from ``full_logits`` masked to eligible.
+
+        Returns ``None`` iff ``mask`` is all-zero — the caller must treat
+        this as an "all-zero mask abort" (negative training sample, no
+        fallback per §6.7).
+        """
+        if not bool(mask.any()):
+            return None
+        # Apply mask to the policy's already-computed logits.
+        logits = full_logits.detach().clone()
+        if logits.shape[0] != mask.shape[0]:
+            # Defensive: lengths must match. Treat as a hard abort.
+            return None
+        logits = logits.masked_fill(~mask, float("-inf"))
+        temp = max(float(temperature), 1e-3)
+        scaled = logits / temp
+        # Softmax with safe handling of all -inf would still be unsafe
+        # (already guarded by ``mask.any()``).
+        probs = torch.softmax(scaled, dim=0)
+        # Numerical guard: replace any NaN with zero on masked-out rows.
+        probs = torch.nan_to_num(probs, nan=0.0, posinf=0.0, neginf=0.0)
+        if float(probs.sum().item()) <= 0.0:
+            return None
+        idx = int(torch.multinomial(probs, 1).item())
+        return idx
+
+    def _sample_donor_under_signature(
+        self,
+        info: dict[str, Any],
+        signature: BoundarySignature,
+        donor_temperature: float,
+    ) -> tuple[list[str], list[str]] | None:
+        """Sample donor outputs/cuts per :class:`BoundarySignature` (§6.7).
+
+        For each host **exit** port (positional), build a type-mask over
+        donor observable values and sample one. Then for each host
+        **entry** port (positional), build a type-mask over donor cut
+        candidates and sample one. The cut-candidate set depends on the
+        sampled outputs, so cut logits are computed *after* outputs are
+        chosen (one batched call per donor info).
+
+        Returns ``(selected_outputs, selected_cuts)`` on success or
+        ``None`` if any step has an all-zero mask. ``None`` is the
+        proposal abort signal — the caller records this as a negative
+        training sample and does **not** fall back to permissive sampling.
+        """
+        donor_ctx = info["donor_ctx"]
+        donor_ir = donor_ctx["ir"]
+        observable_values: list[str] = list(donor_ctx["observable_values"])
+        # ── Step 1: outputs, positional over signature.exit_types ──
+        if not signature.exit_types:
+            return None
+        full_out_logits = info["donor_output_logits"][0]
+        if full_out_logits.shape[0] != len(observable_values):
+            return None
+        chosen_out_idx: set[int] = set()
+        selected_outputs: list[str] = []
+        # Cap the number of donor outputs we sample at the smaller of
+        # signature arity and the matcher's configured cap, so that
+        # downstream region-build limits are respected.
+        n_out = min(len(signature.exit_types), self.max_boundary_outputs)
+        for step in range(n_out):
+            host_t = signature.exit_types[step]
+            mask = self._build_donor_mask(
+                donor_ir, observable_values, chosen_out_idx, host_t,
+            )
+            idx = self._sample_under_signature_step(
+                observable_values, full_out_logits, mask, donor_temperature,
+            )
+            if idx is None:
+                return None  # all-zero mask → abort
+            chosen_out_idx.add(idx)
+            selected_outputs.append(observable_values[idx])
+        # ── Step 2: cuts, positional over signature.entry_types ──
+        cut_ctx = self._get_cut_context(donor_ctx, selected_outputs)
+        cut_ids: list[str] = list(cut_ctx["candidate_ids"])
+        info["donor_cut_ctx"] = cut_ctx
+        # Compute cut logits for this donor info now that outputs are fixed.
+        cut_logit_pair_list = self._compute_cut_logits_batch([
+            {
+                "candidate_feats_np": cut_ctx["candidate_feats_np"],
+                "context_emb_np": info["host_ctx"]["emb"].detach().cpu().numpy(),
+                "output_summary_np": self._summarize_selected_value_feats(
+                    observable_values,
+                    donor_ctx["observable_feats_np"],
+                    selected_outputs,
+                ),
+            }
+        ])
+        if not cut_logit_pair_list:
+            return None
+        info["donor_cut_logits"] = cut_logit_pair_list[0]
+        full_cut_logits = info["donor_cut_logits"][0]
+        if full_cut_logits.shape[0] != len(cut_ids):
+            # Mismatch can only happen for empty cut sets; treat as abort.
+            if not cut_ids and not signature.entry_types:
+                return selected_outputs, []
+            return None
+        chosen_cut_idx: set[int] = set()
+        selected_cuts: list[str] = []
+        n_cut = min(len(signature.entry_types), self.max_cut_values)
+        for step in range(n_cut):
+            host_t = signature.entry_types[step]
+            mask = self._build_donor_mask(
+                donor_ir, cut_ids, chosen_cut_idx, host_t,
+            )
+            idx = self._sample_under_signature_step(
+                cut_ids, full_cut_logits, mask, donor_temperature,
+            )
+            if idx is None:
+                return None  # all-zero mask → abort
+            chosen_cut_idx.add(idx)
+            selected_cuts.append(cut_ids[idx])
+        return selected_outputs, selected_cuts
 
     def _build_boundary_region(
         self,

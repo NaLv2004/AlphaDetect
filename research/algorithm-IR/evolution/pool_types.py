@@ -285,13 +285,14 @@ class AlgorithmGenome:
     def to_entry(
         self,
         fitness: FitnessResult | None = None,
-        use_fii_view: bool = True,  # kept for API compat; ignored — single IR is always exposed
+        **_legacy_kwargs: Any,
     ) -> AlgorithmEntry:
         """Convert this genome into an AlgorithmEntry for PatternMatcher.
 
-        With the single-IR refactor, ``use_fii_view`` is a no-op kept for
-        call-site compatibility — the canonical flat annotated IR is the
-        only IR there is, and it is always exposed as ``entry.ir``.
+        With the single-IR / annotation-only refactor, the canonical flat
+        annotated IR is the only IR there is and is always exposed as
+        ``entry.ir``. ``**_legacy_kwargs`` swallows obsolete arguments
+        (e.g. ``use_fii_view``) so older call-sites do not break.
         """
         from algorithm_ir.regeneration.codegen import emit_python_source
 
@@ -362,10 +363,9 @@ class AlgorithmEntry:
     slot_tree: dict[str, SlotDescriptor] | None = None
     slot_fitness: dict[str, float] | None = None
 
-    # FII view: set when ``to_entry(use_fii_view=True)`` succeeded.
-    # When non-None, grafting should operate on this IR (which has no
-    # algslot ops) and produce flat-genome offspring. When None, fall
-    # back to structural_ir flow.
+    # FII view: legacy alias kept on the dataclass so older code paths
+    # that read ``entry.fii_ir`` continue to receive the canonical IR.
+    # In the annotation-only model this is always identical to ``ir``.
     fii_ir: FunctionIR | None = None
 
 
@@ -412,6 +412,21 @@ class GraftProposal:
     confidence: float = 0.5
     rationale: str = ""
 
+    # ── M6a §6.5 dispatch fields ──────────────────────────────────────
+    # Set by the GNN matcher (or any caller) so the engine can route
+    # the splice through Case I / II / III without re-classifying. The
+    # canonical values are "I", "II", "III"; legacy callers that omit
+    # ``case`` default to "II" (free-form splice).
+    case: str = "II"
+    # For Case I only: the slot pop_key whose body is being replaced.
+    attribution_slot_pop_key: str | None = None
+    # Typed-port signature recorded at proposal time (used for telemetry
+    # and to drive donor-mask sampling). ``None`` for legacy callers.
+    boundary_signature: Any | None = None  # BoundarySignature
+    # For Case III only: the half-cut slot pop_keys that must be
+    # dissolved before splicing. Empty tuple for Case I/II.
+    half_cut_slots: tuple[str, ...] = ()
+
 
 # ---------------------------------------------------------------------------
 # PatternMatcherFn — type alias for the matcher callback
@@ -421,6 +436,36 @@ PatternMatcherFn = Callable[
     [list[AlgorithmEntry], int],    # (current pool, current generation)
     list[GraftProposal],            # returned graft proposals
 ]
+
+
+# ---------------------------------------------------------------------------
+# SlotStampingProposal — Track B (M6b §6.7) auto-discovered slot
+# ---------------------------------------------------------------------------
+
+@dataclass
+class SlotStampingProposal:
+    """A "stamp this region as a new slot" suggestion (Track B).
+
+    Emitted by :meth:`GNNPatternMatcher.propose_slot_stampings` after the
+    boundary policy is run in *single-IR* mode (mask=None) to identify
+    a cohesive entry/exit-bounded sub-DAG that does not yet belong to
+    any existing slot. The orchestrator's post-Case-II hook either
+    accepts the proposal — tagging ops with ``slot_id``, inserting a
+    new ``SlotMeta`` entry, and spawning a fresh ``SlotPopulation``
+    seeded with the region's :class:`SubgraphSnapshot` — or discards it
+    if the region is no longer SESE-valid in the post-graft IR.
+
+    Track B reward: a stamped slot earns +1 if any subsequent
+    micro-evolution variant of it passes the R6 behavior gate **and**
+    improves fitness over the seeded variant.
+    """
+    host_algo_id: str
+    op_ids: tuple[str, ...]
+    inputs: tuple[str, ...]
+    outputs: tuple[str, ...]
+    suggested_pop_key: str
+    confidence: float = 0.5
+    rationale: str = ""
 
 
 # ---------------------------------------------------------------------------
@@ -484,10 +529,10 @@ class AlgorithmEvolutionConfig:
     depth_decay: float = 0.7
     allow_cross_level_graft: bool = True
 
-    # Fully-Inlined IR (FII) view. When True, the GNN sees slot internals
-    # as first-class ops (not opaque algslot atoms) and grafts operate on
-    # the inlined IR. Grafted offspring are FLAT (no slot populations) —
-    # micro-evolution has no effect on them. See ``evolution/fii.py``.
-    use_fii_view: bool = False
+    # Fully-Inlined IR (FII) is no longer maintained as a separate view —
+    # the canonical IR is always flat-annotated. ``use_fii_view`` was a
+    # boolean on this config; it is intentionally removed (M5) so any
+    # caller still passing it triggers a TypeError instead of silently
+    # configuring a non-existent code path.
 
     seed: int = 42

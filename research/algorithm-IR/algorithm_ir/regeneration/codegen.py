@@ -324,20 +324,13 @@ def _emit_op(ctx: _ExprCtx, op: Op, indent: int) -> None:
         return
 
     if op.opcode == "slot":
-        # Render slot as a function call placeholder with arguments
-        args = [ctx.expr(v) for v in op.inputs]
-        placeholder = f"__slot_{op.id}__"
-        expr = f"{placeholder}({', '.join(args)})"
-        if op.outputs:
-            out_val = func_ir.values.get(op.outputs[0])
-            var = out_val.attrs.get("var_name") if out_val else None
-            if var:
-                ctx.emit(indent, f"{var} = {expr}")
-                ctx.register(op.outputs[0], var)
-            else:
-                ctx.register(op.outputs[0], expr)
-        else:
-            ctx.emit(indent, expr)
+        # Annotation-only slot model (M5 cleanup). The legacy AlgSlot op is
+        # no longer emitted into FunctionIR — slot membership is recorded as
+        # ``op.attrs["slot_id"]`` on the inlined ops, and ``ir.slot_meta``
+        # tracks the canonical region. Any residual ``slot`` op is emitted
+        # as a comment so generated source remains valid Python.
+        slot_name = op.attrs.get("slot_id", op.id)
+        ctx.emit(indent, f"# slot: {slot_name}")
         return
 
     # Fallback: emit as comment
