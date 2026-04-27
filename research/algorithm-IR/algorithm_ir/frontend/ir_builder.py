@@ -12,7 +12,7 @@ import ast
 import builtins
 import itertools
 import types as pytypes
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from xdsl.dialects.builtin import IntegerAttr, ModuleOp, StringAttr, i64
@@ -84,6 +84,9 @@ SUPPORTED_AST = (
     ast.And,
     ast.Or,
     ast.Slice,
+    # Slot DSL
+    ast.With,
+    ast.withitem,
 )
 
 # Python type annotation name → IR type hint
@@ -158,6 +161,11 @@ class BuildState:
     global_constants: dict[str, str]
     name_versions: dict[str, int]
     name_env: dict[str, str]
+    # Slot stack (innermost last). Each frame: (pop_key, entry_value_ids,
+    # output_names, op_ids_collected, parent_pop_key)
+    slot_stack: list[dict[str, Any]] = field(default_factory=list)
+    # Completed slots (pop_key -> SlotMeta-shaped dict). Order preserved.
+    slot_meta: dict[str, dict[str, Any]] = field(default_factory=dict)
 
 
 class IRBuilder:
@@ -274,6 +282,8 @@ class IRBuilder:
             self._compile_while(stmt)
         elif isinstance(stmt, ast.For):
             self._compile_for(stmt)
+        elif isinstance(stmt, ast.With):
+            self._compile_with(stmt)
         else:
             raise NotImplementedError(f"Unsupported statement {type(stmt).__name__}")
 
@@ -463,6 +473,119 @@ class IRBuilder:
             if name not in post_env:
                 post_env[name] = vid
         self.state.name_env = post_env
+
+    # ------------------------------------------------------------------
+    # Slot DSL: `with slot(name, inputs=(...), outputs=("a","b")): body`
+    # ------------------------------------------------------------------
+
+    def _compile_with(self, stmt: ast.With) -> None:
+        if len(stmt.items) != 1:
+            raise NotImplementedError(
+                f"`with` must have exactly one item; got {len(stmt.items)} at {source_span(stmt)}"
+            )
+        item = stmt.items[0]
+        if item.optional_vars is not None:
+            raise NotImplementedError(
+                f"`with slot(...) as X` not supported (no `as` clause); at {source_span(stmt)}"
+            )
+        ctx = item.context_expr
+        if not (isinstance(ctx, ast.Call)
+                and isinstance(ctx.func, ast.Name)
+                and ctx.func.id == "slot"):
+            raise NotImplementedError(
+                "Only `with slot(name, inputs=..., outputs=...):` is supported "
+                f"as a `with` context at {source_span(stmt)}"
+            )
+
+        # Parse positional name (single str literal)
+        if (len(ctx.args) != 1
+                or not isinstance(ctx.args[0], ast.Constant)
+                or not isinstance(ctx.args[0].value, str)):
+            raise SyntaxError(
+                f"slot(...) expects a single string-literal name at {source_span(stmt)}"
+            )
+        pop_key: str = ctx.args[0].value
+
+        # Parse kwargs: inputs=(name1, name2, ...), outputs=("a","b")
+        kwargs = {kw.arg: kw.value for kw in ctx.keywords}
+        if "inputs" not in kwargs or "outputs" not in kwargs:
+            raise SyntaxError(
+                f"slot('{pop_key}') requires `inputs=(...)` and `outputs=(...)` kwargs"
+            )
+
+        # inputs: tuple/list of ast.Name → resolve to current SSA value-ids
+        inputs_node = kwargs["inputs"]
+        if not isinstance(inputs_node, (ast.Tuple, ast.List)):
+            raise SyntaxError(
+                f"slot('{pop_key}') inputs must be a tuple/list literal of names"
+            )
+        entry_value_ids: list[str] = []
+        for el in inputs_node.elts:
+            if not isinstance(el, ast.Name):
+                raise SyntaxError(
+                    f"slot('{pop_key}') inputs entries must be plain names; got {ast.dump(el)}"
+                )
+            if el.id not in self.state.name_env:
+                raise SyntaxError(
+                    f"slot('{pop_key}') input name '{el.id}' is not bound at slot entry"
+                )
+            entry_value_ids.append(self.state.name_env[el.id])
+
+        # outputs: tuple/list of string literals — declared output variable names
+        outputs_node = kwargs["outputs"]
+        if not isinstance(outputs_node, (ast.Tuple, ast.List)):
+            raise SyntaxError(
+                f"slot('{pop_key}') outputs must be a tuple/list of string literals"
+            )
+        output_names: list[str] = []
+        for el in outputs_node.elts:
+            if not (isinstance(el, ast.Constant) and isinstance(el.value, str)):
+                raise SyntaxError(
+                    f"slot('{pop_key}') outputs must contain string literals; got {ast.dump(el)}"
+                )
+            output_names.append(el.value)
+
+        # Reject duplicate slot keys in the same function (would corrupt slot_meta).
+        if pop_key in self.state.slot_meta or any(
+            f["pop_key"] == pop_key for f in self.state.slot_stack
+        ):
+            raise SyntaxError(
+                f"duplicate slot pop_key '{pop_key}' in function"
+            )
+
+        parent_key = self.state.slot_stack[-1]["pop_key"] if self.state.slot_stack else None
+
+        frame = {
+            "pop_key": pop_key,
+            "entry_value_ids": tuple(entry_value_ids),
+            "output_names": tuple(output_names),
+            "op_ids": [],
+            "parent": parent_key,
+        }
+        self.state.slot_stack.append(frame)
+        try:
+            for body_stmt in stmt.body:
+                self._compile_stmt(body_stmt)
+        finally:
+            self.state.slot_stack.pop()
+
+        # Resolve declared output names to current SSA value-ids
+        exit_value_ids: list[str] = []
+        for nm in output_names:
+            if nm not in self.state.name_env:
+                raise SyntaxError(
+                    f"slot('{pop_key}') declared output '{nm}' is not bound at slot exit"
+                )
+            exit_value_ids.append(self.state.name_env[nm])
+
+        self.state.slot_meta[pop_key] = {
+            "pop_key": pop_key,
+            "op_ids": tuple(frame["op_ids"]),
+            "inputs": tuple(entry_value_ids),
+            "outputs": tuple(exit_value_ids),
+            "output_names": tuple(output_names),
+            "parent": parent_key,
+        }
 
     # ------------------------------------------------------------------
     # Expression-level control flow (S1.0)
@@ -1103,6 +1226,11 @@ class IRBuilder:
         """Register an op in state: ops dict, block op_ids, def/use tracking."""
         self.state.ops[op.id] = op
         self.state.blocks[op.block_id].op_ids.append(op.id)
+        # Slot tagging: only the innermost enclosing slot owns the op.
+        if self.state.slot_stack:
+            innermost = self.state.slot_stack[-1]
+            op.attrs["slot_id"] = innermost["pop_key"]
+            innermost["op_ids"].append(op.id)
         for out in op.outputs:
             self.state.values[out].def_op = op.id
         for inp in op.inputs:
@@ -1429,7 +1557,22 @@ class IRBuilder:
             xdsl_func=func,
             xdsl_op_map=self._xdsl_op_map,
             xdsl_block_map=xdsl_block_map,
+            slot_meta=self._build_slot_meta_objects(),
         )
+
+    def _build_slot_meta_objects(self) -> dict[str, "SlotMeta"]:  # noqa: F821
+        from algorithm_ir.ir.model import SlotMeta as _SlotMeta
+        return {
+            k: _SlotMeta(
+                pop_key=v["pop_key"],
+                op_ids=tuple(v["op_ids"]),
+                inputs=tuple(v["inputs"]),
+                outputs=tuple(v["outputs"]),
+                output_names=tuple(v["output_names"]),
+                parent=v.get("parent"),
+            )
+            for k, v in self.state.slot_meta.items()
+        }
 
 
 def compile_function_to_ir(fn: pytypes.FunctionType) -> FunctionIR:

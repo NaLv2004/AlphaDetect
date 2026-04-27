@@ -129,4 +129,92 @@ def validate_function_ir(func_ir: FunctionIR) -> list[str]:
                 errors.append(f"Value {value_id} references missing use op {use_op}")
 
     errors.extend(validate_def_use(func_ir))
+    errors.extend(validate_slot_meta(func_ir))
+    return errors
+
+
+def validate_slot_meta(func_ir: FunctionIR) -> list[str]:
+    """Verify FunctionIR.slot_meta is internally consistent.
+
+    Invariants:
+      * every op tagged ``slot_id=K`` is recorded in ``slot_meta[K].op_ids``
+        (innermost-tag rule);
+      * every input value of slot K is defined OUTSIDE ``slot_full_op_ids(K)``
+        OR is a function arg;
+      * every output value of slot K is defined INSIDE ``slot_full_op_ids(K)``;
+      * parent chain has no cycles, and every parent key exists in slot_meta.
+    """
+    errors: list[str] = []
+    sm = getattr(func_ir, "slot_meta", None) or {}
+    if not sm:
+        return errors
+
+    # Parent-chain integrity.
+    for key, meta in sm.items():
+        if meta.parent is not None and meta.parent not in sm:
+            errors.append(f"slot {key} has unknown parent {meta.parent}")
+    for key in sm:
+        seen = {key}
+        cur = sm[key].parent
+        depth = 0
+        while cur is not None:
+            if cur in seen:
+                errors.append(f"slot {key} has parent cycle through {cur}")
+                break
+            seen.add(cur)
+            cur = sm.get(cur).parent if cur in sm else None
+            depth += 1
+            if depth > len(sm) + 1:
+                errors.append(f"slot {key} parent chain too deep")
+                break
+
+    # Innermost-tag rule.
+    tagged: dict[str, list[str]] = {}
+    for oid, op in func_ir.ops.items():
+        sid = op.attrs.get("slot_id") if op.attrs else None
+        if sid:
+            tagged.setdefault(sid, []).append(oid)
+    for key, oids in tagged.items():
+        if key not in sm:
+            errors.append(f"op tagged slot_id={key} but slot_meta has no entry")
+            continue
+        declared = set(sm[key].op_ids)
+        extra = set(oids) - declared
+        missing = declared - set(oids)
+        if extra:
+            errors.append(
+                f"slot {key}: ops {sorted(extra)} tagged but not in op_ids"
+            )
+        if missing:
+            errors.append(
+                f"slot {key}: op_ids contains {sorted(missing)} not present/tagged in IR"
+            )
+
+    arg_set = set(func_ir.arg_values)
+    for key, meta in sm.items():
+        full_ops = func_ir.slot_full_op_ids(key)
+        # Inputs: defined outside or arg.
+        for vid in meta.inputs:
+            v = func_ir.values.get(vid)
+            if v is None:
+                errors.append(f"slot {key}: input value {vid} unknown")
+                continue
+            if v.def_op and v.def_op in full_ops:
+                errors.append(
+                    f"slot {key}: input {vid} defined inside slot by {v.def_op}"
+                )
+            elif v.def_op is None and vid not in arg_set:
+                errors.append(
+                    f"slot {key}: input {vid} has no def and is not a func arg"
+                )
+        # Outputs: defined inside.
+        for vid in meta.outputs:
+            v = func_ir.values.get(vid)
+            if v is None:
+                errors.append(f"slot {key}: output value {vid} unknown")
+                continue
+            if v.def_op is None or v.def_op not in full_ops:
+                errors.append(
+                    f"slot {key}: output {vid} not defined inside slot (def_op={v.def_op})"
+                )
     return errors

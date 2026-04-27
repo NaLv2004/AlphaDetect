@@ -40,6 +40,22 @@ class Block:
     attrs: dict[str, Any] = field(default_factory=dict)
 
 
+@dataclass
+class SlotMeta:
+    """Boundary metadata for a `with slot(...)` block declared in source.
+
+    Slots may nest. ``op_ids`` lists ops whose **innermost** enclosing
+    slot is this one; nested-slot ops live under the child entry. Use
+    ``FunctionIR.slot_full_op_ids`` to get the transitive set.
+    """
+    pop_key: str
+    op_ids: tuple[str, ...]
+    inputs: tuple[str, ...]
+    outputs: tuple[str, ...]
+    output_names: tuple[str, ...]
+    parent: str | None = None
+
+
 class FunctionIR:
     """
     Thin wrapper over an xDSL ModuleOp containing a single function.
@@ -65,6 +81,7 @@ class FunctionIR:
         xdsl_func: FuncOp | None = None,
         xdsl_op_map: dict[str, Any] | None = None,
         xdsl_block_map: dict[str, Any] | None = None,
+        slot_meta: dict[str, SlotMeta] | None = None,
     ) -> None:
         self.id = id
         self.name = name
@@ -79,6 +96,34 @@ class FunctionIR:
         self.xdsl_func = xdsl_func
         self.xdsl_op_map = xdsl_op_map or {}
         self.xdsl_block_map = xdsl_block_map or {}
+        self.slot_meta: dict[str, SlotMeta] = dict(slot_meta) if slot_meta else {}
+
+    # ------------------------------------------------------------------
+    # Slot metadata helpers
+    # ------------------------------------------------------------------
+    def slot_children(self, pop_key: str | None) -> list[str]:
+        """Return pop_keys whose ``parent`` equals ``pop_key`` (None = roots)."""
+        return [k for k, m in self.slot_meta.items() if m.parent == pop_key]
+
+    def slot_full_op_ids(self, pop_key: str) -> set[str]:
+        """All ops belonging to ``pop_key`` or any descendant slot."""
+        if pop_key not in self.slot_meta:
+            return set()
+        result: set[str] = set(self.slot_meta[pop_key].op_ids)
+        # BFS over descendants
+        frontier = [pop_key]
+        seen = {pop_key}
+        while frontier:
+            nxt: list[str] = []
+            for k in frontier:
+                for c in self.slot_children(k):
+                    if c in seen:
+                        continue
+                    seen.add(c)
+                    result.update(self.slot_meta[c].op_ids)
+                    nxt.append(c)
+            frontier = nxt
+        return result
 
     @classmethod
     def from_xdsl(cls, module) -> "FunctionIR":
@@ -407,6 +452,17 @@ class FunctionIR:
             xdsl_module=self.xdsl_module,
             xdsl_op_map=dict(self.xdsl_op_map) if self.xdsl_op_map else {},
             xdsl_block_map=dict(self.xdsl_block_map) if self.xdsl_block_map else {},
+            slot_meta={
+                k: SlotMeta(
+                    pop_key=m.pop_key,
+                    op_ids=tuple(m.op_ids),
+                    inputs=tuple(m.inputs),
+                    outputs=tuple(m.outputs),
+                    output_names=tuple(m.output_names),
+                    parent=m.parent,
+                )
+                for k, m in self.slot_meta.items()
+            },
         )
 
 
