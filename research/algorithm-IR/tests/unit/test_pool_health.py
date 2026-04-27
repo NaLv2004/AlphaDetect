@@ -36,9 +36,9 @@ def test_pool_rejection_manifest_recorded():
 def test_pool_size_matches_expected_baseline():
     """Lock current pool size so accidental rejection regressions are loud."""
     pool = build_ir_pool(np.random.default_rng(42))
-    # M2 (annotation-only slots): 8 core L3 detectors, all flatten to a valid IR.
-    # The legacy ~80 skeleton-library extended specs were dropped.
-    assert len(pool) == 8, (
-        f"pool size changed from baseline 8 to {len(pool)}; "
+    # M2-expansion (annotation-only slots): 8 core L3 detectors + 83 extended
+    # long-tail templates auto-converted from the legacy skeleton library.
+    assert len(pool) == 91, (
+        f"pool size changed from baseline 91 to {len(pool)}; "
         f"rejections: {_POOL_REJECTIONS[:3]}"
     )

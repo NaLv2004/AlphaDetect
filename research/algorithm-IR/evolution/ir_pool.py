@@ -41,6 +41,8 @@ from evolution.algorithm_pool import (
     _lmmse_slots, _zf_slots, _osic_slots, _kbest_slots,
     _bp_slots, _ep_slots, _amp_slots, _stack_slots,
 )
+from evolution.skeleton_registry import ProgramSpec
+from evolution.pool_types import SlotDescriptor
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -749,6 +751,67 @@ _DETECTOR_SPECS: list[_DetectorSpec] = [
         tags={"original", "inference"},
     ),
 ]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Extended detector pool — 83 long-tail templates auto-converted from the
+# legacy ``skeleton_library.py`` (see ``scripts/convert_legacy_skeletons.py``).
+# Each template is in annotation-only ``with slot(...)`` form; SlotDescriptors
+# are synthesised on the fly from ``slot_meta`` since the legacy library did
+# not maintain per-slot type metadata for these templates.
+# ═══════════════════════════════════════════════════════════════════════════
+from evolution.extended_pool import EXTENDED_DETECTOR_TEMPLATES as _EXT_TPLS
+
+
+def _make_extended_slot_defs_fn(template_entry: dict):
+    """Return a ``slot_defs_fn`` that synthesises ``SlotDescriptor`` entries
+    for each slot declared in a converted extended template.
+    """
+    algo_id = template_entry["algo_id"]
+    level = int(template_entry.get("level", 3))
+    tags = set(template_entry.get("tags", []))
+    slot_decls: list[tuple[str, list[str], list[str]]] = template_entry["slots"]
+
+    def _fn() -> dict[str, SlotDescriptor]:
+        out: dict[str, SlotDescriptor] = {}
+        for pop_key, inputs, outputs in slot_decls:
+            short = pop_key.split(".", 1)[1] if "." in pop_key else pop_key
+            # Synthesise a generic ProgramSpec; the legacy library did not
+            # carry per-slot type info for these long-tail templates.
+            spec = ProgramSpec(
+                name=short,
+                param_names=list(inputs),
+                param_types=["any"] * len(inputs),
+                return_type="any",
+            )
+            # Slot level: detectors are 3, sub-modules 2, primitive ops 1.
+            # Per-slot level is one below the owning algorithm.
+            slot_level = max(0, level - 1)
+            out[pop_key] = SlotDescriptor(
+                slot_id=pop_key,
+                short_name=short,
+                level=slot_level,
+                depth=0,
+                parent_slot_id=None,
+                spec=spec,
+                description=f"auto: {algo_id}.{short}",
+                domain_tags=tags,
+            )
+        return out
+
+    return _fn
+
+
+for _tpl in _EXT_TPLS:
+    _DETECTOR_SPECS.append(
+        _DetectorSpec(
+            algo_id=_tpl["algo_id"],
+            source=_tpl["source"],
+            func_name=_tpl["func_name"],
+            slot_defs_fn=_make_extended_slot_defs_fn(_tpl),
+            tags=set(_tpl["tags"]) | {"original", "extended"},
+        )
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════════
