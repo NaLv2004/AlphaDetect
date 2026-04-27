@@ -22,6 +22,7 @@ sys.stderr.reconfigure(line_buffering=True)
 # held an xdsl op + numpy array combination.  Disabled by default; re-enable
 # manually with TRAIN_GNN_WATCHDOG_SEC env var.
 import faulthandler
+import threading
 faulthandler.enable()
 try:
     _wd = int(os.environ.get("TRAIN_GNN_WATCHDOG_SEC", "0") or 0)
@@ -438,6 +439,30 @@ def _collect_return_slice(ir) -> tuple[set[str], set[str]]:
     return slice_values, slice_ops
 
 
+def _call_with_timeout(fn, args, timeout: float):
+    """Run fn(*args) in a daemon thread with a wall-clock timeout.
+
+    Materialized detector code from evolution can contain non-terminating loops;
+    daemon threads ensure abandoned executions do not block process exit.
+    """
+    out: dict = {}
+
+    def _runner():
+        try:
+            out["result"] = fn(*args)
+        except BaseException as exc:  # noqa: BLE001
+            out["error"] = exc
+
+    t = threading.Thread(target=_runner, daemon=True)
+    t.start()
+    t.join(timeout=timeout)
+    if t.is_alive():
+        raise TimeoutError(f"materialized detector exceeded {timeout:.1f}s")
+    if "error" in out:
+        raise out["error"]
+    return out.get("result")
+
+
 def _compile_materialized_callable(genome: AlgorithmGenome) -> tuple[Callable | None, str | None, str | None]:
     try:
         source = materialize(genome)
@@ -565,8 +590,8 @@ def _analyse_effective_graft(
             total_symbols = 0
             for H, _x_true, y, sigma2, constellation in probes:
                 try:
-                    host_out = host_fn(H, y, sigma2, constellation)
-                    child_out = child_fn(H, y, sigma2, constellation)
+                    host_out = _call_with_timeout(host_fn, (H, y, sigma2, constellation), timeout=5.0)
+                    child_out = _call_with_timeout(child_fn, (H, y, sigma2, constellation), timeout=5.0)
                     host_sym = _nearest_constellation_symbols(np.asarray(host_out), constellation)
                     child_sym = _nearest_constellation_symbols(np.asarray(child_out), constellation)
                 except Exception:
