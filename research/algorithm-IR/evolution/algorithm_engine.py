@@ -28,7 +28,7 @@ from evolution.pool_types import (
     PatternMatcherFn,
     SlotPopulation,
 )
-from evolution.ir_pool import build_ir_pool, find_algslot_ops
+from evolution.ir_pool import build_ir_pool
 from evolution.operators import mutate_ir, crossover_ir
 from evolution.random_program import random_ir_program
 from evolution.materialize import materialize_with_override
@@ -406,19 +406,34 @@ class AlgorithmEvolutionEngine:
             self.population = [g for g, _ in survivors]
             self.fitness = [f for _, f in survivors]
 
-            # ---- Periodic auto-slot rediscovery (S5) ----
-            # Every ``period`` generations (or whenever a genome has been
-            # fully dissolved), enumerate cohesive op windows and emit
-            # new ``SlotPopulation`` shells for micro-evolution to use.
+            # ---- Periodic auto-slot rediscovery (M7: Track B) ----
+            # Every ``period`` generations, run the GNN's Track B slot
+            # stamping over each genome to surface cohesive op-windows
+            # as new ``SlotPopulation`` shells for micro-evolution.
             try:
-                from evolution.slot_rediscovery import maybe_rediscover_slots
                 _redis_period = int(getattr(cfg, "rediscovery_period", 20))
-                for _g in self.population:
-                    maybe_rediscover_slots(
-                        _g, self.generation, period=_redis_period,
-                    )
+                if (
+                    _redis_period > 0
+                    and self.generation > 0
+                    and self.generation % _redis_period == 0
+                    and hasattr(self.pattern_matcher, "propose_slot_stampings")
+                ):
+                    from evolution.slot_dissolve import apply_slot_stamping
+                    for _g in self.population:
+                        try:
+                            _entry = _g.to_entry(None)
+                            _stamps = self.pattern_matcher.propose_slot_stampings(
+                                [_entry], n=2,
+                            )
+                            for _sp in _stamps:
+                                apply_slot_stamping(_g, _sp)
+                        except Exception as _exc_g:
+                            logger.debug(
+                                "Track B (periodic) skipped on %s: %r",
+                                _g.algo_id, _exc_g,
+                            )
             except Exception as _exc:
-                logger.warning("rediscovery pass failed: %r", _exc)
+                logger.warning("Track B periodic pass failed: %r", _exc)
 
             self._remember_genomes(self.population)
             self.last_generation_stats = {
@@ -1322,17 +1337,11 @@ class AlgorithmEvolutionEngine:
                     best_idx=0,
                 )
 
-        # Refresh slot annotations on the post-graft IR for Case II/III
-        # (Case I already rebuilt its meta entry above). Donor-cloned
-        # ops may carry stale tags from the donor's slot context;
-        # rediscovery scans cohesive contiguous regions and writes /
-        # updates annotations so the GNN sees a consistent view.
-        if case != "I":
-            try:
-                from evolution.slot_rediscovery import maybe_rediscover_slots
-                maybe_rediscover_slots(child, self.generation, period=1)
-            except Exception as exc:
-                logger.debug("post-graft rediscovery skipped: %r", exc)
+        # M7: Case II/III post-graft slot refresh is handled by the
+        # Track B hook in the macro-graft loop (see __call__). The
+        # legacy ``maybe_rediscover_slots`` heuristic has been deleted.
+        # No-op here to preserve the call site for potential future
+        # per-graft annotation passes.
 
         return child
 

@@ -8,7 +8,6 @@ evaluation boundary (evaluator.evaluate_source_quick).
 Public surface:
 
 * ``canonical_ir_hash(ir)`` — structural hash of FunctionIR
-* ``resolve_slot_region(genome, slot_key)`` — three-tier region resolver
 * ``SlotContract`` / ``TypedPort`` — contract-level type description
 * ``SlotIndividual`` / ``MutationRecord`` — population members
 * ``OperatorResult`` / ``Operator`` / ``run_operator_with_gates`` —
@@ -22,10 +21,6 @@ Wiring: ``evolution.slot_evolution.step_slot_population`` delegates to
 from __future__ import annotations
 
 from evolution.gp.canonical_hash import canonical_ir_hash, ir_structural_signature
-from evolution.gp.region_resolver import (
-    SlotRegionInfo,
-    resolve_slot_region,
-)
 from evolution.gp.contract import SlotContract, TypedPort
 from evolution.gp.individual import SlotIndividual
 from evolution.gp.lineage import MutationRecord
@@ -41,8 +36,6 @@ from evolution.gp.operators.base import (
 __all__ = [
     "canonical_ir_hash",
     "ir_structural_signature",
-    "SlotRegionInfo",
-    "resolve_slot_region",
     "SlotContract",
     "TypedPort",
     "SlotIndividual",

@@ -215,35 +215,6 @@ class AlgReturn(IRDLOperation):
 
 
 # ---------------------------------------------------------------------------
-# Skeleton slot (GP-ready placeholder)
-# ---------------------------------------------------------------------------
-
-@irdl_op_definition
-class AlgSlot(IRDLOperation):
-    """
-    A placeholder slot in the IR that can be filled with a skeleton fragment.
-
-    During skeleton grafting, a region's ops are replaced by an AlgSlot.
-    ``fill_slot()`` (backed by xDSL PatternRewriter) then replaces the
-    slot with the skeleton ops, reconnecting SSA automatically.
-
-    For GP:
-      - crossover = extract slot content from donor, fill into host slot
-      - mutation  = replace slot content with a mutated variant
-
-    ``slot_inputs`` provides the SSA values available to the skeleton.
-    ``res`` is the single output fed to downstream consumers.
-    ``slot_id`` uniquely identifies this slot for pattern matching.
-    ``slot_kind`` optionally categorizes the slot (e.g. "score", "schedule").
-    """
-    name = "alg.slot"
-    slot_inputs = var_operand_def(AnyAttr())
-    res = result_def(AnyAttr())
-    slot_id = attr_def(StringAttr)
-    slot_kind = opt_attr_def(StringAttr)
-
-
-# ---------------------------------------------------------------------------
 # Dialect bundle
 # ---------------------------------------------------------------------------
 
@@ -271,7 +242,6 @@ AlgDialect = Dialect(
         AlgBranch,
         AlgJump,
         AlgReturn,
-        AlgSlot,
     ],
     [],
 )

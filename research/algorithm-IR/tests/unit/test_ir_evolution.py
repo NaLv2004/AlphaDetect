@@ -82,16 +82,18 @@ class TestTemplateCompilation:
         assert ir is not None
 
 
-class TestAlgSlotConversion:
-    """Test that slot_* parameters are converted to AlgSlot ops."""
+class TestSlotMetaPresent:
+    """M7: AlgSlot ops are gone; slot membership is annotation-only via
+    ``op.attrs['slot_id']`` and ``ir.slot_meta``."""
 
-    def test_lmmse_has_algslot_ops(self):
-        from evolution.ir_pool import compile_detector_template, _DETECTOR_SPECS, find_algslot_ops
+    def test_lmmse_has_slot_meta(self):
+        from evolution.ir_pool import compile_detector_template, _DETECTOR_SPECS
         spec = next(s for s in _DETECTOR_SPECS if s.algo_id == "lmmse")
         ir = compile_detector_template(spec)
-        slots = find_algslot_ops(ir)
-        # LMMSE has 2 slots: regularizer, hard_decision
-        assert len(slots) >= 1, f"Expected AlgSlot ops, got {len(slots)}"
+        # LMMSE template defines two slots: regularizer, hard_decision.
+        assert len(ir.slot_meta) >= 1, (
+            f"Expected slot_meta entries, got {len(ir.slot_meta)}"
+        )
 
     def test_slot_ids_present(self):
         from evolution.ir_pool import compile_detector_template, _DETECTOR_SPECS, get_slot_ids

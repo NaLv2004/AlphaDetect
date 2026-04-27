@@ -418,20 +418,9 @@ def apply_slot_variant(genome: "AlgorithmGenome",
             real_exit = region.exit_values[0]
 
     if region is None:
-        # Legacy fallback (provenance-based)
-        from evolution.gp.region_resolver import resolve_slot_region
-        info = resolve_slot_region(genome, pop_key)
-        if info is None:
-            return None
-        sids = set(info.sids)
-        if not sids:
-            return None
-        region = collect_slot_region(genome.ir, sids)
-        if region is None:
-            return None
-        real_exit = pick_real_exit_value(genome.ir, region)
-        if real_exit is None:
-            return None
+        # M7: annotation-only model — no slot_meta entry means the slot
+        # is unresolvable (legacy provenance fallback removed).
+        return None
 
     # Build a minimal BoundaryContract that pins exit_values to
     # [real_exit] only. Empty port_signature lists make the strict

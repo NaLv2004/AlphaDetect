@@ -34,7 +34,6 @@ from algorithm_ir.ir.dialect import (
     AlgReturn,
     AlgSetAttr,
     AlgSetItem,
-    AlgSlot,
     AlgUnary,
 )
 from algorithm_ir.ir.types import AlgType
@@ -289,43 +288,10 @@ class TestAlgReturn(unittest.TestCase):
         self.assertEqual(len(op.operands), 1)
 
 
-class TestAlgSlot(unittest.TestCase):
-    def test_build_with_inputs(self):
-        block = _block(3)
-        op = AlgSlot.build(
-            operands=[list(block.args)],
-            result_types=[AlgType()],
-            attributes={
-                "slot_id": StringAttr("slot_score_0"),
-                "slot_kind": StringAttr("score"),
-            },
-        )
-        self.assertEqual(len(op.slot_inputs), 3)
-        self.assertEqual(op.slot_id.data, "slot_score_0")
-        self.assertEqual(op.slot_kind.data, "score")
-
-    def test_build_without_kind(self):
-        block = _block(1)
-        op = AlgSlot.build(
-            operands=[[block.args[0]]],
-            result_types=[AlgType()],
-            attributes={"slot_id": StringAttr("slot_0")},
-        )
-        self.assertIsNone(op.slot_kind)
-
-    def test_empty_inputs(self):
-        op = AlgSlot.build(
-            operands=[[]],
-            result_types=[AlgType()],
-            attributes={"slot_id": StringAttr("slot_empty")},
-        )
-        self.assertEqual(len(op.slot_inputs), 0)
-
-
 class TestAlgDialect(unittest.TestCase):
     def test_op_count(self):
         ops = list(AlgDialect.operations)
-        self.assertEqual(len(ops), 22)
+        self.assertEqual(len(ops), 21)
 
     def test_contains_all_ops(self):
         op_names = {op.name for op in AlgDialect.operations}
@@ -338,7 +304,6 @@ class TestAlgDialect(unittest.TestCase):
             "alg.append", "alg.pop",
             "alg.iter_init", "alg.iter_next",
             "alg.branch", "alg.jump", "alg.return",
-            "alg.slot",
         }
         self.assertEqual(op_names, expected)
 

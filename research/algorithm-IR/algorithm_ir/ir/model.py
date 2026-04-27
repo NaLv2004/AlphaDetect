@@ -184,7 +184,7 @@ class FunctionIR:
             AlgAppend, AlgAssign, AlgBinary, AlgBranch, AlgBuildDict,
             AlgBuildList, AlgBuildTuple, AlgCall, AlgCompare, AlgConst,
             AlgGetAttr, AlgGetItem, AlgIterInit, AlgIterNext, AlgJump,
-            AlgPhi, AlgPop, AlgReturn, AlgSetAttr, AlgSetItem, AlgSlot,
+            AlgPhi, AlgPop, AlgReturn, AlgSetAttr, AlgSetItem,
             AlgUnary,
         )
         from xdsl.dialects.builtin import StringAttr
@@ -535,7 +535,7 @@ def _extract_op_data(xdsl_op, block_id: str, block_obj_to_id: dict[int, str]):
         AlgAppend, AlgAssign, AlgBinary, AlgBranch, AlgBuildDict,
         AlgBuildList, AlgBuildTuple, AlgCall, AlgCompare, AlgConst,
         AlgGetAttr, AlgGetItem, AlgIterInit, AlgIterNext, AlgJump,
-        AlgPhi, AlgPop, AlgReturn, AlgSetAttr, AlgSetItem, AlgSlot,
+        AlgPhi, AlgPop, AlgReturn, AlgSetAttr, AlgSetItem,
         AlgUnary,
     )
     from xdsl.dialects.builtin import StringAttr, IntegerAttr
@@ -625,10 +625,6 @@ def _extract_op_data(xdsl_op, block_id: str, block_obj_to_id: dict[int, str]):
         loop_backedge_str = _get_str_attr(xdsl_op, "loop_backedge")
         if loop_backedge_str == "true":
             attrs["loop_backedge"] = True
-    elif isinstance(xdsl_op, AlgSlot):
-        attrs["slot_id"] = xdsl_op.slot_id.data
-        if xdsl_op.slot_kind is not None:
-            attrs["slot_kind"] = xdsl_op.slot_kind.data
 
     op = Op(
         id=op_id,

@@ -41,8 +41,6 @@ from evolution.gp.operators.base import (
     OperatorStats,
     run_operator_with_gates,
 )
-from evolution.gp.region_resolver import resolve_slot_region
-
 if TYPE_CHECKING:
     from evolution.pool_types import AlgorithmGenome, SlotPopulation
     from evolution.slot_evolution import SlotMicroStats
@@ -132,9 +130,8 @@ def micro_population_step(
         stats.skipped_no_variants = 1
         return stats
 
-    # Resolve region (and consequently sids).
-    region_info = resolve_slot_region(genome, pop_key)
-    if region_info is None:
+    # M7: slot_meta presence is the canonical existence check.
+    if genome.ir is None or pop_key not in (genome.ir.slot_meta or {}):
         stats.skipped_no_sids = 1
         return stats
 

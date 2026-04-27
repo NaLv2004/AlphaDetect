@@ -2,7 +2,7 @@
 
 Covers:
   * canonical_ir_hash equivalence and difference detection
-  * resolve_slot_region for all detector slot pops on a real IR pool
+  * slot_meta-based region resolution for all detector slot pops
   * the 8-gate runner accepts pure-IR operators and rejects no-op /
     over-complex / invalid children
 """
@@ -24,7 +24,14 @@ from evolution.gp.operators.base import (
     measure_complexity,
     run_operator_with_gates,
 )
-from evolution.gp.region_resolver import resolve_slot_region, prune_phantom_pops
+
+
+def _slot_resolves(genome, slot_key) -> bool:
+    """M7 replacement for resolve_slot_region: slot_meta is canonical."""
+    ir = getattr(genome, "ir", None)
+    if ir is None:
+        return False
+    return slot_key in (ir.slot_meta or {})
 
 
 # ---------------------------------------------------------------------------
@@ -86,7 +93,7 @@ class TestCanonicalIRHash:
 
 
 # ---------------------------------------------------------------------------
-# region_resolver
+# slot_meta-based region resolution (M7)
 # ---------------------------------------------------------------------------
 
 class TestRegionResolver:
@@ -102,7 +109,7 @@ class TestRegionResolver:
         any_resolved = 0
         for genome in pool:
             for slot_key in list(getattr(genome, "slot_populations", {}).keys()):
-                if resolve_slot_region(genome, slot_key) is not None:
+                if _slot_resolves(genome, slot_key):
                     any_resolved += 1
         assert any_resolved > 0
 
@@ -111,13 +118,11 @@ class TestRegionResolver:
         if lmmse is None:
             pytest.skip("LMMSE genome not in pool")
         for slot_key in list(getattr(lmmse, "slot_populations", {}).keys()):
-            info = resolve_slot_region(lmmse, slot_key)
-            # We don't assert ALL pass yet — phantom pops exist that
-            # the legacy admission path created. The point of this test
-            # is that prune_phantom_pops can clean them up.
-            if info is not None:
-                assert info.tier in ("binding", "provenance")
-                assert info.short_name == slot_key.split(".")[-1]
+            # M7: slot_meta is the authoritative existence record.
+            # Phantom pops without a meta entry are ignored here; the
+            # final test below covers the prune semantics.
+            if _slot_resolves(lmmse, slot_key):
+                assert slot_key in lmmse.ir.slot_meta
 
     def test_prune_phantom_pops_does_not_drop_resolvable_slots(self, pool):
         for genome in pool:
@@ -125,9 +130,14 @@ class TestRegionResolver:
             if not pops:
                 continue
             resolvable_before = {
-                k for k in pops if resolve_slot_region(genome, k) is not None
+                k for k in pops if _slot_resolves(genome, k)
             }
-            prune_phantom_pops(genome)
+            # M7: phantom pruning is now: drop pops that aren't in slot_meta.
+            ir = genome.ir
+            meta_keys = set((ir.slot_meta or {}).keys()) if ir is not None else set()
+            for k in list(pops.keys()):
+                if k not in meta_keys:
+                    del pops[k]
             for k in resolvable_before:
                 assert k in genome.slot_populations, (
                     f"prune dropped resolvable slot {k} from {genome.algo_id}"

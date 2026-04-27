@@ -38,11 +38,11 @@ def lmmse_pop():
     from evolution.ir_pool import build_ir_pool
     pool = build_ir_pool(np.random.default_rng(7), n_random_variants=1)
     lmmse = next(g for g in pool if g.algo_id == "lmmse")
-    # Pick a slot population that the resolver can find.
-    from evolution.gp.region_resolver import resolve_slot_region
+    # M7: slot_meta is the canonical existence record.
     pop_key = None
+    meta_keys = set((lmmse.ir.slot_meta or {}).keys()) if lmmse.ir is not None else set()
     for k in list(lmmse.slot_populations.keys()):
-        if resolve_slot_region(lmmse, k) is not None:
+        if k in meta_keys:
             pop_key = k
             break
     if pop_key is None:
