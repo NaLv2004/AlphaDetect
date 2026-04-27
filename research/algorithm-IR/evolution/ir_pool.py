@@ -834,6 +834,138 @@ def compile_detector_template(spec: _DetectorSpec) -> FunctionIR:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# Default donor-IR extraction (M3): compile each slot body as a standalone
+# function so apply_slot_variant has a usable default variant.
+# ═══════════════════════════════════════════════════════════════════════════
+
+def _build_default_donor_irs(spec: _DetectorSpec,
+                             pop_keys: list[str]) -> dict[str, FunctionIR]:
+    """For each pop_key in ``pop_keys``, parse ``spec.source`` to find the
+    matching ``with slot(...)`` block and compile its body as a standalone
+    donor function ``def _donor_<short>(<inputs>): <body>; return <out>``.
+    """
+    import ast as _ast
+    out: dict[str, FunctionIR] = {}
+    try:
+        tree = _ast.parse(textwrap.dedent(spec.source))
+    except Exception:
+        return out
+
+    # Collect every with-slot block by pop_key
+    blocks: dict[str, tuple[_ast.With, list[str], list[str]]] = {}
+
+    class _Collector(_ast.NodeVisitor):
+        def visit_With(self, node: _ast.With) -> None:
+            for item in node.items:
+                ce = item.context_expr
+                if not (isinstance(ce, _ast.Call)
+                        and isinstance(ce.func, _ast.Name)
+                        and ce.func.id == "slot"):
+                    continue
+                if not ce.args or not isinstance(ce.args[0], _ast.Constant):
+                    continue
+                key = ce.args[0].value
+                ins: list[str] = []
+                outs: list[str] = []
+                for kw in ce.keywords:
+                    if kw.arg == "inputs" and isinstance(
+                            kw.value, (_ast.Tuple, _ast.List)):
+                        for el in kw.value.elts:
+                            if isinstance(el, _ast.Name):
+                                ins.append(el.id)
+                    elif kw.arg == "outputs" and isinstance(
+                            kw.value, (_ast.Tuple, _ast.List)):
+                        for el in kw.value.elts:
+                            if isinstance(el, _ast.Constant):
+                                outs.append(el.value)
+                blocks[key] = (node, ins, outs)
+            self.generic_visit(node)
+
+    _Collector().visit(tree)
+
+    g = _template_globals()
+    if spec.extra_globals:
+        from evolution.pool_ops_l2 import TreeNode
+        g["TreeNode"] = TreeNode
+
+    for pop_key in pop_keys:
+        entry = blocks.get(pop_key)
+        if entry is None:
+            continue
+        with_node, ins, outs = entry
+        if not outs:
+            continue
+
+        # Synthesise: def _donor(<inputs>): <body>; return <out0>
+        short = pop_key.split(".", 1)[1] if "." in pop_key else pop_key
+        safe_short = "".join(c if c.isalnum() or c == "_" else "_"
+                             for c in short)
+        donor_name = f"_donor_{safe_short}"
+
+        # Strip nested `with slot(...)` blocks: replace each nested with-block
+        # with its body so the donor is self-contained source. (apply path
+        # only re-grafts the outer slot region; nested slots get re-discovered
+        # post-graft.)
+        body_stmts: list[_ast.stmt] = []
+        for st in with_node.body:
+            body_stmts.extend(_strip_nested_slots(st))
+        if not body_stmts:
+            continue
+        # Append `return <out0>`
+        ret = _ast.Return(value=_ast.Name(id=outs[0], ctx=_ast.Load()))
+        body_stmts.append(ret)
+
+        fn = _ast.FunctionDef(
+            name=donor_name,
+            args=_ast.arguments(
+                posonlyargs=[], args=[_ast.arg(arg=n) for n in ins],
+                kwonlyargs=[], kw_defaults=[], defaults=[],
+            ),
+            body=body_stmts,
+            decorator_list=[],
+        )
+        mod = _ast.Module(body=[fn], type_ignores=[])
+        try:
+            _ast.fix_missing_locations(mod)
+            src = _ast.unparse(mod)
+        except Exception:
+            continue
+        try:
+            donor_ir = compile_source_to_ir(src, donor_name, g)
+        except Exception:
+            continue
+        out[pop_key] = donor_ir
+    return out
+
+
+def _strip_nested_slots(stmt):
+    """Recursively replace nested ``with slot(...)`` blocks with their body
+    statements. Returns a list of statements (may be longer than 1).
+    """
+    import ast as _ast
+    if isinstance(stmt, _ast.With) and any(
+        isinstance(it.context_expr, _ast.Call)
+        and isinstance(it.context_expr.func, _ast.Name)
+        and it.context_expr.func.id == "slot"
+        for it in stmt.items
+    ):
+        out: list = []
+        for s in stmt.body:
+            out.extend(_strip_nested_slots(s))
+        return out
+    # Recurse into compound bodies
+    for attr in ("body", "orelse", "finalbody"):
+        if hasattr(stmt, attr):
+            seq = getattr(stmt, attr)
+            if isinstance(seq, list):
+                new_seq: list = []
+                for s in seq:
+                    new_seq.extend(_strip_nested_slots(s))
+                setattr(stmt, attr, new_seq)
+    return [stmt]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # Query helpers on compiled IR
 # ═══════════════════════════════════════════════════════════════════════════
 
@@ -911,16 +1043,29 @@ def build_ir_pool(
         slot_tree = spec.slot_defs_fn()
         populations: dict[str, SlotPopulation] = {}
         slot_meta = ir.slot_meta or {}
+
+        # M3: build default donor IRs from each slot's body source.
+        donor_irs = _build_default_donor_irs(spec, list(slot_meta.keys()))
+
+        # M3: extract default snapshots (frozen metadata view).
+        from evolution.pool_types import SubgraphSnapshot as _SubgraphSnapshot
+        snapshots: dict[str, _SubgraphSnapshot] = {}
+
         for pop_key in slot_meta.keys():
             desc = slot_tree.get(pop_key)
             if desc is None:
                 # No descriptor → skip (no GP spec available)
                 continue
+            snap = _SubgraphSnapshot.extract(ir, pop_key)
+            if snap is not None:
+                snapshots[pop_key] = snap
+            donor_ir = donor_irs.get(pop_key)
+            variants_seed = [donor_ir] if donor_ir is not None else []
             populations[pop_key] = SlotPopulation(
                 slot_id=pop_key,
                 spec=desc.spec,
-                variants=[],
-                fitness=[],
+                variants=variants_seed,
+                fitness=[float("inf")] * len(variants_seed),
                 best_idx=0,
             )
 
@@ -937,6 +1082,7 @@ def build_ir_pool(
                 "level": 3,
                 "slot_tree": slot_tree,
                 "detector_name": spec.func_name,
+                "slot_snapshots": snapshots,
             },
         )
 

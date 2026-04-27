@@ -57,6 +57,28 @@ def test_apply_default_variant_is_valid_and_compiles(lmmse_genome):
     assert validate_function_ir(new_ir) == []
 
 
+# M3+M4: slot_meta-based path
+def test_default_variant_apply_via_meta(lmmse_genome):
+    """Every populated slot's default variant must apply cleanly via the
+    slot_meta path (M3 default-variant population + M4 region resolution)."""
+    pop = lmmse_genome.slot_populations.get("lmmse.regularizer")
+    if pop is None or not pop.variants:
+        pytest.skip("lmmse.regularizer not in pool")
+    new_ir = apply_slot_variant(lmmse_genome, "lmmse.regularizer", pop.variants[0])
+    assert new_ir is not None
+    assert validate_function_ir(new_ir) == []
+
+
+def test_collect_slot_region_from_meta_lmmse(lmmse_genome):
+    from evolution.slot_evolution import collect_slot_region_from_meta
+    region = collect_slot_region_from_meta(lmmse_genome.ir, "lmmse.regularizer")
+    assert region is not None
+    assert len(region.op_ids) >= 1
+    meta = lmmse_genome.ir.slot_meta["lmmse.regularizer"]
+    assert tuple(region.entry_values) == meta.inputs
+    assert tuple(region.exit_values) == meta.outputs
+
+
 def test_slot_micro_stats_invariants():
     s = SlotMicroStats(
         slot_pop_key="x.y",

@@ -15,9 +15,103 @@ from typing import Any, Callable, TYPE_CHECKING
 
 import numpy as np
 
-from algorithm_ir.ir.model import FunctionIR
+from algorithm_ir.ir.model import FunctionIR, Op
 from evolution.fitness import FitnessResult
 from evolution.skeleton_registry import ProgramSpec
+
+
+# ---------------------------------------------------------------------------
+# SubgraphSnapshot — frozen, value-id-canonicalized view of a slot region
+# ---------------------------------------------------------------------------
+
+@dataclass(frozen=True)
+class SubgraphSnapshot:
+    """An immutable, deep-copied view of one slot region.
+
+    Per major_refactor.md §3.5. Value-ids in ``ops`` are canonicalised to
+    ``__in_<i>`` for inputs and ``__out_<j>`` for outputs; internal values
+    keep their original ids. ``type_signature`` records the type hints of
+    the boundary values for compatibility checks.
+    """
+
+    ops: tuple[Op, ...]
+    input_placeholders: tuple[str, ...]
+    output_placeholders: tuple[str, ...]
+    output_names: tuple[str, ...]
+    type_signature: tuple[tuple[str, ...], tuple[str, ...]]
+
+    def __deepcopy__(self, memo):
+        # Frozen + tuple of Ops — share immutable structure; deep-copy ops
+        # via the safe-attrs path so module refs in attrs don't break us.
+        from algorithm_ir.ir.model import _safe_deepcopy_attrs
+        new_ops = tuple(
+            Op(
+                id=o.id, opcode=o.opcode,
+                inputs=list(o.inputs), outputs=list(o.outputs),
+                block_id=o.block_id, source_span=o.source_span,
+                attrs=_safe_deepcopy_attrs(o.attrs, memo),
+            )
+            for o in self.ops
+        )
+        return SubgraphSnapshot(
+            ops=new_ops,
+            input_placeholders=self.input_placeholders,
+            output_placeholders=self.output_placeholders,
+            output_names=self.output_names,
+            type_signature=self.type_signature,
+        )
+
+    @staticmethod
+    def extract(ir: FunctionIR, pop_key: str) -> "SubgraphSnapshot | None":
+        """Build a SubgraphSnapshot from ``ir.slot_meta[pop_key]``.
+
+        Returns None if pop_key not present. Deep-copies all ops; renames
+        input value-ids to ``__in_<i>`` (matching ``meta.inputs[i]``) and
+        output value-ids to ``__out_<j>`` (matching ``meta.outputs[j]``);
+        leaves internal values untouched.
+        """
+        meta = ir.slot_meta.get(pop_key)
+        if meta is None:
+            return None
+
+        from copy import deepcopy
+        from algorithm_ir.ir.model import _safe_deepcopy_attrs
+        own_ops = ir.slot_full_op_ids(pop_key)
+        in_map = {vid: f"__in_{i}" for i, vid in enumerate(meta.inputs)}
+        out_map = {vid: f"__out_{j}" for j, vid in enumerate(meta.outputs)}
+        rename = {**in_map, **out_map}
+
+        snap_ops: list[Op] = []
+        for oid in meta.op_ids:
+            src = ir.ops.get(oid)
+            if src is None:
+                continue
+            new_op = Op(
+                id=src.id,
+                opcode=src.opcode,
+                inputs=[rename.get(v, v) for v in src.inputs],
+                outputs=[rename.get(v, v) for v in src.outputs],
+                block_id=src.block_id,
+                source_span=src.source_span,
+                attrs=_safe_deepcopy_attrs(src.attrs, {}),
+            )
+            snap_ops.append(new_op)
+
+        in_types = tuple(
+            (ir.values[v].type_hint or "any") if v in ir.values else "any"
+            for v in meta.inputs
+        )
+        out_types = tuple(
+            (ir.values[v].type_hint or "any") if v in ir.values else "any"
+            for v in meta.outputs
+        )
+        return SubgraphSnapshot(
+            ops=tuple(snap_ops),
+            input_placeholders=tuple(in_map.values()),
+            output_placeholders=tuple(out_map.values()),
+            output_names=tuple(meta.output_names),
+            type_signature=(in_types, out_types),
+        )
 
 if TYPE_CHECKING:
     from algorithm_ir.factgraph.model import FactGraph

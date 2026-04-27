@@ -55,6 +55,7 @@ logger = logging.getLogger(__name__)
 __all__ = [
     "map_pop_key_to_from_slot_ids",
     "collect_slot_region",
+    "collect_slot_region_from_meta",
     "apply_slot_variant",
     "evaluate_slot_variant",
     "step_slot_population",
@@ -319,6 +320,56 @@ def pick_real_exit_value(ir: FunctionIR,
 
 
 # ---------------------------------------------------------------------------
+# M4: slot_meta-based region builder (replaces FII provenance scan)
+# ---------------------------------------------------------------------------
+
+def collect_slot_region_from_meta(ir: FunctionIR,
+                                  pop_key: str) -> RewriteRegion | None:
+    """Build a ``RewriteRegion`` deterministically from ``ir.slot_meta``.
+
+    Unlike ``collect_slot_region`` (which scans ``_provenance.from_slot_id``
+    annotations from the legacy FII inliner), this consumes the new
+    annotation-only model: ``slot_meta[pop_key].op_ids`` is the region,
+    ``meta.inputs`` are the entry values, ``meta.outputs`` are the exit
+    values. Includes ops belonging to nested child slots via
+    ``ir.slot_full_op_ids``.
+    """
+    meta = ir.slot_meta.get(pop_key)
+    if meta is None:
+        return None
+    region_ops = sorted(ir.slot_full_op_ids(pop_key),
+                        key=lambda oid: _op_block_order_key(ir, oid))
+    if not region_ops:
+        return None
+    region_set = set(region_ops)
+    block_ids = sorted({ir.ops[oid].block_id for oid in region_ops
+                        if oid in ir.ops})
+    return RewriteRegion(
+        region_id=f"slot_meta_region_{pop_key.replace('.', '_')}_"
+                  f"{uuid.uuid4().hex[:6]}",
+        op_ids=region_ops,
+        block_ids=block_ids,
+        entry_values=list(meta.inputs),
+        exit_values=list(meta.outputs),
+        read_set=list(meta.inputs),
+        write_set=list(meta.outputs),
+        state_carriers=[],
+        schedule_anchors={},
+        allows_new_state=False,
+    )
+
+
+def _op_block_order_key(ir: FunctionIR, oid: str) -> tuple[str, int]:
+    op = ir.ops.get(oid)
+    if op is None:
+        return ("", 0)
+    block = ir.blocks.get(op.block_id)
+    if block is None or oid not in block.op_ids:
+        return (op.block_id, 0)
+    return (op.block_id, block.op_ids.index(oid))
+
+
+# ---------------------------------------------------------------------------
 # M2: variant application via graft_general
 # ---------------------------------------------------------------------------
 
@@ -335,36 +386,52 @@ def apply_slot_variant(genome: "AlgorithmGenome",
 
     If ``stats`` is provided, increments the appropriate failure-cause
     counter (``n_apply_graft_failed`` / ``n_apply_validator_failed``).
+
+    Accepts either a ``FunctionIR`` (legacy / mutation-children path) or
+    a ``SubgraphSnapshot`` (M3+ default-variant path). Snapshots are not
+    yet auto-materialised to FunctionIR here — callers that store
+    snapshots must pass the materialised donor IR. The snapshot path is
+    reserved for the M6 op-swap rewrite.
     """
     if variant_ir is None:
         return None
-
-    # R2: route through the unified region resolver. Provenance tier is
-    # the production path; binding tier is reserved for future explicit
-    # bindings.
-    from evolution.gp.region_resolver import resolve_slot_region
-    info = resolve_slot_region(genome, pop_key)
-    if info is None:
+    # Backward-compat: SubgraphSnapshot passed directly is rejected for now
+    # (caller should use SlotPopulation.variants which holds donor FunctionIRs).
+    from evolution.pool_types import SubgraphSnapshot as _Snap
+    if isinstance(variant_ir, _Snap):
+        # No materialisation path yet; treat as no-op rejection.
         return None
 
-    sids = set(info.sids)
-    if not sids:
-        return None
+    # M4: prefer slot_meta-based region resolution. When the genome was
+    # built via the new annotation-only ``with slot(...)`` DSL,
+    # ``ir.slot_meta`` holds the authoritative boundary; we no longer need
+    # the legacy FII provenance scan. Fall back to provenance scan only
+    # when the IR has no slot_meta entry for this pop_key (e.g. for
+    # post-graft IRs whose new ops haven't been re-tagged yet).
+    region: RewriteRegion | None = None
+    real_exit: str | None = None
+    if pop_key in (genome.ir.slot_meta or {}):
+        region = collect_slot_region_from_meta(genome.ir, pop_key)
+        if region is not None and region.exit_values:
+            # Use the first declared output as the real exit (output_names
+            # ordering is authoritative in slot_meta).
+            real_exit = region.exit_values[0]
 
-    region = collect_slot_region(genome.ir, sids)
     if region is None:
-        return None
-
-    # Identify the SINGLE "real" exit value of the slot. The donor
-    # variant has exactly one return value; we want it bound to the
-    # one host value that downstream computational ops actually
-    # consume. Without this pinning, graft_general's positional
-    # bind_donor_returns_to_host_exits would map the donor's return
-    # to whichever exit value sorts first alphabetically, leaving the
-    # actual downstream consumer reading from a freshly-removed op.
-    real_exit = pick_real_exit_value(genome.ir, region)
-    if real_exit is None:
-        return None
+        # Legacy fallback (provenance-based)
+        from evolution.gp.region_resolver import resolve_slot_region
+        info = resolve_slot_region(genome, pop_key)
+        if info is None:
+            return None
+        sids = set(info.sids)
+        if not sids:
+            return None
+        region = collect_slot_region(genome.ir, sids)
+        if region is None:
+            return None
+        real_exit = pick_real_exit_value(genome.ir, region)
+        if real_exit is None:
+            return None
 
     # Build a minimal BoundaryContract that pins exit_values to
     # [real_exit] only. Empty port_signature lists make the strict
@@ -393,6 +460,22 @@ def apply_slot_variant(genome: "AlgorithmGenome",
     from algorithm_ir.grafting.graft_general import graft_general
     from evolution.pool_types import GraftProposal
 
+    # M4: pop the slot_meta entry on a clone of the host IR before grafting.
+    # The original meta.outputs reference value-ids that the graft will
+    # destroy; if we leave the entry in place, the validator inside
+    # graft_general flags "output value <vid> unknown". We re-create the
+    # entry on the artifact afterwards.
+    from copy import deepcopy as _deepcopy
+    host_ir_for_graft = _deepcopy(genome.ir)
+    saved_meta = host_ir_for_graft.slot_meta.pop(pop_key, None)
+    # Strip the slot_id tag from host ops belonging to this slot so the
+    # validator's innermost-tag rule passes (no orphan tags).
+    if saved_meta is not None:
+        for oid in saved_meta.op_ids:
+            op = host_ir_for_graft.ops.get(oid)
+            if op is not None and op.attrs:
+                op.attrs.pop("slot_id", None)
+
     proposal = GraftProposal(
         proposal_id=f"slot_apply_{pop_key}_{uuid.uuid4().hex[:6]}",
         host_algo_id=genome.algo_id,
@@ -404,7 +487,7 @@ def apply_slot_variant(genome: "AlgorithmGenome",
         dependency_overrides=[],
     )
     try:
-        artifact = graft_general(genome.ir, proposal)
+        artifact = graft_general(host_ir_for_graft, proposal)
     except Exception as exc:
         logger.debug("apply_slot_variant: graft_general raised: %r", exc)
         if stats is not None:
@@ -423,19 +506,98 @@ def apply_slot_variant(genome: "AlgorithmGenome",
             stats.n_apply_validator_failed += 1
         return None
 
+    # Save the original meta for reuse below (may be None if legacy path).
+    if saved_meta is not None:
+        artifact.ir.slot_meta[pop_key] = saved_meta
+
     # Re-annotate newly introduced ops so the slot stays discoverable
-    # by ``map_pop_key_to_from_slot_ids`` on subsequent micro-gens. The
-    # graft inlines fresh ops without _provenance.from_slot_id matching
-    # the original pop_key; without re-annotation, the next call to
-    # ``apply_slot_variant`` for the same pop_key would find no sids and
-    # silently no-op (the bug that froze slot-evo from gen ~4 onward).
-    anchor_sid = next(iter(sids))
+    # on subsequent micro-gens.
     pre_op_ids = set(genome.ir.ops.keys())
+    new_op_ids: list[str] = []
+    sids_local = locals().get("sids")
+    if sids_local:
+        try:
+            anchor_sid = next(iter(sids_local))
+        except StopIteration:
+            anchor_sid = None
+    else:
+        anchor_sid = None
+    if anchor_sid is None:
+        short = pop_key.split(".", 1)[1] if "." in pop_key else pop_key
+        anchor_sid = f"_slot_{short}_meta"
     for op_id, op in artifact.ir.ops.items():
         if op_id in pre_op_ids:
             continue
+        new_op_ids.append(op_id)
         prov = op.attrs.setdefault("_provenance", {})
         prov.setdefault("from_slot_id", anchor_sid)
+        op.attrs.setdefault("slot_id", pop_key)
+
+    # M4: refresh slot_meta[pop_key] so the validator's innermost-tag and
+    # I/O-bounds invariants hold post-graft. We need to recompute outputs
+    # because the original meta.outputs value-ids were destroyed by the
+    # graft (their defining ops were removed). New outputs are the values
+    # produced by new_op_ids that have at least one consumer OUTSIDE the
+    # new slot region.
+    if pop_key in (artifact.ir.slot_meta or {}) and new_op_ids:
+        old_meta = artifact.ir.slot_meta[pop_key]
+        from algorithm_ir.ir.model import SlotMeta as _SlotMeta
+        new_op_set = set(new_op_ids)
+        # Compute new exit values: produced inside slot, consumed outside.
+        new_outputs: list[str] = []
+        new_outputs_set: set[str] = set()
+        for oid in new_op_ids:
+            op = artifact.ir.ops.get(oid)
+            if op is None:
+                continue
+            for vid in op.outputs:
+                v = artifact.ir.values.get(vid)
+                if v is None:
+                    continue
+                # Has a consumer outside the slot region?
+                for use_oid in v.use_ops:
+                    if use_oid not in new_op_set:
+                        if vid not in new_outputs_set:
+                            new_outputs.append(vid)
+                            new_outputs_set.add(vid)
+                        break
+        # Inputs: keep original meta.inputs if still valid; otherwise fall
+        # back to scanning new_op_ids inputs that come from outside.
+        valid_inputs = tuple(
+            v for v in old_meta.inputs if v in artifact.ir.values
+        )
+        if not valid_inputs:
+            scanned: list[str] = []
+            seen_in: set[str] = set()
+            for oid in new_op_ids:
+                op = artifact.ir.ops.get(oid)
+                if op is None:
+                    continue
+                for vid in op.inputs:
+                    val = artifact.ir.values.get(vid)
+                    if val is None or vid in seen_in:
+                        continue
+                    if val.def_op is None or val.def_op not in new_op_set:
+                        scanned.append(vid)
+                        seen_in.add(vid)
+            valid_inputs = tuple(scanned)
+
+        artifact.ir.slot_meta[pop_key] = _SlotMeta(
+            pop_key=old_meta.pop_key,
+            op_ids=tuple(new_op_ids),
+            inputs=valid_inputs,
+            outputs=tuple(new_outputs) if new_outputs else old_meta.outputs,
+            output_names=old_meta.output_names,
+            parent=old_meta.parent,
+        )
+    # Final validator gate after slot_meta refresh.
+    errs2 = validate_function_ir(artifact.ir)
+    if errs2:
+        logger.debug("apply_slot_variant: post-meta-refresh validation rejected "
+                     "%s (%d errs): %s", pop_key, len(errs2), errs2[:2])
+        if stats is not None:
+            stats.n_apply_validator_failed += 1
+        return None
     return artifact.ir
 
 
