@@ -26,6 +26,7 @@ the *evaluation boundary*.
 from __future__ import annotations
 
 import logging
+import os
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -46,6 +47,55 @@ if TYPE_CHECKING:
     from evolution.slot_evolution import SlotMicroStats
 
 logger = logging.getLogger(__name__)
+
+
+def _maybe_log_slot_improvement(
+    *,
+    genome: "AlgorithmGenome",
+    pop_key: str,
+    operator_name: str,
+    parent_ir: FunctionIR,
+    child_ir: FunctionIR,
+    parent_ser: float,
+    child_ser: float,
+) -> None:
+    """Append an improvement event to the file at ``$SLOT_IMPROVEMENT_LOG``.
+
+    Each event records the algo_id, slot pop_key, operator that produced
+    the child, parent/child SER, and the BEFORE/AFTER IR pseudo-source so
+    a human can see exactly what was mutated. No-op if the env var is
+    unset, so the slot loop pays nothing in normal use.
+    """
+    log_path = os.environ.get("SLOT_IMPROVEMENT_LOG")
+    if not log_path:
+        return
+    try:
+        from algorithm_ir.regeneration.codegen import emit_python_source
+        try:
+            src_p = emit_python_source(parent_ir)
+        except Exception as exc:  # noqa: BLE001
+            src_p = f"<emit failed: {exc!r}>"
+        try:
+            src_c = emit_python_source(child_ir)
+        except Exception as exc:  # noqa: BLE001
+            src_c = f"<emit failed: {exc!r}>"
+        n_ops_p = len(getattr(parent_ir, "ops", {}) or {})
+        n_ops_c = len(getattr(child_ir, "ops", {}) or {})
+        with open(log_path, "a", encoding="utf-8") as fh:
+            fh.write("\n" + "=" * 80 + "\n")
+            fh.write(
+                f"[SLOT-IMPROVE] algo={genome.algo_id} slot={pop_key} "
+                f"operator={operator_name}\n"
+                f"   parent_SER={parent_ser:.6f}  child_SER={child_ser:.6f}  "
+                f"delta={child_ser - parent_ser:+.6f}  "
+                f"ops {n_ops_p} -> {n_ops_c}\n"
+            )
+            fh.write("-- PARENT slot body ---------------------------------\n")
+            fh.write(src_p.rstrip() + "\n")
+            fh.write("-- CHILD  slot body ---------------------------------\n")
+            fh.write(src_c.rstrip() + "\n")
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("slot improvement log failed: %r", exc)
 
 
 @dataclass
@@ -315,6 +365,15 @@ def micro_population_step(
         if ser < stats.best_before - 1e-9:
             stats.n_improved += 1
             op_stats.n_improved += 1
+            _maybe_log_slot_improvement(
+                genome=genome,
+                pop_key=pop_key,
+                operator_name=pick.name,
+                parent_ir=parent,
+                child_ir=child,
+                parent_ser=parent_ser,
+                child_ser=ser,
+            )
 
     # Recompute best and truncate (same logic as legacy step).
     if pop.fitness:
