@@ -47,6 +47,30 @@ class _ExprCtx:
         self.func_ir = func_ir
         self.exprs: dict[str, str] = {}
         self.lines: list[str] = []
+        self.loop_guard_idx: int = 0  # for unique while-loop iteration counters
+        # ---- LHS dedup (codegen-level var_name uniquification) ----
+        # Maps a Python LHS name to a counter for fresh suffixes.
+        # The FIRST claim of a name records it with counter 0 and returns
+        # the unmodified name; SUBSEQUENT claims return ``name__c<n>``.
+        # Pre-seed with arg names and constant aliases so the first body
+        # write that shadows them gets renamed.
+        self._lhs_in_use: dict[str, int] = {}
+        # Names claimed by phi nodes are loop-carried; the loop body
+        # MUST be allowed to keep writing to the same Python local for
+        # the loop's iteration semantics to work.  We detect those names
+        # up-front and exempt them from dedup.
+        self._phi_names: set[str] = set()
+        for op in func_ir.ops.values():
+            if op.opcode == "phi":
+                vn = op.attrs.get("var_name")
+                if isinstance(vn, str) and vn:
+                    self._phi_names.add(vn)
+                if op.outputs:
+                    out_val = func_ir.values.get(op.outputs[0])
+                    if out_val:
+                        ovn = out_val.attrs.get("var_name")
+                        if isinstance(ovn, str) and ovn:
+                            self._phi_names.add(ovn)
         # Pre-populate constants
         for op in func_ir.ops.values():
             if op.opcode == "const" and op.outputs:
@@ -57,11 +81,13 @@ class _ExprCtx:
                     self.exprs[vid] = name
                 elif lit is not None:
                     self.exprs[vid] = repr(lit)
-        # Pre-populate function arguments
+        # Pre-populate function arguments and reserve their names so
+        # body assigns that shadow them get renamed.
         for vid in func_ir.arg_values:
             v = func_ir.values[vid]
             name = v.attrs.get("var_name") or v.name_hint or vid
             self.exprs[vid] = name
+            self._lhs_in_use[name] = 0
 
     def expr(self, vid: str) -> str:
         """Get a readable expression string for a value."""
@@ -75,6 +101,58 @@ class _ExprCtx:
 
     def register(self, vid: str, expr_str: str) -> None:
         self.exprs[vid] = expr_str
+
+    def claim_lhs(self, name: str) -> str:
+        """Allocate a Python LHS name, dedup'ing collisions.
+
+        Codegen-level var_name uniquification.  Two distinct SSA values
+        in the same function may carry the SAME ``var_name`` (e.g. when
+        the original Python source had ``x = a; ...; x = b`` — both ops
+        produce different SSA values both labelled ``x``).  After the
+        donor α-rename adds the same prefix to both, codegen would
+        otherwise emit two assigns to the same Python local; the second
+        SHADOWS the first, and a consumer that the IR wires to the
+        FIRST SSA value reads the SECOND value's runtime contents
+        (typically the wrong type → TypeError).  Empirically: 78%% of
+        runtime exceptions on bigtrain4 followed this pattern.
+
+        The fix is to give each subsequent emit of the same LHS a
+        unique suffix (``__c1``, ``__c2``, …) and have the caller
+        register the value's vid with the renamed identifier so
+        downstream consumers via ``ctx.expr`` get the right Python
+        name.
+
+        EXCEPTION: phi-claimed names are loop-carried.  For correct
+        loop semantics, the loop body MUST keep writing to the same
+        Python local that the phi reads — renaming would break the
+        update path.  We therefore preserve any name that appears as
+        a phi var_name (recorded at __init__ time).
+
+        Why this is safe vs the earlier clone-time uniquify
+        ---------------------------------------------------
+        Codegen only visits REACHABLE ops, so the dedup never alters
+        the var_name of a value whose def-op lives in an unreachable
+        block.  Such dead-block values still carry their original
+        ``attrs['var_name']`` and ``ctx.expr`` fallback returns it
+        unchanged — preserving today's behaviour where the dangling
+        consumer's reference to ``x`` happens to match the first
+        reachable emit's LHS, so step 14 sees a defined name (we still
+        get a runtime-wrong-value, but not a structural reject).  The
+        clone-time variant aggressively renamed all values including
+        dead-block ones, which exposed previously-masked dangling
+        reads at step 14 and dropped structural pass from 28%% to 15%%.
+        """
+        if not name:
+            return name
+        if name in self._phi_names:
+            # Loop-carried — must preserve original semantics.
+            self._lhs_in_use[name] = self._lhs_in_use.get(name, 0)
+            return name
+        if name not in self._lhs_in_use:
+            self._lhs_in_use[name] = 0
+            return name
+        self._lhs_in_use[name] += 1
+        return f"{name}__c{self._lhs_in_use[name]}"
 
 
 # ---------------------------------------------------------------------------
@@ -93,7 +171,9 @@ def _emit_op(ctx: _ExprCtx, op: Op, indent: int) -> None:
         return
 
     if op.opcode == "assign":
-        target = op.attrs["target"]
+        # Claim the Python LHS (codegen-level dedup; phi-claimed names
+        # are exempted by claim_lhs to preserve loop semantics).
+        target = ctx.claim_lhs(op.attrs["target"])
         source = ctx.expr(op.inputs[0])
         ctx.emit(indent, f"{target} = {source}")
         if op.outputs:
@@ -104,18 +184,17 @@ def _emit_op(ctx: _ExprCtx, op: Op, indent: int) -> None:
         py_op = _BINARY_OPS.get(op.attrs.get("operator", ""), "?")
         left = ctx.expr(op.inputs[0])
         right = ctx.expr(op.inputs[1])
-        expr = f"{left} {py_op} {right}"
+        expr = f"({left} {py_op} {right})"
         if op.outputs:
-            out_name = _out_name(func_ir, op)
-            ctx.register(op.outputs[0], expr)
+            _materialise_or_register(ctx, func_ir, op, expr, indent)
         return
 
     if op.opcode == "unary":
         py_op = _UNARY_OPS.get(op.attrs.get("operator", ""), "?")
         operand = ctx.expr(op.inputs[0])
-        expr = f"{py_op}{operand}"
+        expr = f"({py_op}{operand})"
         if op.outputs:
-            ctx.register(op.outputs[0], expr)
+            _materialise_or_register(ctx, func_ir, op, expr, indent)
         return
 
     if op.opcode == "compare":
@@ -124,15 +203,15 @@ def _emit_op(ctx: _ExprCtx, op: Op, indent: int) -> None:
             py_op = _COMPARE_OPS.get(operators[0], "?")
             left = ctx.expr(op.inputs[0])
             right = ctx.expr(op.inputs[1])
-            expr = f"{left} {py_op} {right}"
+            expr = f"({left} {py_op} {right})"
         else:
             parts = [ctx.expr(op.inputs[0])]
             for i, cmp_op in enumerate(operators):
                 py_op = _COMPARE_OPS.get(cmp_op, "?")
                 parts.append(f"{py_op} {ctx.expr(op.inputs[i + 1])}")
-            expr = " ".join(parts)
+            expr = "(" + " ".join(parts) + ")"
         if op.outputs:
-            ctx.register(op.outputs[0], expr)
+            _materialise_or_register(ctx, func_ir, op, expr, indent)
         return
 
     if op.opcode == "call":
@@ -174,6 +253,7 @@ def _emit_op(ctx: _ExprCtx, op: Op, indent: int) -> None:
                     if used:
                         vname = (out_val.attrs.get("var_name") if out_val else None) or \
                                 (out_val.name_hint if out_val else None) or f"_call_r{i}"
+                        vname = ctx.claim_lhs(vname)
                         ctx.register(vid, vname)
                         lhs_parts.append(vname)
                         any_used = True
@@ -188,6 +268,7 @@ def _emit_op(ctx: _ExprCtx, op: Op, indent: int) -> None:
                 var = out_val.attrs.get("var_name") if out_val else None
                 used = bool(out_val and out_val.use_ops)
                 if var:
+                    var = ctx.claim_lhs(var)
                     ctx.emit(indent, f"{var} = {expr}")
                     ctx.register(op.outputs[0], var)
                 elif used:
@@ -203,7 +284,7 @@ def _emit_op(ctx: _ExprCtx, op: Op, indent: int) -> None:
         attr = op.attrs["attr"]
         expr = f"{obj}.{attr}"
         if op.outputs:
-            ctx.register(op.outputs[0], expr)
+            _materialise_or_register(ctx, func_ir, op, expr, indent)
         return
 
     if op.opcode == "set_attr":
@@ -222,13 +303,7 @@ def _emit_op(ctx: _ExprCtx, op: Op, indent: int) -> None:
             obj = target
         expr = f"{obj}[{key}]"
         if op.outputs:
-            out_val = func_ir.values.get(op.outputs[0])
-            var = out_val.attrs.get("var_name") if out_val else None
-            if var:
-                ctx.emit(indent, f"{var} = {expr}")
-                ctx.register(op.outputs[0], var)
-            else:
-                ctx.register(op.outputs[0], expr)
+            _materialise_or_register(ctx, func_ir, op, expr, indent)
         return
 
     if op.opcode == "set_item":
@@ -246,7 +321,7 @@ def _emit_op(ctx: _ExprCtx, op: Op, indent: int) -> None:
         items = [ctx.expr(v) for v in op.inputs]
         expr = f"[{', '.join(items)}]"
         if op.outputs:
-            ctx.register(op.outputs[0], expr)
+            _materialise_or_register(ctx, func_ir, op, expr, indent)
         return
 
     if op.opcode == "build_tuple":
@@ -256,7 +331,7 @@ def _emit_op(ctx: _ExprCtx, op: Op, indent: int) -> None:
         else:
             expr = f"({', '.join(items)})"
         if op.outputs:
-            ctx.register(op.outputs[0], expr)
+            _materialise_or_register(ctx, func_ir, op, expr, indent)
         return
 
     if op.opcode == "build_dict":
@@ -303,6 +378,7 @@ def _emit_op(ctx: _ExprCtx, op: Op, indent: int) -> None:
             out_val = func_ir.values.get(op.outputs[0])
             var = out_val.attrs.get("var_name") if out_val else None
             if var:
+                var = ctx.claim_lhs(var)
                 ctx.emit(indent, f"{var} = {expr}")
                 ctx.register(op.outputs[0], var)
             else:
@@ -344,6 +420,57 @@ def _out_name(func_ir: FunctionIR, op: Op) -> str:
         if v:
             return v.attrs.get("var_name") or v.name_hint or op.outputs[0]
     return op.id
+
+
+def _materialise_or_register(
+    ctx: "_ExprCtx",
+    func_ir: FunctionIR,
+    op: Op,
+    expr: str,
+    indent: int,
+) -> None:
+    """Decide whether to emit ``var = expr`` or just register the expr.
+
+    Why this matters
+    ----------------
+    Pure-expression ops (binary, compare, unary, get_attr, get_item,
+    build_list/tuple) historically only call ``ctx.register(out_vid,
+    expr)`` so that their value is inlined at consumer sites.  That works
+    when consumers are emitted *after* the producer in CFG-walk order.
+
+    But ``_emit_block`` walks the CFG via branch/jump successors, and on
+    grafted IRs the producer block can end up being visited *after* the
+    consumer block (e.g. a loop-header phi reads its backedge value from
+    a block that comes later in the recursive walk).  When that happens,
+    ``ctx.expr(out_vid)`` falls back to ``value.attrs['var_name']`` —
+    which yields a bare identifier (e.g. ``_g93a222__compare``) that has
+    no Python definition anywhere in the emitted source.  Step 14
+    rejects the graft for "undefined name" — a major contributor to the
+    structural rejection rate.
+
+    The fix is to materialise the value as ``var = expr`` whenever the
+    output value carries a ``var_name`` attr (i.e. somebody downstream
+    might address it by name).  This costs an extra Python statement
+    but eliminates the ordering hazard entirely.  When there is no
+    ``var_name`` AND the value has consumers, fall back to expression
+    inlining; when there are no consumers, emit the expression as a
+    bare statement so any side effects (rare for pure ops) still fire.
+    """
+    if not op.outputs:
+        return
+    out_vid = op.outputs[0]
+    out_val = func_ir.values.get(out_vid)
+    var = out_val.attrs.get("var_name") if out_val else None
+    used = bool(out_val and out_val.use_ops)
+    if var:
+        var = ctx.claim_lhs(var)
+        ctx.emit(indent, f"{var} = {expr}")
+        ctx.register(out_vid, var)
+    elif used:
+        ctx.register(out_vid, expr)
+    else:
+        # No consumer — for pure ops dropping the line is safe.
+        ctx.register(out_vid, expr)
 
 
 def _needs_call_target_temp(expr: str) -> bool:
@@ -428,9 +555,29 @@ def _emit_block(
         op = func_ir.ops[op_id]
 
         if op.opcode in ("phi",):
-            # Register phi output with var_name for readability
+            # Phi nodes register the var_name for downstream uses.
+            # We ALSO emit ``var_name = expr(input[0])`` to materialise
+            # the initial loop-entry value as a real Python assignment.
+            #
+            # Why
+            # ---
+            # Without this, ``ctx.expr(out_vid)`` falls back to the
+            # value's ``var_name`` attribute and produces a bare
+            # identifier with no Python assignment in scope — a
+            # ``NameError`` at runtime (and a step-14 reject during
+            # graft validation).  The first phi input is the entry
+            # value (predecessor block 0); the back-edge values
+            # (subsequent inputs) get folded in by Python's ordinary
+            # variable mutation as the loop body re-executes the
+            # assignment that produced them.  This is the standard
+            # phi-elimination pattern (insert a copy in the entry
+            # predecessor) collapsed to a single header assignment.
             var = op.attrs.get("var_name")
             if var and op.outputs:
+                if op.inputs:
+                    init_expr = ctx.expr(op.inputs[0])
+                    if init_expr != var:
+                        ctx.emit(indent, f"{var} = {init_expr}")
                 ctx.register(op.outputs[0], var)
             continue
 
@@ -470,7 +617,13 @@ def _emit_branch(
 
     # While loop pattern: true branch goes to while_body
     if true_target.startswith("b_while_body") or true_target.startswith("b_for_body"):
+        # Iteration cap: terminate runaway loops gracefully (avoid TimeoutError).
+        guard = f"__loop_guard_{ctx.loop_guard_idx}"
+        ctx.loop_guard_idx += 1
+        ctx.emit(indent, f"{guard} = 0")
         ctx.emit(indent, f"while {cond}:")
+        ctx.emit(indent + 1, f"{guard} += 1")
+        ctx.emit(indent + 1, f"if {guard} > 100000: break")
         # Process body; stop at current block (back-edge to while_test)
         _emit_block(ctx, true_target, indent + 1, stop_at | frozenset([current_block]))
         # Continue after the while with the exit block

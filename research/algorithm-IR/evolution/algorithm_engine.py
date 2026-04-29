@@ -19,6 +19,11 @@ from typing import Any, Callable
 
 import numpy as np
 
+try:
+    from tqdm.auto import tqdm as _tqdm
+except Exception:  # pragma: no cover
+    _tqdm = None  # type: ignore[assignment]
+
 from evolution.fitness import FitnessResult
 from evolution.pool_types import (
     AlgorithmGenome,
@@ -179,7 +184,14 @@ class AlgorithmEvolutionEngine:
                     _candidates.append((float("inf"), i, genome))
             _candidates.sort(key=lambda x: x[0])
             _micro_evolved_indices: set[int] = set()
-            for _, idx, genome in _candidates[:_MAX_MICRO]:
+            _show_progress = getattr(self, "show_progress", False)
+            _micro_slice = _candidates[:_MAX_MICRO]
+            _micro_iter: Any = (
+                _tqdm(_micro_slice, desc="Micro-evolve genomes", leave=False)
+                if _show_progress and _tqdm is not None
+                else _micro_slice
+            )
+            for _, idx, genome in _micro_iter:
                 self._micro_evolve(genome)
                 _micro_evolved_indices.add(idx)
             t_micro = time.perf_counter()
@@ -190,7 +202,13 @@ class AlgorithmEvolutionEngine:
                 # First generation: evaluate all
                 self.fitness = self.evaluator.evaluate_batch(self.population)
             else:
-                for i in _micro_evolved_indices:
+                _reeval_list = sorted(_micro_evolved_indices)
+                _reeval_iter: Any = (
+                    _tqdm(_reeval_list, desc="Re-eval micro-evolved", leave=False)
+                    if _show_progress and _tqdm is not None
+                    else _reeval_list
+                )
+                for i in _reeval_iter:
                     if i < len(self.population):
                         self.fitness[i] = self.evaluator.evaluate(self.population[i])
             self._update_best()

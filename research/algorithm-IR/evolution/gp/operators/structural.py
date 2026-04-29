@@ -143,10 +143,18 @@ def _make_const_op(ir: FunctionIR, literal, type_hint: str) -> tuple[str, str]:
     vid = _fresh_value_id(ir, "c")
     _add_value(ir, vid, type_hint)
     oid = _fresh_op_id(ir, "const")
+    # IMPORTANT: do NOT set ``attrs['name']`` here.  Codegen treats the
+    # const's ``name`` attr as a *module-level identifier* (e.g. ``np``,
+    # ``math``) and emits a bare reference to it.  Setting ``name`` to
+    # the value-id (e.g. ``__r5_c_0``) caused codegen to materialise
+    # bare ``__r5_c_0`` references in the source — which are undefined
+    # at runtime since no global of that name exists.  Leaving only
+    # ``literal`` makes codegen emit ``repr(literal)`` (e.g. ``2``,
+    # ``0.5``) which is always valid Python.
     ir.ops[oid] = Op(
         id=oid, opcode="const", inputs=[], outputs=[vid],
         block_id="",  # caller fills
-        attrs={"literal": literal, "name": vid},
+        attrs={"literal": literal},
     )
     return oid, vid
 

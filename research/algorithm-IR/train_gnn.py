@@ -139,6 +139,10 @@ parser.add_argument("--precise-timeout", type=float, default=20.0,
                     help="Per-genome timeout for precise SER estimation")
 parser.add_argument("--progress", action="store_true",
                     help="Show tqdm progress bars for proposal generation and evaluation")
+parser.add_argument("--no-host-mask", action="store_true",
+                    help="Disable the 4-layer host region mask (legacy permissive sampling + greedy repair)")
+parser.add_argument("--no-donor-mask", action="store_true",
+                    help="Disable the 4-layer donor region mask (Layer D1 prefilter + D2 output + D4 cut/STOP)")
 parser.add_argument("--ckpt-interval", type=int, default=10,
                     help="Checkpoint every N generations")
 parser.add_argument("--seed", type=int, default=42)
@@ -505,7 +509,9 @@ def _analyse_effective_graft(
         "structural_ok": False,
         "behavior_ok": False,
         "performance_ok": False,
+        "no_exception": False,
         "effective": False,
+        "reasonable": False,
         "behavior_change_rate": 0.0,
         "host_algo_id": None,
         "host_score": None,
@@ -557,17 +563,19 @@ def _analyse_effective_graft(
     if host_score is not None:
         result["performance_ok"] = fit.composite_score() < (float(host_score) - args.effective_margin)
 
-    # Fast-fail cheap checks before compiling/running low-SNR probes over
-    # every graft child.  "effective" requires all three checks, so if the
-    # child already fails structural connectivity or host-relative
-    # performance, we can skip the expensive behavior probe entirely.
+    # Cheap structural check first; everything else (compile + probes) is
+    # paid only for structurally-OK grafts.
     if not result["structural_ok"]:
         result["quality_verdict"] = "STRUCTURAL_FAIL"
         return result
-    if not result["performance_ok"]:
-        result["quality_verdict"] = "PERFORMANCE_FAIL"
-        return result
 
+    # Always run behavior probes for structurally-OK grafts (even if
+    # performance_ok is False) so we can distinguish:
+    #   - EXCEPTION       : compile or probe call raised
+    #   - BEHAVIOR_FAIL   : ran cleanly but produced byte-identical output
+    #   - REASONABLE      : behavior changed AND no exceptions, but score <= host
+    #   - EFFECTIVE       : reasonable AND beats host by --effective-margin
+    raised_exception = False
     if host_genome is not None:
         child_fn, source, child_issue = _compile_materialized_callable(genome)
         if host_callable_cache is not None and str(host_algo_id) in host_callable_cache:
@@ -578,7 +586,10 @@ def _analyse_effective_graft(
                 host_callable_cache[str(host_algo_id)] = (host_fn, host_issue)
         result["compile_issue"] = child_issue or host_issue
         result["source"] = source
-        if child_fn is not None and host_fn is not None:
+        if child_fn is None or host_fn is None:
+            raised_exception = True
+            result["exception_repr"] = result.get("compile_issue") or "compile returned None"
+        else:
             probes = _build_behavior_probe_samples(
                 nr=16,
                 nt=16,
@@ -590,11 +601,39 @@ def _analyse_effective_graft(
             total_symbols = 0
             for H, _x_true, y, sigma2, constellation in probes:
                 try:
-                    host_out = _call_with_timeout(host_fn, (H, y, sigma2, constellation), timeout=5.0)
-                    child_out = _call_with_timeout(child_fn, (H, y, sigma2, constellation), timeout=5.0)
+                    host_out = _call_with_timeout(host_fn, (H, y, sigma2, constellation), timeout=3.0)
+                    child_out = _call_with_timeout(child_fn, (H, y, sigma2, constellation), timeout=3.0)
                     host_sym = _nearest_constellation_symbols(np.asarray(host_out), constellation)
                     child_sym = _nearest_constellation_symbols(np.asarray(child_out), constellation)
-                except Exception:
+                except Exception as exc:
+                    raised_exception = True
+                    result["exception_repr"] = f"{type(exc).__name__}: {exc}"
+                    # ── DEBUG: dump the failing source for offline inspection.
+                    try:
+                        import os as _os
+                        _dbg_dir = _os.environ.get("ALPHADETECT_GRAFT_EXC_DUMP")
+                        if _dbg_dir and source:
+                            _os.makedirs(_dbg_dir, exist_ok=True)
+                            _safe_id = str(getattr(genome, "algo_id", "anon"))[:32]
+                            _path = _os.path.join(_dbg_dir, f"{type(exc).__name__}_{_safe_id}.py")
+                            with open(_path, "w", encoding="utf-8") as _fh:
+                                _fh.write(f"# {type(exc).__name__}: {exc}\n")
+                                _fh.write(f"# host={host_algo_id} algo={genome.algo_id}\n\n")
+                                _fh.write(source)
+                    except Exception:
+                        pass
+                    total_changed = 0
+                    total_symbols = 0
+                    break
+                # Shape mismatch between host_sym and child_sym means
+                # child returned a different-length output (e.g. empty
+                # array because child fn took an early branch); treat as
+                # behavior failure rather than crashing the analyser.
+                if host_sym.shape != child_sym.shape:
+                    raised_exception = True
+                    result["exception_repr"] = (
+                        f"shape_mismatch: host={host_sym.shape} child={child_sym.shape}"
+                    )
                     total_changed = 0
                     total_symbols = 0
                     break
@@ -606,14 +645,24 @@ def _analyse_effective_graft(
                 result["behavior_ok"] = change_rate > 0.0
     else:
         result["compile_issue"] = "host genome unresolved"
+        raised_exception = True
 
-    result["effective"] = bool(result["structural_ok"]) and bool(result["behavior_ok"]) and bool(result["performance_ok"])
+    result["no_exception"] = not raised_exception
+    result["reasonable"] = (
+        bool(result["structural_ok"])
+        and bool(result["behavior_ok"])
+        and bool(result["no_exception"])
+    )
+    result["effective"] = bool(result["reasonable"]) and bool(result["performance_ok"])
+
     if result["effective"]:
         result["quality_verdict"] = "EFFECTIVE"
-    elif not result["behavior_ok"]:
-        result["quality_verdict"] = "BEHAVIOR_FAIL"
+    elif result["reasonable"]:
+        result["quality_verdict"] = "REASONABLE"
+    elif raised_exception:
+        result["quality_verdict"] = "EXCEPTION"
     else:
-        result["quality_verdict"] = "PERFORMANCE_FAIL"
+        result["quality_verdict"] = "BEHAVIOR_FAIL"
     return result
 
 
@@ -647,7 +696,11 @@ def _log_graft_visualizations(
         return 0
 
     try:
-        from algorithm_ir.visualize import render_graft_visualization
+        from algorithm_ir.visualize import (
+            build_visible_ir,
+            render_graft_visualization,
+            visibility_stats,
+        )
     except Exception as exc:
         logger.warning("Graft visualiser unavailable: %s", exc)
         return 0
@@ -665,12 +718,21 @@ def _log_graft_visualizations(
     picks = (effective + rest)[:n_per_gen]
 
     rendered = 0
-    with open(log_file, "a", encoding="utf-8") as fh:
-        fh.write(f"\n{'#'*80}\n")
-        fh.write(f"# GENERATION {gen} | SNR={snr_db:.0f}dB | "
-                 f"{len(picks)} graft visualisations "
-                 f"({len(effective)} effective available)\n")
-        fh.write(f"{'#'*80}\n\n")
+    visible_log_file = log_file.with_name(log_file.stem + ".visible.log")
+    with open(log_file, "a", encoding="utf-8") as fh, \
+            open(visible_log_file, "a", encoding="utf-8") as fh_vis:
+        header = (f"\n{'#'*80}\n"
+                  f"# GENERATION {gen} | SNR={snr_db:.0f}dB | "
+                  f"{len(picks)} graft visualisations "
+                  f"({len(effective)} effective available)\n"
+                  f"{'#'*80}\n\n")
+        fh.write(header)
+        fh_vis.write(header)
+        fh_vis.write(
+            "# NOTE: this file shows the *GNN-visible* IR (trivial ops -- "
+            "const, get_attr, assign, trivial-phi -- are removed).\n"
+            "# The full IR is in the sibling file 'graft_visualizations.log'.\n\n"
+        )
 
         for rank, (genome, fit) in enumerate(picks, 1):
             analysis = analyses.get(genome.algo_id, {})
@@ -711,23 +773,41 @@ def _log_graft_visualizations(
             )
             change_rate = float(analysis.get("behavior_change_rate", 0.0))
 
-            fh.write(f"\n{'='*80}\n")
-            fh.write(
+            # Per-IR visibility stats (Plan B): how many ops survive
+            # the GNN visibility filter for each IR in this triple.
+            def _vis_str(label: str, ir) -> str:
+                if ir is None:
+                    return f"{label}=n/a"
+                tot, vis, hid, pct = visibility_stats(ir)
+                return f"{label}=tot{tot}/vis{vis}/hid{hid}({pct:.0f}%)"
+
+            vis_summary = "  ".join([
+                _vis_str("host", host_ir),
+                _vis_str("donor", donor_ir),
+                _vis_str("graft", grafted_ir),
+            ])
+
+            header_lines = (
+                f"\n{'='*80}\n"
                 f"[#{rank}] child={genome.algo_id}  host={host_algo_id}  "
                 f"donor={donor_algo_id}\n"
-            )
-            fh.write(
                 f"        verdict={verdict}  child_score={score:.6f}  "
                 f"host_score={host_score_repr}  child_SER={ser:.6f}  "
                 f"behavior_change={change_rate:.3f}  region_size={len(region_op_ids)}\n"
+                f"        visibility: {vis_summary}\n"
+                f"{'='*80}\n"
             )
-            fh.write(f"{'='*80}\n")
+            fh.write(header_lines)
+            fh_vis.write(header_lines)
 
             if host_ir is None:
-                fh.write(f"  <host genome '{host_algo_id}' not resolvable; "
-                         f"skipping visualisation>\n")
+                msg = (f"  <host genome '{host_algo_id}' not resolvable; "
+                       f"skipping visualisation>\n")
+                fh.write(msg)
+                fh_vis.write(msg)
                 continue
 
+            # ---- Full IR (original log) ------------------------------
             try:
                 viz = render_graft_visualization(
                     host_ir=host_ir,
@@ -739,9 +819,37 @@ def _log_graft_visualizations(
                 )
             except Exception as exc:
                 fh.write(f"  <render failed: {exc}>\n")
-                continue
-            fh.write(viz)
-            fh.write("\n")
+            else:
+                fh.write(viz)
+                fh.write("\n")
+
+            # ---- GNN-visible IR view (parallel log) ------------------
+            try:
+                host_vis = build_visible_ir(host_ir)
+                donor_vis = build_visible_ir(donor_ir) if donor_ir is not None else None
+                grafted_vis = build_visible_ir(grafted_ir) if grafted_ir is not None else None
+                visible_region_ids = [
+                    op_id for op_id in region_op_ids
+                    if op_id in host_vis.ops
+                ]
+                visible_region_proxy = _Region()
+                visible_region_proxy.op_ids = visible_region_ids
+                visible_region_proxy.entry_values = []
+                visible_region_proxy.exit_values = []
+                viz_vis = render_graft_visualization(
+                    host_ir=host_vis,
+                    region=visible_region_proxy,
+                    donor_ir=donor_vis,
+                    grafted_ir=grafted_vis,
+                    color=color,
+                    show_consumers=True,
+                )
+            except Exception as exc:
+                fh_vis.write(f"  <visible render failed: {exc}>\n")
+            else:
+                fh_vis.write(viz_vis)
+                fh_vis.write("\n")
+
             rendered += 1
 
     return rendered
@@ -777,9 +885,16 @@ def _log_effective_grafts(
         (g, f) for g, f in evaluated_pairs
         if analyses[g.algo_id]["effective"]
     ]
+    reasonable_pairs = [
+        (g, f) for g, f in evaluated_pairs
+        if analyses[g.algo_id]["reasonable"]
+    ]
     structural_fail = sum(1 for g, _ in evaluated_pairs if analyses[g.algo_id]["quality_verdict"] == "STRUCTURAL_FAIL")
     behavior_fail = sum(1 for g, _ in evaluated_pairs if analyses[g.algo_id]["quality_verdict"] == "BEHAVIOR_FAIL")
-    performance_fail = sum(1 for g, _ in evaluated_pairs if analyses[g.algo_id]["quality_verdict"] == "PERFORMANCE_FAIL")
+    exception_fail = sum(1 for g, _ in evaluated_pairs if analyses[g.algo_id]["quality_verdict"] == "EXCEPTION")
+    # Performance-fail = reasonable but not effective (behaved differently
+    # without exceptions, but did not strictly beat host).
+    performance_fail = max(0, len(reasonable_pairs) - len(effective_pairs))
 
     precise_results: dict[str, FitnessResult] = {}
     if effective_pairs:
@@ -804,16 +919,41 @@ def _log_effective_grafts(
         fh.write(
             f"GENERATION {gen} | SNR={snr_db:.0f}dB | "
             f"{len(evaluated_pairs)} evaluated graft samples | "
-            f"{len(effective_pairs)} effective\n"
+            f"{len(effective_pairs)} effective | "
+            f"{len(reasonable_pairs)} reasonable\n"
         )
         fh.write(f"{'='*80}\n\n")
         fh.write(
             "SUMMARY: "
             f"{len(effective_pairs)} effective, "
+            f"{len(reasonable_pairs)} reasonable, "
             f"{structural_fail} structural_fail, "
             f"{behavior_fail} behavior_fail, "
-            f"{performance_fail} performance_fail\n"
+            f"{exception_fail} exception, "
+            f"{performance_fail} performance_fail (reasonable but not effective)\n"
         )
+        # ── Exception type breakdown (when behavior probes raised). ──
+        from collections import Counter as _Counter
+        exc_counter: _Counter = _Counter()
+        exc_examples: dict[str, str] = {}
+        for g, _ in evaluated_pairs:
+            a = analyses[g.algo_id]
+            if a.get("quality_verdict") != "EXCEPTION":
+                continue
+            repr_ = a.get("exception_repr") or "?:unknown"
+            head = repr_.split(":", 1)[0]
+            exc_counter[head] += 1
+            exc_examples.setdefault(head, repr_)
+        if exc_counter:
+            fh.write("EXCEPTION BREAKDOWN:\n")
+            for k, v in exc_counter.most_common():
+                fh.write(f"  {v:4d}  {k:32s}  e.g. {exc_examples[k][:160]}\n")
+            top_summary = ", ".join(
+                f"{k}={v}" for k, v in exc_counter.most_common(5)
+            )
+            logger.info("  Graft exceptions (gen %d): %s", gen, top_summary)
+            for k, v in exc_counter.most_common(3):
+                logger.info("    e.g. %s: %s", k, exc_examples[k][:200])
         fh.write(
             "EFFECTIVE SER STATS (all evaluated graft samples): "
             f"best={_fmt_metric(min(effective_ser) if effective_ser else None)} | "
@@ -882,8 +1022,10 @@ def _log_effective_grafts(
     return ({
         "n_graft_samples": len(evaluated_pairs),
         "n_effective": len(effective_pairs),
+        "n_reasonable": len(reasonable_pairs),
         "n_structural_fail": structural_fail,
         "n_behavior_fail": behavior_fail,
+        "n_exception": exception_fail,
         "n_performance_fail": performance_fail,
         "effective_best_ser": min(effective_ser) if effective_ser else None,
         "effective_median_ser": float(np.median(effective_ser)) if effective_ser else None,
@@ -959,6 +1101,8 @@ gnn_matcher = GNNPatternMatcher(
     enable_batched_proposals=args.proposal_batch,
     proposal_batch_size=args.proposal_batch_size,
     show_progress=args.progress,
+    enable_host_mask=not args.no_host_mask,
+    enable_donor_mask=not args.no_donor_mask,
 )
 
 if args.resume and Path(args.resume).exists():
@@ -1000,6 +1144,7 @@ engine = AlgorithmEvolutionEngine(
     rng=np.random.default_rng(args.seed),
     pattern_matcher=gnn_matcher,
 )
+engine.show_progress = args.progress
 engine.graft_eval_evaluator = make_evaluator(
     current_snr,
     args.warmstart_trials,
@@ -1245,12 +1390,14 @@ for gen in range(1, args.gens + 1):
 
     logger.info(
         "Gen %3d | SNR=%.0fdB | best_SER=%.6f | median=%.4f | "
-        "good=%.0f%% | graft_samples=%d effective=%d (structural_fail=%d, behavior_fail=%d, perf_fail=%d) | survivors=%d | %.1fs",
+        "good=%.0f%% | graft_samples=%d effective=%d reasonable=%d (structural_fail=%d, behavior_fail=%d, exception=%d, perf_fail=%d) | survivors=%d | %.1fs",
         gen, current_snr, best_ser, median_ser,
         frac_good * 100, graft_stats.get("n_graft_samples", 0),
         graft_stats.get("n_effective", 0),
+        graft_stats.get("n_reasonable", 0),
         graft_stats.get("n_structural_fail", 0),
         graft_stats.get("n_behavior_fail", 0),
+        graft_stats.get("n_exception", 0),
         graft_stats.get("n_performance_fail", 0),
         n_grafted_survivors,
         elapsed,
@@ -1266,22 +1413,41 @@ for gen in range(1, args.gens + 1):
         graft_stats.get("n_effective_precise", 0),
     )
     matcher_stats = gnn_matcher.get_stats()
+    last_proposals = matcher_stats.get("last_proposals", {})
     logger.info(
         "  Train stats: matched=%s score=%.4f baseline=%.4f | proposals=%s pairs=%s/%s | region_ops=%.2f inputs=%.2f outputs=%.2f cut=%.2f invalid=%.3f | graft_eval=%s kept=%s warmstart=%s",
         matcher_stats.get("last_train", {}).get("matched_samples"),
         matcher_stats.get("last_train", {}).get("mean_graft_score", float("nan")),
         matcher_stats.get("reward_baseline", 0.0),
-        matcher_stats.get("last_proposals", {}).get("proposals_built"),
-        matcher_stats.get("last_proposals", {}).get("pair_candidates_selected"),
-        matcher_stats.get("last_proposals", {}).get("pair_candidates_scored"),
-        matcher_stats.get("last_proposals", {}).get("mean_region_ops", 0.0),
-        matcher_stats.get("last_proposals", {}).get("mean_region_inputs", 0.0),
-        matcher_stats.get("last_proposals", {}).get("mean_region_outputs", 0.0),
-        matcher_stats.get("last_proposals", {}).get("effective_cut_size", 0.0),
-        matcher_stats.get("last_proposals", {}).get("invalid_region_rate", 0.0),
+        last_proposals.get("proposals_built"),
+        last_proposals.get("pair_candidates_selected"),
+        last_proposals.get("pair_candidates_scored"),
+        last_proposals.get("mean_region_ops", 0.0),
+        last_proposals.get("mean_region_inputs", 0.0),
+        last_proposals.get("mean_region_outputs", 0.0),
+        last_proposals.get("effective_cut_size", 0.0),
+        last_proposals.get("invalid_region_rate", 0.0),
         engine.last_generation_stats.get("graft_evaluated"),
         engine.last_generation_stats.get("graft_kept"),
         engine.last_generation_stats.get("warmstart_active"),
+    )
+    logger.info(
+        "  Host region: mask=%s attempts=%s built=%s validate_passes=%s validity_rate=%.3f | invalid_buckets=%s",
+        last_proposals.get("host_use_mask", False),
+        last_proposals.get("host_sampler_attempts", 0),
+        last_proposals.get("host_built_regions", 0),
+        last_proposals.get("host_validate_passes", 0),
+        last_proposals.get("host_validity_rate", 0.0),
+        last_proposals.get("invalid_regions", {}),
+    )
+    logger.info(
+        "  Donor region: mask=%s attempts=%s built=%s validate_passes=%s validity_rate=%.3f end_to_end=%.3f",
+        last_proposals.get("donor_use_mask", False),
+        last_proposals.get("donor_sampler_attempts", 0),
+        last_proposals.get("donor_built_regions", 0),
+        last_proposals.get("donor_validate_passes", 0),
+        last_proposals.get("donor_validity_rate", 0.0),
+        last_proposals.get("end_to_end_validity_rate", 0.0),
     )
 
     # ── Checkpointing ─────────────────────────────────────────────────

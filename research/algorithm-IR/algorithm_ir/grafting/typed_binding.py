@@ -39,7 +39,7 @@ from typing import TYPE_CHECKING, Iterable
 
 import numpy as np
 
-from algorithm_ir.ir.type_lattice import is_subtype, unify
+from algorithm_ir.ir.type_lattice import is_array_like, is_subtype, unify
 
 if TYPE_CHECKING:
     from algorithm_ir.ir.model import FunctionIR, Value
@@ -165,6 +165,68 @@ def _value_hints(value: "Value") -> list[str]:
     ]
 
 
+def _is_named_global(func_ir: "FunctionIR", vid: str) -> bool:
+    """True if ``vid`` is the output of a ``const`` op carrying a symbolic ``name``.
+
+    These values represent module/class/function references resolved
+    against the host's outer scope (e.g. ``np``, ``complex``, ``abs``).
+    They are not valid substitutes for arbitrary numeric/array values.
+    """
+    val = func_ir.values.get(vid)
+    if val is None or val.def_op is None:
+        return False
+    op = func_ir.ops.get(val.def_op)
+    if op is None or op.opcode != "const":
+        return False
+    return bool(isinstance(op.attrs, dict) and op.attrs.get("name"))
+
+
+def _named_global_name(func_ir: "FunctionIR", vid: str) -> str | None:
+    val = func_ir.values.get(vid)
+    if val is None or val.def_op is None:
+        return None
+    op = func_ir.ops.get(val.def_op)
+    if op is None or not isinstance(op.attrs, dict):
+        return None
+    return op.attrs.get("name")
+
+
+def _donor_args_in_branch_cond(donor_ir: "FunctionIR") -> set[str]:
+    return donor_args_in_branch_cond(donor_ir)
+
+
+def donor_args_in_branch_cond(donor_ir: "FunctionIR") -> set[str]:
+    """Return donor arg vids whose dataflow transitively reaches a branch
+    cond.  Such args MUST resolve to scalar host values at runtime; a
+    numpy array would cause ``ValueError: truth value of an array …`` in
+    the emitted ``if``/``while`` test.
+    """
+    # Seed: cond operand of every branch op.
+    seeds: set[str] = set()
+    for op in donor_ir.ops.values():
+        if op.opcode == "branch" and op.inputs:
+            seeds.add(op.inputs[0])
+    if not seeds:
+        return set()
+    # Backward dataflow over the donor IR.
+    reached: set[str] = set(seeds)
+    stack = list(seeds)
+    while stack:
+        vid = stack.pop()
+        val = donor_ir.values.get(vid)
+        if val is None or val.def_op is None:
+            continue
+        defop = donor_ir.ops.get(val.def_op)
+        if defop is None:
+            continue
+        for inp in defop.inputs:
+            if inp not in reached:
+                reached.add(inp)
+                stack.append(inp)
+    arg_set = set(donor_ir.arg_values)
+    return reached & arg_set
+
+
 def _call_conf_bonus(host_ir: "FunctionIR", host_vid: str) -> float:
     """Small reward for host values typed via the callable registry."""
     val = host_ir.values.get(host_vid)
@@ -285,10 +347,27 @@ def bind_typed(
         dval = donor_ir.values.get(dvid)
         d_type = (dval.type_hint if dval else "any") or "any"
         d_hints = _value_hints(dval)
+        d_is_named_global = _is_named_global(donor_ir, dvid)
         for hi, hvid in enumerate(visible):
             hval = host_ir.values.get(hvid)
             if hval is None:
                 continue
+            # A "named global" is a const op with a symbolic ``name``
+            # attr — typically a module (np), a class (complex, float),
+            # or a function reference.  These are not interchangeable
+            # with arbitrary numeric/array values: binding host's
+            # ``complex`` (the type) into a donor arg expecting a
+            # numeric scalar produces TypeError at runtime ("'<' not
+            # supported between instances of 'type' and 'int'").
+            # Restrict named-global binding to the same-name partner.
+            h_is_named_global = _is_named_global(host_ir, hvid)
+            if d_is_named_global != h_is_named_global:
+                continue
+            if d_is_named_global and h_is_named_global:
+                d_name = _named_global_name(donor_ir, dvid)
+                h_name = _named_global_name(host_ir, hvid)
+                if d_name != h_name:
+                    continue
             h_type = (hval.type_hint or "any")
             h_hints = _value_hints(hval)
             t = _type_cost(d_type, h_type)
@@ -362,4 +441,5 @@ __all__ = [
     "TypedBindingResult",
     "bind_typed",
     "collect_visible_host_values",
+    "donor_args_in_branch_cond",
 ]

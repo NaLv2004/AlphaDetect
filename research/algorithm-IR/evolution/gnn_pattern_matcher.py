@@ -13,7 +13,7 @@ samples actions.
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, Callable
 
 import numpy as np
 import torch
@@ -38,12 +38,32 @@ from algorithm_ir.region.slicer import (
     enumerate_observable_values,
     validate_boundary_region,
 )
+from algorithm_ir.region.triviality import (
+    is_trivial_op,
+    visible_def_op,
+    visible_def_ops,
+)
 from evolution.pattern_matchers import _fresh_id
 from evolution.pool_types import AlgorithmEntry, GraftProposal, SlotStampingProposal
 from evolution.graft_classifier import (
     BoundarySignature,
     classify_region,
     signature_for_region,
+)
+from evolution.host_region_mask import (
+    clear_singleton_cut_cache,
+    cut_step_mask as _host_cut_step_mask,
+    filter_dead_code_outputs as _host_filter_dead_code_outputs,
+    is_output_combo_feasible as _host_is_output_combo_feasible,
+    output_step_mask as _host_output_step_mask,
+    precompute_op_closures as _host_precompute_op_closures,
+)
+from evolution.donor_region_mask import (
+    donor_cut_step_mask as _donor_cut_step_mask,
+    donor_output_step_mask as _donor_output_step_mask,
+    donor_pool_signature_compatible as _donor_pool_signature_compatible,
+    donor_cut_pool_union as _donor_cut_pool_union,
+    precompute_op_closures as _donor_precompute_op_closures,
 )
 
 logger = logging.getLogger(__name__)
@@ -165,14 +185,35 @@ def _hash_provenance(slot_id: str | None, is_boundary: bool) -> list[float]:
 # ---------------------------------------------------------------------------
 
 def ir_to_graph(ir: FunctionIR) -> Data:
-    ops_list = list(ir.ops.values())
-    if not ops_list:
+    """Build a torch_geometric graph view of ``ir`` for the GNN encoder.
+
+    Plan B visibility filter (see ``algorithm_ir/region/triviality.py``):
+    trivial ops (``const``, ``get_attr``, ``assign``, and trivial
+    ``phi(x,x)``) are **excluded as graph nodes** because they inflate
+    node counts without carrying real algorithmic structure. Dataflow
+    edges are made transitive through hidden ops via
+    :func:`visible_def_op`, so the GNN sees an edge from each non-trivial
+    producer directly to its non-trivial consumer.
+    """
+    all_ops = list(ir.ops.values())
+    if not all_ops:
         x = torch.zeros(1, _NODE_DIM)
         return Data(x=x, edge_index=torch.zeros(2, 0, dtype=torch.long))
 
-    op_id_to_idx = {op.id: idx for idx, op in enumerate(ops_list)}
+    # Filter out trivial ops; they remain in the physical IR (codegen,
+    # execution, slot_meta, grafting all unchanged) but the GNN never
+    # sees them as nodes.
+    visible_ops = [op for op in all_ops if not is_trivial_op(op, ir)]
+    if not visible_ops:
+        # Pathological case: an entirely trivial IR. Fall back to the
+        # raw graph to preserve at least one node so encoder can run.
+        visible_ops = all_ops
+
+    op_id_to_idx = {op.id: idx for idx, op in enumerate(visible_ops)}
+
+    # Node features (unchanged construction; just over the visible set).
     node_feats: list[list[float]] = []
-    for op in ops_list:
+    for op in visible_ops:
         one_hot = [0.0] * _N_OPCODES
         one_hot[_opcode_idx(op.opcode)] = 1.0
         callee = op.attrs.get("callee", op.attrs.get("name", ""))
@@ -185,30 +226,54 @@ def ir_to_graph(ir: FunctionIR) -> Data:
         node_feats.append(one_hot + callee_feat + prov_feat)
     x = torch.tensor(node_feats, dtype=torch.float32)
 
+    # For each value in the IR, resolve the *set* of visible ops that
+    # transitively produce it. Multi-input trivial ops (e.g.
+    # ``build_tuple(a, b, c)``) fan out to every non-trivial producer
+    # of every component, so the GNN sees edges from each underlying
+    # value source rather than losing connectivity through the packer.
+    value_visible_defs: dict[str, list[int]] = {}
+    for vid in ir.values:
+        producers = visible_def_ops(ir, vid)
+        if not producers:
+            continue
+        idxs = [op_id_to_idx[p.id] for p in producers if p.id in op_id_to_idx]
+        if idxs:
+            value_visible_defs[vid] = idxs
+
+    # Dataflow edges: every visible op pulls from every visible producer
+    # of each of its inputs. Trivial ops collapse silently.
     src_list: list[int] = []
     dst_list: list[int] = []
-    value_def_op: dict[str, int] = {}
-    for op in ops_list:
-        for value_id in op.outputs:
-            value_def_op[value_id] = op_id_to_idx[op.id]
-
-    for op in ops_list:
+    edge_set: set[tuple[int, int]] = set()
+    for op in visible_ops:
         op_idx = op_id_to_idx[op.id]
         for value_id in op.inputs:
-            def_idx = value_def_op.get(value_id)
-            if def_idx is not None and def_idx != op_idx:
+            for def_idx in value_visible_defs.get(value_id, ()):
+                if def_idx == op_idx:
+                    continue
+                key = (def_idx, op_idx)
+                if key in edge_set:
+                    continue
+                edge_set.add(key)
                 src_list.append(def_idx)
                 dst_list.append(op_idx)
 
+    # Block-order sequential edges (same logic as before, but trivial
+    # ops are skipped — we link each visible op to the previous visible
+    # op in the same block). Preserves locality without re-introducing
+    # spurious edges through hidden nodes.
     for block in ir.blocks.values():
         prev_idx = None
         for op_id in block.op_ids:
             cur_idx = op_id_to_idx.get(op_id)
             if cur_idx is None:
-                continue
-            if prev_idx is not None:
-                src_list.append(prev_idx)
-                dst_list.append(cur_idx)
+                continue  # trivial op skipped
+            if prev_idx is not None and prev_idx != cur_idx:
+                key = (prev_idx, cur_idx)
+                if key not in edge_set:
+                    edge_set.add(key)
+                    src_list.append(prev_idx)
+                    dst_list.append(cur_idx)
             prev_idx = cur_idx
 
     edge_index = (
@@ -395,6 +460,8 @@ class GNNPatternMatcher:
         proposal_batch_size: int = 64,
         show_progress: bool = False,
         device: str | None = None,
+        enable_host_mask: bool = True,
+        enable_donor_mask: bool = True,
     ):
         self.max_proposals_per_gen = max_proposals_per_gen
         self.top_k_pairs = top_k_pairs
@@ -418,6 +485,23 @@ class GNNPatternMatcher:
         self.enable_batched_proposals = enable_batched_proposals
         self.proposal_batch_size = max(1, int(proposal_batch_size))
         self.show_progress = show_progress
+        # When True, host-side region sampling uses the 4-layer mask in
+        # ``evolution.host_region_mask`` to guarantee structural and
+        # numerical validity *without* relying on the greedy repair
+        # fallback in ``_build_boundary_region``.  When False, the
+        # legacy permissive sampling + greedy repair pipeline is used.
+        self.enable_host_mask = bool(enable_host_mask)
+        # When True, donor-side region sampling uses the 4-layer mask in
+        # ``evolution.donor_region_mask`` (Layer D1 pool prefilter +
+        # Layer D2 output mask + Layer D4 cut/STOP mask) to enforce
+        # equality arity match against the host BoundarySignature
+        # without any post-hoc repair.
+        self.enable_donor_mask = bool(enable_donor_mask)
+        # Per-pair retry budget for the masked donor sampler.  Greedy
+        # masked sampling can paint itself into dead-end output prefixes;
+        # re-sampling from scratch usually recovers.  10 retries gets
+        # end-to-end pass rate to ~97% when per-attempt rate is ~30%.
+        self.donor_sample_max_retries = 10
 
         self.device = torch.device(
             device if device else ("cuda" if torch.cuda.is_available() else "cpu")
@@ -820,7 +904,12 @@ class GNNPatternMatcher:
         graphs: list[Data] = []
         keys: list[str] = []
         live_ids: set[str] = set()
-        for entry in entries:
+        _enc_iter: Any = (
+            tqdm(entries, desc="Build IR graphs", leave=False)
+            if self.show_progress and tqdm is not None
+            else entries
+        )
+        for entry in _enc_iter:
             live_ids.add(entry.algo_id)
             self._graph_cache[entry.algo_id] = ir_to_graph(entry.ir)
             graphs.append(self._graph_cache[entry.algo_id])
@@ -885,19 +974,18 @@ class GNNPatternMatcher:
         if not selected_pairs or max_proposals <= 0:
             return [], self._empty_proposal_stats()
 
+        clear_singleton_cut_cache()
         pair_slice = list(selected_pairs[:max_proposals])
-        if self.show_progress and tqdm is not None and pair_slice:
-            pair_slice = list(tqdm(
-                pair_slice,
-                total=len(pair_slice),
-                desc="GNN graft proposals",
-                leave=False,
-            ))
+        _show = self.show_progress and tqdm is not None
 
         invalid_regions: dict[str, int] = {}
         context_cache: dict[str, dict[str, Any] | None] = {}
         pair_infos: list[dict[str, Any]] = []
-        for host_entry, donor_entry, pair_score in pair_slice:
+        _ctx_iter: Any = (
+            tqdm(pair_slice, desc=f"Build pair contexts ({len(pair_slice)})", leave=False)
+            if _show else pair_slice
+        )
+        for host_entry, donor_entry, pair_score in _ctx_iter:
             host_ctx = self._get_entry_context(host_entry, context_cache)
             donor_ctx = self._get_entry_context(donor_entry, context_cache)
             if host_ctx is None or donor_ctx is None:
@@ -914,11 +1002,19 @@ class GNNPatternMatcher:
             return [], self._proposal_stats(invalid_regions, [], [], 0)
 
         # Host outputs
+        # When ``enable_host_mask`` is on we use the dead-code-filtered
+        # observable pool (Layer 1). The featuriser must agree on the
+        # candidate ordering, so we also pass the parallel features.
+        host_use_mask = self.enable_host_mask
         for info, out in zip(
             pair_infos,
             self._compute_output_logits_batch([
                 {
-                    "candidate_feats_np": info["host_ctx"]["observable_feats_np"],
+                    "candidate_feats_np": (
+                        info["host_ctx"]["host_observable_feats_np"]
+                        if host_use_mask
+                        else info["host_ctx"]["observable_feats_np"]
+                    ),
                     "context_emb_np": info["donor_ctx"]["emb"].detach().cpu().numpy(),
                 }
                 for info in pair_infos
@@ -930,21 +1026,81 @@ class GNNPatternMatcher:
         donor_temperature = self._policy_temperature()
 
         host_cut_infos: list[dict[str, Any]] = []
-        for info in pair_infos:
+        _host_out_iter: Any = (
+            tqdm(pair_infos, desc="Sample host outputs", leave=False)
+            if _show else pair_infos
+        )
+        for info in _host_out_iter:
+            host_ctx = info["host_ctx"]
+            host_obs_vals = (
+                host_ctx["host_observable_values"]
+                if host_use_mask
+                else host_ctx["observable_values"]
+            )
+            if not host_obs_vals:
+                # Layer 1 stripped everything (rare: the host has no
+                # return-slice values at all).  Treat as a dead-end so
+                # we do not crash on an empty softmax.
+                invalid_regions["host_layer1_empty"] = (
+                    invalid_regions.get("host_layer1_empty", 0) + 1
+                )
+                continue
+            if host_use_mask:
+                op_closures = host_ctx["host_op_closures"]
+
+                def _output_mask_fn(
+                    selected,
+                    remaining,
+                    _ir=host_ctx["ir"],
+                    _cl=op_closures,
+                    _max_ops=self.max_region_ops,
+                    _max_out=self.max_region_outputs,
+                    _max_in=self.max_region_inputs,
+                    _max_cut=self.max_cut_values,
+                ):
+                    return _host_output_step_mask(
+                        _ir, _cl, selected, remaining,
+                        max_region_ops=_max_ops,
+                        max_region_outputs=_max_out,
+                        max_region_inputs=_max_in,
+                        max_cut_budget=_max_cut,
+                    )
+
+                step_mask_fn = _output_mask_fn
+            else:
+                step_mask_fn = None
             host_outputs = self._sample_value_sequence(
-                info["host_ctx"]["observable_values"],
+                host_obs_vals,
                 info["host_output_logits"][0],
                 info["host_output_logits"][1],
                 max_selected=self.max_boundary_outputs,
                 allow_empty=False,
                 temperature=region_temperature,
                 exploration=self.region_exploration,
+                step_mask_fn=step_mask_fn,
             )
             if not host_outputs:
                 invalid_regions["host_no_output"] = invalid_regions.get("host_no_output", 0) + 1
                 continue
+            if host_use_mask:
+                # Dead-end check: cuts monotonely reduce ops + exits, so
+                # if greedy-cut-all already violates max_region_ops or
+                # max_region_outputs, no cut combo can rescue this output
+                # choice. Drop now to avoid a guaranteed validation fail.
+                if not _host_is_output_combo_feasible(
+                    host_ctx["ir"],
+                    host_outputs,
+                    max_region_ops=self.max_region_ops,
+                    max_region_outputs=self.max_region_outputs,
+                    max_region_inputs=self.max_region_inputs,
+                    max_cut_budget=self.max_cut_values,
+                ):
+                    invalid_regions["host_infeasible_outputs"] = (
+                        invalid_regions.get("host_infeasible_outputs", 0) + 1
+                    )
+                    continue
             info["host_selected_outputs"] = host_outputs
-            info["host_cut_ctx"] = self._get_cut_context(info["host_ctx"], host_outputs)
+            info["host_cut_ctx"] = self._get_cut_context(host_ctx, host_outputs)
             host_cut_infos.append(info)
 
         # Host cuts
@@ -968,7 +1124,48 @@ class GNNPatternMatcher:
         host_valid_infos: list[dict[str, Any]] = []
         host_region_metrics: list[tuple[int, int, int]] = []
         effective_cut_sizes: list[int] = []
-        for info in host_cut_infos:
+        # Per-stage host counters for clean ``host_validity_rate`` reporting:
+        #   host_sampler_attempts  = sampler called (post-Layer-1 candidate pool non-empty)
+        #   host_built_regions     = define_rewrite_region returned (no exception)
+        #   host_validate_passes   = validate_boundary_region.is_valid (the headline metric)
+        host_sampler_attempts = 0
+        host_built_regions = 0
+        host_validate_passes = 0
+        _host_cut_iter: Any = (
+            tqdm(host_cut_infos, desc="Sample host cuts", leave=False)
+            if _show else host_cut_infos
+        )
+        for info in _host_cut_iter:
+            host_ctx = info["host_ctx"]
+            if host_use_mask:
+                host_ir = host_ctx["ir"]
+                host_outputs_for_mask = info["host_selected_outputs"]
+
+                def _cut_mask_fn(
+                    selected,
+                    remaining,
+                    _ir=host_ir,
+                    _outs=host_outputs_for_mask,
+                    _max_ops=self.max_region_ops,
+                    _min_ops=self.min_region_size,
+                    _max_in=self.max_region_inputs,
+                    _max_out=self.max_region_outputs,
+                    _max_cut=self.max_cut_values,
+                    _cut_pool=info["host_cut_ctx"]["candidate_ids"],
+                ):
+                    return _host_cut_step_mask(
+                        _ir, _outs, selected, remaining,
+                        max_region_ops=_max_ops,
+                        min_region_ops=_min_ops,
+                        max_region_inputs=_max_in,
+                        max_region_outputs=_max_out,
+                        max_cut_budget=_max_cut,
+                        cut_pool=_cut_pool,
+                    )
+
+                cut_step_fn = _cut_mask_fn
+            else:
+                cut_step_fn = None
             host_cuts = self._sample_value_sequence(
                 info["host_cut_ctx"]["candidate_ids"],
                 info["host_cut_logits"][0],
@@ -977,21 +1174,26 @@ class GNNPatternMatcher:
                 allow_empty=True,
                 temperature=region_temperature,
                 exploration=self.region_exploration,
+                step_mask_fn=cut_step_fn,
             )
             info["host_selected_cuts"] = host_cuts
+            host_sampler_attempts += 1
             host_build = self._build_boundary_region(
                 info["host_ctx"]["ir"],
                 output_values=info["host_selected_outputs"],
                 cut_values=host_cuts,
+                disable_repair=host_use_mask,
             )
             if host_build is None:
                 invalid_regions["host_region_build_failed"] = invalid_regions.get("host_region_build_failed", 0) + 1
                 continue
+            host_built_regions += 1
             host_region, host_validity = host_build
             if not host_validity.is_valid:
                 key = f"host_{host_validity.reason}"
                 invalid_regions[key] = invalid_regions.get(key, 0) + 1
                 continue
+            host_validate_passes += 1
             # Live-region precondition: at least one of the region's
             # exit_values must lie on the host's return-slice. Otherwise
             # whatever the donor produces here is dead code and DCE will
@@ -1025,6 +1227,33 @@ class GNNPatternMatcher:
             effective_cut_sizes.append(len(info["host_effective_cuts"]))
             host_valid_infos.append(info)
 
+        # Layer D1: donor-pool signature-compatibility prefilter.
+        # Drops (host, donor) pairs where the donor cannot possibly
+        # satisfy the host signature on at least one port type.  This
+        # cuts the signature_mask_empty rate by removing donors that
+        # would deterministically fail later inside
+        # ``_sample_donor_under_signature``. Disabled when
+        # ``enable_donor_mask`` is False.
+        donor_use_mask = self.enable_donor_mask
+        if donor_use_mask:
+            survivors: list[dict[str, Any]] = []
+            for info in host_valid_infos:
+                sig = info["host_signature"]
+                donor_ctx = info["donor_ctx"]
+                if _donor_pool_signature_compatible(
+                    donor_ctx["ir"],
+                    donor_ctx["observable_values"],
+                    donor_ctx.get("donor_cut_pool_union", []),
+                    entry_types=sig.entry_types,
+                    exit_types=sig.exit_types,
+                ):
+                    survivors.append(info)
+                else:
+                    invalid_regions["donor_pool_signature_mismatch"] = (
+                        invalid_regions.get("donor_pool_signature_mismatch", 0) + 1
+                    )
+            host_valid_infos = survivors
+
         # Donor outputs (batched logits — masking is applied per-step
         # inside ``_sample_donor_under_signature`` below).
         for info, out in zip(
@@ -1045,8 +1274,14 @@ class GNNPatternMatcher:
         # mask at any step) are recorded as negative training samples
         # under ``signature_mask_empty`` and the proposal is dropped.
         donor_cut_infos: list[dict[str, Any]] = []
-        for info in host_valid_infos:
+        donor_sampler_attempts = 0
+        _donor_samp_iter: Any = (
+            tqdm(host_valid_infos, desc="Sample donor regions", leave=False)
+            if _show else host_valid_infos
+        )
+        for info in _donor_samp_iter:
             sig: BoundarySignature = info["host_signature"]
+            donor_sampler_attempts += 1
             sampled = self._sample_donor_under_signature(
                 info, sig, donor_temperature,
             )
@@ -1064,7 +1299,13 @@ class GNNPatternMatcher:
             donor_cut_infos.append(info)
 
         proposals: list[GraftProposal] = []
-        for info in donor_cut_infos:
+        donor_built_regions = 0
+        donor_validate_passes = 0
+        _donor_build_iter: Any = (
+            tqdm(donor_cut_infos, desc="Build donor regions", leave=False)
+            if _show else donor_cut_infos
+        )
+        for info in _donor_build_iter:
             donor_cuts = info["donor_selected_cuts"]
             donor_build = self._build_boundary_region(
                 info["donor_ctx"]["ir"],
@@ -1075,10 +1316,12 @@ class GNNPatternMatcher:
                 invalid_regions["donor_region_build_failed"] = invalid_regions.get("donor_region_build_failed", 0) + 1
                 continue
             donor_region, donor_validity = donor_build
+            donor_built_regions += 1
             if not donor_validity.is_valid:
                 key = f"donor_{donor_validity.reason}"
                 invalid_regions[key] = invalid_regions.get(key, 0) + 1
                 continue
+            donor_validate_passes += 1
             try:
                 donor_trim = extract_region_ir(info["donor_ctx"]["ir"], donor_region)
             except Exception:
@@ -1110,6 +1353,14 @@ class GNNPatternMatcher:
             host_region_metrics=host_region_metrics,
             effective_cut_sizes=effective_cut_sizes,
             attempted=len(pair_infos),
+            host_sampler_attempts=host_sampler_attempts,
+            host_built_regions=host_built_regions,
+            host_validate_passes=host_validate_passes,
+            host_use_mask=host_use_mask,
+            donor_sampler_attempts=donor_sampler_attempts,
+            donor_built_regions=donor_built_regions,
+            donor_validate_passes=donor_validate_passes,
+            donor_use_mask=donor_use_mask,
         )
 
     def _make_boundary_proposal(
@@ -1240,6 +1491,32 @@ class GNNPatternMatcher:
             # intersect the host's return-slice produce non-dead grafts.
             "return_slice_values": _compute_return_slice_values(ir),
         }
+        # ── Host-mask precompute ────────────────────────────────────
+        # Layer 1: drop dead-code observable values from the host-side
+        # candidate pool.  We retain the original ``observable_values``
+        # (used for the donor side and for any code path that does not
+        # opt in to host masking) and expose a parallel filtered view
+        # under ``host_*`` keys.  Layer 2 also needs per-value op
+        # closures for connectivity checks.
+        host_obs_vals, host_kept_idx = _host_filter_dead_code_outputs(
+            observable_values, ctx["return_slice_values"],
+        )
+        if observable_feats_np.shape[0] >= len(observable_values) and host_kept_idx:
+            host_obs_feats_np = observable_feats_np[host_kept_idx]
+        else:
+            host_obs_feats_np = observable_feats_np[:0]
+        ctx["host_observable_values"] = host_obs_vals
+        ctx["host_observable_feats_np"] = host_obs_feats_np
+        ctx["host_observable_kept_idx"] = host_kept_idx
+        ctx["host_op_closures"] = _host_precompute_op_closures(ir, host_obs_vals)
+        # ── Donor-mask precompute ───────────────────────────────────
+        # Layer D2 needs op closures over the FULL observable pool
+        # (donor uses unfiltered observables since dead-code on donor
+        # side has different semantics — its outputs become live once
+        # grafted).  Layer D1 also needs the union of cut candidates
+        # over observable singletons; cap to keep prefilter cheap.
+        ctx["donor_op_closures"] = _host_precompute_op_closures(ir, observable_values)
+        ctx["donor_cut_pool_union"] = _donor_cut_pool_union(ir, observable_values)
         cache[entry.algo_id] = ctx
         return ctx
 
@@ -1486,21 +1763,34 @@ class GNNPatternMatcher:
     ) -> tuple[list[str], list[str]] | None:
         """Sample donor outputs/cuts per :class:`BoundarySignature` (§6.7).
 
-        For each host **exit** port (positional), build a type-mask over
-        donor observable values and sample one. Then for each host
-        **entry** port (positional), build a type-mask over donor cut
-        candidates and sample one. The cut-candidate set depends on the
-        sampled outputs, so cut logits are computed *after* outputs are
-        chosen (one batched call per donor info).
-
-        Returns ``(selected_outputs, selected_cuts)`` on success or
-        ``None`` if any step has an all-zero mask. ``None`` is the
-        proposal abort signal — the caller records this as a negative
-        training sample and does **not** fall back to permissive sampling.
+        Wraps a single-attempt sampler in a retry loop: greedy random
+        masked sampling can paint itself into dead-end output choices
+        (e.g. picking 3 outputs whose only feasible 4th candidate doesn't
+        exist).  Re-sampling from scratch with a fresh RNG state typically
+        recovers, since most failures are non-deterministic given the
+        masked candidate set.
         """
+        max_retries = getattr(self, "donor_sample_max_retries", 10)
+        for _ in range(max_retries):
+            result = self._sample_donor_under_signature_once(
+                info, signature, donor_temperature,
+            )
+            if result is not None:
+                return result
+        return None
+
+    def _sample_donor_under_signature_once(
+        self,
+        info: dict[str, Any],
+        signature: BoundarySignature,
+        donor_temperature: float,
+    ) -> tuple[list[str], list[str]] | None:
+        """Single-attempt donor sampler.  See :meth:`_sample_donor_under_signature`."""
         donor_ctx = info["donor_ctx"]
         donor_ir = donor_ctx["ir"]
         observable_values: list[str] = list(donor_ctx["observable_values"])
+        donor_use_mask = self.enable_donor_mask
+        donor_op_closures = donor_ctx.get("donor_op_closures", {}) if donor_use_mask else {}
         # ── Step 1: outputs, positional over signature.exit_types ──
         if not signature.exit_types:
             return None
@@ -1509,15 +1799,42 @@ class GNNPatternMatcher:
             return None
         chosen_out_idx: set[int] = set()
         selected_outputs: list[str] = []
-        # Cap the number of donor outputs we sample at the smaller of
-        # signature arity and the matcher's configured cap, so that
-        # downstream region-build limits are respected.
-        n_out = min(len(signature.exit_types), self.max_boundary_outputs)
+        # When the donor mask is enabled we MUST satisfy the signature
+        # exactly (equality arity), so do not truncate to
+        # ``max_boundary_outputs``: if the host signature has more
+        # exits than the cap we should abort the proposal instead of
+        # silently producing a smaller donor region.
+        if donor_use_mask and len(signature.exit_types) > self.max_boundary_outputs:
+            return None
+        n_out = (
+            len(signature.exit_types) if donor_use_mask
+            else min(len(signature.exit_types), self.max_boundary_outputs)
+        )
         for step in range(n_out):
             host_t = signature.exit_types[step]
             mask = self._build_donor_mask(
                 donor_ir, observable_values, chosen_out_idx, host_t,
             )
+            if donor_use_mask:
+                # Layer D2: AND the type mask with the connectivity +
+                # feasibility mask (at the final-output step the
+                # feasibility lookahead becomes the dominant filter).
+                d2 = _donor_output_step_mask(
+                    donor_ir, donor_op_closures, selected_outputs,
+                    observable_values,
+                    next_step=step,
+                    entry_types=signature.entry_types,
+                    exit_types=signature.exit_types,
+                    max_region_ops=self.max_region_ops,
+                    min_region_ops=self.min_region_size,
+                    max_region_inputs=self.max_region_inputs,
+                    max_cut_budget=self.max_cut_values,
+                )
+                d2_t = torch.tensor(d2, dtype=torch.bool)
+                # Already-chosen indices were cleared by _build_donor_mask;
+                # combine via AND positionally.
+                if d2_t.shape[0] == mask.shape[0]:
+                    mask = mask & d2_t
             idx = self._sample_under_signature_step(
                 observable_values, full_out_logits, mask, donor_temperature,
             )
@@ -1552,17 +1869,65 @@ class GNNPatternMatcher:
             return None
         chosen_cut_idx: set[int] = set()
         selected_cuts: list[str] = []
-        n_cut = min(len(signature.entry_types), self.max_cut_values)
-        for step in range(n_cut):
+        if donor_use_mask and len(signature.entry_types) > self.max_cut_values:
+            return None
+        # Donor cut sampling under Layer D4: loop until STOP gate
+        # opens (current state matches arity exactly) or all-zero mask.
+        max_cut_attempts = (
+            len(signature.entry_types) if donor_use_mask
+            else min(len(signature.entry_types), self.max_cut_values)
+        )
+        if not donor_use_mask:
+            for step in range(max_cut_attempts):
+                host_t = signature.entry_types[step]
+                mask = self._build_donor_mask(
+                    donor_ir, cut_ids, chosen_cut_idx, host_t,
+                )
+                idx = self._sample_under_signature_step(
+                    cut_ids, full_cut_logits, mask, donor_temperature,
+                )
+                if idx is None:
+                    return None
+                chosen_cut_idx.add(idx)
+                selected_cuts.append(cut_ids[idx])
+            return selected_outputs, selected_cuts
+        # Mask-on path: re-evaluate D4 each step to pick up STOP gate.
+        for step in range(max_cut_attempts):
+            d4_mask, stop_allowed = _donor_cut_step_mask(
+                donor_ir, selected_outputs, selected_cuts, cut_ids,
+                entry_types=signature.entry_types,
+                exit_types=signature.exit_types,
+                max_region_ops=self.max_region_ops,
+                min_region_ops=self.min_region_size,
+                max_region_inputs=self.max_region_inputs,
+                max_cut_budget=self.max_cut_values,
+                cut_pool=cut_ids,
+            )
+            # If region is already feasible, prefer STOP to avoid
+            # over-cutting (which can push n_ops below min_region_ops
+            # or otherwise destabilize the region).
+            if stop_allowed and step > 0:
+                break
             host_t = signature.entry_types[step]
-            mask = self._build_donor_mask(
+            type_mask = self._build_donor_mask(
                 donor_ir, cut_ids, chosen_cut_idx, host_t,
             )
+            d4_t = torch.tensor(d4_mask, dtype=torch.bool)
+            if d4_t.shape[0] == type_mask.shape[0]:
+                final_mask = type_mask & d4_t
+            else:
+                final_mask = type_mask
+            if not bool(final_mask.any()):
+                if stop_allowed:
+                    break
+                return None
             idx = self._sample_under_signature_step(
-                cut_ids, full_cut_logits, mask, donor_temperature,
+                cut_ids, full_cut_logits, final_mask, donor_temperature,
             )
             if idx is None:
-                return None  # all-zero mask → abort
+                if stop_allowed:
+                    break
+                return None
             chosen_cut_idx.add(idx)
             selected_cuts.append(cut_ids[idx])
         return selected_outputs, selected_cuts
@@ -1573,6 +1938,7 @@ class GNNPatternMatcher:
         *,
         output_values: list[str],
         cut_values: list[str],
+        disable_repair: bool = False,
     ) -> tuple[RewriteRegion, Any] | None:
         # Greedy connectivity-aware cut pruning.  Even if each cut
         # individually preserves connectivity (enforced by
@@ -1582,6 +1948,10 @@ class GNNPatternMatcher:
         # removal restores connectivity, until either the region is
         # connected or no cuts remain.  This is a generic structural
         # repair, not a graft-pattern prior.
+        #
+        # When ``disable_repair=True`` (host-mask path) we skip the
+        # greedy fallback entirely so that the reported host validity
+        # rate reflects the mask quality, not the fallback's heroics.
         cuts_to_use = list(cut_values)
         try:
             region = define_rewrite_region(
@@ -1601,6 +1971,8 @@ class GNNPatternMatcher:
             max_region_inputs=self.max_region_inputs,
             max_region_outputs=self.max_region_outputs,
         )
+        if disable_repair:
+            return region, validity
         if not validity.is_valid and validity.reason == "disconnected_region" and cuts_to_use:
             # Try dropping cuts one at a time, prefer to drop the one
             # whose removal yields a still-valid (or at least connected)
@@ -1705,7 +2077,22 @@ class GNNPatternMatcher:
         allow_empty: bool,
         temperature: float,
         exploration: float,
+        step_mask_fn: "Callable[[list[str], list[str]], tuple[list[bool], bool]] | None" = None,
     ) -> list[str]:
+        """Sample up to ``max_selected`` value ids by per-step softmax.
+
+        If ``step_mask_fn`` is provided, it is called once per step with
+        ``(selected_so_far_value_ids, remaining_value_ids)`` and must
+        return ``(per_remaining_bool_mask, stop_allowed)``.  Masked-out
+        candidates are excluded from the softmax (set to ``-inf``).  If
+        ``stop_allowed`` is False the ``__STOP__`` option is suppressed
+        even when ``allow_empty`` would otherwise admit it.
+
+        If after applying the mask no candidate is allowed and STOP is
+        also forbidden, the sampler aborts and returns ``selected`` as
+        is — the caller can detect this dead-end (e.g. by checking
+        ``len(selected) < max_selected and len(available) > 0``).
+        """
         if not candidate_ids or logits.numel() == 0:
             return []
         available = list(range(len(candidate_ids)))
@@ -1714,9 +2101,24 @@ class GNNPatternMatcher:
         for step in range(max_selected):
             if not available:
                 break
-            option_logits = [float(logits[idx].item()) for idx in available]
-            option_ids = [candidate_ids[idx] for idx in available]
-            if allow_empty or step > 0:
+            remaining_ids = [candidate_ids[idx] for idx in available]
+            if step_mask_fn is not None:
+                mask, stop_allowed = step_mask_fn(list(selected), remaining_ids)
+            else:
+                mask = [True] * len(remaining_ids)
+                stop_allowed = True
+            kept_local: list[int] = [i for i, ok in enumerate(mask) if ok]
+            if not kept_local:
+                # Nothing legal to pick; if STOP is allowed, emit it;
+                # otherwise this is a dead-end and we return what we have.
+                if (allow_empty or step > 0) and stop_allowed:
+                    break
+                if step > 0:  # at least one already chosen — prefer to stop than dead-end
+                    break
+                return selected  # dead-end on step 0: return empty
+            option_logits = [float(logits[available[i]].item()) for i in kept_local]
+            option_ids = [remaining_ids[i] for i in kept_local]
+            if (allow_empty or step > 0) and stop_allowed:
                 option_logits.append(stop_value)
                 option_ids.append("__STOP__")
             probs = self._sample_probs_from_logits(
@@ -1729,7 +2131,8 @@ class GNNPatternMatcher:
             if picked == "__STOP__":
                 break
             selected.append(picked)
-            remove_idx = available[chosen]
+            local_idx = kept_local[chosen]
+            remove_idx = available[local_idx]
             available = [idx for idx in available if idx != remove_idx]
         return selected
 
@@ -1767,6 +2170,14 @@ class GNNPatternMatcher:
         host_region_metrics: list[tuple[int, int, int]],
         effective_cut_sizes: list[int],
         attempted: int,
+        host_sampler_attempts: int = 0,
+        host_built_regions: int = 0,
+        host_validate_passes: int = 0,
+        host_use_mask: bool = False,
+        donor_sampler_attempts: int = 0,
+        donor_built_regions: int = 0,
+        donor_validate_passes: int = 0,
+        donor_use_mask: bool = False,
     ) -> dict[str, Any]:
         if attempted <= 0:
             return self._empty_proposal_stats()
@@ -1774,6 +2185,21 @@ class GNNPatternMatcher:
         mean_inputs = float(np.mean([m[1] for m in host_region_metrics])) if host_region_metrics else 0.0
         mean_outputs = float(np.mean([m[2] for m in host_region_metrics])) if host_region_metrics else 0.0
         mean_cut = float(np.mean(effective_cut_sizes)) if effective_cut_sizes else 0.0
+        host_validity_rate = (
+            host_validate_passes / host_sampler_attempts
+            if host_sampler_attempts > 0
+            else 0.0
+        )
+        donor_validity_rate = (
+            donor_validate_passes / donor_sampler_attempts
+            if donor_sampler_attempts > 0
+            else 0.0
+        )
+        end_to_end_validity_rate = (
+            donor_validate_passes / host_sampler_attempts
+            if host_sampler_attempts > 0
+            else 0.0
+        )
         return {
             "invalid_region_rate": float(sum(invalid_regions.values()) / attempted),
             "invalid_regions": dict(invalid_regions),
@@ -1781,6 +2207,17 @@ class GNNPatternMatcher:
             "mean_region_inputs": mean_inputs,
             "mean_region_outputs": mean_outputs,
             "effective_cut_size": mean_cut,
+            "host_sampler_attempts": int(host_sampler_attempts),
+            "host_built_regions": int(host_built_regions),
+            "host_validate_passes": int(host_validate_passes),
+            "host_validity_rate": float(host_validity_rate),
+            "host_use_mask": bool(host_use_mask),
+            "donor_sampler_attempts": int(donor_sampler_attempts),
+            "donor_built_regions": int(donor_built_regions),
+            "donor_validate_passes": int(donor_validate_passes),
+            "donor_validity_rate": float(donor_validity_rate),
+            "donor_use_mask": bool(donor_use_mask),
+            "end_to_end_validity_rate": float(end_to_end_validity_rate),
         }
 
     def _empty_proposal_stats(self) -> dict[str, Any]:
@@ -1791,6 +2228,17 @@ class GNNPatternMatcher:
             "mean_region_inputs": 0.0,
             "mean_region_outputs": 0.0,
             "effective_cut_size": 0.0,
+            "host_sampler_attempts": 0,
+            "host_built_regions": 0,
+            "host_validate_passes": 0,
+            "host_validity_rate": 0.0,
+            "host_use_mask": False,
+            "donor_sampler_attempts": 0,
+            "donor_built_regions": 0,
+            "donor_validate_passes": 0,
+            "donor_validity_rate": 0.0,
+            "donor_use_mask": False,
+            "end_to_end_validity_rate": 0.0,
         }
 
     # ------------------------------------------------------------------

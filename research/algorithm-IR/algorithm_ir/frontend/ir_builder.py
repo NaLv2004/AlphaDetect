@@ -999,7 +999,10 @@ class IRBuilder:
         # using the callee's recorded qualified_name (set by _load_global
         # / _load_resolved_global).  Falls back to TYPE_TOP when unknown,
         # never to the lying "object" tag the lifter used to emit.
-        from algorithm_ir.ir.type_lattice import infer_call_return_type
+        from algorithm_ir.ir.type_lattice import (
+            infer_call_return_type,
+            ndarray_method_return_type,
+        )
         callee_val = self.state.values.get(func_value)
         callee_qname = (
             callee_val.attrs.get("qualified_name") if callee_val else None
@@ -1008,7 +1011,19 @@ class IRBuilder:
             (self.state.values[a].type_hint or "any")
             for a in args if a in self.state.values
         ]
-        result_type = infer_call_return_type(callee_qname, arg_types)
+        # ndarray bound-method dispatch: when the callee was produced by
+        # ``_emit_get_attr`` on a tensor-typed owner, the value carries
+        # ``_self_type`` / ``_method_name`` so we can look up the method
+        # return type directly.  This handles ``H.conj()``, ``H.copy()``,
+        # ``y.sum()`` etc. without needing a separate qualified_name.
+        result_type: str | None = None
+        if callee_val is not None:
+            self_type = callee_val.attrs.get("_self_type")
+            method_name = callee_val.attrs.get("_method_name")
+            if self_type and method_name:
+                result_type = ndarray_method_return_type(self_type, method_name)
+        if result_type is None:
+            result_type = infer_call_return_type(callee_qname, arg_types)
         out = self._new_value("call", result_type, source_span(node), {})
         op_id = self._next_op_id()
         attrs: dict[str, Any] = {"n_args": len(args)}
@@ -1036,12 +1051,41 @@ class IRBuilder:
                     f"{owner_value.name_hint}.{attr_name}", resolved, node
                 )
 
-        out = self._new_value("get_attr", "object", source_span(node), {})
+        # Numpy ndarray attribute / method type propagation: if the
+        # owner is a known tensor type, use the lattice tables to set a
+        # precise type on the result so downstream graft validators can
+        # reason about ``H.T`` (a transpose) vs ``H.shape`` (a tuple)
+        # vs ``H.conj`` (a callable returning the same tensor).  Without
+        # this, ``_emit_get_attr`` would always tag the output as
+        # ``"object"`` and downstream type-based checks degenerate.
+        from algorithm_ir.ir.type_lattice import (
+            ndarray_property_type,
+            is_tensor_type,
+            NDARRAY_METHOD_NAMES,
+        )
+        owner_type = owner_value.type_hint
+        op_attrs: dict[str, Any] = {"attr": attr_name}
+        value_attrs: dict[str, Any] = {}
+        result_type = "object"
+        if is_tensor_type(owner_type):
+            prop_t = ndarray_property_type(owner_type, attr_name)
+            if prop_t is not None:
+                result_type = prop_t
+            elif attr_name in NDARRAY_METHOD_NAMES:
+                # The get_attr produces a bound method.  Tag the VALUE's
+                # attrs (not just the Op's) so ``_emit_call``'s lookup
+                # against ``callee_val.attrs`` finds the self-type and
+                # method name to compute the call's return type.
+                result_type = "callable"
+                value_attrs["_self_type"] = owner_type
+                value_attrs["_method_name"] = attr_name
+
+        out = self._new_value("get_attr", result_type, source_span(node), value_attrs)
         op_id = self._next_op_id()
         op = Op(
             id=op_id, opcode="get_attr", inputs=[owner], outputs=[out],
             block_id=self.state.current_block, source_span=source_span(node),
-            attrs={"attr": attr_name},
+            attrs=op_attrs,
         )
         self._register_op(op)
         return out
@@ -1266,6 +1310,13 @@ class IRBuilder:
             return type_info_from_dict(payload)
         if value.type_hint in _TYPE_SENTINELS:
             return type_info_for_python_value(_TYPE_SENTINELS[value.type_hint])
+        # Fall back to the value's existing lattice tag rather than
+        # collapsing to ``"object"``.  Without this, types propagated by
+        # get_attr / call (e.g. ``H.conj()`` →  mat_cx) are erased the
+        # moment they feed a binary or unary op, because
+        # ``_value_type_info`` was the sole bridge consulted there.
+        if value.type_hint:
+            return TypeInfo(value.type_hint)
         return TypeInfo("object")
 
     def _next_op_id(self) -> str:

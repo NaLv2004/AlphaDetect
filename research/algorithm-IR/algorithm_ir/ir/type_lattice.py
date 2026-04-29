@@ -73,6 +73,12 @@ __all__ = [
     "is_array_like",
     "is_real",
     "is_complex",
+    # ndarray attribute / method type propagation
+    "is_tensor_type",
+    "ndarray_property_type",
+    "ndarray_method_return_type",
+    "NDARRAY_PROPERTY_NAMES",
+    "NDARRAY_METHOD_NAMES",
     "promote_dtype",
     "promote_rank",
 ]
@@ -947,3 +953,149 @@ _BUILTIN_REGISTRY: dict[str, "str | callable"] = {
 
 for _name, _ret in _BUILTIN_REGISTRY.items():
     register_callable_return(_name, _ret)
+
+
+# ---------------------------------------------------------------------------
+# ndarray attribute / method type propagation
+# ---------------------------------------------------------------------------
+#
+# When the IR builder lowers ``H.conj()`` it emits two ops:
+#
+#     v_attr = get_attr(H, "conj")     # a bound method
+#     v_call = call(v_attr)            # the actual array result
+#
+# Without specialised handling, the get_attr op would tag ``v_attr`` as
+# ``"object"`` and the call's qualified_name would be ``None`` so
+# ``infer_call_return_type`` would fall back to ``TYPE_TOP``.  Downstream
+# graft validation therefore couldn't tell whether ``H.conj()`` returns
+# a vector / matrix / scalar, leading to wiring bugs where an int slot
+# was filled with a tensor expression (or vice versa) — empirically
+# responsible for the bulk of TypeError / AttributeError / IndexError
+# crashes in graft runtime smoke testing.
+#
+# The tables below let the IR builder propagate types for the common
+# numpy ndarray properties and methods.  ``ndarray_property_type`` is
+# called by ``_emit_get_attr`` and returns the resulting tensor type
+# directly.  ``ndarray_method_return_type`` is called by ``_emit_call``
+# when the callee was produced by a get_attr on a tensor-typed owner.
+
+def is_tensor_type(t: str | None) -> bool:
+    """True iff ``t`` denotes a numpy-like array (vec_*, mat_*, tensor*_*)."""
+    if not t:
+        return False
+    return t in {
+        "vec_i", "vec_f", "vec_cx",
+        "mat_f", "mat_cx",
+        "tensor3_f", "tensor3_cx",
+        "prob_table",
+    }
+
+
+def _scalar_for(owner: str) -> str:
+    rank, dtype = _decomp(owner)
+    if dtype == "?":
+        return TYPE_TOP
+    return _compose(0, dtype)
+
+
+def _real_part(owner: str) -> str:
+    rank, _ = _decomp(owner)
+    if rank < 0:
+        return TYPE_TOP
+    return _compose(rank, "f")
+
+
+def _flatten_to_vec(owner: str) -> str:
+    _rank, dtype = _decomp(owner)
+    if dtype == "?":
+        return TYPE_TOP
+    return _compose(1, dtype)
+
+
+# Properties: ``H.<attr>`` evaluates to the value directly.
+_NDARRAY_PROPS: dict[str, callable] = {
+    "T":         lambda owner: owner,                # transpose preserves rank/dtype
+    "mT":        lambda owner: owner,                # numpy >= 2.0 matrix transpose
+    "H":         lambda owner: owner,                # conjugate transpose (loose)
+    "real":      _real_part,
+    "imag":      _real_part,
+    "shape":     lambda owner: "tuple<int>",
+    "size":      lambda owner: "int",
+    "ndim":      lambda owner: "int",
+    "nbytes":    lambda owner: "int",
+    "itemsize":  lambda owner: "int",
+    "strides":   lambda owner: "tuple<int>",
+    "dtype":     lambda owner: "object",
+    "data":      lambda owner: "object",
+    "base":      lambda owner: "object",
+    "flat":      _flatten_to_vec,
+    "flags":     lambda owner: "object",
+}
+
+
+# Methods: ``H.<attr>(...)`` — the get_attr produces a bound method
+# whose call returns the type below.  ``owner`` is the type of the
+# original ndarray (tracked separately via attrs["_self_type"]).
+_NDARRAY_METHODS: dict[str, callable] = {
+    "conj":      lambda owner: owner,
+    "conjugate": lambda owner: owner,
+    "copy":      lambda owner: owner,
+    "transpose": lambda owner: owner,
+    "view":      lambda owner: owner,
+    "astype":    lambda owner: owner,
+    "fill":      lambda owner: "void",
+    "ravel":     _flatten_to_vec,
+    "flatten":   _flatten_to_vec,
+    "squeeze":   lambda owner: owner,
+    "reshape":   lambda owner: owner,    # rank not knowable from name
+    "sum":       _scalar_for,
+    "mean":      _scalar_for,
+    "max":       _scalar_for,
+    "min":       _scalar_for,
+    "prod":      _scalar_for,
+    "trace":     _scalar_for,
+    "argmax":    lambda owner: "int",
+    "argmin":    lambda owner: "int",
+    "tolist":    lambda owner: "list<any>",
+    "item":      _scalar_for,
+    "all":       lambda owner: "bool",
+    "any":       lambda owner: "bool",
+    "round":     lambda owner: owner,
+    "clip":      lambda owner: owner,
+    "dot":       lambda owner: owner,    # rank-shrinks but conservative
+}
+
+NDARRAY_PROPERTY_NAMES = frozenset(_NDARRAY_PROPS.keys())
+NDARRAY_METHOD_NAMES = frozenset(_NDARRAY_METHODS.keys())
+
+
+def ndarray_property_type(owner_type: str | None, attr: str) -> str | None:
+    """Return the type of ``owner.<attr>`` when ``owner`` is a tensor.
+
+    Returns ``None`` when the attr is not a recognised ndarray property
+    or the owner is not a tensor type — caller falls back to its
+    existing default (typically ``"object"``).
+    """
+    if not is_tensor_type(owner_type) or attr not in _NDARRAY_PROPS:
+        return None
+    try:
+        return _NDARRAY_PROPS[attr](owner_type)
+    except Exception:
+        return TYPE_TOP
+
+
+def ndarray_method_return_type(owner_type: str | None, method: str) -> str | None:
+    """Return the type of ``owner.<method>(...)`` for a tensor owner.
+
+    Used by ``_emit_call`` when the callee was produced by a get_attr
+    on a tensor-typed value (the get_attr op stashes ``_self_type`` /
+    ``_method_name`` on its output value's attrs so this lookup works
+    after the fact).
+    """
+    if not is_tensor_type(owner_type) or method not in _NDARRAY_METHODS:
+        return None
+    try:
+        return _NDARRAY_METHODS[method](owner_type)
+    except Exception:
+        return TYPE_TOP
+

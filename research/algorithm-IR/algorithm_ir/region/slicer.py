@@ -1,9 +1,60 @@
 from __future__ import annotations
 
+import weakref
 from dataclasses import dataclass
 from collections import deque
+from functools import lru_cache
 
 from algorithm_ir.ir.model import FunctionIR
+
+# Global registry: ir_id -> weakref to FunctionIR for memoized slice.
+_IR_REGISTRY: dict[int, weakref.ReferenceType] = {}
+
+def _register_ir(ir: FunctionIR) -> int:
+    """Register an IR for cache access and return its stable id."""
+    ir_id = id(ir)
+    if ir_id not in _IR_REGISTRY:
+        _IR_REGISTRY[ir_id] = weakref.ref(ir)
+    return ir_id
+
+
+@lru_cache(maxsize=16384)
+def _bw_slice_cached(
+    ir_id: int,
+    outputs_fs: frozenset[str],
+    cuts_fs: frozenset[str],
+) -> frozenset[str]:
+    """Cached core of :func:`backward_slice_until_values`.
+
+    Uses frozenset parameters so the call is hashable for the LRU
+    cache.  ``ir_id`` resolves via the global ``_IR_REGISTRY``.
+    """
+    ref = _IR_REGISTRY.get(ir_id)
+    if ref is None:
+        return frozenset()
+    func_ir = ref()
+    if func_ir is None:
+        return frozenset()
+    cut_set = set(cuts_fs)
+    seen_values = set(outputs_fs)
+    queue = deque(outputs_fs)
+    selected_ops: set[str] = set()
+    while queue:
+        value_id = queue.popleft()
+        if value_id in cut_set:
+            continue
+        value = func_ir.values.get(value_id)
+        if value is None:
+            continue
+        def_op = value.def_op
+        if def_op is None or def_op in selected_ops:
+            continue
+        selected_ops.add(def_op)
+        for input_value in func_ir.ops[def_op].inputs:
+            if input_value not in seen_values:
+                seen_values.add(input_value)
+                queue.append(input_value)
+    return frozenset(selected_ops)
 
 
 def backward_slice_by_values(func_ir: FunctionIR, exit_values: list[str]) -> set[str]:
@@ -65,28 +116,17 @@ def backward_slice_until_values(
 
     Values in ``cut_values`` act as explicit region-input boundaries: they are
     not expanded through their defining ops.
-    """
-    cut_set = set(cut_values)
-    seen_values = set(output_values)
-    queue = deque(output_values)
-    selected_ops: set[str] = set()
 
-    while queue:
-        value_id = queue.popleft()
-        if value_id in cut_set:
-            continue
-        value = func_ir.values.get(value_id)
-        if value is None:
-            continue
-        def_op = value.def_op
-        if def_op is None or def_op in selected_ops:
-            continue
-        selected_ops.add(def_op)
-        for input_value in func_ir.ops[def_op].inputs:
-            if input_value not in seen_values:
-                seen_values.add(input_value)
-                queue.append(input_value)
-    return selected_ops
+    Delegates to :func:`_bw_slice_cached` for LRU memoization; callers
+    are unchanged.
+    """
+    ir_id = _register_ir(func_ir)
+    result_fs = _bw_slice_cached(
+        ir_id,
+        frozenset(output_values),
+        frozenset(cut_values),
+    )
+    return set(result_fs)
 
 
 def enumerate_observable_values(func_ir: FunctionIR) -> list[str]:
@@ -137,7 +177,39 @@ def enumerate_observable_values(func_ir: FunctionIR) -> list[str]:
         observed,
         key=lambda vid: _value_structural_key(func_ir, vid),
     )
-    return [vid for vid in ordered if vid in func_ir.values]
+    # Plan B visibility filter: drop values defined by trivial ops
+    # (const / get_attr / assign rebinds / trivial phi). Such values
+    # are semantically equivalent to their visible producer but offer
+    # the GNN a useless output choice — picking them produces a graft
+    # whose region boundary slices through a no-op forwarder, which
+    # was the dominant source of BEHAVIOR_FAIL grafts in earlier runs.
+    #
+    # Externally-visible values (function return values, branch / side
+    # effect inputs) are *always* retained — even if their producer is
+    # trivial — because dropping them would make some functions have
+    # zero observable outputs.
+    from algorithm_ir.region.triviality import is_trivial_value
+
+    externally_visible: set[str] = set(func_ir.return_values)
+    side_effect_opcodes = {"set_attr", "set_item", "append", "pop"}
+    for op in func_ir.ops.values():
+        if op.opcode == "branch":
+            externally_visible.update(op.inputs)
+        elif op.opcode in side_effect_opcodes:
+            externally_visible.update(op.inputs)
+        elif op.opcode == "call" and (
+            op.attrs.get("effectful")
+            or op.attrs.get("has_side_effect")
+            or op.attrs.get("escapes")
+        ):
+            externally_visible.update(op.inputs)
+
+    filtered = [
+        vid for vid in ordered
+        if vid in func_ir.values
+        and (vid in externally_visible or not is_trivial_value(func_ir, vid))
+    ]
+    return filtered
 
 
 def enumerate_cut_candidates(
@@ -185,6 +257,18 @@ def enumerate_cut_candidates(
                 filtered.append(vid)
         raw_candidates = filtered
 
+    # Plan B visibility filter: a cut at a value defined by a trivial
+    # forwarder (const / get_attr / assign / trivial phi) yields a
+    # boundary that the GNN cannot meaningfully reason about — the
+    # cut value carries no algorithmic information distinct from its
+    # visible producer. Drop them from the candidate set.
+    from algorithm_ir.region.triviality import is_trivial_value
+
+    raw_candidates = [
+        vid for vid in raw_candidates
+        if not is_trivial_value(func_ir, vid)
+    ]
+
     return sorted(raw_candidates, key=lambda vid: _value_structural_key(func_ir, vid))
 
 
@@ -227,12 +311,24 @@ def validate_boundary_region(
             False,
             selected_vs_effective_match,
         )
-    if len(region.op_ids) < min_region_ops:
+    # Plan B visibility filter: gate the size budget on the count of
+    # *non-trivial* ops in the region. The physical ``len(region.op_ids)``
+    # often inflates because const / get_attr / assign / trivial-phi
+    # ops are interleaved with real compute. Counting only non-trivial
+    # ops makes the budget reflect actual algorithmic substance, so a
+    # ``max_region_ops=24`` budget allows ~24 real operations rather
+    # than ~12 real ops + 12 forwarders.
+    from algorithm_ir.region.triviality import is_trivial_op
+    nontrivial_op_count = sum(
+        1 for op_id in region.op_ids
+        if op_id in func_ir.ops and not is_trivial_op(func_ir.ops[op_id], func_ir)
+    )
+    if nontrivial_op_count < min_region_ops:
         return RegionValidity(
             False, "too_small", len(region.op_ids), len(region.entry_values),
             len(region.exit_values), True, selected_vs_effective_match,
         )
-    if len(region.op_ids) > max_region_ops:
+    if nontrivial_op_count > max_region_ops:
         return RegionValidity(
             False, "too_large", len(region.op_ids), len(region.entry_values),
             len(region.exit_values), True, selected_vs_effective_match,
