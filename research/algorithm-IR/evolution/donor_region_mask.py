@@ -43,6 +43,7 @@ Layers:
 """
 from __future__ import annotations
 
+from collections import deque
 from typing import Iterable
 
 from algorithm_ir.ir.model import FunctionIR
@@ -52,6 +53,7 @@ from algorithm_ir.region.slicer import (
     backward_slice_until_values,
     enumerate_cut_candidates,
 )
+from algorithm_ir.region.triviality import is_trivial_op
 
 # Reuse host-mask connectivity / boundary helpers verbatim.
 from evolution.host_region_mask import (
@@ -179,20 +181,84 @@ def donor_cut_pool_union(
 # ---------------------------------------------------- feasibility (greedy)
 
 
+def _state_arity_fast(
+    ir: FunctionIR, ops: set[str],
+) -> tuple[int, int, int, int, bool]:
+    """One-pass equivalent of (
+        len(_entry_values), len(_exit_values),
+        _nontrivial_op_count, len(_entry_values), is_op_set_connected
+    ).
+
+    Identical results to calling each helper separately, but iterates
+    over ``ops`` only once and constructs the connectivity adjacency
+    map inline so the BFS reuses it.  See ``_state_arity`` (the thin
+    wrapper preserved for backward compatibility) for the call site.
+    """
+    if not ops:
+        return (0, 0, 0, 0, False)
+
+    entries: set[str] = set()
+    exits: set[str] = set()
+    n_nontrivial = 0
+    adjacency: dict[str, set[str]] = {oid: set() for oid in ops}
+
+    for oid in ops:
+        op = ir.ops.get(oid)
+        if op is None:
+            continue
+        if not is_trivial_op(op, ir):
+            n_nontrivial += 1
+        # inputs → entries + adjacency edges via def_op
+        for vid in op.inputs:
+            v = ir.values.get(vid)
+            if v is None:
+                continue
+            d = v.def_op
+            if d is None or d not in ops:
+                entries.add(vid)
+            else:
+                adjacency[oid].add(d)
+                adjacency[d].add(oid)
+        # outputs → exits + adjacency edges via use_ops
+        for vid in op.outputs:
+            v = ir.values.get(vid)
+            if v is None:
+                continue
+            is_exit = False
+            for use_op in v.use_ops:
+                if use_op in ops:
+                    adjacency[oid].add(use_op)
+                    adjacency[use_op].add(oid)
+                else:
+                    is_exit = True
+            if is_exit:
+                exits.add(vid)
+
+    # Connectivity BFS reuses the just-built adjacency.
+    if len(ops) == 1:
+        connected = True
+    else:
+        start = next(iter(ops))
+        seen = {start}
+        queue = deque([start])
+        while queue:
+            cur = queue.popleft()
+            for nxt in adjacency[cur]:
+                if nxt not in seen:
+                    seen.add(nxt)
+                    queue.append(nxt)
+        connected = (seen == ops)
+
+    n_entries = len(entries)
+    return (n_entries, len(exits), n_nontrivial, n_entries, connected)
+
+
 def _state_arity(
     ir: FunctionIR, output_values: list[str], cuts: list[str],
 ) -> tuple[int, int, int, int, bool]:
     """Return (n_entries, n_exits, n_ops_nontrivial, n_inputs, connected)."""
     ops = backward_slice_until_values(ir, output_values, cuts)
-    if not ops:
-        return (0, 0, 0, 0, False)
-    return (
-        len(_entry_values(ir, ops)),
-        len(_exit_values(ir, ops)),
-        _nontrivial_op_count(ir, ops),
-        len(_entry_values(ir, ops)),  # n_inputs == n_entries by definition
-        is_op_set_connected(ir, ops),
-    )
+    return _state_arity_fast(ir, ops)
 
 
 def _donor_combo_is_feasible(
@@ -373,12 +439,14 @@ def donor_output_step_mask(
     target_entries = len(entry_types)
 
     base_ops: set[str] = set()
-    # Build merged cut pool from singleton caches if not provided.
+    # Build merged cut pool (value-ids) from singleton caches if not
+    # provided.  This is the union over already-selected outputs of
+    # their singleton cut candidate sets.
+    merged_cut_pool: set[str] | None = None
     if cut_pool is None:
-        merged_cut_pool: set[str] = set()
+        merged_cut_pool = set()
         for svid in selected_outputs:
             merged_cut_pool.update(_get_donor_singleton_cuts(donor_ir, svid))
-        # Will add candidate's singleton pool per-iteration below.
     for vid in selected_outputs:
         base_ops |= op_closures.get(vid, frozenset())
 
@@ -438,10 +506,19 @@ def donor_output_step_mask(
         # ``too_many_outputs`` validation failures downstream.
         effective_budget = min(max_cut_budget, target_entries)
         # Build augmented cut pool from singleton caches if the caller
-        # did not provide one.
+        # did not provide one.  IMPORTANT: cut candidates are VALUE-ids,
+        # so do NOT mix in ``merged`` (which is an op-id set from
+        # op_closures).  The previous union with ``merged`` produced
+        # ~30-60 op-id strings that backward_slice_until_values silently
+        # ignored (no value match), but each one still cost a BFS +
+        # _state_arity inside _donor_combo_is_feasible.
         _cp = cut_pool
         if _cp is None:
-            _cp = list(merged | set(_get_donor_singleton_cuts(donor_ir, vid)))
+            cand_singletons = _get_donor_singleton_cuts(donor_ir, vid)
+            if merged_cut_pool is None:
+                _cp = list(cand_singletons)
+            else:
+                _cp = list(merged_cut_pool | set(cand_singletons))
         if not _donor_combo_is_feasible(
             donor_ir, prov_outs,
             target_entries=target_entries,
