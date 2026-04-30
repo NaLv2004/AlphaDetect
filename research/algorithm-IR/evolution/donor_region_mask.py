@@ -375,12 +375,36 @@ def donor_output_step_mask(
     base_ops: set[str] = set()
     # Build merged cut pool from singleton caches if not provided.
     if cut_pool is None:
-        merged: set[str] = set()
+        merged_cut_pool: set[str] = set()
         for svid in selected_outputs:
-            merged.update(_get_donor_singleton_cuts(donor_ir, svid))
+            merged_cut_pool.update(_get_donor_singleton_cuts(donor_ir, svid))
         # Will add candidate's singleton pool per-iteration below.
     for vid in selected_outputs:
         base_ops |= op_closures.get(vid, frozenset())
+
+    # ── Pre-compute base_ops boundary op set (shared across all candidates) ─
+    # base_ops is already known to be connected (validated at previous step).
+    # cand_ops = op_closures[vid] is inherently connected (single-value closure).
+    # Therefore merged = base_ops ∪ cand_ops is connected *iff* there is at
+    # least one dataflow edge bridging base_ops ↔ cand_ops.
+    #
+    # Instead of BFS on merged (O(|base_ops|+|cand_ops|) per candidate),
+    # we pre-build a set of "boundary ops" — ops *outside* base_ops that
+    # either consume a value defined in base_ops or define a value consumed
+    # in base_ops.  Then per-candidate connectivity reduces to a single
+    # O(min(|cand_ops|,|boundary|)) frozenset.isdisjoint check.
+    if selected_outputs:
+        _boundary_ops: set[str] = set()
+        for v_id in _exit_values(donor_ir, base_ops):
+            v = donor_ir.values.get(v_id)
+            if v is not None:
+                _boundary_ops.update(v.use_ops)
+        for v_id in _entry_values(donor_ir, base_ops):
+            v = donor_ir.values.get(v_id)
+            if v is not None and v.def_op is not None:
+                _boundary_ops.add(v.def_op)
+    else:
+        _boundary_ops = set()
 
     mask: list[bool] = []
     for vid in remaining_candidates:
@@ -392,10 +416,14 @@ def donor_output_step_mask(
         if not cand_ops:
             mask.append(False)
             continue
-        merged = base_ops | cand_ops
-        if not is_op_set_connected(donor_ir, merged):
+        # ── Bridge-detection connectivity check ──
+        # step=0 (no selected_outputs): cand_ops is inherently connected → pass.
+        # step≥1: check for dataflow bridge between base_ops and cand_ops.
+        # frozenset.isdisjoint short-circuits on first common element → O(1) avg.
+        if selected_outputs and cand_ops.isdisjoint(_boundary_ops):
             mask.append(False)
             continue
+        merged = base_ops | cand_ops
         # Provisional output set for feasibility lookahead.
         prov_outs = list(selected_outputs) + [vid]
         # Feasibility lookahead at EVERY step (not just final) to
