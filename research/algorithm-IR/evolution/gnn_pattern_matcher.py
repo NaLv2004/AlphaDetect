@@ -1352,6 +1352,8 @@ class GNNPatternMatcher:
 
         _report = donor_profile_report()
         if _report:
+            import sys as _sys
+            print("Donor sampling profile:\n" + _report, file=_sys.stderr, flush=True)
             logger.info("Donor sampling profile:\n%s", _report)
 
         return proposals, self._proposal_stats(
