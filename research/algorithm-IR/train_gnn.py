@@ -520,7 +520,19 @@ def _analyse_effective_graft(
         "compile_issue": None,
         "source": None,
     }
+    _PROFILE = os.environ.get("ALPHADETECT_PROFILE_DONOR") in ("1", "true", "yes")
+    _prof_compile_s = 0.0
+    _prof_host_compile_s = 0.0
+    _prof_probe_s = 0.0
+    _prof_n_probes = 0
+    _prof_n_timeouts = 0
     if not genome.graft_history:
+        if _PROFILE:
+            result["_prof_compile_s"] = 0.0
+            result["_prof_host_compile_s"] = 0.0
+            result["_prof_probe_s"] = 0.0
+            result["_prof_n_probes"] = 0
+            result["_prof_n_timeouts"] = 0
         return result
 
     result["graft_lineage"] = " | ".join(
@@ -567,6 +579,12 @@ def _analyse_effective_graft(
     # paid only for structurally-OK grafts.
     if not result["structural_ok"]:
         result["quality_verdict"] = "STRUCTURAL_FAIL"
+        if _PROFILE:
+            result["_prof_compile_s"] = _prof_compile_s
+            result["_prof_host_compile_s"] = _prof_host_compile_s
+            result["_prof_probe_s"] = _prof_probe_s
+            result["_prof_n_probes"] = _prof_n_probes
+            result["_prof_n_timeouts"] = _prof_n_timeouts
         return result
 
     # Always run behavior probes for structurally-OK grafts (even if
@@ -577,11 +595,17 @@ def _analyse_effective_graft(
     #   - EFFECTIVE       : reasonable AND beats host by --effective-margin
     raised_exception = False
     if host_genome is not None:
+        _t0 = time.perf_counter() if _PROFILE else 0.0
         child_fn, source, child_issue = _compile_materialized_callable(genome)
+        if _PROFILE:
+            _prof_compile_s = time.perf_counter() - _t0
         if host_callable_cache is not None and str(host_algo_id) in host_callable_cache:
             host_fn, host_issue = host_callable_cache[str(host_algo_id)]
         else:
+            _t1 = time.perf_counter() if _PROFILE else 0.0
             host_fn, _, host_issue = _compile_materialized_callable(host_genome)
+            if _PROFILE:
+                _prof_host_compile_s = time.perf_counter() - _t1
             if host_callable_cache is not None:
                 host_callable_cache[str(host_algo_id)] = (host_fn, host_issue)
         result["compile_issue"] = child_issue or host_issue
@@ -597,9 +621,13 @@ def _analyse_effective_graft(
                 n_samples=max(args.effectiveness_samples, 6),
                 seed=args.seed + 1001,
             )
+            _t_probe = time.perf_counter() if _PROFILE else 0.0
+            _n_timeouts_local = 0
             total_changed = 0
             total_symbols = 0
             for H, _x_true, y, sigma2, constellation in probes:
+                if _PROFILE:
+                    _prof_n_probes += 1
                 try:
                     host_out = _call_with_timeout(host_fn, (H, y, sigma2, constellation), timeout=3.0)
                     child_out = _call_with_timeout(child_fn, (H, y, sigma2, constellation), timeout=3.0)
@@ -608,6 +636,8 @@ def _analyse_effective_graft(
                 except Exception as exc:
                     raised_exception = True
                     result["exception_repr"] = f"{type(exc).__name__}: {exc}"
+                    if _PROFILE and isinstance(exc, TimeoutError):
+                        _n_timeouts_local += 1
                     # ── DEBUG: dump the failing source for offline inspection.
                     try:
                         import os as _os
@@ -639,6 +669,9 @@ def _analyse_effective_graft(
                     break
                 total_changed += int(np.sum(np.abs(host_sym - child_sym) > 1e-6))
                 total_symbols += len(host_sym)
+            if _PROFILE:
+                _prof_probe_s = time.perf_counter() - _t_probe
+                _prof_n_timeouts = _n_timeouts_local
             if total_symbols > 0:
                 change_rate = total_changed / total_symbols
                 result["behavior_change_rate"] = change_rate
@@ -654,6 +687,13 @@ def _analyse_effective_graft(
         and bool(result["no_exception"])
     )
     result["effective"] = bool(result["reasonable"]) and bool(result["performance_ok"])
+
+    if _PROFILE:
+        result["_prof_compile_s"] = _prof_compile_s
+        result["_prof_host_compile_s"] = _prof_host_compile_s
+        result["_prof_probe_s"] = _prof_probe_s
+        result["_prof_n_probes"] = _prof_n_probes
+        result["_prof_n_timeouts"] = _prof_n_timeouts
 
     if result["effective"]:
         result["quality_verdict"] = "EFFECTIVE"
@@ -868,10 +908,23 @@ def _log_effective_grafts(
     evaluated_pairs.sort(key=lambda x: x[1].composite_score())
     host_fitness_map = {g.algo_id: f for g, f in zip(population, fitness)}
 
+    # ── profiling: graft eval quality-classification phase ──────────
+    _PROFILE = os.environ.get("ALPHADETECT_PROFILE_DONOR") in ("1", "true", "yes")
+    _t_phase = time.perf_counter() if _PROFILE else 0.0
+    _prof_compile_s = 0.0
+    _prof_probe_s = 0.0
+    _prof_host_compile_s = 0.0
+    _prof_n_timeouts = 0
+    _prof_n_probes_run = 0
+    _prof_n_struct_fail = 0
+    _prof_per_graft: dict[str, dict] = {}
+    _prof_probes_per_graft: list[int] = []
+
     analyses: dict[str, dict] = {}
     host_callable_cache: dict[str, tuple[Callable | None, str | None]] = {}
     host_fitness_cache: dict[str, FitnessResult] = {}
     for genome, fit in evaluated_pairs:
+        _t_graft = time.perf_counter() if _PROFILE else 0.0
         analyses[genome.algo_id] = _analyse_effective_graft(
             genome,
             fit,
@@ -880,6 +933,26 @@ def _log_effective_grafts(
             host_callable_cache=host_callable_cache,
             host_fitness_cache=host_fitness_cache,
         )
+        if _PROFILE:
+            _dt = time.perf_counter() - _t_graft
+            a = analyses[genome.algo_id]
+            verdict = str(a.get("quality_verdict", "?"))
+            _prof_per_graft[genome.algo_id] = {
+                "t": _dt, "verdict": verdict,
+                "compile": a.get("_prof_compile_s", 0.0),
+                "host_compile": a.get("_prof_host_compile_s", 0.0),
+                "probes": a.get("_prof_probe_s", 0.0),
+                "n_probes": a.get("_prof_n_probes", 0),
+                "n_timeouts": a.get("_prof_n_timeouts", 0),
+            }
+            _prof_compile_s += a.get("_prof_compile_s", 0.0)
+            _prof_host_compile_s += a.get("_prof_host_compile_s", 0.0)
+            _prof_probe_s += a.get("_prof_probe_s", 0.0)
+            _prof_n_timeouts += a.get("_prof_n_timeouts", 0)
+            _prof_n_probes_run += a.get("_prof_n_probes", 0)
+            _prof_probes_per_graft.append(a.get("_prof_n_probes", 0))
+            if verdict == "STRUCTURAL_FAIL":
+                _prof_n_struct_fail += 1
 
     effective_pairs = [
         (g, f) for g, f in evaluated_pairs
@@ -910,6 +983,36 @@ def _log_effective_grafts(
             genome.algo_id: precise_fit
             for (genome, _), precise_fit in zip(shortlist, precise_fits)
         }
+
+    if _PROFILE:
+        _dt_phase = time.perf_counter() - _t_phase
+        import numpy as _np
+        _t_grafts = [v["t"] for v in _prof_per_graft.values()]
+        _t_sorted = sorted(_t_grafts, reverse=True)
+        logger.info(
+            "GRAFT EVAL QUALITY PROFILE\n"
+            "======================================================================\n"
+            "  TOTAL phase time:              %8.2fs  (n=%d grafts)\n"
+            "  compile (child materialize):   %8.2fs\n"
+            "  compile (host, cached):        %8.2fs\n"
+            "  behavior probes:               %8.2fs  (%d probes run, %d timeouts)\n"
+            "  structural_fail (fast path):   %d\n"
+            "--- per-graft (all times ms) ---\n"
+            "  mean=%6.0f  median=%6.0f  max=%6.0f  min=%6.0f\n"
+            "  top-10 slowest grafts (ms): %s\n"
+            "  probes-per-graft: mean=%.1f  max=%d  (excluding structural_fail)\n"
+            "======================================================================",
+            _dt_phase, len(evaluated_pairs),
+            _prof_compile_s,
+            _prof_host_compile_s,
+            _prof_probe_s, _prof_n_probes_run, _prof_n_timeouts,
+            _prof_n_struct_fail,
+            _np.mean(_t_grafts) * 1000, _np.median(_t_grafts) * 1000,
+            max(_t_grafts) * 1000, min(_t_grafts) * 1000,
+            [f"{t*1000:.0f}" for t in _t_sorted[:10]],
+            _np.mean(_prof_probes_per_graft) if _prof_probes_per_graft else 0,
+            max(_prof_probes_per_graft) if _prof_probes_per_graft else 0,
+        )
 
     effective_ser = [fit.metrics.get("ser", float("inf")) for _, fit in effective_pairs]
     precise_ser = [fit.metrics.get("ser", float("inf")) for fit in precise_results.values()]

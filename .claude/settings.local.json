@@ -3,7 +3,9 @@
     "allow": [
       "Bash(ls:*)",
       "Bash(python:*)",
-      "Bash(\"C:/ProgramData/anaconda3/envs/AutoGenOld/python.exe\":*)"
+      "Bash(\"C:/ProgramData/anaconda3/envs/AutoGenOld/python.exe\":*)",
+      "Bash(C:/ProgramData/anaconda3/envs/AutoGenOld/python.exe -c ' *)",
+      "Bash(set ALPHADETECT_PROFILE_DONOR=1)"
     ]
   }
 }

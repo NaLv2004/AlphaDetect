@@ -64,6 +64,7 @@ from evolution.donor_region_mask import (
     donor_pool_signature_compatible as _donor_pool_signature_compatible,
     donor_cut_pool_union as _donor_cut_pool_union,
     precompute_op_closures as _donor_precompute_op_closures,
+    verify_donor_output_candidate as _verify_donor_output_candidate,
 )
 from evolution.donor_profiler import profile_donor, reset_donor_profile, donor_profile_report
 
@@ -1818,15 +1819,21 @@ class GNNPatternMatcher:
             else min(len(signature.exit_types), self.max_boundary_outputs)
         )
         _t_outs = __import__('time').perf_counter()
+        # Plan B (lazy feasibility): per-step mask only does cheap
+        # type+bridge prefiltering; the expensive
+        # ``_donor_combo_is_feasible`` lookahead is deferred to a
+        # single per-sampled-candidate verify call below.  On rejection
+        # we mask the bit off and resample, up to ``K`` attempts.
+        _LAZY_VERIFY_K = 8
         for step in range(n_out):
             host_t = signature.exit_types[step]
             mask = self._build_donor_mask(
                 donor_ir, observable_values, chosen_out_idx, host_t,
             )
             if donor_use_mask:
-                # Layer D2: AND the type mask with the connectivity +
-                # feasibility mask (at the final-output step the
-                # feasibility lookahead becomes the dominant filter).
+                # Layer D2 (lazy variant): type + bridge only; no
+                # feasibility lookahead.  Keeps the mask wide; a
+                # subsequent per-pick verify call enforces feasibility.
                 d2 = _donor_output_step_mask(
                     donor_ir, donor_op_closures, selected_outputs,
                     observable_values,
@@ -1837,19 +1844,63 @@ class GNNPatternMatcher:
                     min_region_ops=self.min_region_size,
                     max_region_inputs=self.max_region_inputs,
                     max_cut_budget=self.max_cut_values,
+                    verify_feasibility=False,
                 )
                 d2_t = torch.tensor(d2, dtype=torch.bool)
                 # Already-chosen indices were cleared by _build_donor_mask;
                 # combine via AND positionally.
                 if d2_t.shape[0] == mask.shape[0]:
                     mask = mask & d2_t
-            idx = self._sample_under_signature_step(
-                observable_values, full_out_logits, mask, donor_temperature,
-            )
-            if idx is None:
-                return None  # all-zero mask → abort
-            chosen_out_idx.add(idx)
-            selected_outputs.append(observable_values[idx])
+            # ── Lazy sample-then-verify loop ──
+            chosen_idx: int | None = None
+            if donor_use_mask:
+                attempts = 0
+                while attempts < _LAZY_VERIFY_K:
+                    attempts += 1
+                    idx = self._sample_under_signature_step(
+                        observable_values, full_out_logits, mask, donor_temperature,
+                    )
+                    if idx is None:
+                        break  # mask emptied → step fails
+                    cand_vid = observable_values[idx]
+                    if _verify_donor_output_candidate(
+                        donor_ir, donor_op_closures, selected_outputs,
+                        cand_vid,
+                        entry_types=signature.entry_types,
+                        exit_types=signature.exit_types,
+                        max_region_ops=self.max_region_ops,
+                        min_region_ops=self.min_region_size,
+                        max_region_inputs=self.max_region_inputs,
+                        max_cut_budget=self.max_cut_values,
+                    ):
+                        chosen_idx = idx
+                        profile_donor(
+                            "donor_output_lazy_pick", 0.0,
+                            attempts=attempts,
+                        )
+                        break
+                    # Rejected: turn off this bit and resample.
+                    mask = mask.clone()
+                    mask[idx] = False
+                    profile_donor(
+                        "donor_output_lazy_reject", 0.0, count=1,
+                    )
+                if chosen_idx is None:
+                    profile_donor(
+                        "donor_output_lazy_exhaust", 0.0, count=1,
+                    )
+                    return None
+            else:
+                # Mask disabled: original single-shot sampler
+                # (no per-pick feasibility verification needed —
+                # validate_boundary_region downstream catches issues).
+                chosen_idx = self._sample_under_signature_step(
+                    observable_values, full_out_logits, mask, donor_temperature,
+                )
+                if chosen_idx is None:
+                    return None
+            chosen_out_idx.add(chosen_idx)
+            selected_outputs.append(observable_values[chosen_idx])
         _dt_outs = __import__('time').perf_counter() - _t_outs
         profile_donor("donor_output_phase", _dt_outs, n_steps=n_out, n_obs=len(observable_values))
         # ── Step 2: cuts, positional over signature.entry_types ──

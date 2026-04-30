@@ -422,9 +422,19 @@ def donor_output_step_mask(
     max_region_inputs: int,
     max_cut_budget: int,
     cut_pool: list[str] | None = None,
+    verify_feasibility: bool = True,
 ) -> list[bool]:
     """Layer D2: combined type + connectivity + feasibility mask for
     the next donor output sampling step.
+
+    When ``verify_feasibility=False`` (lazy mode, plan B), this function
+    only applies the cheap type + bridge connectivity checks and skips
+    the per-candidate :func:`_donor_combo_is_feasible` lookahead.  The
+    caller is then responsible for verifying the *single* sampled
+    candidate via :func:`verify_donor_output_candidate` and resampling
+    if it fails.  This trades a bit more retry work in the caller for
+    a ~10-20× reduction in feasibility evaluations (because typical
+    sampling only commits to ~2-3% of candidates that pass the mask).
 
     Note: STOP is not returned — the donor sampler is hard-driven by
     signature arity (must pick exactly ``len(exit_types)`` outputs),
@@ -442,8 +452,11 @@ def donor_output_step_mask(
     # Build merged cut pool (value-ids) from singleton caches if not
     # provided.  This is the union over already-selected outputs of
     # their singleton cut candidate sets.
+    # Lazy mode (verify_feasibility=False) skips this — the per-vid
+    # feasibility branch below is short-circuited and merged_cut_pool
+    # is unused, so don't waste cycles building it.
     merged_cut_pool: set[str] | None = None
-    if cut_pool is None:
+    if verify_feasibility and cut_pool is None:
         merged_cut_pool = set()
         for svid in selected_outputs:
             merged_cut_pool.update(_get_donor_singleton_cuts(donor_ir, svid))
@@ -491,7 +504,12 @@ def donor_output_step_mask(
         if selected_outputs and cand_ops.isdisjoint(_boundary_ops):
             mask.append(False)
             continue
-        merged = base_ops | cand_ops
+        # Lazy mode short-circuits feasibility lookahead.  Caller is
+        # responsible for verifying the *single* sampled candidate via
+        # ``verify_donor_output_candidate`` and resampling on rejection.
+        if not verify_feasibility:
+            mask.append(True)
+            continue
         # Provisional output set for feasibility lookahead.
         prov_outs = list(selected_outputs) + [vid]
         # Feasibility lookahead at EVERY step (not just final) to
@@ -507,11 +525,8 @@ def donor_output_step_mask(
         effective_budget = min(max_cut_budget, target_entries)
         # Build augmented cut pool from singleton caches if the caller
         # did not provide one.  IMPORTANT: cut candidates are VALUE-ids,
-        # so do NOT mix in ``merged`` (which is an op-id set from
-        # op_closures).  The previous union with ``merged`` produced
-        # ~30-60 op-id strings that backward_slice_until_values silently
-        # ignored (no value match), but each one still cost a BFS +
-        # _state_arity inside _donor_combo_is_feasible.
+        # so do NOT mix in op-id sets from op_closures (would be silently
+        # ignored downstream but still cost a BFS each).
         _cp = cut_pool
         if _cp is None:
             cand_singletons = _get_donor_singleton_cuts(donor_ir, vid)
@@ -538,6 +553,61 @@ def donor_output_step_mask(
                   n_candidates=len(remaining_candidates),
                   n_selected=len(selected_outputs))
     return mask
+
+
+def verify_donor_output_candidate(
+    donor_ir: FunctionIR,
+    op_closures: dict[str, frozenset[str]],
+    selected_outputs: list[str],
+    candidate_vid: str,
+    *,
+    entry_types: tuple[str, ...],
+    exit_types: tuple[str, ...],
+    max_region_ops: int,
+    min_region_ops: int,
+    max_region_inputs: int,
+    max_cut_budget: int,
+    cut_pool: list[str] | None = None,
+) -> bool:
+    """Verify a *single* donor output candidate's feasibility (plan B).
+
+    Mirrors the per-vid feasibility branch of
+    :func:`donor_output_step_mask`, but evaluates only the single
+    ``candidate_vid``.  Used by the lazy sample-then-verify loop in the
+    donor output sampler: when ``donor_output_step_mask(...,
+    verify_feasibility=False)`` admits a candidate, the caller picks
+    one via the policy and calls this function to confirm it can be
+    completed into a valid region.  On rejection the caller masks the
+    bit off and resamples (up to a small retry cap).
+    """
+    _t0 = __import__('time').perf_counter()
+    target_exits = len(exit_types)
+    target_entries = len(entry_types)
+    effective_budget = min(max_cut_budget, target_entries)
+    _cp = cut_pool
+    if _cp is None:
+        merged_cut_pool: set[str] = set()
+        for svid in selected_outputs:
+            merged_cut_pool.update(_get_donor_singleton_cuts(donor_ir, svid))
+        cand_singletons = _get_donor_singleton_cuts(donor_ir, candidate_vid)
+        _cp = list(merged_cut_pool | set(cand_singletons))
+    prov_outs = list(selected_outputs) + [candidate_vid]
+    ok = _donor_combo_is_feasible(
+        donor_ir, prov_outs,
+        target_entries=target_entries,
+        target_exits=target_exits,
+        max_region_ops=max_region_ops,
+        min_region_ops=min_region_ops,
+        max_region_inputs=max_region_inputs,
+        max_cut_budget=effective_budget,
+        cut_pool=_cp,
+        op_closures=op_closures,
+    )
+    _dt = __import__('time').perf_counter() - _t0
+    profile_donor("verify_donor_output_candidate", _dt,
+                  accepted=int(bool(ok)),
+                  rejected=int(not ok))
+    return bool(ok)
 
 
 # ---------------------------------------------------- Layer D4 (cut + STOP)
