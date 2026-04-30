@@ -7,29 +7,34 @@ from functools import lru_cache
 
 from algorithm_ir.ir.model import FunctionIR
 
-# Global registry: ir_id -> weakref to FunctionIR for memoized slice.
-_IR_REGISTRY: dict[int, weakref.ReferenceType] = {}
+# Global registry for memoized backward slice.
+# Uses a monotonically increasing counter (not ``id(ir)``) to avoid
+# collisions when Python reuses object addresses after GC.
+_IR_COUNTER: int = 0
+_IR_BY_COUNTER: dict[int, weakref.ReferenceType] = {}
+
 
 def _register_ir(ir: FunctionIR) -> int:
-    """Register an IR for cache access and return its stable id."""
-    ir_id = id(ir)
-    if ir_id not in _IR_REGISTRY:
-        _IR_REGISTRY[ir_id] = weakref.ref(ir)
-    return ir_id
+    """Register an IR and return a globally unique counter for it."""
+    global _IR_COUNTER
+    _IR_COUNTER += 1
+    ir_counter = _IR_COUNTER
+    _IR_BY_COUNTER[ir_counter] = weakref.ref(ir)
+    return ir_counter
 
 
 @lru_cache(maxsize=16384)
 def _bw_slice_cached(
-    ir_id: int,
+    ir_counter: int,
     outputs_fs: frozenset[str],
     cuts_fs: frozenset[str],
 ) -> frozenset[str]:
     """Cached core of :func:`backward_slice_until_values`.
 
     Uses frozenset parameters so the call is hashable for the LRU
-    cache.  ``ir_id`` resolves via the global ``_IR_REGISTRY``.
+    cache.  ``ir_counter`` resolves via the global ``_IR_BY_COUNTER``.
     """
-    ref = _IR_REGISTRY.get(ir_id)
+    ref = _IR_BY_COUNTER.get(ir_counter)
     if ref is None:
         return frozenset()
     func_ir = ref()
@@ -120,9 +125,9 @@ def backward_slice_until_values(
     Delegates to :func:`_bw_slice_cached` for LRU memoization; callers
     are unchanged.
     """
-    ir_id = _register_ir(func_ir)
+    ir_counter = _register_ir(func_ir)
     result_fs = _bw_slice_cached(
-        ir_id,
+        ir_counter,
         frozenset(output_values),
         frozenset(cut_values),
     )

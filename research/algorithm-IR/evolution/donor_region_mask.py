@@ -62,6 +62,7 @@ from evolution.host_region_mask import (
     is_op_set_connected,
     precompute_op_closures as _precompute_op_closures,
 )
+from evolution.donor_profiler import profile_donor, profile_donor_ctx
 
 # Per-IR singleton cut cache (mirrors host_region_mask._singleton_cut_cache).
 # Keyed by (id(ir), vid) to avoid cross-IR SSA value collisions.
@@ -180,15 +181,16 @@ def donor_cut_pool_union(
 
 def _state_arity(
     ir: FunctionIR, output_values: list[str], cuts: list[str],
-) -> tuple[int, int, int, bool]:
-    """Return (n_entries, n_exits, n_ops_nontrivial, connected)."""
+) -> tuple[int, int, int, int, bool]:
+    """Return (n_entries, n_exits, n_ops_nontrivial, n_inputs, connected)."""
     ops = backward_slice_until_values(ir, output_values, cuts)
     if not ops:
-        return (0, 0, 0, False)
+        return (0, 0, 0, 0, False)
     return (
         len(_entry_values(ir, ops)),
         len(_exit_values(ir, ops)),
         _nontrivial_op_count(ir, ops),
+        len(_entry_values(ir, ops)),  # n_inputs == n_entries by definition
         is_op_set_connected(ir, ops),
     )
 
@@ -205,28 +207,13 @@ def _donor_combo_is_feasible(
     max_cut_budget: int,
     initial_cuts: list[str] | None = None,
     cut_pool: list[str] | None = None,
+    op_closures: dict[str, frozenset[str]] | None = None,
 ) -> bool:
-    """Greedy feasibility test for donor combos.
-
-    Donor must satisfy EQUALITY on arity:
-      * exits == target_exits  (== host entry arity)
-      * entries == target_entries  (== host exit arity)
-    plus inequality caps on ops/inputs/budget.
-
-    Strategy:
-      1. Verify the partially-cut state is connected and not already
-         past the equality targets in directions cuts can't reverse:
-         ops only decrease and exits only stay/decrease as cuts are
-         added; entries only stay/increase.  So if currently
-         exits < target_exits or entries > target_entries, it's a
-         dead end.
-      2. Greedy reduction: each step pick the cut that brings the
-         current (n_entries, n_exits, n_ops, n_inputs) tuple closest
-         to feasible.  Stop when fully feasible or budget exhausted.
-
-    When ``cut_pool`` is provided it is used as the cut-candidate
-    set instead of re-enumerating via :func:`enumerate_cut_candidates`.
-    """
+    """Greedy feasibility test for donor combos."""
+    _t0 = __import__('time').perf_counter()
+    _bfs_calls = 0
+    _greedy_iters = 0
+    _cand_count = 0
     cuts_used: list[str] = list(initial_cuts or [])
     if cut_pool is not None:
         cand_pool = list(cut_pool)
@@ -239,6 +226,22 @@ def _donor_combo_is_feasible(
     remaining_budget = max_cut_budget - len(cuts_used)
     if remaining_budget < 0:
         return False
+
+    # ── Pre-compute op_closures-based upper bounds ────────────────
+    if op_closures is not None:
+        base_union = set().union(*(op_closures.get(v, frozenset()) for v in output_values))
+    else:
+        base_union = None
+    if base_union:
+        _base_connected: bool | None = is_op_set_connected(ir, base_union)
+        _base_exits_ub = len(_exit_values(ir, base_union))
+        _base_size_ub = _nontrivial_op_count(ir, base_union)
+        _base_entries_lb = len(_entry_values(ir, base_union))
+    else:
+        _base_connected = None
+        _base_exits_ub = None
+        _base_size_ub = None
+        _base_entries_lb = None
 
     # Relaxed semantics: match validate_boundary_region (inequality caps),
     # not exact equality. The per-step sampler already loops exactly
@@ -266,32 +269,54 @@ def _donor_combo_is_feasible(
             d += (nin - max_region_inputs)
         return d
 
-    ne, nx, nop, conn = _state_arity(ir, output_values, cuts_used)
+    ne, nx, nop, nin, conn = _state_arity(ir, output_values, cuts_used)
+    _bfs_calls += 1
     if not conn or nop == 0:
         return False
-    cur_ops_set = backward_slice_until_values(ir, output_values, cuts_used)
-    nin = len(_entry_values(ir, cur_ops_set))
 
     if _feasible(ne, nx, nop, nin, conn):
         return True
 
+    _cand_count = len(cand_pool)
+
+    # Fast-path flag: when full-closure upper bounds already fit within
+    # ALL constraints, connectivity is guaranteed for any subset.
+    _fast_path = (
+        _base_connected is True
+        and _base_exits_ub is not None
+        and _base_exits_ub <= target_exits
+        and _base_size_ub is not None
+        and _base_size_ub <= max_region_ops
+        and _base_size_ub >= min_region_ops
+    )
+
     cur_deficit = _deficit(ne, nx, nop, nin)
     for _ in range(remaining_budget):
+        _greedy_iters += 1
         best_score = 0
         best_cut = None
         best_state = None
         for c in cand_pool:
             if c in cuts_used:
                 continue
-            new_ne, new_nx, new_nop, new_conn = _state_arity(
-                ir, output_values, cuts_used + [c]
-            )
-            if not new_conn or new_nop == 0:
-                continue
-            new_ops_set = backward_slice_until_values(
-                ir, output_values, cuts_used + [c]
-            )
-            new_nin = len(_entry_values(ir, new_ops_set))
+            if _fast_path:
+                # Connectivity, exit, and size are all guaranteed;
+                # just need the per-candidate metrics for scoring.
+                new_ops = backward_slice_until_values(ir, output_values, cuts_used + [c])
+                _bfs_calls += 1
+                if not new_ops:
+                    continue
+                new_ne = new_nin = len(_entry_values(ir, new_ops))
+                new_nx = len(_exit_values(ir, new_ops))
+                new_nop = _nontrivial_op_count(ir, new_ops)
+                new_conn = True  # guaranteed by _base_connected
+            else:
+                new_ne, new_nx, new_nop, new_nin, new_conn = _state_arity(
+                    ir, output_values, cuts_used + [c]
+                )
+                _bfs_calls += 1
+                if not new_conn or new_nop == 0:
+                    continue
             new_def = _deficit(new_ne, new_nx, new_nop, new_nin)
             score = cur_deficit - new_def
             if score > best_score:
@@ -305,6 +330,12 @@ def _donor_combo_is_feasible(
         cur_deficit = _deficit(ne, nx, nop, nin)
         if _feasible(ne, nx, nop, nin, conn):
             return True
+    _dt = __import__('time').perf_counter() - _t0
+    _n_ops = len(base_union) if base_union else 0
+    profile_donor("_donor_combo_is_feasible", _dt,
+                  bfs_calls=_bfs_calls, greedy_iters=_greedy_iters,
+                  n_candidates=_cand_count, ir_ops=_n_ops,
+                  n_outputs=len(output_values), budget=max_cut_budget)
     return _feasible(ne, nx, nop, nin, conn)
 
 
@@ -336,6 +367,7 @@ def donor_output_step_mask(
     if next_step >= len(exit_types):
         # Should not be called; arity already satisfied.
         return [False] * len(remaining_candidates)
+    _t0 = __import__('time').perf_counter()
     target_t = exit_types[next_step]
     target_exits = len(exit_types)
     target_entries = len(entry_types)
@@ -391,10 +423,15 @@ def donor_output_step_mask(
             max_region_inputs=max_region_inputs,
             max_cut_budget=effective_budget,
             cut_pool=_cp,
+            op_closures=op_closures,
         ):
             mask.append(False)
             continue
         mask.append(True)
+    _dt = __import__('time').perf_counter() - _t0
+    profile_donor("donor_output_step_mask", _dt,
+                  n_candidates=len(remaining_candidates),
+                  n_selected=len(selected_outputs))
     return mask
 
 
@@ -414,6 +451,7 @@ def donor_cut_step_mask(
     max_region_inputs: int,
     max_cut_budget: int,
     cut_pool: list[str] | None = None,
+    op_closures: dict[str, frozenset[str]] | None = None,
 ) -> tuple[list[bool], bool]:
     """Layer D4: per-step donor-cut mask plus STOP gate.
 
@@ -421,6 +459,7 @@ def donor_cut_step_mask(
     current state matches the target arity exactly on entries AND
     exits, fits within op/input caps, and is connected.
     """
+    _t0 = __import__('time').perf_counter()
     target_entries = len(entry_types)
     target_exits = len(exit_types)
     next_step = len(selected_cuts)
@@ -503,11 +542,16 @@ def donor_cut_step_mask(
             max_cut_budget=effective_budget,
             initial_cuts=selected_cuts + [c],
             cut_pool=cut_pool,
+            op_closures=op_closures,
         ):
             mask.append(False)
             continue
         mask.append(True)
 
+    _dt = __import__('time').perf_counter() - _t0
+    profile_donor("donor_cut_step_mask", _dt,
+                  n_candidates=len(remaining_candidates),
+                  n_selected_cuts=len(selected_cuts))
     return mask, stop_allowed
 
 

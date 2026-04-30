@@ -343,6 +343,29 @@ def _combo_is_feasible(
     if max_cut_budget is None or max_region_outputs is None:
         return True
 
+    # ── Pre-compute op_closures-based upper bounds ────────────────
+    # When ``op_closures`` is available, the union of all output-value
+    # closures gives an over-estimate of the no-cut region.  Cuts only
+    # ever *remove* ops, so exits and op-count are monotone-decreasing
+    # while entries are monotone-increasing.  Upper bounds that already
+    # satisfy the constraints let us short-circuit BFS in the greedy
+    # lookahead loop.
+    if op_closures is not None:
+        base_union = set().union(*(op_closures.get(v, frozenset()) for v in output_values))
+    else:
+        base_union = None
+
+    if base_union:
+        _base_connected: bool | None = is_op_set_connected(ir, base_union)
+        _base_exits_ub: set[str] | None = _exit_values(ir, base_union)
+        _base_size_ub: int | None = _nontrivial_op_count(ir, base_union)
+        _base_entries_lb: set[str] | None = _entry_values(ir, base_union)
+    else:
+        _base_connected = None
+        _base_exits_ub = None
+        _base_size_ub = None
+        _base_entries_lb = None
+
     def _state_valid(cuts: list[str]) -> bool:
         ops = backward_slice_until_values(ir, output_values, cuts)
         if not ops or not is_op_set_connected(ir, ops):
@@ -370,16 +393,39 @@ def _combo_is_feasible(
         deficit_now = max(0, len(cur_exits_local) - max_region_outputs) + max(
             0, cur_size_local - (max_region_ops or cur_size_local)
         )
+        # Fast-path flag: when the full-closure upper bounds already fit
+        # within ALL constraints, we can skip per-candidate BFS because
+        # every subset is also feasible on those dimensions.
+        _fast_path = (
+            _base_connected is True
+            and _base_exits_ub is not None
+            and len(_base_exits_ub) <= max_region_outputs
+            and _base_size_ub is not None
+            and (max_region_ops is None or _base_size_ub <= max_region_ops)
+        )
         best_score = 0
         best_cut = None
         for c in cands:
             if c in cuts_used:
                 continue
-            new_ops = backward_slice_until_values(ir, output_values, cuts_used + [c])
-            if not new_ops or not is_op_set_connected(ir, new_ops):
-                continue
-            new_exits = _exit_values(ir, new_ops)
-            new_size = _nontrivial_op_count(ir, new_ops)
+            if _fast_path:
+                # Connectivity is guaranteed (subset of connected),
+                # exit-count ≤ max_region_outputs is guaranteed, and
+                # op-count ≤ max_region_ops is guaranteed.  We still
+                # need per-cut metrics for scoring, so we do a BFS
+                # but skip the post-BFS connectivity / dim checks.
+                new_ops = backward_slice_until_values(ir, output_values, cuts_used + [c])
+                if not new_ops:
+                    continue
+                # Connectivity guaranteed by _base_connected (no check).
+                new_exits = _exit_values(ir, new_ops)
+                new_size = _nontrivial_op_count(ir, new_ops)
+            else:
+                new_ops = backward_slice_until_values(ir, output_values, cuts_used + [c])
+                if not new_ops or not is_op_set_connected(ir, new_ops):
+                    continue
+                new_exits = _exit_values(ir, new_ops)
+                new_size = _nontrivial_op_count(ir, new_ops)
             new_def = max(0, len(new_exits) - max_region_outputs) + max(
                 0, new_size - (max_region_ops or new_size)
             )

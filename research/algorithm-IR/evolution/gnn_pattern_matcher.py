@@ -65,6 +65,7 @@ from evolution.donor_region_mask import (
     donor_cut_pool_union as _donor_cut_pool_union,
     precompute_op_closures as _donor_precompute_op_closures,
 )
+from evolution.donor_profiler import profile_donor, reset_donor_profile, donor_profile_report
 
 logger = logging.getLogger(__name__)
 
@@ -975,6 +976,7 @@ class GNNPatternMatcher:
             return [], self._empty_proposal_stats()
 
         clear_singleton_cut_cache()
+        reset_donor_profile()
         pair_slice = list(selected_pairs[:max_proposals])
         _show = self.show_progress and tqdm is not None
 
@@ -1347,6 +1349,10 @@ class GNNPatternMatcher:
             )
             if proposal is not None:
                 proposals.append(proposal)
+
+        _report = donor_profile_report()
+        if _report:
+            logger.info("Donor sampling profile:\n%s", _report)
 
         return proposals, self._proposal_stats(
             invalid_regions=invalid_regions,
@@ -1761,22 +1767,21 @@ class GNNPatternMatcher:
         signature: BoundarySignature,
         donor_temperature: float,
     ) -> tuple[list[str], list[str]] | None:
-        """Sample donor outputs/cuts per :class:`BoundarySignature` (§6.7).
-
-        Wraps a single-attempt sampler in a retry loop: greedy random
-        masked sampling can paint itself into dead-end output choices
-        (e.g. picking 3 outputs whose only feasible 4th candidate doesn't
-        exist).  Re-sampling from scratch with a fresh RNG state typically
-        recovers, since most failures are non-deterministic given the
-        masked candidate set.
-        """
+        """Sample donor outputs/cuts per :class:`BoundarySignature` (§6.7)."""
+        _t0 = __import__('time').perf_counter()
         max_retries = getattr(self, "donor_sample_max_retries", 10)
+        _retries = 0
         for _ in range(max_retries):
+            _retries += 1
             result = self._sample_donor_under_signature_once(
                 info, signature, donor_temperature,
             )
             if result is not None:
+                _dt = __import__('time').perf_counter() - _t0
+                profile_donor("donor_sampling_total", _dt, retries=_retries)
                 return result
+        _dt = __import__('time').perf_counter() - _t0
+        profile_donor("donor_sampling_total_fail", _dt, retries=_retries)
         return None
 
     def _sample_donor_under_signature_once(
@@ -1810,6 +1815,7 @@ class GNNPatternMatcher:
             len(signature.exit_types) if donor_use_mask
             else min(len(signature.exit_types), self.max_boundary_outputs)
         )
+        _t_outs = __import__('time').perf_counter()
         for step in range(n_out):
             host_t = signature.exit_types[step]
             mask = self._build_donor_mask(
@@ -1842,7 +1848,10 @@ class GNNPatternMatcher:
                 return None  # all-zero mask → abort
             chosen_out_idx.add(idx)
             selected_outputs.append(observable_values[idx])
+        _dt_outs = __import__('time').perf_counter() - _t_outs
+        profile_donor("donor_output_phase", _dt_outs, n_steps=n_out, n_obs=len(observable_values))
         # ── Step 2: cuts, positional over signature.entry_types ──
+        _t_cuts = __import__('time').perf_counter()
         cut_ctx = self._get_cut_context(donor_ctx, selected_outputs)
         cut_ids: list[str] = list(cut_ctx["candidate_ids"])
         info["donor_cut_ctx"] = cut_ctx
@@ -1902,6 +1911,7 @@ class GNNPatternMatcher:
                 max_region_inputs=self.max_region_inputs,
                 max_cut_budget=self.max_cut_values,
                 cut_pool=cut_ids,
+                op_closures=donor_op_closures if donor_op_closures else None,
             )
             # If region is already feasible, prefer STOP to avoid
             # over-cutting (which can push n_ops below min_region_ops
@@ -1930,6 +1940,8 @@ class GNNPatternMatcher:
                 return None
             chosen_cut_idx.add(idx)
             selected_cuts.append(cut_ids[idx])
+        _dt_cuts = __import__('time').perf_counter() - _t_cuts
+        profile_donor("donor_cut_phase", _dt_cuts, n_steps=len(selected_cuts), n_cut_cands=len(cut_ids))
         return selected_outputs, selected_cuts
 
     def _build_boundary_region(
