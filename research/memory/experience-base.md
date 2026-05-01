@@ -310,6 +310,16 @@ These guide future research decisions and help avoid repeating mistakes.
   - Git synchronization for `AlphaDetect`
   - `code_for_reference/baseline_detectors/Single`
 
+## [2026-05-01 18:45] Behavior Probe Worker Must Bootstrap Project Root
+- **Context**: A GNN run reported `reasonable=0` with every evaluated graft classified as `EXCEPTION`.
+- **Lesson**:
+  - `behavior_probe_worker.py` is launched as a script under `evolution/`, so Python initially puts the `evolution` directory, not the `algorithm-IR` project root, on `sys.path`.
+  - Without explicitly inserting the project root, `from evolution.materialize import ...` fails with `ModuleNotFoundError`; the parent process previously reduced this to `RuntimeError: behavior probe worker exited 1`, causing every rich reward probe to be treated as an exception.
+  - Keep a short stderr/stdout tail in worker failure results so quiet training runs can still reveal infrastructure failures.
+- **Applicable to**:
+  - `research/algorithm-IR/evolution/behavior_probe_worker.py`
+  - `research/algorithm-IR/train_gnn.py`
+
 ## [2026-05-01 17:50] GNN Trainer Visibility and Probe Timeout Isolation
 - **Context**: Training appeared silent after Gen 1 because first real GNN train step happens at Gen 2 and behavior probes left timed-out detector threads running in the trainer process.
 - **Lesson**:

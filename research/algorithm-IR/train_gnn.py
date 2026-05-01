@@ -624,8 +624,9 @@ def _probe_pair_in_subprocess(
             proc = subprocess.run(
                 [sys.executable, str(helper), str(in_path), str(out_path)],
                 cwd=str(Path(__file__).resolve().parent),
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
                 timeout=outer_timeout,
                 check=False,
             )
@@ -638,9 +639,11 @@ def _probe_pair_in_subprocess(
                 "total_symbols": 0,
             }
         if proc.returncode != 0 and not out_path.exists():
+            detail = (proc.stderr or proc.stdout or "").strip().splitlines()
+            suffix = f": {detail[-1][:300]}" if detail else ""
             return {
                 "ok": False,
-                "exception_repr": f"RuntimeError: behavior probe worker exited {proc.returncode}",
+                "exception_repr": f"RuntimeError: behavior probe worker exited {proc.returncode}{suffix}",
                 "n_timeouts": 0,
                 "total_changed": 0,
                 "total_symbols": 0,
