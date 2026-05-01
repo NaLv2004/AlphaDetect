@@ -5,7 +5,8 @@
       "Bash(python:*)",
       "Bash(\"C:/ProgramData/anaconda3/envs/AutoGenOld/python.exe\":*)",
       "Bash(C:/ProgramData/anaconda3/envs/AutoGenOld/python.exe -c ' *)",
-      "Bash(set ALPHADETECT_PROFILE_DONOR=1)"
+      "Bash(set ALPHADETECT_PROFILE_DONOR=1)",
+      "Bash(ALPHADETECT_PROFILE_DONOR=1 \"C:/ProgramData/anaconda3/envs/AutoGenOld/python.exe\" train_gnn.py --gens 1 --proposals 100 --snr-start 16 --snr-target 16 --warmstart-gens 1 --warmstart-trials 1 --warmstart-timeout 0.5 --warmstart-eval-workers 8 --proposal-batch --proposal-batch-size 128 --progress --viz-grafts-per-gen 0 --n-trials 2 --timeout 0.5 --seed 42 --micro-pop-size 4 --micro-generations 1 --probe-timeout 1.5)"
     ]
   }
 }

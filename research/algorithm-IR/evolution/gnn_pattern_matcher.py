@@ -96,7 +96,14 @@ _PROV_HASH_BUCKETS = 16
 _PROV_FEATURES = _PROV_HASH_BUCKETS + 1  # 16 buckets + 1 boundary flag
 _NODE_DIM = _N_OPCODES + _CALLEE_FEATURES + _PROV_FEATURES
 _VALUE_STATIC_DIM = 10
-_VALUE_FEAT_DIM = _NODE_DIM * 2 + _VALUE_STATIC_DIM
+# Part A1: per-value GNN node-embedding contribution (projected from the
+# encoder's hidden dim down to a small slice that gets concatenated to
+# the manual value features).  This is the path that lets the GNN's
+# learned graph-structural representation actually drive value-level
+# sampling decisions (output / cut head logits) instead of only the
+# pair scorer + ctx vector.
+_VALUE_NODE_EMB_DIM = 16
+_VALUE_FEAT_DIM = _NODE_DIM * 2 + _VALUE_STATIC_DIM + _VALUE_NODE_EMB_DIM
 
 
 def _opcode_idx(opcode: str) -> int:
@@ -291,13 +298,18 @@ def ir_to_graph(ir: FunctionIR) -> Data:
 # ---------------------------------------------------------------------------
 
 class IRGraphEncoder(nn.Module):
-    def __init__(self, node_dim: int = _NODE_DIM, hidden: int = 64, out_dim: int = 32, heads: int = 4):
+    def __init__(self, node_dim: int = _NODE_DIM, hidden: int = 64, out_dim: int = 32, heads: int = 4,
+                 node_proj_dim: int = _VALUE_NODE_EMB_DIM):
         super().__init__()
         self.conv1 = GATConv(node_dim, hidden, heads=heads, concat=False)
         self.conv2 = GATConv(hidden, hidden, heads=heads, concat=False)
         self.fc = nn.Linear(hidden, out_dim)
+        # Part A1: project node-level features to a compact slice that
+        # gets concatenated into per-value features for the policy head.
+        self.node_proj = nn.Linear(hidden, node_proj_dim)
+        self._node_proj_dim = node_proj_dim
 
-    def forward(self, data: Data) -> torch.Tensor:
+    def forward(self, data: Data, return_nodes: bool = False):
         x, edge_index = data.x, data.edge_index
         batch = (
             data.batch
@@ -306,23 +318,73 @@ class IRGraphEncoder(nn.Module):
         )
         x = F.elu(self.conv1(x, edge_index))
         x = F.elu(self.conv2(x, edge_index))
-        x = global_mean_pool(x, batch)
-        return self.fc(x)
+        node_h = x
+        graph_h = global_mean_pool(node_h, batch)
+        graph_emb = self.fc(graph_h)
+        if not return_nodes:
+            return graph_emb
+        node_emb = self.node_proj(node_h)
+        return graph_emb, node_emb
 
 
 class GraftScorer(nn.Module):
+    """Multi-head scorer: rough graft score + reasonable / behavior / perf.
+
+    The original ``score`` head remains the regression target used by
+    the legacy pair sampler.  The three new heads predict the staged
+    outcome targets backfilled by ``train_gnn._log_effective_grafts``
+    and let the GNN learn ``reasonable``-style structural validity
+    independently of raw performance regression.
+    """
+
     def __init__(self, emb_dim: int = 32, hidden: int = 64):
         super().__init__()
-        self.net = nn.Sequential(
+        self.trunk = nn.Sequential(
             nn.Linear(emb_dim * 2, hidden),
             nn.ReLU(),
             nn.Linear(hidden, hidden),
+            nn.ReLU(),
+        )
+        self.score_head = nn.Linear(hidden, 1)
+        self.reasonable_head = nn.Linear(hidden, 1)
+        self.behavior_head = nn.Linear(hidden, 1)
+        self.perf_head = nn.Linear(hidden, 1)
+
+    def forward(self, host_emb: torch.Tensor, donor_emb: torch.Tensor) -> torch.Tensor:
+        # Backward-compat: positional return is still the raw score
+        # logit, used by existing pair sampling code.
+        h = self.trunk(torch.cat([host_emb, donor_emb], dim=-1))
+        return self.score_head(h)
+
+    def forward_all(self, host_emb: torch.Tensor, donor_emb: torch.Tensor) -> dict[str, torch.Tensor]:
+        h = self.trunk(torch.cat([host_emb, donor_emb], dim=-1))
+        return {
+            "score": self.score_head(h).squeeze(-1),
+            "reasonable_logit": self.reasonable_head(h).squeeze(-1),
+            "behavior": self.behavior_head(h).squeeze(-1),
+            "perf": self.perf_head(h).squeeze(-1),
+        }
+
+
+class CriticHead(nn.Module):
+    """Part A3: state-value baseline V(host_emb, donor_emb).
+
+    Used in place of the EMA per-host baseline when learned with enough
+    samples; reduces REINFORCE variance from O(1/eps^4) toward the
+    Actor-Critic O(1/eps^2) regime.  Output is a scalar V; loss is
+    MSE against the observed reward.
+    """
+
+    def __init__(self, emb_dim: int = 32, hidden: int = 32):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(emb_dim * 2, hidden),
             nn.ReLU(),
             nn.Linear(hidden, 1),
         )
 
     def forward(self, host_emb: torch.Tensor, donor_emb: torch.Tensor) -> torch.Tensor:
-        return self.net(torch.cat([host_emb, donor_emb], dim=-1))
+        return self.net(torch.cat([host_emb, donor_emb], dim=-1)).squeeze(-1)
 
 
 class BoundaryRegionPolicy(nn.Module):
@@ -464,6 +526,22 @@ class GNNPatternMatcher:
         device: str | None = None,
         enable_host_mask: bool = True,
         enable_donor_mask: bool = True,
+        # Part A2/A3/A4 + reasonable-first reward shaping knobs.
+        lambda_rl: float = 1.0,
+        entropy_coef: float = 0.01,
+        value_loss_weight: float = 0.5,
+        mask_invalid_loss_weight: float = 0.2,
+        mask_margin_loss_weight: float = 0.05,
+        mask_margin: float = 0.2,
+        legal_entropy_weight: float = 0.01,
+        scorer_score_weight: float = 0.1,
+        scorer_reasonable_weight: float = 1.0,
+        scorer_behavior_weight: float = 0.5,
+        scorer_perf_weight: float = 0.2,
+        failed_replay_weight: float = 1.0,
+        training_objective: str = "reasonable_first",
+        reasonable_phase_thresh: float = 0.25,
+        effective_bonus_weight: float = 0.3,
     ):
         self.max_proposals_per_gen = max_proposals_per_gen
         self.top_k_pairs = top_k_pairs
@@ -512,6 +590,10 @@ class GNNPatternMatcher:
         self.encoder = IRGraphEncoder().to(self.device)
         self.scorer = GraftScorer().to(self.device)
         self.boundary_region_policy = BoundaryRegionPolicy().to(self.device)
+        # Part A3: learned state-value baseline.  Trained alongside the
+        # other components.  Used in place of (or as fallback to) the
+        # EMA per-host baseline once it is sufficiently warmed up.
+        self.critic = CriticHead().to(self.device)
 
         # Compatibility aliases for older checkpoints and tests.
         self.region_proposer = self.boundary_region_policy
@@ -521,6 +603,7 @@ class GNNPatternMatcher:
             list(self.encoder.parameters())
             + list(self.scorer.parameters())
             + list(self.boundary_region_policy.parameters())
+            + list(self.critic.parameters())
         )
         self.optimizer = torch.optim.Adam(self._all_params, lr=lr)
 
@@ -533,26 +616,76 @@ class GNNPatternMatcher:
         # for hosts seen for the first time.
         self._host_baselines: dict[str, float] = {}
         self._host_baseline_counts: dict[str, int] = {}
-        # Minimum samples before a per-host baseline is trusted.
-        # With too few samples the baseline equals the single
-        # observed reward, so the advantage degenerates to 0 and
-        # there is no learning signal.
-        self._host_baseline_min_n = 3
-        # Loss-weight for the REINFORCE term, applied as
-        # ``mse + lambda * mean(reinforce_terms)``.  Default 0.3 so
-        # that the encoder is still primarily trained by the
-        # supervised MSE signal but the policy still gets a clear
-        # gradient.
-        self._lambda_rl = 0.3
+        # Lower the warm-up requirement so the per-host baseline kicks
+        # in earlier (cold-start fix from Part B6).
+        self._host_baseline_min_n = 2
+        # Part A2 + Stage-2 / Stage-3 / Stage-5 / Stage-7 hyperparams.
+        self._lambda_rl = float(lambda_rl)
+        self._entropy_coef = float(entropy_coef)
+        self._value_loss_weight = float(value_loss_weight)
+        self._mask_invalid_loss_weight = float(mask_invalid_loss_weight)
+        self._mask_margin_loss_weight = float(mask_margin_loss_weight)
+        self._mask_margin = float(mask_margin)
+        self._legal_entropy_weight = float(legal_entropy_weight)
+        self._scorer_score_weight = float(scorer_score_weight)
+        self._scorer_reasonable_weight = float(scorer_reasonable_weight)
+        self._scorer_behavior_weight = float(scorer_behavior_weight)
+        self._scorer_perf_weight = float(scorer_perf_weight)
+        self._failed_replay_weight = float(failed_replay_weight)
+        self._training_objective = str(training_objective)
+        self._reasonable_phase_thresh = float(reasonable_phase_thresh)
+        self._effective_bonus_weight = float(effective_bonus_weight)
+        # How strongly the reasonable_logit head steers pair selection
+        # (in addition to the raw graft-score regression head).
+        self._reasonable_pair_weight = 0.5
         self._experience: list[dict[str, Any]] = []
         self._outcomes: dict[str, dict[str, Any]] = {}
         self._graph_cache: dict[str, Data] = {}
         self._emb_cache: dict[str, torch.Tensor] = {}
+        # Part A1: cache per-op node embeddings produced by the encoder
+        # so policy heads can consume them for value-level decisions.
+        self._node_emb_cache: dict[str, dict[str, np.ndarray]] = {}
+        # Per-algo mapping op_id -> visible-op row index in encoder output.
+        # Required so train_step can re-run the encoder WITH grad and
+        # slice node_emb[op_idx] back into per-value features for the
+        # policy heads (fixing the no_grad cache severance bug).
+        self._visible_op_idx_cache: dict[str, dict[str, int]] = {}
         self._generation = 0
         self._total_proposals = 0
         self._total_rewards = 0.0
         self._last_train_stats: dict[str, Any] = {}
         self._last_proposal_stats: dict[str, Any] = {}
+        # Stage-3: failure-stage reward table.  Each invalid_regions
+        # bucket maps to a (negative) reward so the failed sample
+        # actually teaches the policy to avoid the failure mode.
+        self._stage_failure_rewards: dict[str, float] = {
+            "missing_context": -0.05,
+            "host_layer1_empty": -0.20,
+            "host_no_output": -0.20,
+            "host_infeasible_outputs": -0.20,
+            "host_region_build_failed": -0.30,
+            "host_region_dead_code": -0.30,
+            "host_contract_failed": -0.40,
+            "donor_pool_signature_mismatch": -0.20,
+            "signature_mask_empty": -0.25,
+            "donor_no_output": -0.20,
+            "donor_region_build_failed": -0.30,
+            "donor_extract_failed": -0.35,
+        }
+        # Stage-3 success-stage rewards (additive).
+        self._stage_pass_rewards: dict[str, float] = {
+            "host_region_valid": 0.10,
+            "donor_signature_compat": 0.10,
+            "donor_region_valid": 0.15,
+            "graft_general_ok": 0.20,
+            "compile_ok": 0.20,
+            "runtime_ok": 0.30,
+            "behavior_changed": 0.60,
+            "performance_bonus": 0.30,
+        }
+        # Failed-experience FIFO is bounded separately to keep the
+        # main on-policy buffer from being swamped.
+        self._failed_buffer_max = 4096
 
     # ------------------------------------------------------------------
     # PatternMatcherFn interface
@@ -774,6 +907,11 @@ class GNNPatternMatcher:
         graft_score: float | None = None,
         host_score: float | None = None,
         is_valid: bool | None = None,
+        *,
+        terminal_reasonable: bool | None = None,
+        terminal_effective: bool | None = None,
+        behavior_change_rate: float | None = None,
+        stage_rewards: dict[str, float] | None = None,
     ) -> None:
         reward = max(reward, -10.0)
         if graft_score is None or not np.isfinite(graft_score):
@@ -787,14 +925,25 @@ class GNNPatternMatcher:
             if exp.get("proposal_id") == proposal_id:
                 host_algo_id = exp.get("host_algo")
                 break
-        self._outcomes[proposal_id] = {
+        existing = self._outcomes.get(proposal_id, {})
+        merged = dict(existing)
+        merged.update({
             "reward": float(reward),
             "graft_score": float(graft_score),
             "host_score": float(host_score) if host_score is not None else None,
             "is_valid": bool(is_valid) if is_valid is not None else False,
             "host_algo": host_algo_id,
-        }
-        self._total_rewards += float(reward)
+        })
+        if terminal_reasonable is not None:
+            merged["terminal_reasonable"] = bool(terminal_reasonable)
+        if terminal_effective is not None:
+            merged["terminal_effective"] = bool(terminal_effective)
+        if behavior_change_rate is not None:
+            merged["behavior_change_rate"] = float(behavior_change_rate)
+        if stage_rewards is not None:
+            merged["stage_rewards"] = dict(stage_rewards)
+        self._outcomes[proposal_id] = merged
+        self._total_rewards += float(reward) - float(existing.get("reward", 0.0))
         if host_algo_id is not None:
             cur = self._host_baselines.get(host_algo_id, self._reward_baseline)
             self._host_baselines[host_algo_id] = (
@@ -804,6 +953,188 @@ class GNNPatternMatcher:
             self._host_baseline_counts[host_algo_id] = (
                 self._host_baseline_counts.get(host_algo_id, 0) + 1
             )
+
+    # ------------------------------------------------------------------
+    # Stage-3 / Stage-4 / Stage-6: rich reward & failed-replay support
+    # ------------------------------------------------------------------
+
+    def _compute_staged_reward(
+        self,
+        *,
+        structural_ok: bool,
+        no_exception: bool,
+        behavior_ok: bool,
+        performance_ok: bool,
+        is_valid: bool,
+        host_score: float | None,
+        graft_score: float | None,
+    ) -> tuple[float, dict[str, float]]:
+        """Stage-3 multi-stage reward.
+
+        Aggregates per-stage rewards into a single scalar in [-1, 1]
+        and returns the breakdown.  Used by both online ``record_outcome``
+        and offline ``backfill_outcomes``.
+        """
+        sr: dict[str, float] = {}
+        if not is_valid:
+            sr["invalid"] = -0.7
+            return float(np.clip(sum(sr.values()), -1.0, 1.0)), sr
+        sr["host_region_valid"] = self._stage_pass_rewards["host_region_valid"]
+        sr["donor_region_valid"] = self._stage_pass_rewards["donor_region_valid"]
+        sr["graft_general_ok"] = self._stage_pass_rewards["graft_general_ok"]
+        if structural_ok:
+            sr["compile_ok"] = self._stage_pass_rewards["compile_ok"]
+        else:
+            sr["structural_fail"] = -0.4
+        if no_exception:
+            sr["runtime_ok"] = self._stage_pass_rewards["runtime_ok"]
+        else:
+            sr["runtime_exception"] = -0.7
+        if behavior_ok:
+            sr["behavior_changed"] = self._stage_pass_rewards["behavior_changed"]
+        else:
+            sr["behavior_unchanged"] = -0.2
+        # Performance is only a small bonus during reasonable-first.
+        # Accept both internal alias ("effective_first") and the CLI
+        # spelling ("performance_first") to mean the same thing.
+        _full_perf_objectives = ("effective_first", "performance_first")
+        if performance_ok and self._training_objective not in _full_perf_objectives:
+            sr["performance_bonus"] = (
+                self._stage_pass_rewards["performance_bonus"]
+                * self._effective_bonus_weight
+            )
+        elif performance_ok:
+            sr["performance_bonus"] = self._stage_pass_rewards["performance_bonus"]
+        total = float(np.clip(sum(sr.values()), -1.0, 1.0))
+        return total, sr
+
+    def backfill_outcomes(self, analyses_by_proposal: dict[str, dict[str, Any]]) -> int:
+        """Stage-6: overwrite early reward with the richer terminal outcome.
+
+        ``analyses_by_proposal`` maps ``proposal_id`` -> a dict that has
+        at least ``structural_ok``, ``no_exception``, ``behavior_ok``,
+        ``performance_ok``, ``host_score``, ``child_score``,
+        ``behavior_change_rate``.  Returns number of outcomes updated.
+        """
+        updated = 0
+        for pid, analysis in analyses_by_proposal.items():
+            try:
+                reward, stage_rewards = self._compute_staged_reward(
+                    structural_ok=bool(analysis.get("structural_ok", False)),
+                    no_exception=bool(analysis.get("no_exception", True)),
+                    behavior_ok=bool(analysis.get("behavior_ok", False)),
+                    performance_ok=bool(analysis.get("performance_ok", False)),
+                    is_valid=True,
+                    host_score=analysis.get("host_score"),
+                    graft_score=analysis.get("child_score"),
+                )
+                terminal_reasonable = (
+                    bool(analysis.get("structural_ok", False))
+                    and bool(analysis.get("no_exception", True))
+                    and bool(analysis.get("behavior_ok", False))
+                )
+                terminal_effective = terminal_reasonable and bool(
+                    analysis.get("performance_ok", False)
+                )
+                self.record_outcome(
+                    pid,
+                    reward,
+                    graft_score=float(analysis.get("child_score", 1.5))
+                        if analysis.get("child_score") is not None else 1.5,
+                    host_score=float(analysis.get("host_score"))
+                        if analysis.get("host_score") is not None else None,
+                    is_valid=True,
+                    terminal_reasonable=terminal_reasonable,
+                    terminal_effective=terminal_effective,
+                    behavior_change_rate=float(analysis.get("behavior_change_rate", 0.0)),
+                    stage_rewards=stage_rewards,
+                )
+                updated += 1
+            except Exception:
+                continue
+        return updated
+
+    def _append_failed_experience(
+        self,
+        *,
+        host_entry: AlgorithmEntry,
+        donor_entry: AlgorithmEntry | None,
+        host_emb: torch.Tensor,
+        donor_emb: torch.Tensor | None,
+        reason: str,
+        partial: dict[str, Any] | None = None,
+    ) -> None:
+        """Stage-4: record a failed proposal so the policy learns to avoid it.
+
+        ``partial`` (when provided) carries per-step trace + candidate
+        feature data captured up to the failure point.  Its keys are
+        merged into the experience record so the same grad-aware
+        policy term used for successful proposals can also push the
+        policy AWAY from the failed action sequence (negative reward
+        \u2192 negative advantage \u2192 -lp * adv > 0 for high lp \u2192 lp
+        is pushed down).  Without ``partial`` the failed experience
+        only trains the scorer + critic.
+        """
+        proposal_id = _fresh_id("gnn_fail")
+        reward = float(self._stage_failure_rewards.get(reason, -0.25))
+        try:
+            host_emb_np = host_emb.detach().cpu().numpy().astype(np.float32)
+        except Exception:
+            host_emb_np = np.zeros((32,), dtype=np.float32)
+        try:
+            donor_emb_np = (
+                donor_emb.detach().cpu().numpy().astype(np.float32)
+                if donor_emb is not None else np.zeros_like(host_emb_np)
+            )
+        except Exception:
+            donor_emb_np = np.zeros_like(host_emb_np)
+        record = {
+            "proposal_id": proposal_id,
+            "host_algo": host_entry.algo_id,
+            "donor_algo": donor_entry.algo_id if donor_entry is not None else "<no_donor>",
+            "predicted_graft_score": 0.0,
+            "generation": self._generation,
+            "failed": True,
+            "failure_reason": reason,
+        }
+        # Merge partial trace fields so action-aware RL can fire on
+        # failures too.  Keys are passed through unchanged; missing
+        # ones simply leave the grad path inactive for this exp.
+        if partial:
+            for k, v in partial.items():
+                record.setdefault(k, v)
+        self._append_experience(record)
+        self._outcomes[proposal_id] = {
+            "reward": reward,
+            "graft_score": 1.5,
+            "host_score": None,
+            "is_valid": False,
+            "host_algo": host_entry.algo_id,
+            "terminal_reasonable": False,
+            "terminal_effective": False,
+            "failed": True,
+            "failure_reason": reason,
+            "stage_rewards": {reason: reward},
+        }
+        # Bound failed-experience portion of buffer by trimming OLDEST
+        # failures if we exceed the cap (keep the most recent ones,
+        # which carry the freshest exploration signal).
+        n_failed = sum(1 for exp in self._experience if exp.get("failed"))
+        if n_failed > self._failed_buffer_max:
+            keep: list[dict[str, Any]] = []
+            failed_to_drop = n_failed - self._failed_buffer_max
+            # Walk in REVERSE so we drop the earliest-encountered
+            # (oldest) failed records first.
+            failed_seen_from_end = 0
+            for exp in reversed(self._experience):
+                if exp.get("failed"):
+                    failed_seen_from_end += 1
+                    if failed_seen_from_end > self._failed_buffer_max:
+                        # Older than the cap window → drop.
+                        continue
+                keep.append(exp)
+            keep.reverse()
+            self._experience = keep
 
     def is_warmstart_generation(self, generation: int | None = None) -> bool:
         gen = self._generation if generation is None else generation
@@ -903,6 +1234,7 @@ class GNNPatternMatcher:
 
     def _encode_entries(self, entries: list[AlgorithmEntry]) -> None:
         self._emb_cache.clear()
+        self._node_emb_cache.clear()
         graphs: list[Data] = []
         keys: list[str] = []
         live_ids: set[str] = set()
@@ -924,11 +1256,42 @@ class GNNPatternMatcher:
         if not graphs:
             return
 
+        # Encode in batch but compute graph-level + node-level embeddings
+        # per graph (the batched node embedding is a flat tensor; we
+        # need to slice it back per graph).  Run un-batched node-level
+        # forward to get per-op node embeddings keyed by op_id.
         with torch.no_grad():
             batch = Batch.from_data_list([graph.clone() for graph in graphs]).to(self.device)
             embeddings = self.encoder(batch)
         for index, algo_id in enumerate(keys):
             self._emb_cache[algo_id] = embeddings[index]
+            graph = self._graph_cache[algo_id]
+            entry = next((e for e in entries if e.algo_id == algo_id), None)
+            try:
+                with torch.no_grad():
+                    _g_emb, node_emb = self.encoder(graph.clone().to(self.device), return_nodes=True)
+                node_emb_np = node_emb.detach().cpu().numpy()
+                # Recover the visible-op order ir_to_graph used so we
+                # can map op_id -> row in node_emb_np.
+                node_map: dict[str, np.ndarray] = {}
+                if entry is not None:
+                    visible_ops = [
+                        op for op in entry.ir.ops.values()
+                        if not is_trivial_op(op, entry.ir)
+                    ]
+                    if not visible_ops:
+                        visible_ops = list(entry.ir.ops.values())
+                    for op_idx, op in enumerate(visible_ops):
+                        if 0 <= op_idx < node_emb_np.shape[0]:
+                            node_map[op.id] = node_emb_np[op_idx]
+                self._node_emb_cache[algo_id] = node_map
+                self._visible_op_idx_cache[algo_id] = {
+                    op.id: op_idx for op_idx, op in enumerate(visible_ops)
+                }
+            except Exception:
+                # Node-emb cache is best-effort; fall back to zeros.
+                self._node_emb_cache[algo_id] = {}
+                self._visible_op_idx_cache[algo_id] = {}
 
     def _score_pairs(
         self,
@@ -956,7 +1319,15 @@ class GNNPatternMatcher:
         host_embs = embs[host_indices]
         donor_embs = embs[donor_indices]
         with torch.no_grad():
-            scores = self.scorer(host_embs, donor_embs).squeeze(-1).cpu().numpy()
+            heads_all = self.scorer.forward_all(host_embs, donor_embs)
+            # Combine raw graft-score with the reasonable_logit so the
+            # newly added "structural validity" head actually steers
+            # pair selection. Sigmoid(reasonable_logit) is in [0,1] and
+            # is added as a soft prior on top of the regression score.
+            score_raw = heads_all["score"]
+            reasonable_prob = torch.sigmoid(heads_all["reasonable_logit"])
+            combined = score_raw + self._reasonable_pair_weight * reasonable_prob
+            scores = combined.cpu().numpy()
 
         results: list[tuple[AlgorithmEntry, AlgorithmEntry, float]] = []
         for idx, (host_idx, donor_idx) in enumerate(zip(host_indices, donor_indices)):
@@ -1040,6 +1411,18 @@ class GNNPatternMatcher:
                 if host_use_mask
                 else host_ctx["observable_values"]
             )
+            host_obs_def_ops = (
+                host_ctx["host_observable_def_op_ids"]
+                if host_use_mask
+                else host_ctx["observable_def_op_ids"]
+            )
+            host_obs_feats = (
+                host_ctx["host_observable_feats_np"]
+                if host_use_mask
+                else host_ctx["observable_feats_np"]
+            )
+            info["host_output_def_op_ids_used"] = list(host_obs_def_ops)
+            info["host_output_static_feats_used"] = np.array(host_obs_feats, copy=True)
             if not host_obs_vals:
                 # Layer 1 stripped everything (rare: the host has no
                 # return-slice values at all).  Treat as a dead-end so
@@ -1072,6 +1455,7 @@ class GNNPatternMatcher:
                 step_mask_fn = _output_mask_fn
             else:
                 step_mask_fn = None
+            host_output_trace: list = []
             host_outputs = self._sample_value_sequence(
                 host_obs_vals,
                 info["host_output_logits"][0],
@@ -1081,7 +1465,10 @@ class GNNPatternMatcher:
                 temperature=region_temperature,
                 exploration=self.region_exploration,
                 step_mask_fn=step_mask_fn,
+                trace_out=host_output_trace,
             )
+            info["host_output_trace"] = host_output_trace
+            info["host_output_candidates_used"] = list(host_obs_vals)
             if not host_outputs:
                 invalid_regions["host_no_output"] = invalid_regions.get("host_no_output", 0) + 1
                 continue
@@ -1100,6 +1487,13 @@ class GNNPatternMatcher:
                 ):
                     invalid_regions["host_infeasible_outputs"] = (
                         invalid_regions.get("host_infeasible_outputs", 0) + 1
+                    )
+                    self._append_failed_experience(
+                        host_entry=info["host_entry"],
+                        donor_entry=info["donor_entry"],
+                        host_emb=info["host_ctx"]["emb"],
+                        donor_emb=info["donor_ctx"]["emb"],
+                        reason="host_infeasible_outputs",
                     )
                     continue
             info["host_selected_outputs"] = host_outputs
@@ -1169,6 +1563,7 @@ class GNNPatternMatcher:
                 cut_step_fn = _cut_mask_fn
             else:
                 cut_step_fn = None
+            host_cut_trace: list = []
             host_cuts = self._sample_value_sequence(
                 info["host_cut_ctx"]["candidate_ids"],
                 info["host_cut_logits"][0],
@@ -1178,7 +1573,9 @@ class GNNPatternMatcher:
                 temperature=region_temperature,
                 exploration=self.region_exploration,
                 step_mask_fn=cut_step_fn,
+                trace_out=host_cut_trace,
             )
+            info["host_cut_trace"] = host_cut_trace
             info["host_selected_cuts"] = host_cuts
             host_sampler_attempts += 1
             host_build = self._build_boundary_region(
@@ -1189,6 +1586,51 @@ class GNNPatternMatcher:
             )
             if host_build is None:
                 invalid_regions["host_region_build_failed"] = invalid_regions.get("host_region_build_failed", 0) + 1
+                self._append_failed_experience(
+                    host_entry=info["host_entry"],
+                    donor_entry=info["donor_entry"],
+                    host_emb=info["host_ctx"]["emb"],
+                    donor_emb=info["donor_ctx"]["emb"],
+                    reason="host_region_build_failed",
+                    partial={
+                        "host_context_emb": info["donor_ctx"]["emb"]
+                            .detach().cpu().numpy().astype(np.float32),
+                        "donor_context_emb": info["host_ctx"]["emb"]
+                            .detach().cpu().numpy().astype(np.float32),
+                        "host_output_candidates": list(
+                            info.get("host_output_candidates_used")
+                            or info["host_ctx"]["observable_values"]
+                        ),
+                        "host_output_feats": np.array(
+                            info.get(
+                                "host_output_static_feats_used",
+                                info["host_ctx"]["observable_feats_np"],
+                            ),
+                            copy=True,
+                        ),
+                        "host_output_def_op_ids": list(
+                            info.get(
+                                "host_output_def_op_ids_used",
+                                info["host_ctx"]["observable_def_op_ids"],
+                            )
+                        ),
+                        "host_output_trace": list(info.get("host_output_trace", [])),
+                        "host_selected_outputs": list(info.get("host_selected_outputs", [])),
+                        "host_effective_outputs": list(info.get("host_selected_outputs", [])),
+                        "host_cut_candidates": list(info["host_cut_ctx"]["candidate_ids"]),
+                        "host_cut_feats": np.array(
+                            info["host_cut_ctx"]["candidate_feats_np"], copy=True
+                        ),
+                        "host_cut_def_op_ids": list(
+                            info["host_cut_ctx"].get("candidate_def_op_ids", [])
+                        ),
+                        "host_cut_trace": list(info.get("host_cut_trace", [])),
+                        "host_selected_cuts": list(host_cuts),
+                        "host_effective_cuts": list(host_cuts),
+                        "host_temperature": float(region_temperature),
+                        "donor_temperature": float(donor_temperature),
+                    },
+                )
                 continue
             host_built_regions += 1
             host_region, host_validity = host_build
@@ -1207,6 +1649,13 @@ class GNNPatternMatcher:
                 if exit_set and not (exit_set & host_return_slice):
                     invalid_regions["host_region_dead_code"] = (
                         invalid_regions.get("host_region_dead_code", 0) + 1
+                    )
+                    self._append_failed_experience(
+                        host_entry=info["host_entry"],
+                        donor_entry=info["donor_entry"],
+                        host_emb=info["host_ctx"]["emb"],
+                        donor_emb=info["donor_ctx"]["emb"],
+                        reason="host_region_dead_code",
                     )
                     continue
             try:
@@ -1255,6 +1704,13 @@ class GNNPatternMatcher:
                     invalid_regions["donor_pool_signature_mismatch"] = (
                         invalid_regions.get("donor_pool_signature_mismatch", 0) + 1
                     )
+                    self._append_failed_experience(
+                        host_entry=info["host_entry"],
+                        donor_entry=info["donor_entry"],
+                        host_emb=info["host_ctx"]["emb"],
+                        donor_emb=info["donor_ctx"]["emb"],
+                        reason="donor_pool_signature_mismatch",
+                    )
             host_valid_infos = survivors
 
         # Donor outputs (batched logits — masking is applied per-step
@@ -1292,6 +1748,13 @@ class GNNPatternMatcher:
                 invalid_regions["signature_mask_empty"] = (
                     invalid_regions.get("signature_mask_empty", 0) + 1
                 )
+                self._append_failed_experience(
+                    host_entry=info["host_entry"],
+                    donor_entry=info["donor_entry"],
+                    host_emb=info["host_ctx"]["emb"],
+                    donor_emb=info["donor_ctx"]["emb"],
+                    reason="signature_mask_empty",
+                )
                 continue
             donor_outputs, donor_cuts = sampled
             if not donor_outputs:
@@ -1317,6 +1780,13 @@ class GNNPatternMatcher:
             )
             if donor_build is None:
                 invalid_regions["donor_region_build_failed"] = invalid_regions.get("donor_region_build_failed", 0) + 1
+                self._append_failed_experience(
+                    host_entry=info["host_entry"],
+                    donor_entry=info["donor_entry"],
+                    host_emb=info["host_ctx"]["emb"],
+                    donor_emb=info["donor_ctx"]["emb"],
+                    reason="donor_region_build_failed",
+                )
                 continue
             donor_region, donor_validity = donor_build
             donor_built_regions += 1
@@ -1329,6 +1799,13 @@ class GNNPatternMatcher:
                 donor_trim = extract_region_ir(info["donor_ctx"]["ir"], donor_region)
             except Exception:
                 invalid_regions["donor_extract_failed"] = invalid_regions.get("donor_extract_failed", 0) + 1
+                self._append_failed_experience(
+                    host_entry=info["host_entry"],
+                    donor_entry=info["donor_entry"],
+                    host_emb=info["host_ctx"]["emb"],
+                    donor_emb=info["donor_ctx"]["emb"],
+                    reason="donor_extract_failed",
+                )
                 continue
             info["donor_region"] = donor_region
             info["donor_validity"] = donor_validity
@@ -1391,12 +1868,26 @@ class GNNPatternMatcher:
             "generation": self._generation,
             "host_context_emb": info["donor_ctx"]["emb"].detach().cpu().numpy().astype(np.float32),
             "donor_context_emb": info["host_ctx"]["emb"].detach().cpu().numpy().astype(np.float32),
-            "host_output_candidates": list(info["host_ctx"]["observable_values"]),
-            "host_output_feats": np.array(info["host_ctx"]["observable_feats_np"], copy=True),
+            "host_output_candidates": list(
+                info.get("host_output_candidates_used")
+                or info["host_ctx"]["observable_values"]
+            ),
+            "host_output_feats": np.array(
+                info.get("host_output_static_feats_used",
+                         info["host_ctx"]["observable_feats_np"]),
+                copy=True,
+            ),
+            "host_output_def_op_ids": list(
+                info.get("host_output_def_op_ids_used",
+                         info["host_ctx"]["observable_def_op_ids"])
+            ),
+            "host_output_trace": list(info.get("host_output_trace", [])),
             "host_selected_outputs": list(info["host_selected_outputs"]),
             "host_effective_outputs": list(info["host_effective_outputs"]),
             "host_cut_candidates": list(info["host_cut_ctx"]["candidate_ids"]),
             "host_cut_feats": np.array(info["host_cut_ctx"]["candidate_feats_np"], copy=True),
+            "host_cut_def_op_ids": list(info["host_cut_ctx"].get("candidate_def_op_ids", [])),
+            "host_cut_trace": list(info.get("host_cut_trace", [])),
             "host_selected_cuts": list(info["host_selected_cuts"]),
             "host_effective_cuts": list(info["host_effective_cuts"]),
             "host_region_validity": info["host_validity"].reason,
@@ -1482,7 +1973,10 @@ class GNNPatternMatcher:
             return None
 
         observable_set = set(observable_values)
-        observable_feats_np = self._get_value_feats(ir, observable_values, observable_set)
+        node_embs = self._node_emb_cache.get(entry.algo_id) or {}
+        observable_feats_np = self._get_value_feats(
+            ir, observable_values, observable_set, node_emb_for_op=node_embs,
+        )
         if observable_feats_np.shape[0] == 0:
             cache[entry.algo_id] = None
             return None
@@ -1495,6 +1989,12 @@ class GNNPatternMatcher:
             "observable_values": observable_values,
             "observable_set": observable_set,
             "observable_feats_np": observable_feats_np,
+            # Per-candidate def_op (or None) so train_step can recover
+            # node_emb[op_idx] with grad for the policy head.
+            "observable_def_op_ids": [
+                (ir.values[v].def_op if v in ir.values and ir.values[v].def_op in ir.ops else None)
+                for v in observable_values
+            ],
             "cut_candidate_cache": {},
             # Live-region precondition: only regions whose exit_values
             # intersect the host's return-slice produce non-dead grafts.
@@ -1517,6 +2017,9 @@ class GNNPatternMatcher:
         ctx["host_observable_values"] = host_obs_vals
         ctx["host_observable_feats_np"] = host_obs_feats_np
         ctx["host_observable_kept_idx"] = host_kept_idx
+        ctx["host_observable_def_op_ids"] = [
+            ctx["observable_def_op_ids"][i] for i in host_kept_idx
+        ]
         ctx["host_op_closures"] = _host_precompute_op_closures(ir, host_obs_vals)
         # ── Donor-mask precompute ───────────────────────────────────
         # Layer D2 needs op closures over the FULL observable pool
@@ -1539,14 +2042,22 @@ class GNNPatternMatcher:
         if cached is not None:
             return cached
         candidate_ids = enumerate_cut_candidates(ctx["ir"], output_values)
+        node_embs = self._node_emb_cache.get(ctx["entry"].algo_id) or {}
         candidate_feats_np = self._get_value_feats(
             ctx["ir"],
             candidate_ids,
             ctx["observable_set"],
+            node_emb_for_op=node_embs,
         )
         cut_ctx = {
             "candidate_ids": candidate_ids,
             "candidate_feats_np": candidate_feats_np,
+            "candidate_def_op_ids": [
+                (ctx["ir"].values[v].def_op
+                 if v in ctx["ir"].values and ctx["ir"].values[v].def_op in ctx["ir"].ops
+                 else None)
+                for v in candidate_ids
+            ],
         }
         ctx["cut_candidate_cache"][key] = cut_ctx
         return cut_ctx
@@ -2143,6 +2654,7 @@ class GNNPatternMatcher:
         temperature: float,
         exploration: float,
         step_mask_fn: "Callable[[list[str], list[str]], tuple[list[bool], bool]] | None" = None,
+        trace_out: list | None = None,
     ) -> list[str]:
         """Sample up to ``max_selected`` value ids by per-step softmax.
 
@@ -2193,6 +2705,19 @@ class GNNPatternMatcher:
             )
             chosen = int(np.random.choice(len(option_ids), p=probs))
             picked = option_ids[chosen]
+            if trace_out is not None:
+                # Record per-step decision so train_step can replay
+                # the exact option set with grad-enabled feats and
+                # compute mask-aux losses.
+                trace_out.append({
+                    "available": list(available),
+                    "kept_local": list(kept_local),
+                    "stop_added": (allow_empty or step > 0) and stop_allowed,
+                    "chose_global": (
+                        None if picked == "__STOP__"
+                        else available[kept_local[chosen]]
+                    ),
+                })
             if picked == "__STOP__":
                 break
             selected.append(picked)
@@ -2333,8 +2858,31 @@ class GNNPatternMatcher:
         last_mse_val = 0.0
         last_rl_val = 0.0
         last_advantage_mag = 0.0
+        last_value_loss = 0.0
+        last_entropy_val = 0.0
+        last_reasonable_loss = 0.0
+        last_behavior_loss = 0.0
+        last_perf_loss = 0.0
+        last_mask_aux_val = 0.0
+        last_mask_margin_val = 0.0
+        last_n_grad_policy = 0
+        last_n_legacy_policy = 0
 
-        for _ in range(n_steps):
+        logger.info(
+            "GNN train start: matched=%d batch=%d steps=%d",
+            len(matched),
+            batch_size,
+            n_steps,
+        )
+        _train_iter: Any = range(n_steps)
+        if self.show_progress and tqdm is not None:
+            _train_iter = tqdm(
+                range(n_steps),
+                desc=f"GNN train ({len(matched)} matched)",
+                leave=False,
+            )
+
+        for step_idx in _train_iter:
             if len(matched) > batch_size:
                 indices = np.random.choice(len(matched), batch_size, replace=False)
                 batch = [matched[i] for i in indices]
@@ -2344,71 +2892,337 @@ class GNNPatternMatcher:
             scorer_graphs_h: list[Data] = []
             scorer_graphs_d: list[Data] = []
             scorer_targets: list[float] = []
+            scorer_rewards: list[float] = []
+            reasonable_targets: list[float] = []
+            reasonable_mask: list[float] = []
+            behavior_targets: list[float] = []
+            behavior_mask: list[float] = []
+            perf_targets: list[float] = []
+            perf_mask: list[float] = []
+            sample_weights: list[float] = []
             for exp, outcome in batch:
                 hg = self._graph_cache.get(exp["host_algo"])
+                # Donor algo may be "<no_donor>" for failed exps with
+                # no donor; skip those for scorer training.
                 dg = self._graph_cache.get(exp["donor_algo"])
                 if hg is None or dg is None:
                     continue
                 scorer_graphs_h.append(hg)
                 scorer_graphs_d.append(dg)
                 scorer_targets.append(float(outcome.get("graft_score", 1.5)))
+                scorer_rewards.append(float(outcome.get("reward", 0.0)))
+                # Multi-head targets: only available when terminal_*
+                # was set by backfill_outcomes.
+                if "terminal_reasonable" in outcome:
+                    reasonable_targets.append(
+                        1.0 if outcome["terminal_reasonable"] else 0.0
+                    )
+                    reasonable_mask.append(1.0)
+                else:
+                    reasonable_targets.append(0.0)
+                    reasonable_mask.append(0.0)
+                if "behavior_change_rate" in outcome:
+                    behavior_targets.append(
+                        float(outcome["behavior_change_rate"])
+                    )
+                    behavior_mask.append(1.0)
+                else:
+                    behavior_targets.append(0.0)
+                    behavior_mask.append(0.0)
+                # Perf head target: terminal_effective (BCE).
+                if "terminal_effective" in outcome:
+                    perf_targets.append(
+                        1.0 if outcome["terminal_effective"] else 0.0
+                    )
+                    perf_mask.append(1.0)
+                else:
+                    perf_targets.append(0.0)
+                    perf_mask.append(0.0)
+                sample_weights.append(
+                    self._failed_replay_weight if exp.get("failed") else 1.0
+                )
 
             mse_term: torch.Tensor | None = None
+            value_loss: torch.Tensor | None = None
+            reasonable_loss: torch.Tensor | None = None
+            behavior_loss: torch.Tensor | None = None
+            perf_loss: torch.Tensor | None = None
+            v_pred_detached: torch.Tensor | None = None
+            scorer_h_emb_for_idx: dict[int, torch.Tensor] = {}
+            scorer_d_emb_for_idx: dict[int, torch.Tensor] = {}
+            host_node_emb_per_idx: dict[int, torch.Tensor] = {}
+            donor_graph_emb_per_idx: dict[int, torch.Tensor] = {}
             if scorer_graphs_h:
                 h_batch = Batch.from_data_list([g.clone() for g in scorer_graphs_h]).to(self.device)
                 d_batch = Batch.from_data_list([g.clone() for g in scorer_graphs_d]).to(self.device)
-                h_emb = self.encoder(h_batch)
+                # Re-encode WITH grad and ALSO obtain node-level emb
+                # so the policy term can flow gradients back to the GAT.
+                h_emb, h_node_emb_b = self.encoder(h_batch, return_nodes=True)
                 d_emb = self.encoder(d_batch)
                 target = torch.tensor(scorer_targets, dtype=torch.float32, device=self.device)
-                pred = self.scorer(h_emb, d_emb).squeeze(-1)
-                mse_term = F.mse_loss(pred, target)
+                reward_tensor = torch.tensor(scorer_rewards, dtype=torch.float32, device=self.device)
+                weights = torch.tensor(sample_weights, dtype=torch.float32, device=self.device)
+                heads = self.scorer.forward_all(h_emb, d_emb)
+                mse_term = (
+                    self._scorer_score_weight
+                    * (((heads["score"] - target) ** 2) * weights).mean()
+                )
+                # Part A3: critic V predicts reward; advantage uses
+                # detached V to avoid biasing the policy gradient.
+                v_pred = self.critic(h_emb, d_emb)
+                value_loss = (((v_pred - reward_tensor) ** 2) * weights).mean()
+                v_pred_detached = v_pred.detach()
+                # Multi-head supervised losses.
+                if any(reasonable_mask):
+                    rt = torch.tensor(reasonable_targets, dtype=torch.float32, device=self.device)
+                    rm = torch.tensor(reasonable_mask, dtype=torch.float32, device=self.device)
+                    reasonable_loss = (
+                        F.binary_cross_entropy_with_logits(
+                            heads["reasonable_logit"], rt, reduction="none"
+                        ) * rm * weights
+                    ).sum() / rm.sum().clamp_min(1.0)
+                if any(behavior_mask):
+                    bt = torch.tensor(behavior_targets, dtype=torch.float32, device=self.device)
+                    bm = torch.tensor(behavior_mask, dtype=torch.float32, device=self.device)
+                    behavior_loss = (
+                        ((heads["behavior"] - bt) ** 2) * bm * weights
+                    ).sum() / bm.sum().clamp_min(1.0)
+                if any(perf_mask):
+                    pt = torch.tensor(perf_targets, dtype=torch.float32, device=self.device)
+                    pm = torch.tensor(perf_mask, dtype=torch.float32, device=self.device)
+                    perf_loss = (
+                        F.binary_cross_entropy_with_logits(
+                            heads["perf"], pt, reduction="none"
+                        ) * pm * weights
+                    ).sum() / pm.sum().clamp_min(1.0)
+                # Map back per-row indices in `batch` -> tensors so we
+                # can assign value baselines per experience below.
+                kept_index = 0
+                # Pre-extract per-graph host node-emb slices (grad-enabled).
+                h_batch_idx = h_batch.batch.detach().cpu().numpy()
+                node_slice_per_graph: list[torch.Tensor] = []
+                for gi in range(int(h_batch_idx.max()) + 1 if h_batch_idx.size else 0):
+                    rows = (h_batch.batch == gi).nonzero(as_tuple=True)[0]
+                    node_slice_per_graph.append(h_node_emb_b[rows])
+                for idx_in_batch, (exp, outcome) in enumerate(batch):
+                    if (
+                        self._graph_cache.get(exp["host_algo"]) is not None
+                        and self._graph_cache.get(exp["donor_algo"]) is not None
+                    ):
+                        scorer_h_emb_for_idx[idx_in_batch] = h_emb[kept_index]
+                        scorer_d_emb_for_idx[idx_in_batch] = d_emb[kept_index]
+                        if kept_index < len(node_slice_per_graph):
+                            host_node_emb_per_idx[idx_in_batch] = node_slice_per_graph[kept_index]
+                        donor_graph_emb_per_idx[idx_in_batch] = d_emb[kept_index]
+                        kept_index += 1
 
             rl_terms: list[torch.Tensor] = []
+            entropy_terms: list[torch.Tensor] = []
+            mask_aux_terms: list[torch.Tensor] = []
             advantages: list[float] = []
-            for exp, outcome in batch:
-                action_log_prob = self._boundary_action_log_prob(exp)
-                if action_log_prob is None:
+            n_grad_policy = 0
+            n_legacy_policy = 0
+            for idx_in_batch, (exp, outcome) in enumerate(batch):
+                # Failed experiences without an action trace can only
+                # train scorer/critic; skip RL term for them. Failed
+                # exps WITH a trace (partial=...) DO get action-aware
+                # RL because their negative reward pushes the policy
+                # away from the same step-by-step choices.
+                if exp.get("failed") and not exp.get("host_output_trace"):
                     continue
-                # Per-host baseline (only when we have enough samples
-                # for it to be meaningful — otherwise fall back to the
-                # global EMA, since a 1-sample "baseline" equals the
-                # reward and gives zero advantage).
+                # Critic-based baseline (Part A3) when available;
+                # else per-host EMA; else global.
                 host_id = exp.get("host_algo")
-                if (
+                if v_pred_detached is not None and idx_in_batch in scorer_h_emb_for_idx:
+                    pos = -1
+                    seen = 0
+                    for j, (e2, _o2) in enumerate(batch):
+                        if (
+                            self._graph_cache.get(e2["host_algo"]) is not None
+                            and self._graph_cache.get(e2["donor_algo"]) is not None
+                        ):
+                            if j == idx_in_batch:
+                                pos = seen
+                                break
+                            seen += 1
+                    if 0 <= pos < v_pred_detached.shape[0]:
+                        baseline = float(v_pred_detached[pos].item())
+                    else:
+                        baseline = self._reward_baseline
+                elif (
                     host_id is not None
                     and self._host_baseline_counts.get(host_id, 0)
                     >= self._host_baseline_min_n
                 ):
-                    host_baseline = self._host_baselines.get(
-                        host_id, self._reward_baseline
-                    )
+                    baseline = self._host_baselines.get(host_id, self._reward_baseline)
                 else:
-                    host_baseline = self._reward_baseline
-                advantage = float(outcome.get("reward", 0.0) - host_baseline)
-                advantages.append(advantage)
-                rl_terms.append(-action_log_prob * advantage)
+                    baseline = self._reward_baseline
+                terminal_advantage = float(outcome.get("reward", 0.0) - baseline)
+
+                # Prefer grad-aware host policy term (encoder ← RL).
+                policy_term = None
+                if (
+                    idx_in_batch in host_node_emb_per_idx
+                    and idx_in_batch in donor_graph_emb_per_idx
+                ):
+                    host_op_idx = self._visible_op_idx_cache.get(host_id) or {}
+                    if host_op_idx:
+                        try:
+                            policy_term = self._grad_host_policy_term(
+                                exp,
+                                host_node_emb=host_node_emb_per_idx[idx_in_batch],
+                                host_op_idx=host_op_idx,
+                                donor_graph_emb=donor_graph_emb_per_idx[idx_in_batch],
+                            )
+                        except Exception as exc:
+                            logger.debug("grad host policy term failed: %s", exc)
+                            policy_term = None
+                if policy_term is not None:
+                    n_grad_policy += 1
+                    # Per-step REINFORCE with shaped advantage.
+                    # Each step’s reward = terminal_advantage shared
+                    # across steps + per-step shaping based on how
+                    # close the policy came to picking an illegal
+                    # action (invalid_mass).
+                    per_step_lps = policy_term["per_step_log_probs"]
+                    inv_per_step = policy_term["invalid_per_step"]
+                    shape_coef = 0.5
+                    step_terms: list[torch.Tensor] = []
+                    for t, lp in enumerate(per_step_lps):
+                        inv_t = inv_per_step[t] if t < len(inv_per_step) else 0.0
+                        adv_t = terminal_advantage - shape_coef * float(inv_t)
+                        step_terms.append(-lp * adv_t)
+                    if step_terms:
+                        rl_terms.append(torch.stack(step_terms).sum())
+                        advantages.append(terminal_advantage)
+                    if policy_term["entropy"].requires_grad:
+                        entropy_terms.append(policy_term["entropy"])
+                    mask_aux_terms.append(policy_term["invalid_mass_loss"])
+                    # Grad path covers ONLY host. Donor RL signal is
+                    # otherwise lost when we skip the legacy
+                    # _boundary_action_log_prob, so add a donor-only
+                    # REINFORCE term via the legacy detached path
+                    # (donor encoder grad is a separate item, but at
+                    # least donor policy heads still learn).
+                    donor_pair = self._region_side_log_prob(
+                        output_candidates=exp.get("donor_output_candidates"),
+                        output_feats=exp.get("donor_output_feats"),
+                        effective_outputs=exp.get("donor_effective_outputs"),
+                        cut_candidates=exp.get("donor_cut_candidates"),
+                        cut_feats=exp.get("donor_cut_feats"),
+                        effective_cuts=exp.get("donor_effective_cuts"),
+                        context_emb=exp.get("donor_context_emb"),
+                        temperature=float(
+                            exp.get("donor_temperature", self._policy_temperature())
+                        ),
+                        exploration=self.donor_exploration,
+                    )
+                    if donor_pair is not None:
+                        donor_lp, donor_ent = donor_pair
+                        rl_terms.append(-donor_lp * terminal_advantage)
+                        if donor_ent is not None and donor_ent.requires_grad:
+                            entropy_terms.append(donor_ent)
+                else:
+                    # Legacy fallback: detached numpy-feat path (no
+                    # encoder grad, but still trains the policy heads).
+                    lp_pair = self._boundary_action_log_prob(exp)
+                    if lp_pair is None:
+                        continue
+                    if isinstance(lp_pair, tuple):
+                        action_log_prob, action_entropy = lp_pair
+                    else:
+                        action_log_prob, action_entropy = lp_pair, None
+                    n_legacy_policy += 1
+                    advantages.append(terminal_advantage)
+                    rl_terms.append(-action_log_prob * terminal_advantage)
+                    if action_entropy is not None:
+                        entropy_terms.append(action_entropy)
 
             loss_terms: list[torch.Tensor] = []
             if mse_term is not None:
                 loss_terms.append(mse_term)
                 last_mse_val = float(mse_term.item())
+            if value_loss is not None:
+                loss_terms.append(self._value_loss_weight * value_loss)
+                last_value_loss = float(value_loss.item())
+            if reasonable_loss is not None:
+                loss_terms.append(self._scorer_reasonable_weight * reasonable_loss)
+                last_reasonable_loss = float(reasonable_loss.item())
+            if behavior_loss is not None:
+                loss_terms.append(self._scorer_behavior_weight * behavior_loss)
+                last_behavior_loss = float(behavior_loss.item())
+            if perf_loss is not None and self._scorer_perf_weight > 0.0:
+                loss_terms.append(self._scorer_perf_weight * perf_loss)
+                last_perf_loss = float(perf_loss.item())
+            else:
+                last_perf_loss = 0.0
             if rl_terms:
-                # ``mean`` (not sum) keeps the REINFORCE term on the
-                # same scale as the MSE term regardless of batch size.
                 rl_mean = torch.stack(rl_terms).mean()
                 loss_terms.append(self._lambda_rl * rl_mean)
                 last_rl_val = float(rl_mean.item())
                 last_advantage_mag = float(np.mean(np.abs(advantages))) if advantages else 0.0
+            if mask_aux_terms and self._mask_invalid_loss_weight > 0.0:
+                mask_mean = torch.stack(mask_aux_terms).mean()
+                loss_terms.append(self._mask_invalid_loss_weight * mask_mean)
+                last_mask_aux_val = float(mask_mean.item())
+            else:
+                last_mask_aux_val = 0.0
+            # Mask-margin loss: penalise (margin - mean_invalid_mass)+,
+            # i.e. push average invalid-mass below the configured
+            # margin. Complements the soft -log(1-mass) penalty above
+            # by adding a hinge term that activates only when invalid
+            # mass exceeds the margin.
+            if (
+                mask_aux_terms
+                and self._mask_margin_loss_weight > 0.0
+                and self._mask_margin > 0.0
+            ):
+                # Recover invalid_mass_mean per step from
+                # invalid_mass_loss = -log(1 - invalid_mass_mean):
+                #   invalid_mass_mean = 1 - exp(-invalid_mass_loss).
+                inv_mass = 1.0 - torch.exp(-torch.stack(mask_aux_terms))
+                margin_pen = (inv_mass - self._mask_margin).clamp_min(0.0).mean()
+                loss_terms.append(self._mask_margin_loss_weight * margin_pen)
+                last_mask_margin_val = float(margin_pen.item())
+            else:
+                last_mask_margin_val = 0.0
+            last_n_grad_policy = n_grad_policy
+            last_n_legacy_policy = n_legacy_policy
+            if entropy_terms and self._entropy_coef > 0.0:
+                ent_mean = torch.stack(entropy_terms).mean()
+                # Subtract entropy (== add -lambda * H) to encourage
+                # exploration; we add the negative inside loss_terms.
+                loss_terms.append(-self._entropy_coef * ent_mean)
+                last_entropy_val = float(ent_mean.item())
+            # Additional explicit legal-only entropy bonus
+            # (disambiguated from generic entropy_coef): weights the
+            # entropy of the legal-mass distribution from the grad
+            # path so the policy is rewarded for spreading mass across
+            # legal candidates (not by hugging illegal ones via mask).
+            if mask_aux_terms and self._legal_entropy_weight > 0.0 and entropy_terms:
+                legal_ent_mean = torch.stack(entropy_terms).mean()
+                loss_terms.append(-self._legal_entropy_weight * legal_ent_mean)
 
             if not loss_terms:
                 continue
 
             self.optimizer.zero_grad()
             total_loss = sum(loss_terms)
+            # Catch NaN/Inf early so a single bad sample doesn't
+            # propagate and corrupt all weights.
+            if not torch.isfinite(total_loss):
+                continue
             total_loss.backward()
             torch.nn.utils.clip_grad_norm_(self._all_params, max_norm=1.0)
             self.optimizer.step()
             total_loss_val = float(total_loss.item())
+            if self.show_progress and tqdm is not None and hasattr(_train_iter, "set_postfix"):
+                _train_iter.set_postfix(
+                    loss=f"{total_loss_val:.3f}",
+                    rl=f"{last_rl_val:.3f}",
+                    reas=f"{last_reasonable_loss:.3f}",
+                    grad=f"{n_grad_policy}/{n_grad_policy + n_legacy_policy}",
+                )
 
         live_pids = {exp["proposal_id"] for exp in self._experience}
         for proposal_id in [pid for pid in list(self._outcomes) if pid not in live_pids]:
@@ -2421,8 +3235,21 @@ class GNNPatternMatcher:
             self._host_baselines.pop(h, None)
             self._host_baseline_counts.pop(h, None)
 
+        # Aggregate reasonable_rate from outcomes.
+        n_outcomes_with_terminal = sum(
+            1 for _, o in matched if "terminal_reasonable" in o
+        )
+        n_reasonable = sum(
+            1 for _, o in matched if o.get("terminal_reasonable")
+        )
+        n_failed = sum(1 for _, o in matched if o.get("failed"))
+        reasonable_rate = (
+            n_reasonable / n_outcomes_with_terminal
+            if n_outcomes_with_terminal > 0 else 0.0
+        )
         self._last_train_stats = {
             "matched_samples": len(matched),
+            "n_failed_replay": n_failed,
             "train_steps": n_steps,
             "mean_reward": mean_reward,
             "mean_graft_score": mean_score,
@@ -2430,26 +3257,45 @@ class GNNPatternMatcher:
             "n_host_baselines": len(self._host_baselines),
             "loss": total_loss_val,
             "mse_loss": last_mse_val,
+            "value_loss": last_value_loss,
             "rl_loss": last_rl_val,
+            "entropy": last_entropy_val,
+            "reasonable_loss": last_reasonable_loss,
+            "behavior_loss": last_behavior_loss,
             "mean_abs_advantage": last_advantage_mag,
+            "reasonable_rate": reasonable_rate,
+            "perf_loss": last_perf_loss,
+            "mask_aux_loss": last_mask_aux_val,
+            "mask_margin_loss": last_mask_margin_val,
+            "n_grad_policy": last_n_grad_policy,
+            "n_legacy_policy": last_n_legacy_policy,
         }
         logger.info(
-            "GNN train: %d samples, %d steps, avg_reward=%.4f, avg_score=%.4f, "
-            "global_baseline=%.4f, hosts_baselined=%d, loss=%.4f (mse=%.4f, rl=%.4f, |adv|=%.4f)",
+            "GNN train: %d samples (%d failed), %d steps, avg_reward=%.4f, "
+            "loss=%.4f (mse=%.4f, val=%.4f, rl=%.4f, ent=%.4f, reas=%.4f, beh=%.4f, perf=%.4f, mask=%.4f, mm=%.4f) "
+            "|adv|=%.4f reasonable_rate=%.3f grad_policy=%d/%d",
             len(matched),
+            n_failed,
             n_steps,
             mean_reward,
-            mean_score,
-            self._reward_baseline,
-            len(self._host_baselines),
             total_loss_val,
             last_mse_val,
+            last_value_loss,
             last_rl_val,
+            last_entropy_val,
+            last_reasonable_loss,
+            last_behavior_loss,
+            last_perf_loss,
+            last_mask_aux_val,
+            last_mask_margin_val,
             last_advantage_mag,
+            reasonable_rate,
+            last_n_grad_policy,
+            last_n_grad_policy + last_n_legacy_policy,
         )
 
-    def _boundary_action_log_prob(self, exp: dict[str, Any]) -> torch.Tensor | None:
-        host_log_prob = self._region_side_log_prob(
+    def _boundary_action_log_prob(self, exp: dict[str, Any]):
+        host_pair = self._region_side_log_prob(
             output_candidates=exp.get("host_output_candidates"),
             output_feats=exp.get("host_output_feats"),
             effective_outputs=exp.get("host_effective_outputs"),
@@ -2460,7 +3306,7 @@ class GNNPatternMatcher:
             temperature=float(exp.get("host_temperature", self._policy_temperature())),
             exploration=self.region_exploration,
         )
-        donor_log_prob = self._region_side_log_prob(
+        donor_pair = self._region_side_log_prob(
             output_candidates=exp.get("donor_output_candidates"),
             output_feats=exp.get("donor_output_feats"),
             effective_outputs=exp.get("donor_effective_outputs"),
@@ -2471,9 +3317,11 @@ class GNNPatternMatcher:
             temperature=float(exp.get("donor_temperature", self._policy_temperature())),
             exploration=self.donor_exploration,
         )
-        if host_log_prob is None or donor_log_prob is None:
+        if host_pair is None or donor_pair is None:
             return None
-        return host_log_prob + donor_log_prob
+        host_lp, host_ent = host_pair
+        donor_lp, donor_ent = donor_pair
+        return host_lp + donor_lp, host_ent + donor_ent
 
     def _region_side_log_prob(
         self,
@@ -2487,13 +3335,13 @@ class GNNPatternMatcher:
         context_emb: np.ndarray | None,
         temperature: float,
         exploration: float,
-    ) -> torch.Tensor | None:
+    ):
         if not output_candidates or output_feats is None or context_emb is None or not effective_outputs:
             return None
         output_tensor = torch.tensor(output_feats, dtype=torch.float32, device=self.device)
         context_tensor = torch.tensor(context_emb, dtype=torch.float32, device=self.device)
         output_logits, output_stop = self.boundary_region_policy.output_logits(output_tensor, context_tensor)
-        total = self._sequence_log_prob(
+        lp_out, ent_out = self._sequence_log_prob(
             candidate_ids=output_candidates,
             logits=output_logits,
             stop_logit=output_stop,
@@ -2503,9 +3351,11 @@ class GNNPatternMatcher:
             temperature=temperature,
             exploration=exploration,
         )
+        total_lp = lp_out
+        total_ent = ent_out
 
         if cut_candidates is None or cut_feats is None:
-            return total
+            return total_lp, total_ent
         output_summary = self._summarize_selected_value_feats(
             output_candidates,
             output_feats,
@@ -2518,7 +3368,7 @@ class GNNPatternMatcher:
             context_tensor,
             output_summary_tensor,
         )
-        total = total + self._sequence_log_prob(
+        lp_cut, ent_cut = self._sequence_log_prob(
             candidate_ids=cut_candidates,
             logits=cut_logits,
             stop_logit=cut_stop,
@@ -2528,7 +3378,9 @@ class GNNPatternMatcher:
             temperature=temperature,
             exploration=exploration,
         )
-        return total
+        total_lp = total_lp + lp_cut
+        total_ent = total_ent + ent_cut
+        return total_lp, total_ent
 
     def _sequence_log_prob(
         self,
@@ -2541,10 +3393,11 @@ class GNNPatternMatcher:
         allow_empty: bool,
         temperature: float,
         exploration: float,
-    ) -> torch.Tensor:
+    ):
         available = list(range(len(candidate_ids)))
         chosen_queue = list(chosen_ids)
         total = torch.tensor(0.0, dtype=torch.float32, device=self.device)
+        total_ent = torch.tensor(0.0, dtype=torch.float32, device=self.device)
         stop_value = stop_logit.reshape(-1)[0]
 
         for step in range(max_selected):
@@ -2560,16 +3413,227 @@ class GNNPatternMatcher:
                 temperature=temperature,
                 exploration=exploration,
             )
+            # Per-step entropy bonus (Part A4).
+            log_probs = torch.log(probs.clamp_min(1e-12))
+            step_entropy = -(probs * log_probs).sum()
+            total_ent = total_ent + step_entropy
             target = chosen_queue.pop(0) if chosen_queue else "__STOP__"
             if target not in option_ids:
-                return torch.tensor(0.0, dtype=torch.float32, device=self.device)
+                return torch.tensor(0.0, dtype=torch.float32, device=self.device), total_ent
             target_idx = option_ids.index(target)
             total = total + torch.log(probs[target_idx].clamp_min(1e-12))
             if target == "__STOP__":
                 break
             selected_idx = available[target_idx]
             available = [idx for idx in available if idx != selected_idx]
-        return total
+        return total, total_ent
+
+    # ------------------------------------------------------------------
+    # Grad-aware host policy term (fixes encoder-policy gradient bug)
+    # ------------------------------------------------------------------
+    def _grad_host_policy_term(
+        self,
+        exp: dict[str, Any],
+        *,
+        host_node_emb: torch.Tensor,
+        host_op_idx: dict[str, int],
+        donor_graph_emb: torch.Tensor,
+    ) -> dict[str, Any] | None:
+        """Replay host_output + host_cut traces with grad-enabled feats.
+
+        At sample time, value features were built using cached numpy
+        node embeddings produced under ``torch.no_grad()`` — so the
+        encoder never saw a gradient from policy decisions.  Here we:
+
+        1. Re-encode the host graph WITH grad (caller supplies
+           ``host_node_emb`` and per-op ``host_op_idx``).
+        2. Replace the last ``_VALUE_NODE_EMB_DIM`` slice of each
+           candidate's static feature with ``host_node_emb[op_idx]``.
+        3. Run ``boundary_region_policy.{output,cut}_logits`` and
+           replay the per-step trace recorded by ``_sample_value_sequence``.
+        4. Return per-step log-probs + mask-aux quantities so
+           ``_train_step`` can do per-step REINFORCE and mask losses.
+
+        Returns ``None`` if the experience lacks trace data.
+        """
+        out_trace = exp.get("host_output_trace") or []
+        cut_trace = exp.get("host_cut_trace") or []
+        if not out_trace and not cut_trace:
+            return None
+        out_static_np = exp.get("host_output_feats")
+        out_def_ops = exp.get("host_output_def_op_ids") or []
+        if out_static_np is None or out_static_np.shape[0] == 0 or not out_def_ops:
+            return None
+        device = self.device
+        node_dim = _VALUE_NODE_EMB_DIM
+        out_static = torch.tensor(out_static_np, dtype=torch.float32, device=device)
+        # node-emb slice with grad (zero if op missing).
+        zero_row = torch.zeros(node_dim, device=device)
+        out_node_rows = []
+        for op_id in out_def_ops:
+            row_idx = host_op_idx.get(op_id) if op_id else None
+            if row_idx is not None and 0 <= row_idx < host_node_emb.shape[0]:
+                out_node_rows.append(host_node_emb[row_idx])
+            else:
+                out_node_rows.append(zero_row)
+        out_node_part = torch.stack(out_node_rows, dim=0)
+        out_feats = torch.cat(
+            [out_static[:, : out_static.shape[1] - node_dim], out_node_part],
+            dim=-1,
+        )
+        # Cross-attention context: host samples were conditioned on the
+        # donor graph emb (see _make_boundary_proposal).
+        context_t = donor_graph_emb.reshape(-1)
+        out_logits, out_stop = self.boundary_region_policy.output_logits(
+            out_feats, context_t,
+        )
+        temperature = float(exp.get("host_temperature", self._policy_temperature()))
+        exploration = float(self.region_exploration)
+
+        log_prob_total = torch.zeros((), device=device)
+        legal_entropy_total = torch.zeros((), device=device)
+        invalid_mass_sum = torch.zeros((), device=device)
+        per_step_log_probs: list[torch.Tensor] = []
+        invalid_per_step: list[float] = []
+        n_steps = 0
+        n_legal_steps = 0
+
+        def _replay(steps: list[dict], all_logits: torch.Tensor, stop_t: torch.Tensor) -> None:
+            nonlocal log_prob_total, legal_entropy_total, invalid_mass_sum
+            nonlocal n_steps, n_legal_steps
+            stop_value = stop_t.reshape(-1)[0]
+            for step in steps:
+                avail = step.get("available") or []
+                kept = step.get("kept_local") or []
+                stop_added = bool(step.get("stop_added"))
+                chose_global = step.get("chose_global")
+                if not avail:
+                    continue
+                # Filter avail to in-range (defensive against mismatched shapes).
+                if max(avail) >= all_logits.shape[0]:
+                    continue
+                avail_logits = torch.stack([all_logits[i] for i in avail], dim=0)
+                all_probs = self._probs_from_tensor_logits(
+                    avail_logits, temperature=temperature, exploration=exploration,
+                )
+                # Mask over avail: True = legal.
+                mask_bool = torch.zeros(len(avail), dtype=torch.bool, device=device)
+                for kl in kept:
+                    if 0 <= kl < len(avail):
+                        mask_bool[kl] = True
+                if (~mask_bool).any():
+                    invalid_mass = all_probs[~mask_bool].sum().clamp(0.0, 1.0 - 1e-6)
+                else:
+                    invalid_mass = torch.zeros((), device=device)
+                invalid_mass_sum = invalid_mass_sum + invalid_mass
+                invalid_per_step.append(float(invalid_mass.detach().item()))
+                # Build the option set the sampler actually used.
+                if kept:
+                    kept_logits = torch.stack([all_logits[avail[i]] for i in kept], dim=0)
+                else:
+                    kept_logits = torch.zeros(0, device=device)
+                if stop_added:
+                    opt_logits = torch.cat([kept_logits, stop_value.view(1)], dim=0)
+                else:
+                    opt_logits = kept_logits
+                if opt_logits.shape[0] == 0:
+                    continue
+                opt_probs = self._probs_from_tensor_logits(
+                    opt_logits, temperature=temperature, exploration=exploration,
+                )
+                if opt_probs.shape[0] > 1:
+                    le = -(opt_probs * torch.log(opt_probs.clamp_min(1e-12))).sum() / float(
+                        np.log(opt_probs.shape[0])
+                    )
+                    legal_entropy_total = legal_entropy_total + le
+                    n_legal_steps += 1
+                # Locate chosen option.
+                if chose_global is None:
+                    if not stop_added:
+                        continue
+                    target_idx = opt_probs.shape[0] - 1
+                else:
+                    if chose_global not in avail:
+                        continue
+                    avail_pos = avail.index(chose_global)
+                    if avail_pos not in kept:
+                        continue
+                    target_idx = kept.index(avail_pos)
+                lp = torch.log(opt_probs[target_idx].clamp_min(1e-12))
+                log_prob_total = log_prob_total + lp
+                per_step_log_probs.append(lp)
+                n_steps += 1
+
+        _replay(out_trace, out_logits, out_stop)
+
+        # --- Cuts ---
+        cut_static_np = exp.get("host_cut_feats")
+        cut_def_ops = exp.get("host_cut_def_op_ids") or []
+        if (
+            cut_trace
+            and cut_static_np is not None
+            and cut_static_np.shape[0] > 0
+            and cut_def_ops
+        ):
+            cut_static = torch.tensor(cut_static_np, dtype=torch.float32, device=device)
+            cut_node_rows = []
+            for op_id in cut_def_ops:
+                row_idx = host_op_idx.get(op_id) if op_id else None
+                if row_idx is not None and 0 <= row_idx < host_node_emb.shape[0]:
+                    cut_node_rows.append(host_node_emb[row_idx])
+                else:
+                    cut_node_rows.append(zero_row)
+            cut_node_part = torch.stack(cut_node_rows, dim=0)
+            cut_feats = torch.cat(
+                [cut_static[:, : cut_static.shape[1] - node_dim], cut_node_part],
+                dim=-1,
+            )
+            # Output summary for cut head: mean of effective output value feats
+            # (with grad through the host node-emb path).
+            eff_outs = exp.get("host_effective_outputs", []) or []
+            out_cands = exp.get("host_output_candidates", []) or []
+            sel_idx = [
+                out_cands.index(v) for v in eff_outs
+                if v in out_cands and out_cands.index(v) < out_feats.shape[0]
+            ]
+            if sel_idx:
+                out_summary = out_feats[sel_idx].mean(dim=0)
+            else:
+                # Match the value_encoder hidden output shape (post-encode the cuts feats once).
+                out_summary = out_feats.mean(dim=0) if out_feats.shape[0] > 0 else torch.zeros(out_feats.shape[1], device=device)
+            # cut_logits expects raw value_feats (it encodes internally),
+            # and output_summary should be the *encoded* mean. Use the
+            # policy's own value_encoder for consistency.
+            with torch.no_grad():
+                pass
+            out_summary_enc = self.boundary_region_policy.encode_values(
+                out_summary.unsqueeze(0)
+            ).squeeze(0)
+            cut_logits_all, cut_stop = self.boundary_region_policy.cut_logits(
+                cut_feats, context_t, out_summary_enc,
+            )
+            _replay(cut_trace, cut_logits_all, cut_stop)
+
+        if n_steps == 0:
+            return None
+        invalid_mass_mean = invalid_mass_sum / float(n_steps)
+        # invalid_mass_loss = -log(1 - invalid_mass) — penalise stepping
+        # into the masked-off region (encoder + policy learn to put low
+        # mass on illegal candidates in the first place).
+        invalid_mass_loss = -(1.0 - invalid_mass_mean).clamp_min(1e-6).log()
+        legal_entropy_mean = (
+            legal_entropy_total / float(n_legal_steps)
+            if n_legal_steps > 0 else torch.zeros((), device=device)
+        )
+        return {
+            "log_prob": log_prob_total,
+            "entropy": legal_entropy_mean,
+            "invalid_mass_loss": invalid_mass_loss,
+            "legal_entropy": legal_entropy_mean,
+            "per_step_log_probs": per_step_log_probs,
+            "invalid_per_step": invalid_per_step,
+            "n_steps": n_steps,
+        }
 
     def _probs_from_tensor_logits(
         self,
@@ -2636,7 +3700,16 @@ class GNNPatternMatcher:
         ir: FunctionIR,
         value_ids: list[str],
         observable_values: set[str] | None = None,
+        node_emb_for_op: dict[str, np.ndarray] | None = None,
     ) -> np.ndarray:
+        """Build per-value feature rows.
+
+        Part A1: when ``node_emb_for_op`` is provided, append the
+        learned GNN node embedding (projected to ``_VALUE_NODE_EMB_DIM``)
+        of the value's ``def_op`` to the row.  This is what lets the
+        GNN's structural representation actually drive value-level
+        sampling decisions in the policy heads.
+        """
         observable_values = observable_values or set()
         rows: list[np.ndarray] = []
         for value_id in value_ids:
@@ -2662,7 +3735,12 @@ class GNNPatternMatcher:
                 *self._hash_meta(value.type_hint or "", dim=2),
                 *self._hash_meta(value.name_hint or "", dim=2),
             ], dtype=np.float32)
-            rows.append(np.concatenate([def_feat, use_feat, static], axis=0))
+            # Part A1: per-value GNN node-embedding slice.
+            if node_emb_for_op is not None and value.def_op in node_emb_for_op:
+                node_slice = node_emb_for_op[value.def_op]
+            else:
+                node_slice = np.zeros((_VALUE_NODE_EMB_DIM,), dtype=np.float32)
+            rows.append(np.concatenate([def_feat, use_feat, static, node_slice], axis=0))
         if not rows:
             return np.zeros((0, _VALUE_FEAT_DIM), dtype=np.float32)
         return np.stack(rows, axis=0)

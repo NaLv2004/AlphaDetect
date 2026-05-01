@@ -237,6 +237,11 @@ These guide future research decisions and help avoid repeating mistakes.
   - Current top-graft logs contain concrete `STRUCTURAL_FAIL` survivors whose child score is only slightly worse than the host, and whose behavior-change rate is exactly `0.0`.
 - **Applicable to**:
   - Any future redesign of reward shaping, scorer targets, or survivor filtering for algorithm-IR graft training.
+## [2026-05-01 14:10] Algorithm-IR GNN/RL Review Findings
+- Reviewed current `research/algorithm-IR` GNN grafting and training path. Focused GNN tests pass, and the initial IR pool builds 91 structurally-valid genomes, but recent training telemetry still shows low/zero effective grafts.
+- Key lesson: the main blocker is no longer only region validity. The RL reward is based on rough score/validity while the reporting target requires structural connection, behavior change, and host-beating performance; this objective mismatch can reward neutral or behavior-equivalent grafts. Policy-gradient log-prob is also recomputed without the host/donor masks used during sampling, so the learned policy does not faithfully model the constrained action distribution.
+- Additional risks: many proposal-build failures are not added as negative training samples, checkpoints restore weights but not replay/outcome/baseline/population state, and warm-start proposal settings can make Python-side donor/host region construction dominate runtime.
+
 ## [2026-04-24 23:59] Algorithm-IR Code Review Findings
 - Reviewed `research/algorithm-IR` architecture and ran focused tests in `AutoGenOld`.
 - Key finding: current trunk is not test-green. Focused unit subset reported 8 failures, and integration/cross-lang subset reported 2 failures. Failures center on frontend-generated IR def/use bookkeeping for loops and grafting demos.
@@ -283,3 +288,73 @@ These guide future research decisions and help avoid repeating mistakes.
   - `evolution/materialize.py`
   - `evolution/_eval_worker.py`
   - Future IR executable gates and slot-GP telemetry.
+
+## [2026-05-01 15:55] GNN Training Patch Review: Interfaces Outran Learning Signal
+- **Context**: Review of a large post-hoc modification to `algorithm-IR` GNN graft training.
+- **Lesson**:
+  - Adding node embeddings, critic heads, multi-head scorer outputs, and staged rewards is not enough unless the sampled action trace, masks, reward labels, checkpoint state, and pair-selection objective are all wired end-to-end.
+  - Recomputing policy log-probabilities after sampling without the original legality masks leaves the actor gradient misaligned with the actual masked sampler.
+  - Backfilling terminal outcomes must bind only the current proposal id; applying a descendant's analysis to every item in `graft_history` corrupts older proposal labels.
+- **Evidence**:
+  - `py_compile` passed for the modified GNN/evaluator files, but focused GNN tests failed: batched/unbatched proposals diverged under the same seed, and failed replay changed `_experience` cardinality relative to generated proposals.
+- **Applicable to**:
+  - `research/algorithm-IR/evolution/gnn_pattern_matcher.py`
+  - `research/algorithm-IR/train_gnn.py`
+
+## [2026-05-01 18:20] Branch Sync Requires Separate Handling For Gitlink Reference Code
+- **Context**: Preparing to push the current workspace to `refactor/annotation-slots` and make remote `master` exactly match it.
+- **Lesson**:
+  - `code_for_reference/baseline_detectors/Single` is recorded by the parent repository as a gitlink, but the workspace has no `.gitmodules` mapping for it. Its internal changes cannot be captured by the parent repository as ordinary files unless the gitlink model is deliberately changed.
+  - To preserve current code faithfully, first commit and push changes inside the nested repository, then update the parent gitlink pointer and push the parent branch.
+- **Applicable to**:
+  - Git synchronization for `AlphaDetect`
+  - `code_for_reference/baseline_detectors/Single`
+
+## [2026-05-01 17:50] GNN Trainer Visibility and Probe Timeout Isolation
+- **Context**: Training appeared silent after Gen 1 because first real GNN train step happens at Gen 2 and behavior probes left timed-out detector threads running in the trainer process.
+- **Lesson**:
+  - Progress visibility should cover `_train_step()` itself; generation-level tqdm bars do not help when the model is inside silent RL updates.
+  - Thread-based timeouts are unsafe for generated detector code. The timeout may return to the caller, but the thread keeps running and can starve the next generation. Run behavior probes in a killable subprocess and let any per-call timeout threads die with that subprocess.
+- **Evidence**:
+  - Added `evolution/behavior_probe_worker.py`, subprocess-backed behavior probing in `train_gnn.py`, and `GNN train start`/tqdm progress in `gnn_pattern_matcher.py`.
+  - `py_compile` and `code_review/probe_grad_flow.py` passed. Existing focused GNN tests still have the known failed-replay semantics failure (`_experience` includes failed entries in addition to emitted proposals).
+- **Applicable to**:
+  - `research/algorithm-IR/train_gnn.py`
+  - `research/algorithm-IR/evolution/behavior_probe_worker.py`
+  - `research/algorithm-IR/evolution/gnn_pattern_matcher.py`
+
+## [2026-05-01 18:09] Train GNN Quiet Mode Must Filter Logging Records, Not Just Warnings
+- **Context**: `--verbose=false` still allowed `WARNING evolution.algorithm_engine` graft-codegen diagnostics through.
+- **Lesson**:
+  - Python `warnings.filterwarnings("ignore")` only handles warnings emitted through the `warnings` module. Module logger output such as `logger.warning(...)` needs a logging handler filter or per-logger level policy.
+  - For this training script, quiet mode should keep INFO progress summaries but drop WARNING/ERROR diagnostic chatter from all propagated loggers.
+- **Evidence**:
+  - Added a root-handler filter in `train_gnn.py` that accepts records below `logging.WARNING` when `args.verbose` is false.
+- **Applicable to**:
+  - `research/algorithm-IR/train_gnn.py`
+
+## [2026-05-01 16:50] GNN Patch Third Review: Some Plumbing Fixed, Pair Prior Sign Reversed
+- **Context**: Re-review after fixes for critic checkpointing, backfill attribution, performance-first naming, failed FIFO trimming, and pair-selection use of `reasonable_logit`.
+- **Lesson**:
+  - When a scorer represents cost/loss and downstream sampling uses `prefer_lower=True`, adding a positive "goodness" prior reverses the intended effect. Reasonable probability should reduce the combined cost or selection should switch to a utility convention.
+  - Donor-side RL needs true masked action traces. A donor-only legacy log-prob term trains policy heads, but it still recomputes an unmasked distribution after the fact and remains misaligned with the signature-mask sampler.
+  - Fixing failed replay semantics requires either splitting replay buffers or explicitly updating tests/diagnostics; mixing failed attempts with emitted proposals in `_experience` keeps legacy assertions and metrics ambiguous.
+- **Evidence**:
+  - `py_compile` and `code_review/probe_grad_flow.py` passed.
+  - Focused GNN tests improved to `7 passed / 1 failed`; remaining failure is `_experience` containing failed replay entries in addition to emitted proposals.
+- **Applicable to**:
+  - `research/algorithm-IR/evolution/gnn_pattern_matcher.py`
+  - `research/algorithm-IR/train_gnn.py`
+
+## [2026-05-01 16:28] GNN Patch Re-Review: Host Grad Path Added, Training Contract Still Incomplete
+- **Context**: Re-review after another AI added host-side action traces and a grad-aware policy replay path.
+- **Lesson**:
+  - A synthetic gradient probe can confirm that policy loss updates encoder weights, but this does not prove the whole graft policy is aligned: donor-side actions, failed masked decisions, checkpoint state, and terminal-label backfill must also be wired.
+  - If valid samples use a new host-only grad-aware path while donor actions fall out of the loss, the shared boundary policy may still train on an incomplete view of the graft decision sequence.
+  - Tests that fail after introducing failed replay should be deliberately updated or the replay buffer should be split; leaving `_experience` semantics ambiguous makes future training diagnostics unreliable.
+- **Evidence**:
+  - `code_review/probe_grad_flow.py` passed and showed encoder `node_proj`/`conv1` weight deltas.
+  - Focused GNN tests still failed with batched/unbatched proposal divergence and `_experience` containing failed replay entries in addition to emitted proposals.
+- **Applicable to**:
+  - `research/algorithm-IR/evolution/gnn_pattern_matcher.py`
+  - `research/algorithm-IR/train_gnn.py`

@@ -331,6 +331,8 @@ class AlgorithmEvolutionEngine:
                 and self.graft_eval_evaluator is not None
             )
             t_eval_start = time.perf_counter()
+            if hasattr(self.evaluator, 'config'):
+                self.evaluator.config.eval_desc = "Evaluating macro genomes"
             macro_fitness = self.evaluator.evaluate_batch(offspring)
             selected_graft_offspring: list[AlgorithmGenome] = []
             selected_graft_fitness: list[FitnessResult] = []
@@ -353,6 +355,8 @@ class AlgorithmEvolutionEngine:
                     if warmstart_active and self.graft_eval_evaluator is not None
                     else self.evaluator
                 )
+                if hasattr(graft_evaluator, 'config'):
+                    graft_evaluator.config.eval_desc = "Evaluating grafted genomes"
                 graft_fitness_all = graft_evaluator.evaluate_batch(graft_offspring)
                 n_graft_evaluated = len(graft_fitness_all)
                 self.last_graft_sample_pool = list(zip(graft_offspring, graft_fitness_all))

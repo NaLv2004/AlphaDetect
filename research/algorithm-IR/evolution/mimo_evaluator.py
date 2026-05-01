@@ -226,12 +226,13 @@ class MIMOFitnessEvaluator(AlgorithmFitnessEvaluator):
         if not genomes:
             return []
         workers = max(1, int(getattr(self.config, "batch_workers", 1)))
+        _desc = getattr(self.config, "eval_desc", "Evaluating genomes")
         if workers <= 1 or len(genomes) <= 1:
             if getattr(self.config, "show_progress", False) and tqdm is not None:
                 iterator = tqdm(
                     genomes,
                     total=len(genomes),
-                    desc="Evaluating genomes",
+                    desc=_desc,
                     leave=False,
                 )
             else:
@@ -243,7 +244,7 @@ class MIMOFitnessEvaluator(AlgorithmFitnessEvaluator):
         if getattr(self.config, "show_progress", False) and tqdm is not None:
             progress = tqdm(
                 total=len(genomes),
-                desc="Evaluating genomes",
+                desc=_desc,
                 leave=False,
             )
         with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as ex:

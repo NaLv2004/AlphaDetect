@@ -1,0 +1,161 @@
+% ... (前面的代码保持不变) ...
+
+
+clear;
+clc;
+
+rand('state',114514);
+randn('state',114514);
+
+% profile on;
+EbN0db      =10:10;
+SampleNum   = 10000;       % max sample no.aaa
+delta       = 0.5; %0.55;          % damping factor
+isCorr = 0;
+rho = 0.3;  % related channel parameter
+max_frame   =10000;
+ModType 	= 4;
+
+kbestCount=0;
+
+
+% Detection Parameter Set
+TxAntNum    =32;
+RxAntNum    =64;
+iterNum     =7;% 7;        % iter no.
+N 			= 1; 						% Block length
+InfoLen 	= N * ModType * TxAntNum; 	% Information length
+bits_diff = zeros(TxAntNum*ModType, 1);
+bits_diff_half_sym = zeros(TxAntNum*ModType/2, 1);
+bits_diff_sort = zeros(TxAntNum*ModType/2, 1);
+switch(ModType)
+    case 2
+        norm_f=1/sqrt(2);
+        QAM=4;
+        s=[-1 +1]';
+        sym = s*norm_f; % normalized symbol set
+        %cons = getConstellation(ModType);
+    case 4
+        norm_f = 1/sqrt(10);
+        QAM=16;
+        s=[-1 -3 +1 +3]';
+        sym = s*norm_f; % normalized symbol set
+        %cons = getConstellation(ModType);
+    case 6
+        norm_f=1/sqrt(42);
+        QAM=64;
+        s=[-3 -1 -5 -7 3 1 5 7 ]';
+        sym = s*norm_f; % normalized symbol set
+        %cons = getConstellation(ModType);
+    case 8
+        QAM=256;
+        norm_f=1/sqrt(170);
+        s=[-5 -7 -3 -1 -11 -9 -13 -15 5 7 3 1 11 9 13 15]';
+        sym = s*norm_f; % normalized symbol set
+        %cons = getConstellation(ModType);
+end
+
+slen = length(sym);
+H           = zeros(2*RxAntNum,2*TxAntNum);
+RxSymbol    = zeros(2*RxAntNum,1); % Received
+
+
+tic
+for nEN =1:length(EbN0db)
+
+    % initialization
+    SNR = EbN0db(nEN);
+    error_frame = 0;
+    error_bits = 0;
+
+    TxBitsLLR = zeros(InfoLen, 1);
+
+    loop = 0;
+    while error_frame < max_frame && loop < SampleNum
+
+        loop = loop + 1;
+
+        TxBits = randi([0, 1], [InfoLen, 1]);
+
+        TxSymbol = GrayMapQAM(TxBits', ModType).';
+        TxSymbol_real=[real(TxSymbol); imag(TxSymbol)];
+        
+        % Channel Matrix
+        if isCorr
+            HMat = channel_mimo(RxAntNum,TxAntNum,rho); %Correlated channel
+        else
+            if false
+                HMat = non_uniform_channel(gain_diff, RxAntNum, TxAntNum);
+            else
+                HMat = sqrt(0.5) *(randn(RxAntNum, TxAntNum) + 1i*randn(RxAntNum, TxAntNum)); %Rayleigh channel
+            end
+        end
+        
+        % Convert complex channel to real-valued representation
+        Hreal = [real(HMat), -imag(HMat); imag(HMat), real(HMat)];
+        
+        % ============== SVD预编码部分 ==============
+        % 执行SVD分解
+        [U, S_svd, V] = svd(Hreal);
+        [Uc, S_svdc, Vc] = svd(HMat);
+        % 对发送信号进行预编码 (V * x)
+        TxSymbol_real_precoded = V * TxSymbol_real;
+        
+        % 将预编码后的实值信号转换为复信号用于通过信道
+        x_precoded_complex = TxSymbol_real_precoded(1:TxAntNum) + 1i*TxSymbol_real_precoded(TxAntNum+1:end);
+        % x_precoded_complex = Vc * TxSymbol;
+        % 通过信道并添加噪声
+        [RxSymbol_c, Nv] = acwgn_EbN0(HMat * x_precoded_complex, 1, SNR, TxAntNum, RxAntNum, ModType, 1);
+        rs_symbol_U = Uc'*RxSymbol_c;
+        rs_symbol_final = inv(S_svdc(1:32,1:32))*rs_symbol_U(1:32);
+        % Uc_trans = Uc';
+        % Hc_eff = S_svdc(1:32,1:32);
+        % rs_symbol_final = (Hc_eff'*Hc_eff+Nv*eye(TxAntNum)) \ Hc_eff'*rs_symbol_U;
+        
+        % 将接收到的复信号转换为实值向量
+        RxSymbol(1:RxAntNum, 1) = real(RxSymbol_c);
+        RxSymbol(RxAntNum+1:end, 1) = imag(RxSymbol_c);
+        
+        % 接收端预处理 (U^T * y)
+        z = U' * RxSymbol;
+        
+        % 提取有效子信道 (前2*TxAntNum个维度)
+        z_eff = z(1:2*TxAntNum);
+        H_eff = S_svd(1:2*TxAntNum, 1:2*TxAntNum);
+        % ============== SVD预编码部分结束 ==============
+        
+        % 使用等效信道进行检测
+        symest= MMSE(TxAntNum, RxAntNum, slen, z_eff, H_eff, Nv, sym, delta, iterNum);
+       
+        
+        % 解调过程保持不变
+        [~,indiceest]=min(abs(sym'-symest),[],2);
+        TxBits_est=de2bi(indiceest-1,log2(size(sym,1)),'left-msb');
+        TxBits_est=[TxBits_est(1:TxAntNum,:) TxBits_est(TxAntNum+1:end,:)]';
+        TxBits_est=TxBits_est(:);
+
+        % 错误统计保持不变
+        err=nnz(TxBits_est-TxBits);
+        diff_bits = TxBits_est-TxBits;
+        bits_diff = bits_diff + abs(diff_bits);
+        bits_diff_half_sym = bits_diff(1:2:end-1)+bits_diff(2:2:end);
+        bits_diff_sort = sort(bits_diff_half_sym);
+        error_bits = error_bits + err;
+        error_frame = error_frame + ~~err;
+
+        if mod(loop,100) == 0
+            if loop >0
+                BER_tmp = error_bits / TxAntNum / ModType / loop;
+                BER_tmp
+                SNR
+            end
+        end
+
+    end
+
+    BER(nEN) = error_bits / TxAntNum / ModType / loop;
+    FER(nEN) = error_frame / loop;
+
+end
+
+% ... (后续绘图和计算保持不变) ...

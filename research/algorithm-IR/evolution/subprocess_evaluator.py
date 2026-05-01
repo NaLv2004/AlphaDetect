@@ -418,6 +418,17 @@ class SubprocessMIMOEvaluator(AlgorithmFitnessEvaluator):
         if not genomes:
             return []
         n = len(genomes)
+
+        # ── tqdm progress bar ──────────────────────────────────────
+        _show = getattr(self.config, "show_progress", False)
+        _desc = getattr(self.config, "eval_desc", "Evaluating genomes")
+        _progress = None
+        if _show:
+            try:
+                from tqdm.auto import tqdm as _tqdm
+                _progress = _tqdm(total=n, desc=_desc, leave=False)
+            except Exception:
+                pass
         results: list[FitnessResult | None] = [None] * n
         payloads: list[tuple | None] = []
         for i, g in enumerate(genomes):
@@ -492,6 +503,8 @@ class SubprocessMIMOEvaluator(AlgorithmFitnessEvaluator):
                     self._workers.append(worker)
             for idx in done:
                 in_flight.pop(idx, None)
+                if _progress is not None:
+                    _progress.update(1)
 
             while next_idx < n and len(in_flight) < self.n_workers:
                 if payloads[next_idx] is not None:
@@ -501,6 +514,8 @@ class SubprocessMIMOEvaluator(AlgorithmFitnessEvaluator):
             if in_flight:
                 time.sleep(0.005)
 
+        if _progress is not None:
+            _progress.close()
         return [
             r if r is not None else _failed_result("missing")
             for r in results
