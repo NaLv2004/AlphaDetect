@@ -72,42 +72,31 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# Opcode vocabulary / basic features
+# Node feature encoding (Phase 3b: MathView-only, no fallback)
 # ---------------------------------------------------------------------------
+#
+# All node-level features for the GNN encoder come from
+# ``algorithm_ir.ir.math_view_features``. The legacy op-level encoding
+# (``_OPCODE_LIST`` / ``_opcode_idx`` / ``_hash_callee`` /
+# ``_hash_provenance``) has been deleted. There is exactly one path.
 
-_OPCODE_VOCAB: dict[str, int] = {}
-_OPCODE_LIST = [
-    "const", "binary", "unary", "call", "compare", "branch", "jump",
-    "return", "subscript", "store", "load", "algslot", "phi",
-    "attr", "build_list", "build_tuple", "build_dict", "augassign",
-    "<unk>",
-]
-for _index, _opcode in enumerate(_OPCODE_LIST):
-    _OPCODE_VOCAB[_opcode] = _index
+from algorithm_ir.ir.math_view import MathView, build_math_view  # noqa: E402
+from algorithm_ir.ir.math_view_features import (  # noqa: E402
+    MATH_VIEW_NODE_DIM,
+    node_feature_vector,
+    set_provenance_hash_salt,
+    zero_node_feature_vector,
+)
 
-_N_OPCODES = len(_OPCODE_LIST)
-_CALLEE_FEATURES = 8
-# Per code_review.md §2.3: extend node features with provenance signal so
-# the GNN can see which slot a (FII-inlined) op originated from.  Use
-# **hash buckets** (NOT one-hot) of the slot-id string to prevent the
-# feature from degenerating into a memorizable categorical prior.  An
-# extra scalar flags the slot-boundary marker ops themselves.
-_PROV_HASH_BUCKETS = 16
-_PROV_FEATURES = _PROV_HASH_BUCKETS + 1  # 16 buckets + 1 boundary flag
-_NODE_DIM = _N_OPCODES + _CALLEE_FEATURES + _PROV_FEATURES
+_NODE_DIM = MATH_VIEW_NODE_DIM
 _VALUE_STATIC_DIM = 10
 # Part A1: per-value GNN node-embedding contribution (projected from the
 # encoder's hidden dim down to a small slice that gets concatenated to
 # the manual value features).  This is the path that lets the GNN's
 # learned graph-structural representation actually drive value-level
-# sampling decisions (output / cut head logits) instead of only the
-# pair scorer + ctx vector.
+# sampling decisions in the policy heads.
 _VALUE_NODE_EMB_DIM = 16
 _VALUE_FEAT_DIM = _NODE_DIM * 2 + _VALUE_STATIC_DIM + _VALUE_NODE_EMB_DIM
-
-
-def _opcode_idx(opcode: str) -> int:
-    return _OPCODE_VOCAB.get(opcode, _OPCODE_VOCAB["<unk>"])
 
 
 def _compute_return_slice_values(ir: FunctionIR) -> set[str]:
@@ -148,135 +137,67 @@ def _compute_return_slice_values(ir: FunctionIR) -> set[str]:
     return slice_values
 
 
-def _hash_callee(name: str, dim: int = _CALLEE_FEATURES) -> list[float]:
-    h = hash(name) & 0xFFFFFFFF
-    return [((h >> (i * 4)) & 0xF) / 15.0 for i in range(dim)]
-
-
-# Salt is rotated periodically (every 50 macro gens, per §6 risk register)
-# to keep the GNN from memorizing slot-id => bucket mappings.
-_PROV_HASH_SALT = "fii-prov-v0"
-
-
-def set_provenance_hash_salt(salt: str) -> None:
-    """Rotate the salt used by ``_hash_provenance``.
-
-    Per code_review.md §6: hash buckets are 16-wide, ≥14 slot kinds → guaranteed
-    collisions; periodically re-hashing with a new salt prevents a stable
-    one-hot prior from forming.
-    """
-    global _PROV_HASH_SALT
-    _PROV_HASH_SALT = salt
-
-
-def _hash_provenance(slot_id: str | None, is_boundary: bool) -> list[float]:
-    """Return a ``_PROV_FEATURES``-dim feature vector for an op's slot
-    provenance.  Uses a salted bucket-hash (NOT one-hot) of the slot id."""
-    feats = [0.0] * _PROV_FEATURES
-    if slot_id is not None:
-        # Stable salted hash (Python hash() varies per run; use a fixed
-        # algorithm so node features are deterministic across runs of
-        # the same model).
-        import hashlib
-        digest = hashlib.blake2s(
-            f"{_PROV_HASH_SALT}|{slot_id}".encode(), digest_size=4,
-        ).digest()
-        h = int.from_bytes(digest, "big")
-        bucket = h % _PROV_HASH_BUCKETS
-        feats[bucket] = 1.0
-    if is_boundary:
-        feats[_PROV_HASH_BUCKETS] = 1.0
-    return feats
-
-
 # ---------------------------------------------------------------------------
-# IR -> graph conversion
+# IR -> MathView -> graph conversion (Phase 3b)
 # ---------------------------------------------------------------------------
+#
+# The GNN backbone operates over the MathView, NOT the raw FunctionIR.
+# This is the SOLE encoding path; there is no fallback to op-level
+# encoding. Every node in the resulting torch_geometric ``Data`` is a
+# MathNode; every edge comes from a ``MathPort`` input or from
+# block-order sequencing of MathNodes.
 
-def ir_to_graph(ir: FunctionIR) -> Data:
-    """Build a torch_geometric graph view of ``ir`` for the GNN encoder.
+def ir_to_math_view(ir: FunctionIR) -> MathView:
+    """Pure helper: build a MathView from a FunctionIR. Kept separate so
+    callers (and caches) can reuse the view for both graph construction
+    and per-op feature lookups."""
+    return build_math_view(ir)
 
-    Plan B visibility filter (see ``algorithm_ir/region/triviality.py``):
-    trivial ops (``const``, ``get_attr``, ``assign``, and trivial
-    ``phi(x,x)``) are **excluded as graph nodes** because they inflate
-    node counts without carrying real algorithmic structure. Dataflow
-    edges are made transitive through hidden ops via
-    :func:`visible_def_op`, so the GNN sees an edge from each non-trivial
-    producer directly to its non-trivial consumer.
-    """
-    all_ops = list(ir.ops.values())
-    if not all_ops:
+
+def math_view_to_graph(view: MathView) -> Data:
+    """Build a torch_geometric ``Data`` whose nodes are MathNodes."""
+    nodes = list(view.nodes)
+    if not nodes:
         x = torch.zeros(1, _NODE_DIM)
         return Data(x=x, edge_index=torch.zeros(2, 0, dtype=torch.long))
 
-    # Filter out trivial ops; they remain in the physical IR (codegen,
-    # execution, slot_meta, grafting all unchanged) but the GNN never
-    # sees them as nodes.
-    visible_ops = [op for op in all_ops if not is_trivial_op(op, ir)]
-    if not visible_ops:
-        # Pathological case: an entirely trivial IR. Fall back to the
-        # raw graph to preserve at least one node so encoder can run.
-        visible_ops = all_ops
+    node_id_to_idx: dict[str, int] = {n.node_id: i for i, n in enumerate(nodes)}
 
-    op_id_to_idx = {op.id: idx for idx, op in enumerate(visible_ops)}
+    # 1. Node features
+    feat_rows: list[list[float]] = [node_feature_vector(view, n) for n in nodes]
+    x = torch.tensor(feat_rows, dtype=torch.float32)
 
-    # Node features (unchanged construction; just over the visible set).
-    node_feats: list[list[float]] = []
-    for op in visible_ops:
-        one_hot = [0.0] * _N_OPCODES
-        one_hot[_opcode_idx(op.opcode)] = 1.0
-        callee = op.attrs.get("callee", op.attrs.get("name", ""))
-        callee_feat = _hash_callee(callee) if callee else [0.0] * _CALLEE_FEATURES
-        prov = op.attrs.get("_provenance") or {}
-        prov_feat = _hash_provenance(
-            prov.get("from_slot_id"),
-            bool(prov.get("is_slot_boundary", False)),
-        )
-        node_feats.append(one_hot + callee_feat + prov_feat)
-    x = torch.tensor(node_feats, dtype=torch.float32)
-
-    # For each value in the IR, resolve the *set* of visible ops that
-    # transitively produce it. Multi-input trivial ops (e.g.
-    # ``build_tuple(a, b, c)``) fan out to every non-trivial producer
-    # of every component, so the GNN sees edges from each underlying
-    # value source rather than losing connectivity through the packer.
-    value_visible_defs: dict[str, list[int]] = {}
-    for vid in ir.values:
-        producers = visible_def_ops(ir, vid)
-        if not producers:
-            continue
-        idxs = [op_id_to_idx[p.id] for p in producers if p.id in op_id_to_idx]
-        if idxs:
-            value_visible_defs[vid] = idxs
-
-    # Dataflow edges: every visible op pulls from every visible producer
-    # of each of its inputs. Trivial ops collapse silently.
+    # 2. Dataflow edges from MathPort.
     src_list: list[int] = []
     dst_list: list[int] = []
     edge_set: set[tuple[int, int]] = set()
-    for op in visible_ops:
-        op_idx = op_id_to_idx[op.id]
-        for value_id in op.inputs:
-            for def_idx in value_visible_defs.get(value_id, ()):
-                if def_idx == op_idx:
-                    continue
-                key = (def_idx, op_idx)
-                if key in edge_set:
-                    continue
-                edge_set.add(key)
-                src_list.append(def_idx)
-                dst_list.append(op_idx)
+    for node in nodes:
+        dst_idx = node_id_to_idx[node.node_id]
+        for port in node.inputs:
+            src_idx = node_id_to_idx.get(port.node_id)
+            if src_idx is None or src_idx == dst_idx:
+                continue
+            key = (src_idx, dst_idx)
+            if key in edge_set:
+                continue
+            edge_set.add(key)
+            src_list.append(src_idx)
+            dst_list.append(dst_idx)
 
-    # Block-order sequential edges (same logic as before, but trivial
-    # ops are skipped — we link each visible op to the previous visible
-    # op in the same block). Preserves locality without re-introducing
-    # spurious edges through hidden nodes.
-    for block in ir.blocks.values():
-        prev_idx = None
+    # 3. Block-sequential edges between consecutive MathNodes in each
+    # block. Multiple SSA ops may map to the same MathNode (absorbed),
+    # so we link each *distinct* MathNode encountered in block order.
+    for block in view.ir.blocks.values():
+        prev_idx: int | None = None
+        seen_in_block: set[int] = set()
         for op_id in block.op_ids:
-            cur_idx = op_id_to_idx.get(op_id)
-            if cur_idx is None:
-                continue  # trivial op skipped
+            node_id = view.op_id_to_node.get(op_id)
+            if node_id is None:
+                continue  # dropped
+            cur_idx = node_id_to_idx.get(node_id)
+            if cur_idx is None or cur_idx in seen_in_block:
+                continue
+            seen_in_block.add(cur_idx)
             if prev_idx is not None and prev_idx != cur_idx:
                 key = (prev_idx, cur_idx)
                 if key not in edge_set:
@@ -291,6 +212,17 @@ def ir_to_graph(ir: FunctionIR) -> Data:
         else torch.zeros(2, 0, dtype=torch.long)
     )
     return Data(x=x, edge_index=edge_index)
+
+
+def ir_to_graph(ir: FunctionIR) -> Data:
+    """Public entry point. Builds MathView then encodes graph.
+
+    Phase 3b: MathView is the SOLE input representation. ``is_trivial_op``
+    filtering and ``visible_def_ops`` transitive-closure are no longer
+    used at the encoder boundary — MathView's absorption rules supersede
+    them with a stricter, explicit set of laws (C1/C2/C2c/C6/M2/J1).
+    """
+    return math_view_to_graph(build_math_view(ir))
 
 
 # ---------------------------------------------------------------------------
@@ -645,11 +577,18 @@ class GNNPatternMatcher:
         # Part A1: cache per-op node embeddings produced by the encoder
         # so policy heads can consume them for value-level decisions.
         self._node_emb_cache: dict[str, dict[str, np.ndarray]] = {}
-        # Per-algo mapping op_id -> visible-op row index in encoder output.
+        # Per-algo mapping op_id -> MathNode row index in encoder output.
+        # (After Phase 3b, multiple absorbed ops may share a row.)
         # Required so train_step can re-run the encoder WITH grad and
         # slice node_emb[op_idx] back into per-value features for the
         # policy heads (fixing the no_grad cache severance bug).
         self._visible_op_idx_cache: dict[str, dict[str, int]] = {}
+        # Phase 3b: MathView cache. Both algo_id-keyed (built during
+        # encode pass) AND id(ir)-keyed (so per-op feature lookups can
+        # resolve a view from a raw FunctionIR pointer without needing
+        # an algo_id). Both are pruned together with ``_graph_cache``.
+        self._math_view_cache: dict[str, MathView] = {}
+        self._math_view_by_ir_id: dict[int, MathView] = {}
         self._generation = 0
         self._total_proposals = 0
         self._total_rewards = 0.0
@@ -1238,6 +1177,7 @@ class GNNPatternMatcher:
         graphs: list[Data] = []
         keys: list[str] = []
         live_ids: set[str] = set()
+        live_ir_ids: set[int] = set()
         _enc_iter: Any = (
             tqdm(entries, desc="Build IR graphs", leave=False)
             if self.show_progress and tqdm is not None
@@ -1245,13 +1185,24 @@ class GNNPatternMatcher:
         )
         for entry in _enc_iter:
             live_ids.add(entry.algo_id)
-            self._graph_cache[entry.algo_id] = ir_to_graph(entry.ir)
+            live_ir_ids.add(id(entry.ir))
+            # Phase 3b: build the MathView once per entry; reuse for
+            # graph construction AND per-op feature lookups.
+            view = build_math_view(entry.ir)
+            self._math_view_cache[entry.algo_id] = view
+            self._math_view_by_ir_id[id(entry.ir)] = view
+            self._graph_cache[entry.algo_id] = math_view_to_graph(view)
             graphs.append(self._graph_cache[entry.algo_id])
             keys.append(entry.algo_id)
 
         stale_ids = [algo_id for algo_id in self._graph_cache if algo_id not in live_ids]
         for algo_id in stale_ids:
             del self._graph_cache[algo_id]
+            self._math_view_cache.pop(algo_id, None)
+        # Prune id(ir) cache for views whose IR is no longer live.
+        stale_ir_ids = [k for k in self._math_view_by_ir_id if k not in live_ir_ids]
+        for k in stale_ir_ids:
+            del self._math_view_by_ir_id[k]
 
         if not graphs:
             return
@@ -1259,35 +1210,35 @@ class GNNPatternMatcher:
         # Encode in batch but compute graph-level + node-level embeddings
         # per graph (the batched node embedding is a flat tensor; we
         # need to slice it back per graph).  Run un-batched node-level
-        # forward to get per-op node embeddings keyed by op_id.
+        # forward to get per-MathNode embeddings keyed by op_id (each
+        # SSA op_id maps to its absorbing MathNode's row).
         with torch.no_grad():
             batch = Batch.from_data_list([graph.clone() for graph in graphs]).to(self.device)
             embeddings = self.encoder(batch)
         for index, algo_id in enumerate(keys):
             self._emb_cache[algo_id] = embeddings[index]
             graph = self._graph_cache[algo_id]
-            entry = next((e for e in entries if e.algo_id == algo_id), None)
+            view = self._math_view_cache[algo_id]
             try:
                 with torch.no_grad():
                     _g_emb, node_emb = self.encoder(graph.clone().to(self.device), return_nodes=True)
                 node_emb_np = node_emb.detach().cpu().numpy()
-                # Recover the visible-op order ir_to_graph used so we
-                # can map op_id -> row in node_emb_np.
+                # Map op_id -> MathNode row via view.op_id_to_node.
+                # Order of MathNodes in the graph follows view.nodes
+                # (math_view_to_graph constructs node_id_to_idx in
+                # that order).
+                nodes = view.nodes
+                node_id_to_idx = {n.node_id: i for i, n in enumerate(nodes)}
                 node_map: dict[str, np.ndarray] = {}
-                if entry is not None:
-                    visible_ops = [
-                        op for op in entry.ir.ops.values()
-                        if not is_trivial_op(op, entry.ir)
-                    ]
-                    if not visible_ops:
-                        visible_ops = list(entry.ir.ops.values())
-                    for op_idx, op in enumerate(visible_ops):
-                        if 0 <= op_idx < node_emb_np.shape[0]:
-                            node_map[op.id] = node_emb_np[op_idx]
+                op_idx_map: dict[str, int] = {}
+                for op_id, node_id in view.op_id_to_node.items():
+                    row_idx = node_id_to_idx.get(node_id)
+                    if row_idx is None or row_idx >= node_emb_np.shape[0]:
+                        continue
+                    node_map[op_id] = node_emb_np[row_idx]
+                    op_idx_map[op_id] = row_idx
                 self._node_emb_cache[algo_id] = node_map
-                self._visible_op_idx_cache[algo_id] = {
-                    op.id: op_idx for op_idx, op in enumerate(visible_ops)
-                }
+                self._visible_op_idx_cache[algo_id] = op_idx_map
             except Exception:
                 # Node-emb cache is best-effort; fall back to zeros.
                 self._node_emb_cache[algo_id] = {}
@@ -3675,22 +3626,43 @@ class GNNPatternMatcher:
     # Feature helpers
     # ------------------------------------------------------------------
 
+    def _math_view_for(self, ir: FunctionIR) -> MathView:
+        """Return cached MathView for ``ir``; build if not present.
+
+        Phase 3b: this is the SOLE source of node features and value→
+        producing-node lookups inside the matcher. Caches are pruned in
+        ``_encode_entries``; ad-hoc IRs (e.g. donor trims that never
+        flow through ``_encode_entries``) are built on demand and
+        memoized by ``id(ir)`` for the lifetime of the matcher.
+        """
+        view = self._math_view_by_ir_id.get(id(ir))
+        if view is None:
+            view = build_math_view(ir)
+            self._math_view_by_ir_id[id(ir)] = view
+        return view
+
     def _get_op_feats(self, ir: FunctionIR, op_ids: list[str]) -> np.ndarray:
+        """Per-op feature rows (Phase 3b: routed via MathView).
+
+        Each requested ``op_id`` is mapped to its absorbing MathNode
+        through ``view.op_id_to_node`` and we emit ``node_feature_vector``
+        for that node. Multiple op_ids that absorb into the same node
+        produce identical rows (intentional: that is the whole point of
+        absorption). Op_ids that are dropped (orphan const, J1 jump)
+        contribute a zero row so callers that index by position do not
+        crash.
+        """
+        view = self._math_view_for(ir)
         feats: list[list[float]] = []
         for op_id in op_ids:
-            op = ir.ops.get(op_id)
-            if op is None:
+            if op_id not in ir.ops:
                 continue
-            one_hot = [0.0] * _N_OPCODES
-            one_hot[_opcode_idx(op.opcode)] = 1.0
-            callee = op.attrs.get("callee", op.attrs.get("name", ""))
-            callee_feat = _hash_callee(callee) if callee else [0.0] * _CALLEE_FEATURES
-            prov = op.attrs.get("_provenance") or {}
-            prov_feat = _hash_provenance(
-                prov.get("from_slot_id"),
-                bool(prov.get("is_slot_boundary", False)),
-            )
-            feats.append(one_hot + callee_feat + prov_feat)
+            node_id = view.op_id_to_node.get(op_id)
+            if node_id is None:
+                feats.append(zero_node_feature_vector())
+                continue
+            node = view.nodes_by_id[node_id]
+            feats.append(node_feature_vector(view, node))
         if not feats:
             return np.zeros((1, _NODE_DIM), dtype=np.float32)
         return np.array(feats, dtype=np.float32)

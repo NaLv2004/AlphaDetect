@@ -1524,6 +1524,26 @@ gnn_matcher = GNNPatternMatcher(
 
 if args.resume and Path(args.resume).exists():
     ckpt = torch.load(args.resume, map_location=gnn_matcher.device, weights_only=False)
+    # Phase 3b: refuse to load checkpoints with a mismatched schema.
+    # The MathView-based encoder has a different node feature dim and
+    # opcode vocabulary than the legacy op-level encoder, so silently
+    # tolerating mismatches via strict=False would yield a network with
+    # all-zeros first-layer weights for the new feature slots.
+    from evolution.gnn_pattern_matcher import _NODE_DIM as _CKPT_NODE_DIM
+    _CKPT_SCHEMA_VERSION = 2  # 1 = legacy op-level; 2 = MathView (Phase 3b)
+    ckpt_schema = ckpt.get("schema_version")
+    ckpt_node_dim = ckpt.get("node_dim")
+    if ckpt_schema is None or int(ckpt_schema) != _CKPT_SCHEMA_VERSION:
+        raise RuntimeError(
+            f"Refusing to load ckpt {args.resume!r}: schema_version="
+            f"{ckpt_schema!r} does not match expected {_CKPT_SCHEMA_VERSION} "
+            f"(MathView Phase 3b). Retrain from scratch."
+        )
+    if ckpt_node_dim is not None and int(ckpt_node_dim) != _CKPT_NODE_DIM:
+        raise RuntimeError(
+            f"Refusing to load ckpt {args.resume!r}: node_dim={ckpt_node_dim!r} "
+            f"does not match expected {_CKPT_NODE_DIM}."
+        )
     gnn_matcher.encoder.load_state_dict(ckpt["encoder"], strict=False)
     gnn_matcher.scorer.load_state_dict(ckpt["scorer"], strict=False)
     if "critic" in ckpt and hasattr(gnn_matcher, "critic"):
@@ -1599,7 +1619,10 @@ def save_checkpoint(gen: int, tag: str = "") -> Path:
     """Save GNN model checkpoint."""
     suffix = f"_{tag}" if tag else ""
     path = out_dir / f"gnn_ckpt_gen{gen}{suffix}.pt"
+    from evolution.gnn_pattern_matcher import _NODE_DIM as _CKPT_NODE_DIM
     torch.save({
+        "schema_version": 2,  # Phase 3b: MathView-based encoder
+        "node_dim": _CKPT_NODE_DIM,
         "generation": gen,
         "snr_db": current_snr,
         "encoder": gnn_matcher.encoder.state_dict(),
