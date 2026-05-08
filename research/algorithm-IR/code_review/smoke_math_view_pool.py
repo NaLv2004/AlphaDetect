@@ -118,7 +118,12 @@ def main() -> int:
         print(f"  kind hist (sum)    = {dict(kind_total)}")
 
     # ---- Verdict ----------------------------------------------------------
-    ok = (n_fail == 0 and n_cov_bad == 0 and n_ok == n_total)
+    has_other = any("other" in r["kind_hist"] for r in rows)
+    if has_other:
+        offenders = [(r["algo"], r["kind_hist"].get("other", 0)) for r in rows
+                     if r["kind_hist"].get("other", 0) > 0]
+        print(f"\nERROR: {len(offenders)} detectors have 'other'-kind nodes: {offenders[:5]}")
+    ok = (n_fail == 0 and n_cov_bad == 0 and n_ok == n_total and not has_other)
     print(f"\n=== Phase 2 smoke: {'PASS' if ok else 'FAIL'}")
     return 0 if ok else 1
 

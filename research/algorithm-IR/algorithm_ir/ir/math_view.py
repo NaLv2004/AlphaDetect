@@ -79,7 +79,8 @@ class MathPort:
 class MathNode:
     node_id: str
     kind: str  # "math" | "tensor_struct" | "state_update" | "phi" | "branch"
-               # | "const" | "jump" | "boundary" | "other"
+               # | "const" | "jump" | "boundary" | "collection" | "iter"
+               # | "other" (must be empty after Phase 3a)
     opcode: str  # human-readable label, e.g. "binary.MatMult", "call.np.eye"
     inputs: tuple = ()
     n_outputs: int = 1
@@ -448,6 +449,10 @@ def build_math_view(ir) -> MathView:
             return "boundary"
         if oc == "assign":
             return "math"  # surviving assigns are kept
+        if oc in ("build_list", "build_tuple", "build_dict", "build_slice"):
+            return "collection"
+        if oc in ("iter_init", "iter_next"):
+            return "iter"
         return "other"
 
     def _opcode_label(op, attrs) -> str:
