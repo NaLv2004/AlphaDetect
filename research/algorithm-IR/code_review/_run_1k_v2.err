@@ -1,0 +1,9 @@
+18:36:29 INFO  evolution.algorithm_engine ！ Population initialized: 141 genomes, best=0.204460
+18:36:29 INFO  train_gnn ！ Warm-start config: gens=1 trials=1 timeout=0.50s main_workers=1 warm_workers=8 survivor_cap=48
+18:36:29 INFO  train_gnn ！ Starting GNN training: 1 gens, SNR=16dB★20dB, 1000 proposals/gen, pool=141, trials=5
+18:42:21 INFO  evolution.gnn_pattern_matcher ！ GNN propose: encode=1.64s train=0.00s score=0.02s propose=306.84s -> 1446 proposals from 141 entries
+18:42:42 INFO  evolution.algorithm_engine ！   Structural grafts: 807/1446 succeeded (propose=308.5s, graft=21.5s)
+18:44:57 INFO  evolution.algorithm_engine ！   Timing: micro=42.4s eval_micro=0.8s eval_off=134.6s (70 macro, 807 graft eval, 48 graft kept)
+18:44:59 INFO  evolution.algorithm_engine ！ Gen 1: best=0.204460 (algo_7947b47f) elapsed=510.1s stagnation=0
+18:45:00 INFO  train_gnn ！   graft (single-IR): success=0 stale_region=0 failed=2892 typed_bind=539/807 (cum)
+18:45:00 INFO  train_gnn ！   slot-evo: attempted=444 validated=123 evaluated=19 improved=1 (apply_fail=204 val_fail=117 eval_fail=87 noop_beh=17 skip_no_sids=0 skip_no_var=0) best_delta_mean=-0.0234

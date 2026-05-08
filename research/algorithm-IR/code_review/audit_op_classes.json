@@ -1,0 +1,1698 @@
+{
+  "n_detectors": 91,
+  "total_ops": 11341,
+  "keep": 9439,
+  "absorb": 1732,
+  "ambig": 170,
+  "unknown": 0,
+  "predicted_compression": 0.1527,
+  "class_counter": {
+    "KEEP-math": 3374,
+    "KEEP-const-numeric": 2115,
+    "KEEP-control": 1150,
+    "KEEP-phi": 1007,
+    "KEEP-tensor_struct": 956,
+    "C6-assign": 892,
+    "KEEP-branch": 536,
+    "C2-shape": 438,
+    "C1-callee": 384,
+    "KEEP-state_update": 207,
+    "AMBIG-multi-consumer-shape": 170,
+    "KEEP-boundary": 94,
+    "C3-build": 18
+  },
+  "opcode_counter": {
+    "const": 2499,
+    "binary": 1559,
+    "call": 1261,
+    "jump": 1069,
+    "phi": 1007,
+    "assign": 892,
+    "get_item": 838,
+    "get_attr": 725,
+    "compare": 536,
+    "branch": 536,
+    "set_item": 206,
+    "return": 94,
+    "build_tuple": 88,
+    "unary": 18,
+    "build_list": 11,
+    "set_attr": 1,
+    "build_slice": 1
+  },
+  "examples_ambig_unknown": {
+    "AMBIG-multi-consumer-shape|shape-unpack": [
+      "lmmse/op_2",
+      "osic/op_2",
+      "osic/op_5"
+    ]
+  },
+  "per_detector": [
+    {
+      "algo_id": "lmmse",
+      "n_ops": 48,
+      "classes": {
+        "C2-shape": 3,
+        "KEEP-const-numeric": 8,
+        "AMBIG-multi-consumer-shape": 1,
+        "KEEP-tensor_struct": 6,
+        "KEEP-math": 17,
+        "C1-callee": 6,
+        "C6-assign": 1,
+        "KEEP-control": 2,
+        "KEEP-phi": 1,
+        "KEEP-branch": 1,
+        "KEEP-state_update": 1,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "zf",
+      "n_ops": 38,
+      "classes": {
+        "KEEP-tensor_struct": 6,
+        "KEEP-math": 14,
+        "KEEP-const-numeric": 6,
+        "C1-callee": 5,
+        "C6-assign": 1,
+        "KEEP-control": 2,
+        "KEEP-phi": 1,
+        "KEEP-branch": 1,
+        "KEEP-state_update": 1,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "osic",
+      "n_ops": 160,
+      "classes": {
+        "C2-shape": 5,
+        "KEEP-const-numeric": 27,
+        "AMBIG-multi-consumer-shape": 3,
+        "KEEP-tensor_struct": 18,
+        "KEEP-math": 55,
+        "C1-callee": 9,
+        "C6-assign": 7,
+        "KEEP-control": 14,
+        "KEEP-phi": 12,
+        "KEEP-branch": 6,
+        "KEEP-state_update": 3,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "kbest",
+      "n_ops": 186,
+      "classes": {
+        "C2-shape": 4,
+        "KEEP-const-numeric": 37,
+        "AMBIG-multi-consumer-shape": 2,
+        "KEEP-math": 50,
+        "KEEP-tensor_struct": 29,
+        "C3-build": 1,
+        "KEEP-control": 25,
+        "C6-assign": 6,
+        "KEEP-phi": 12,
+        "KEEP-branch": 10,
+        "KEEP-state_update": 3,
+        "C1-callee": 5,
+        "KEEP-boundary": 2
+      }
+    },
+    {
+      "algo_id": "stack",
+      "n_ops": 238,
+      "classes": {
+        "C2-shape": 4,
+        "KEEP-const-numeric": 44,
+        "AMBIG-multi-consumer-shape": 2,
+        "KEEP-math": 55,
+        "KEEP-tensor_struct": 31,
+        "C3-build": 1,
+        "KEEP-control": 33,
+        "C6-assign": 19,
+        "KEEP-phi": 27,
+        "KEEP-branch": 15,
+        "C1-callee": 4,
+        "KEEP-boundary": 3
+      }
+    },
+    {
+      "algo_id": "bp",
+      "n_ops": 473,
+      "classes": {
+        "C2-shape": 5,
+        "KEEP-const-numeric": 88,
+        "AMBIG-multi-consumer-shape": 5,
+        "KEEP-math": 132,
+        "KEEP-tensor_struct": 31,
+        "C1-callee": 7,
+        "C3-build": 8,
+        "C6-assign": 32,
+        "KEEP-control": 80,
+        "KEEP-phi": 47,
+        "KEEP-branch": 27,
+        "KEEP-state_update": 10,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "ep",
+      "n_ops": 188,
+      "classes": {
+        "C2-shape": 2,
+        "KEEP-const-numeric": 44,
+        "AMBIG-multi-consumer-shape": 2,
+        "C1-callee": 4,
+        "KEEP-math": 96,
+        "KEEP-tensor_struct": 12,
+        "C6-assign": 6,
+        "KEEP-control": 8,
+        "KEEP-phi": 6,
+        "KEEP-branch": 4,
+        "KEEP-state_update": 3,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "amp",
+      "n_ops": 240,
+      "classes": {
+        "C2-shape": 3,
+        "KEEP-const-numeric": 50,
+        "AMBIG-multi-consumer-shape": 1,
+        "KEEP-tensor_struct": 18,
+        "KEEP-math": 97,
+        "C1-callee": 5,
+        "C6-assign": 16,
+        "KEEP-control": 18,
+        "KEEP-phi": 16,
+        "KEEP-branch": 9,
+        "KEEP-state_update": 6,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "jacobi",
+      "n_ops": 122,
+      "classes": {
+        "C2-shape": 5,
+        "KEEP-const-numeric": 22,
+        "AMBIG-multi-consumer-shape": 3,
+        "KEEP-tensor_struct": 11,
+        "KEEP-math": 30,
+        "C1-callee": 3,
+        "C6-assign": 10,
+        "KEEP-control": 16,
+        "KEEP-phi": 12,
+        "KEEP-branch": 7,
+        "KEEP-state_update": 2,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "gs",
+      "n_ops": 126,
+      "classes": {
+        "C2-shape": 5,
+        "KEEP-const-numeric": 22,
+        "AMBIG-multi-consumer-shape": 3,
+        "KEEP-tensor_struct": 13,
+        "KEEP-math": 31,
+        "C1-callee": 3,
+        "C6-assign": 11,
+        "KEEP-control": 16,
+        "KEEP-phi": 12,
+        "KEEP-branch": 7,
+        "KEEP-state_update": 2,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "sor",
+      "n_ops": 131,
+      "classes": {
+        "C2-shape": 5,
+        "KEEP-const-numeric": 24,
+        "AMBIG-multi-consumer-shape": 3,
+        "KEEP-tensor_struct": 13,
+        "KEEP-math": 34,
+        "C1-callee": 3,
+        "C6-assign": 11,
+        "KEEP-control": 16,
+        "KEEP-phi": 12,
+        "KEEP-branch": 7,
+        "KEEP-state_update": 2,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "ssor",
+      "n_ops": 181,
+      "classes": {
+        "C2-shape": 5,
+        "KEEP-const-numeric": 32,
+        "AMBIG-multi-consumer-shape": 3,
+        "KEEP-tensor_struct": 19,
+        "KEEP-math": 50,
+        "C1-callee": 3,
+        "C6-assign": 12,
+        "KEEP-control": 24,
+        "KEEP-phi": 19,
+        "KEEP-branch": 10,
+        "KEEP-state_update": 3,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "richardson",
+      "n_ops": 85,
+      "classes": {
+        "C2-shape": 4,
+        "KEEP-const-numeric": 16,
+        "AMBIG-multi-consumer-shape": 2,
+        "KEEP-tensor_struct": 7,
+        "KEEP-math": 23,
+        "C1-callee": 3,
+        "C6-assign": 8,
+        "KEEP-control": 8,
+        "KEEP-phi": 8,
+        "KEEP-branch": 4,
+        "KEEP-state_update": 1,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "neumann",
+      "n_ops": 106,
+      "classes": {
+        "C2-shape": 5,
+        "KEEP-const-numeric": 20,
+        "AMBIG-multi-consumer-shape": 3,
+        "KEEP-tensor_struct": 8,
+        "KEEP-math": 29,
+        "C6-assign": 9,
+        "KEEP-control": 12,
+        "KEEP-phi": 9,
+        "KEEP-branch": 5,
+        "C3-build": 1,
+        "KEEP-state_update": 2,
+        "C1-callee": 2,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "chebyshev",
+      "n_ops": 103,
+      "classes": {
+        "C2-shape": 5,
+        "KEEP-const-numeric": 19,
+        "AMBIG-multi-consumer-shape": 3,
+        "KEEP-tensor_struct": 8,
+        "KEEP-math": 27,
+        "C1-callee": 3,
+        "C6-assign": 8,
+        "KEEP-control": 12,
+        "KEEP-phi": 9,
+        "KEEP-branch": 5,
+        "C3-build": 1,
+        "KEEP-state_update": 2,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "cg",
+      "n_ops": 139,
+      "classes": {
+        "C2-shape": 5,
+        "KEEP-const-numeric": 26,
+        "AMBIG-multi-consumer-shape": 3,
+        "KEEP-tensor_struct": 9,
+        "KEEP-math": 50,
+        "C1-callee": 2,
+        "C3-build": 1,
+        "C6-assign": 11,
+        "KEEP-control": 12,
+        "KEEP-phi": 12,
+        "KEEP-branch": 5,
+        "KEEP-state_update": 2,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "pcg",
+      "n_ops": 141,
+      "classes": {
+        "C2-shape": 5,
+        "KEEP-const-numeric": 26,
+        "AMBIG-multi-consumer-shape": 3,
+        "KEEP-tensor_struct": 9,
+        "KEEP-math": 50,
+        "C1-callee": 2,
+        "C3-build": 1,
+        "C6-assign": 13,
+        "KEEP-control": 12,
+        "KEEP-phi": 12,
+        "KEEP-branch": 5,
+        "KEEP-state_update": 2,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "minres",
+      "n_ops": 137,
+      "classes": {
+        "C2-shape": 6,
+        "KEEP-const-numeric": 27,
+        "AMBIG-multi-consumer-shape": 2,
+        "KEEP-tensor_struct": 8,
+        "KEEP-math": 61,
+        "C6-assign": 7,
+        "KEEP-control": 8,
+        "KEEP-phi": 11,
+        "KEEP-branch": 4,
+        "C1-callee": 1,
+        "KEEP-state_update": 1,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "bicgstab",
+      "n_ops": 165,
+      "classes": {
+        "C2-shape": 5,
+        "KEEP-const-numeric": 29,
+        "AMBIG-multi-consumer-shape": 3,
+        "KEEP-tensor_struct": 10,
+        "KEEP-math": 74,
+        "C1-callee": 1,
+        "C3-build": 1,
+        "C6-assign": 10,
+        "KEEP-control": 12,
+        "KEEP-phi": 12,
+        "KEEP-branch": 5,
+        "KEEP-state_update": 2,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "precond_rich",
+      "n_ops": 106,
+      "classes": {
+        "C2-shape": 5,
+        "KEEP-const-numeric": 20,
+        "AMBIG-multi-consumer-shape": 3,
+        "KEEP-tensor_struct": 8,
+        "KEEP-math": 27,
+        "C1-callee": 4,
+        "C3-build": 1,
+        "C6-assign": 9,
+        "KEEP-control": 12,
+        "KEEP-phi": 9,
+        "KEEP-branch": 5,
+        "KEEP-state_update": 2,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "weighted_jacobi",
+      "n_ops": 131,
+      "classes": {
+        "C2-shape": 5,
+        "KEEP-const-numeric": 24,
+        "AMBIG-multi-consumer-shape": 3,
+        "KEEP-tensor_struct": 12,
+        "KEEP-math": 35,
+        "C1-callee": 3,
+        "C6-assign": 11,
+        "KEEP-control": 16,
+        "KEEP-phi": 12,
+        "KEEP-branch": 7,
+        "KEEP-state_update": 2,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "stationary",
+      "n_ops": 129,
+      "classes": {
+        "C2-shape": 8,
+        "KEEP-const-numeric": 23,
+        "KEEP-math": 31,
+        "KEEP-tensor_struct": 13,
+        "C1-callee": 3,
+        "C6-assign": 11,
+        "KEEP-control": 16,
+        "KEEP-phi": 12,
+        "KEEP-branch": 7,
+        "AMBIG-multi-consumer-shape": 2,
+        "KEEP-state_update": 2,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "grad_descent",
+      "n_ops": 77,
+      "classes": {
+        "C2-shape": 5,
+        "KEEP-const-numeric": 16,
+        "KEEP-math": 18,
+        "C6-assign": 8,
+        "KEEP-control": 8,
+        "KEEP-phi": 8,
+        "KEEP-branch": 4,
+        "KEEP-tensor_struct": 5,
+        "AMBIG-multi-consumer-shape": 1,
+        "C1-callee": 2,
+        "KEEP-state_update": 1,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "projected_gd",
+      "n_ops": 100,
+      "classes": {
+        "C2-shape": 5,
+        "KEEP-const-numeric": 19,
+        "KEEP-math": 26,
+        "C6-assign": 10,
+        "KEEP-control": 10,
+        "KEEP-phi": 9,
+        "KEEP-branch": 5,
+        "KEEP-tensor_struct": 7,
+        "C1-callee": 5,
+        "KEEP-state_update": 2,
+        "AMBIG-multi-consumer-shape": 1,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "newton",
+      "n_ops": 85,
+      "classes": {
+        "C2-shape": 4,
+        "KEEP-const-numeric": 16,
+        "AMBIG-multi-consumer-shape": 2,
+        "KEEP-tensor_struct": 7,
+        "KEEP-math": 23,
+        "C1-callee": 4,
+        "C6-assign": 7,
+        "KEEP-control": 8,
+        "KEEP-phi": 8,
+        "KEEP-branch": 4,
+        "KEEP-state_update": 1,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "heavy_ball",
+      "n_ops": 87,
+      "classes": {
+        "C2-shape": 4,
+        "KEEP-const-numeric": 17,
+        "AMBIG-multi-consumer-shape": 2,
+        "KEEP-math": 23,
+        "C6-assign": 10,
+        "KEEP-control": 8,
+        "KEEP-phi": 9,
+        "KEEP-branch": 4,
+        "KEEP-tensor_struct": 6,
+        "C1-callee": 2,
+        "KEEP-state_update": 1,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "nesterov",
+      "n_ops": 85,
+      "classes": {
+        "C2-shape": 4,
+        "KEEP-const-numeric": 17,
+        "AMBIG-multi-consumer-shape": 2,
+        "KEEP-math": 23,
+        "C6-assign": 9,
+        "KEEP-control": 8,
+        "KEEP-phi": 9,
+        "KEEP-branch": 4,
+        "KEEP-tensor_struct": 5,
+        "C1-callee": 2,
+        "KEEP-state_update": 1,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "coord_descent",
+      "n_ops": 103,
+      "classes": {
+        "C2-shape": 7,
+        "KEEP-const-numeric": 22,
+        "KEEP-math": 29,
+        "C6-assign": 9,
+        "KEEP-control": 10,
+        "KEEP-phi": 9,
+        "KEEP-branch": 5,
+        "KEEP-tensor_struct": 5,
+        "C1-callee": 3,
+        "KEEP-state_update": 2,
+        "AMBIG-multi-consumer-shape": 1,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "admm",
+      "n_ops": 121,
+      "classes": {
+        "C2-shape": 6,
+        "KEEP-const-numeric": 21,
+        "AMBIG-multi-consumer-shape": 2,
+        "KEEP-math": 37,
+        "C6-assign": 10,
+        "KEEP-control": 10,
+        "KEEP-phi": 11,
+        "KEEP-branch": 5,
+        "KEEP-tensor_struct": 9,
+        "C1-callee": 7,
+        "KEEP-state_update": 2,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "proximal",
+      "n_ops": 100,
+      "classes": {
+        "C2-shape": 5,
+        "KEEP-const-numeric": 19,
+        "KEEP-math": 26,
+        "C6-assign": 10,
+        "KEEP-control": 10,
+        "KEEP-phi": 9,
+        "KEEP-branch": 5,
+        "KEEP-tensor_struct": 7,
+        "C1-callee": 5,
+        "KEEP-state_update": 2,
+        "AMBIG-multi-consumer-shape": 1,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "bb",
+      "n_ops": 110,
+      "classes": {
+        "C2-shape": 5,
+        "KEEP-const-numeric": 25,
+        "KEEP-math": 40,
+        "KEEP-tensor_struct": 8,
+        "C6-assign": 7,
+        "KEEP-control": 8,
+        "KEEP-phi": 9,
+        "KEEP-branch": 4,
+        "C1-callee": 1,
+        "AMBIG-multi-consumer-shape": 1,
+        "KEEP-state_update": 1,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "frank_wolfe",
+      "n_ops": 105,
+      "classes": {
+        "C2-shape": 5,
+        "KEEP-const-numeric": 21,
+        "KEEP-math": 30,
+        "C6-assign": 9,
+        "KEEP-control": 10,
+        "KEEP-phi": 9,
+        "KEEP-branch": 5,
+        "KEEP-tensor_struct": 7,
+        "C1-callee": 5,
+        "KEEP-state_update": 2,
+        "AMBIG-multi-consumer-shape": 1,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "penalty",
+      "n_ops": 127,
+      "classes": {
+        "C2-shape": 5,
+        "KEEP-const-numeric": 26,
+        "KEEP-math": 43,
+        "C6-assign": 10,
+        "KEEP-control": 10,
+        "KEEP-phi": 10,
+        "KEEP-branch": 5,
+        "KEEP-tensor_struct": 8,
+        "C1-callee": 6,
+        "KEEP-state_update": 2,
+        "AMBIG-multi-consumer-shape": 1,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "dual_ascent",
+      "n_ops": 106,
+      "classes": {
+        "C2-shape": 4,
+        "KEEP-const-numeric": 20,
+        "AMBIG-multi-consumer-shape": 2,
+        "KEEP-math": 31,
+        "C6-assign": 9,
+        "KEEP-control": 10,
+        "KEEP-phi": 10,
+        "KEEP-branch": 5,
+        "KEEP-tensor_struct": 7,
+        "C1-callee": 5,
+        "KEEP-state_update": 2,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "greedy",
+      "n_ops": 101,
+      "classes": {
+        "C2-shape": 4,
+        "KEEP-const-numeric": 19,
+        "AMBIG-multi-consumer-shape": 2,
+        "KEEP-math": 22,
+        "C6-assign": 10,
+        "KEEP-control": 12,
+        "KEEP-phi": 12,
+        "KEEP-branch": 6,
+        "KEEP-tensor_struct": 6,
+        "C1-callee": 4,
+        "KEEP-state_update": 3,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "multi_restart",
+      "n_ops": 128,
+      "classes": {
+        "C2-shape": 4,
+        "KEEP-const-numeric": 25,
+        "AMBIG-multi-consumer-shape": 2,
+        "KEEP-math": 34,
+        "C6-assign": 12,
+        "KEEP-control": 14,
+        "KEEP-phi": 14,
+        "KEEP-branch": 7,
+        "C1-callee": 6,
+        "KEEP-tensor_struct": 7,
+        "KEEP-state_update": 2,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "sa",
+      "n_ops": 159,
+      "classes": {
+        "C2-shape": 4,
+        "KEEP-const-numeric": 34,
+        "AMBIG-multi-consumer-shape": 2,
+        "KEEP-math": 49,
+        "C6-assign": 13,
+        "KEEP-control": 16,
+        "KEEP-phi": 14,
+        "KEEP-branch": 8,
+        "C1-callee": 5,
+        "KEEP-tensor_struct": 10,
+        "KEEP-state_update": 3,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "tabu",
+      "n_ops": 164,
+      "classes": {
+        "C2-shape": 4,
+        "KEEP-const-numeric": 28,
+        "AMBIG-multi-consumer-shape": 2,
+        "KEEP-math": 41,
+        "C6-assign": 15,
+        "KEEP-control": 18,
+        "KEEP-phi": 24,
+        "KEEP-branch": 9,
+        "C1-callee": 4,
+        "KEEP-tensor_struct": 13,
+        "KEEP-state_update": 5,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "local_search",
+      "n_ops": 145,
+      "classes": {
+        "C2-shape": 4,
+        "KEEP-const-numeric": 26,
+        "AMBIG-multi-consumer-shape": 2,
+        "KEEP-math": 37,
+        "C6-assign": 13,
+        "KEEP-control": 16,
+        "KEEP-phi": 18,
+        "KEEP-branch": 8,
+        "C1-callee": 4,
+        "KEEP-tensor_struct": 11,
+        "KEEP-state_update": 5,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "reactive_tabu",
+      "n_ops": 127,
+      "classes": {
+        "C2-shape": 4,
+        "KEEP-const-numeric": 22,
+        "AMBIG-multi-consumer-shape": 2,
+        "KEEP-math": 41,
+        "C6-assign": 10,
+        "KEEP-control": 12,
+        "KEEP-phi": 13,
+        "KEEP-branch": 6,
+        "C1-callee": 3,
+        "KEEP-tensor_struct": 11,
+        "KEEP-state_update": 2,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "random_walk",
+      "n_ops": 137,
+      "classes": {
+        "C2-shape": 4,
+        "KEEP-const-numeric": 27,
+        "AMBIG-multi-consumer-shape": 2,
+        "KEEP-math": 43,
+        "C6-assign": 10,
+        "KEEP-control": 12,
+        "KEEP-phi": 14,
+        "KEEP-branch": 6,
+        "C1-callee": 3,
+        "KEEP-tensor_struct": 12,
+        "KEEP-state_update": 3,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "variational",
+      "n_ops": 120,
+      "classes": {
+        "C2-shape": 6,
+        "KEEP-const-numeric": 25,
+        "AMBIG-multi-consumer-shape": 2,
+        "KEEP-math": 32,
+        "C6-assign": 10,
+        "KEEP-control": 12,
+        "KEEP-phi": 10,
+        "KEEP-branch": 6,
+        "KEEP-tensor_struct": 11,
+        "KEEP-state_update": 3,
+        "C1-callee": 2,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "gibbs",
+      "n_ops": 151,
+      "classes": {
+        "C2-shape": 4,
+        "KEEP-const-numeric": 24,
+        "AMBIG-multi-consumer-shape": 2,
+        "KEEP-math": 46,
+        "C6-assign": 12,
+        "KEEP-control": 16,
+        "KEEP-phi": 18,
+        "KEEP-branch": 8,
+        "C1-callee": 4,
+        "KEEP-tensor_struct": 12,
+        "KEEP-state_update": 4,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "mh",
+      "n_ops": 174,
+      "classes": {
+        "C2-shape": 4,
+        "KEEP-const-numeric": 33,
+        "AMBIG-multi-consumer-shape": 2,
+        "KEEP-math": 53,
+        "C6-assign": 15,
+        "KEEP-control": 18,
+        "KEEP-phi": 18,
+        "KEEP-branch": 9,
+        "C1-callee": 6,
+        "KEEP-tensor_struct": 12,
+        "KEEP-state_update": 3,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "em",
+      "n_ops": 120,
+      "classes": {
+        "C2-shape": 6,
+        "KEEP-const-numeric": 25,
+        "AMBIG-multi-consumer-shape": 2,
+        "KEEP-math": 32,
+        "C6-assign": 10,
+        "KEEP-control": 12,
+        "KEEP-phi": 10,
+        "KEEP-branch": 6,
+        "KEEP-tensor_struct": 11,
+        "KEEP-state_update": 3,
+        "C1-callee": 2,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "importance_sampling",
+      "n_ops": 109,
+      "classes": {
+        "C2-shape": 4,
+        "KEEP-const-numeric": 21,
+        "AMBIG-multi-consumer-shape": 2,
+        "C6-assign": 10,
+        "KEEP-math": 28,
+        "KEEP-control": 12,
+        "KEEP-phi": 12,
+        "KEEP-branch": 6,
+        "C1-callee": 6,
+        "KEEP-tensor_struct": 5,
+        "KEEP-state_update": 2,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "particle_filter",
+      "n_ops": 157,
+      "classes": {
+        "C2-shape": 4,
+        "KEEP-const-numeric": 32,
+        "AMBIG-multi-consumer-shape": 2,
+        "C6-assign": 12,
+        "C3-build": 1,
+        "KEEP-math": 45,
+        "C1-callee": 8,
+        "KEEP-control": 17,
+        "KEEP-phi": 13,
+        "KEEP-branch": 8,
+        "KEEP-tensor_struct": 9,
+        "KEEP-state_update": 5,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "map_relaxation",
+      "n_ops": 143,
+      "classes": {
+        "C2-shape": 5,
+        "KEEP-const-numeric": 30,
+        "KEEP-tensor_struct": 13,
+        "KEEP-math": 48,
+        "C1-callee": 3,
+        "C6-assign": 11,
+        "KEEP-control": 12,
+        "KEEP-phi": 10,
+        "KEEP-branch": 6,
+        "KEEP-state_update": 3,
+        "AMBIG-multi-consumer-shape": 1,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "ec",
+      "n_ops": 129,
+      "classes": {
+        "C2-shape": 6,
+        "KEEP-const-numeric": 27,
+        "AMBIG-multi-consumer-shape": 2,
+        "KEEP-math": 37,
+        "C6-assign": 11,
+        "KEEP-control": 12,
+        "KEEP-phi": 10,
+        "KEEP-branch": 6,
+        "KEEP-tensor_struct": 12,
+        "KEEP-state_update": 3,
+        "C1-callee": 2,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "two_stage",
+      "n_ops": 121,
+      "classes": {
+        "C2-shape": 4,
+        "KEEP-const-numeric": 22,
+        "AMBIG-multi-consumer-shape": 2,
+        "KEEP-tensor_struct": 13,
+        "KEEP-math": 38,
+        "C1-callee": 5,
+        "C6-assign": 10,
+        "KEEP-control": 10,
+        "KEEP-phi": 8,
+        "KEEP-branch": 5,
+        "KEEP-state_update": 3,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "three_stage",
+      "n_ops": 235,
+      "classes": {
+        "C2-shape": 6,
+        "KEEP-const-numeric": 39,
+        "AMBIG-multi-consumer-shape": 4,
+        "KEEP-tensor_struct": 29,
+        "KEEP-math": 74,
+        "C1-callee": 3,
+        "C6-assign": 16,
+        "KEEP-control": 28,
+        "KEEP-phi": 17,
+        "KEEP-branch": 12,
+        "KEEP-state_update": 6,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "parallel",
+      "n_ops": 125,
+      "classes": {
+        "C2-shape": 5,
+        "KEEP-const-numeric": 24,
+        "AMBIG-multi-consumer-shape": 3,
+        "KEEP-tensor_struct": 15,
+        "KEEP-math": 38,
+        "C1-callee": 3,
+        "C6-assign": 10,
+        "KEEP-control": 10,
+        "KEEP-phi": 8,
+        "KEEP-branch": 5,
+        "KEEP-state_update": 3,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "cascade",
+      "n_ops": 128,
+      "classes": {
+        "C2-shape": 6,
+        "KEEP-const-numeric": 23,
+        "AMBIG-multi-consumer-shape": 2,
+        "KEEP-tensor_struct": 13,
+        "KEEP-math": 42,
+        "C1-callee": 5,
+        "C6-assign": 10,
+        "KEEP-control": 10,
+        "KEEP-phi": 8,
+        "KEEP-branch": 5,
+        "KEEP-state_update": 3,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "feedback_sic",
+      "n_ops": 183,
+      "classes": {
+        "C2-shape": 6,
+        "KEEP-const-numeric": 33,
+        "AMBIG-multi-consumer-shape": 2,
+        "KEEP-tensor_struct": 19,
+        "KEEP-math": 66,
+        "C1-callee": 6,
+        "C6-assign": 12,
+        "KEEP-control": 14,
+        "KEEP-phi": 12,
+        "KEEP-branch": 7,
+        "KEEP-state_update": 5,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "warm_start",
+      "n_ops": 91,
+      "classes": {
+        "C2-shape": 5,
+        "KEEP-const-numeric": 15,
+        "KEEP-tensor_struct": 9,
+        "KEEP-math": 25,
+        "C1-callee": 6,
+        "C6-assign": 8,
+        "KEEP-control": 8,
+        "KEEP-phi": 8,
+        "KEEP-branch": 4,
+        "AMBIG-multi-consumer-shape": 1,
+        "KEEP-state_update": 1,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "iter_refine",
+      "n_ops": 112,
+      "classes": {
+        "C2-shape": 4,
+        "KEEP-const-numeric": 20,
+        "AMBIG-multi-consumer-shape": 2,
+        "KEEP-tensor_struct": 11,
+        "KEEP-math": 32,
+        "C1-callee": 6,
+        "C6-assign": 10,
+        "KEEP-control": 10,
+        "KEEP-phi": 9,
+        "KEEP-branch": 5,
+        "KEEP-state_update": 2,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "alternating",
+      "n_ops": 137,
+      "classes": {
+        "C2-shape": 7,
+        "KEEP-const-numeric": 27,
+        "KEEP-math": 39,
+        "C6-assign": 11,
+        "KEEP-control": 12,
+        "KEEP-phi": 10,
+        "KEEP-branch": 6,
+        "AMBIG-multi-consumer-shape": 3,
+        "KEEP-tensor_struct": 15,
+        "C1-callee": 3,
+        "KEEP-state_update": 3,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "residual_net",
+      "n_ops": 95,
+      "classes": {
+        "C2-shape": 5,
+        "KEEP-const-numeric": 16,
+        "KEEP-tensor_struct": 9,
+        "KEEP-math": 28,
+        "C1-callee": 6,
+        "C6-assign": 8,
+        "KEEP-control": 8,
+        "KEEP-phi": 8,
+        "KEEP-branch": 4,
+        "AMBIG-multi-consumer-shape": 1,
+        "KEEP-state_update": 1,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "linear_solve_wrap",
+      "n_ops": 70,
+      "classes": {
+        "C2-shape": 5,
+        "KEEP-const-numeric": 11,
+        "KEEP-tensor_struct": 7,
+        "KEEP-math": 17,
+        "C1-callee": 6,
+        "AMBIG-multi-consumer-shape": 1,
+        "C6-assign": 6,
+        "KEEP-control": 6,
+        "KEEP-phi": 6,
+        "KEEP-branch": 3,
+        "KEEP-state_update": 1,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "precond_solve_wrap",
+      "n_ops": 91,
+      "classes": {
+        "C2-shape": 6,
+        "KEEP-const-numeric": 17,
+        "KEEP-tensor_struct": 8,
+        "KEEP-math": 22,
+        "C1-callee": 3,
+        "AMBIG-multi-consumer-shape": 2,
+        "C3-build": 1,
+        "C6-assign": 8,
+        "KEEP-control": 10,
+        "KEEP-phi": 7,
+        "KEEP-branch": 4,
+        "KEEP-state_update": 2,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "reg_solve_wrap",
+      "n_ops": 70,
+      "classes": {
+        "KEEP-tensor_struct": 7,
+        "KEEP-math": 17,
+        "C2-shape": 5,
+        "KEEP-const-numeric": 11,
+        "C1-callee": 6,
+        "AMBIG-multi-consumer-shape": 1,
+        "C6-assign": 6,
+        "KEEP-control": 6,
+        "KEEP-phi": 6,
+        "KEEP-branch": 3,
+        "KEEP-state_update": 1,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "weight_apply_wrap",
+      "n_ops": 71,
+      "classes": {
+        "C2-shape": 5,
+        "KEEP-const-numeric": 11,
+        "KEEP-tensor_struct": 7,
+        "KEEP-math": 18,
+        "C1-callee": 6,
+        "AMBIG-multi-consumer-shape": 1,
+        "C6-assign": 6,
+        "KEEP-control": 6,
+        "KEEP-phi": 6,
+        "KEEP-branch": 3,
+        "KEEP-state_update": 1,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "mf_detect",
+      "n_ops": 57,
+      "classes": {
+        "KEEP-tensor_struct": 5,
+        "KEEP-math": 11,
+        "C6-assign": 7,
+        "C2-shape": 3,
+        "KEEP-const-numeric": 9,
+        "AMBIG-multi-consumer-shape": 1,
+        "C1-callee": 4,
+        "KEEP-control": 6,
+        "KEEP-phi": 6,
+        "KEEP-branch": 3,
+        "KEEP-state_update": 1,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "qr_detect",
+      "n_ops": 76,
+      "classes": {
+        "C2-shape": 5,
+        "KEEP-const-numeric": 12,
+        "KEEP-tensor_struct": 9,
+        "KEEP-math": 20,
+        "C1-callee": 6,
+        "AMBIG-multi-consumer-shape": 1,
+        "C6-assign": 6,
+        "KEEP-control": 6,
+        "KEEP-phi": 6,
+        "KEEP-branch": 3,
+        "KEEP-state_update": 1,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "svd_detect",
+      "n_ops": 71,
+      "classes": {
+        "C2-shape": 5,
+        "KEEP-const-numeric": 11,
+        "KEEP-tensor_struct": 7,
+        "KEEP-math": 18,
+        "C1-callee": 6,
+        "AMBIG-multi-consumer-shape": 1,
+        "C6-assign": 6,
+        "KEEP-control": 6,
+        "KEEP-phi": 6,
+        "KEEP-branch": 3,
+        "KEEP-state_update": 1,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "block_detect",
+      "n_ops": 116,
+      "classes": {
+        "C2-shape": 4,
+        "KEEP-const-numeric": 21,
+        "AMBIG-multi-consumer-shape": 2,
+        "KEEP-tensor_struct": 11,
+        "KEEP-math": 29,
+        "C1-callee": 3,
+        "C6-assign": 9,
+        "KEEP-control": 16,
+        "KEEP-phi": 11,
+        "KEEP-branch": 7,
+        "KEEP-state_update": 2,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "subspace_detect",
+      "n_ops": 127,
+      "classes": {
+        "C2-shape": 8,
+        "KEEP-const-numeric": 24,
+        "AMBIG-multi-consumer-shape": 2,
+        "KEEP-tensor_struct": 8,
+        "KEEP-math": 46,
+        "C1-callee": 2,
+        "C6-assign": 10,
+        "KEEP-control": 10,
+        "KEEP-phi": 10,
+        "KEEP-branch": 5,
+        "KEEP-state_update": 1,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "ordering_detect",
+      "n_ops": 70,
+      "classes": {
+        "C2-shape": 5,
+        "KEEP-const-numeric": 11,
+        "KEEP-tensor_struct": 7,
+        "KEEP-math": 17,
+        "C1-callee": 6,
+        "AMBIG-multi-consumer-shape": 1,
+        "C6-assign": 6,
+        "KEEP-control": 6,
+        "KEEP-phi": 6,
+        "KEEP-branch": 3,
+        "KEEP-state_update": 1,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "soft_sic",
+      "n_ops": 252,
+      "classes": {
+        "C2-shape": 5,
+        "KEEP-const-numeric": 45,
+        "AMBIG-multi-consumer-shape": 3,
+        "KEEP-tensor_struct": 19,
+        "KEEP-math": 93,
+        "C1-callee": 7,
+        "C6-assign": 16,
+        "KEEP-control": 25,
+        "KEEP-phi": 20,
+        "KEEP-branch": 12,
+        "KEEP-state_update": 6,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "sparse_detect",
+      "n_ops": 103,
+      "classes": {
+        "C2-shape": 5,
+        "KEEP-const-numeric": 21,
+        "KEEP-math": 28,
+        "C6-assign": 9,
+        "KEEP-control": 12,
+        "KEEP-phi": 9,
+        "KEEP-branch": 6,
+        "KEEP-tensor_struct": 7,
+        "C1-callee": 2,
+        "KEEP-state_update": 2,
+        "AMBIG-multi-consumer-shape": 1,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "turbo_linear",
+      "n_ops": 161,
+      "classes": {
+        "C2-shape": 4,
+        "KEEP-const-numeric": 31,
+        "AMBIG-multi-consumer-shape": 2,
+        "KEEP-tensor_struct": 13,
+        "KEEP-math": 53,
+        "C1-callee": 5,
+        "C6-assign": 12,
+        "KEEP-control": 17,
+        "KEEP-phi": 11,
+        "KEEP-branch": 8,
+        "KEEP-state_update": 4,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "diag_dominant",
+      "n_ops": 136,
+      "classes": {
+        "C2-shape": 5,
+        "KEEP-const-numeric": 24,
+        "AMBIG-multi-consumer-shape": 3,
+        "KEEP-tensor_struct": 13,
+        "KEEP-math": 33,
+        "C1-callee": 3,
+        "C6-assign": 11,
+        "KEEP-control": 19,
+        "KEEP-phi": 13,
+        "KEEP-branch": 8,
+        "KEEP-state_update": 3,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "mmse_init_iter",
+      "n_ops": 100,
+      "classes": {
+        "C2-shape": 5,
+        "KEEP-const-numeric": 17,
+        "KEEP-tensor_struct": 10,
+        "KEEP-math": 30,
+        "C1-callee": 6,
+        "C6-assign": 9,
+        "KEEP-control": 8,
+        "KEEP-phi": 8,
+        "KEEP-branch": 4,
+        "AMBIG-multi-consumer-shape": 1,
+        "KEEP-state_update": 1,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "mf_refine",
+      "n_ops": 80,
+      "classes": {
+        "KEEP-tensor_struct": 7,
+        "KEEP-math": 19,
+        "C2-shape": 4,
+        "KEEP-const-numeric": 14,
+        "AMBIG-multi-consumer-shape": 2,
+        "C6-assign": 8,
+        "KEEP-control": 8,
+        "KEEP-phi": 8,
+        "KEEP-branch": 4,
+        "C1-callee": 4,
+        "KEEP-state_update": 1,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "scaled_detect",
+      "n_ops": 71,
+      "classes": {
+        "C2-shape": 5,
+        "KEEP-const-numeric": 11,
+        "KEEP-tensor_struct": 7,
+        "KEEP-math": 18,
+        "C1-callee": 6,
+        "AMBIG-multi-consumer-shape": 1,
+        "C6-assign": 6,
+        "KEEP-control": 6,
+        "KEEP-phi": 6,
+        "KEEP-branch": 3,
+        "KEEP-state_update": 1,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "residual_iter",
+      "n_ops": 100,
+      "classes": {
+        "C2-shape": 7,
+        "KEEP-const-numeric": 19,
+        "KEEP-tensor_struct": 9,
+        "KEEP-math": 30,
+        "C1-callee": 4,
+        "C6-assign": 8,
+        "KEEP-control": 8,
+        "KEEP-phi": 8,
+        "KEEP-branch": 4,
+        "AMBIG-multi-consumer-shape": 1,
+        "KEEP-state_update": 1,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "overrelax",
+      "n_ops": 86,
+      "classes": {
+        "C2-shape": 5,
+        "KEEP-const-numeric": 18,
+        "KEEP-math": 23,
+        "C6-assign": 9,
+        "KEEP-control": 8,
+        "KEEP-phi": 8,
+        "KEEP-branch": 4,
+        "KEEP-tensor_struct": 6,
+        "AMBIG-multi-consumer-shape": 1,
+        "C1-callee": 2,
+        "KEEP-state_update": 1,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "power_method",
+      "n_ops": 113,
+      "classes": {
+        "C2-shape": 5,
+        "KEEP-const-numeric": 19,
+        "KEEP-tensor_struct": 8,
+        "KEEP-math": 39,
+        "C1-callee": 7,
+        "C6-assign": 8,
+        "KEEP-control": 10,
+        "KEEP-phi": 9,
+        "KEEP-branch": 5,
+        "AMBIG-multi-consumer-shape": 1,
+        "KEEP-state_update": 1,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "landweber",
+      "n_ops": 77,
+      "classes": {
+        "C2-shape": 5,
+        "KEEP-const-numeric": 16,
+        "KEEP-math": 18,
+        "C6-assign": 8,
+        "KEEP-control": 8,
+        "KEEP-phi": 8,
+        "KEEP-branch": 4,
+        "KEEP-tensor_struct": 5,
+        "AMBIG-multi-consumer-shape": 1,
+        "C1-callee": 2,
+        "KEEP-state_update": 1,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "kaczmarz",
+      "n_ops": 103,
+      "classes": {
+        "C2-shape": 7,
+        "KEEP-const-numeric": 20,
+        "KEEP-math": 26,
+        "C6-assign": 8,
+        "KEEP-control": 12,
+        "KEEP-phi": 11,
+        "KEEP-branch": 6,
+        "C1-callee": 5,
+        "KEEP-tensor_struct": 5,
+        "AMBIG-multi-consumer-shape": 1,
+        "KEEP-state_update": 1,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "cimmino",
+      "n_ops": 106,
+      "classes": {
+        "C2-shape": 5,
+        "KEEP-const-numeric": 20,
+        "AMBIG-multi-consumer-shape": 3,
+        "KEEP-math": 29,
+        "C6-assign": 8,
+        "KEEP-control": 12,
+        "KEEP-phi": 11,
+        "KEEP-branch": 6,
+        "C1-callee": 5,
+        "KEEP-tensor_struct": 5,
+        "KEEP-state_update": 1,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "steepest_desc",
+      "n_ops": 98,
+      "classes": {
+        "C2-shape": 4,
+        "KEEP-const-numeric": 19,
+        "AMBIG-multi-consumer-shape": 2,
+        "KEEP-tensor_struct": 7,
+        "KEEP-math": 34,
+        "C1-callee": 3,
+        "C6-assign": 7,
+        "KEEP-control": 8,
+        "KEEP-phi": 8,
+        "KEEP-branch": 4,
+        "KEEP-state_update": 1,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "divide_conquer",
+      "n_ops": 80,
+      "classes": {
+        "C2-shape": 5,
+        "KEEP-const-numeric": 13,
+        "KEEP-tensor_struct": 9,
+        "KEEP-math": 24,
+        "C1-callee": 5,
+        "AMBIG-multi-consumer-shape": 1,
+        "C6-assign": 6,
+        "KEEP-control": 6,
+        "KEEP-phi": 6,
+        "KEEP-branch": 3,
+        "KEEP-state_update": 1,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "layer_peeling",
+      "n_ops": 153,
+      "classes": {
+        "C2-shape": 6,
+        "KEEP-const-numeric": 28,
+        "AMBIG-multi-consumer-shape": 2,
+        "KEEP-math": 42,
+        "KEEP-tensor_struct": 14,
+        "C6-assign": 11,
+        "KEEP-control": 16,
+        "KEEP-phi": 16,
+        "KEEP-branch": 8,
+        "C1-callee": 6,
+        "KEEP-state_update": 3,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "consensus",
+      "n_ops": 96,
+      "classes": {
+        "C2-shape": 4,
+        "KEEP-const-numeric": 18,
+        "AMBIG-multi-consumer-shape": 2,
+        "KEEP-math": 29,
+        "C6-assign": 9,
+        "KEEP-control": 8,
+        "KEEP-phi": 9,
+        "KEEP-branch": 4,
+        "KEEP-tensor_struct": 9,
+        "C1-callee": 2,
+        "KEEP-state_update": 1,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "anneal_iter",
+      "n_ops": 112,
+      "classes": {
+        "C2-shape": 5,
+        "KEEP-const-numeric": 23,
+        "KEEP-math": 32,
+        "C6-assign": 11,
+        "KEEP-control": 10,
+        "KEEP-phi": 10,
+        "KEEP-branch": 5,
+        "KEEP-tensor_struct": 7,
+        "C1-callee": 5,
+        "KEEP-state_update": 2,
+        "AMBIG-multi-consumer-shape": 1,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "dp_detect",
+      "n_ops": 167,
+      "classes": {
+        "C2-shape": 4,
+        "KEEP-const-numeric": 28,
+        "AMBIG-multi-consumer-shape": 2,
+        "C1-callee": 2,
+        "KEEP-math": 41,
+        "C6-assign": 14,
+        "KEEP-control": 20,
+        "KEEP-phi": 29,
+        "KEEP-branch": 10,
+        "KEEP-tensor_struct": 10,
+        "KEEP-state_update": 6,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "multi_scale",
+      "n_ops": 102,
+      "classes": {
+        "C2-shape": 5,
+        "KEEP-const-numeric": 17,
+        "KEEP-tensor_struct": 11,
+        "KEEP-math": 31,
+        "C1-callee": 7,
+        "C6-assign": 8,
+        "KEEP-control": 8,
+        "KEEP-phi": 7,
+        "KEEP-branch": 4,
+        "KEEP-state_update": 2,
+        "AMBIG-multi-consumer-shape": 1,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "gs_block",
+      "n_ops": 116,
+      "classes": {
+        "C2-shape": 4,
+        "KEEP-const-numeric": 21,
+        "AMBIG-multi-consumer-shape": 2,
+        "KEEP-tensor_struct": 11,
+        "KEEP-math": 29,
+        "C1-callee": 3,
+        "C6-assign": 9,
+        "KEEP-control": 16,
+        "KEEP-phi": 11,
+        "KEEP-branch": 7,
+        "KEEP-state_update": 2,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "gpa",
+      "n_ops": 106,
+      "classes": {
+        "C2-shape": 5,
+        "KEEP-const-numeric": 21,
+        "KEEP-math": 30,
+        "C6-assign": 10,
+        "KEEP-control": 10,
+        "KEEP-phi": 9,
+        "KEEP-branch": 5,
+        "KEEP-tensor_struct": 7,
+        "C1-callee": 5,
+        "KEEP-state_update": 2,
+        "AMBIG-multi-consumer-shape": 1,
+        "KEEP-boundary": 1
+      }
+    },
+    {
+      "algo_id": "nested_iter",
+      "n_ops": 134,
+      "classes": {
+        "C2-shape": 5,
+        "KEEP-const-numeric": 24,
+        "KEEP-tensor_struct": 13,
+        "KEEP-math": 41,
+        "C1-callee": 7,
+        "C6-assign": 11,
+        "KEEP-control": 12,
+        "KEEP-phi": 11,
+        "KEEP-branch": 6,
+        "KEEP-state_update": 2,
+        "AMBIG-multi-consumer-shape": 1,
+        "KEEP-boundary": 1
+      }
+    }
+  ]
+}

@@ -73,43 +73,6 @@ def _extract_assigned_names(target: ast.expr, out: set[str]) -> None:
         _extract_assigned_names(target.value, out)
 
 
-# Generic name_hints / var_name labels emitted by the IR builder for
-# anonymous expression results (binary, call, attribute, etc.) that
-# carry NO user-chosen meaning. ``_assign_target`` may overwrite them
-# with the LHS name without losing semantic information.
-_GENERIC_NAME_HINTS: frozenset[str] = frozenset({
-    "binary", "unary", "call", "compare", "subscript", "attr",
-    "build_list", "build_tuple", "build_dict", "build_slice", "slice",
-    "phi", "augassign", "get_item", "set_item", "set_attr",
-})
-
-# Opcodes whose codegen path (in ``regeneration/codegen.py``) routes
-# through ``_materialise_or_register`` — i.e. they emit ``var = expr``
-# automatically when the producing value's ``attrs['var_name']`` is
-# set. Only these ops are safe targets for source-side assign
-# elimination; opcodes outside this set (notably ``const`` and ``phi``)
-# are skipped by ``_emit_op``, so promoting a name onto them would
-# silently drop the LHS statement (e.g. an ``if`` body becomes empty).
-_MATERIALISABLE_OPCODES: frozenset[str] = frozenset({
-    "binary", "unary", "compare", "call",
-    "get_attr", "get_item",
-    "build_list", "build_tuple", "build_dict",
-})
-
-
-def _is_generic_name_hint(hint: str | None) -> bool:
-    """Return True if ``hint`` is a placeholder created by the IR builder
-    for an anonymous expression result (no user-meaningful name).
-    """
-    if not hint:
-        return True
-    if hint in _GENERIC_NAME_HINTS:
-        return True
-    if hint.startswith("const_"):
-        return True
-    return False
-
-
 def _collect_assigned_names(stmts: list[ast.stmt]) -> set[str]:
     """Recursively collect every name *assigned* within ``stmts``.
 
@@ -907,56 +870,7 @@ class IRBuilder:
 
     def _assign_target(self, target: ast.AST, value_id: str) -> None:
         if isinstance(target, ast.Name):
-            target_name = target.id
             source_value = self.state.values[value_id]
-            # Pruned-SSA for assignments: when the source value carries
-            # only an IR-builder-generated placeholder hint (e.g. the
-            # output of a ``binary`` / ``call`` / ``get_item`` op), we
-            # PROMOTE the LHS name onto that source value directly
-            # instead of emitting a redundant ``assign`` op + cloning a
-            # new SSA value.
-            #
-            # This eliminates the ~9 ``assign`` ops/detector that the
-            # old emit-then-fold pattern produced. ``_materialise_or_register``
-            # in codegen already emits ``var = expr`` automatically when
-            # ``attrs['var_name']`` is set on the producer's output, so
-            # the regenerated source still reads the same way.
-            #
-            # CONSERVATIVE FALLBACK: when the source value already has
-            # a real (non-generic) ``var_name`` it is the result of an
-            # earlier user-assigned name (e.g. a pure aliasing line
-            # like ``foo = G``, or an internal ternary-expr stash).
-            # In that case we fall back to the legacy assign-emit
-            # behaviour to keep the alias visible in regenerated source
-            # and to preserve graft-rename invariants.
-            existing_vn = source_value.attrs.get("var_name")
-            existing_hint = source_value.name_hint
-            generic = _is_generic_name_hint(existing_vn) and _is_generic_name_hint(existing_hint)
-
-            # Source op must be materialisable — i.e. its codegen path
-            # goes through ``_materialise_or_register`` and therefore
-            # honours ``attrs['var_name']`` by emitting ``var = expr``.
-            # Const/phi/etc. ops are skipped by ``_emit_op``, so
-            # promoting onto them silently loses the LHS statement
-            # (causing empty if-bodies and SyntaxError downstream).
-            def_op_id = source_value.def_op
-            def_op = self.state.ops.get(def_op_id) if def_op_id else None
-            materialisable = bool(def_op and def_op.opcode in _MATERIALISABLE_OPCODES)
-
-            if generic and materialisable:
-                version = self.state.name_versions.get(target_name, -1) + 1
-                self.state.name_versions[target_name] = version
-                source_value.name_hint = f"{target_name}_{version}"
-                source_value.attrs["var_name"] = target_name
-                if "version" not in source_value.attrs:
-                    source_value.attrs["version"] = version
-                # Also propagate type_info if the source op produced one
-                # (already on source_value.attrs, no extra work needed).
-                self.state.name_env[target_name] = value_id
-                return
-
-            # Fallback: source already carries a meaningful name → emit
-            # an explicit assign op so the alias is preserved.
             propagated_attrs: dict[str, Any] = {}
             if "type_info" in source_value.attrs:
                 propagated_attrs["type_info"] = source_value.attrs["type_info"]
