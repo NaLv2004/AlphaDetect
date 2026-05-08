@@ -54,6 +54,73 @@ from algorithm_ir.ir.type_info import (
 from algorithm_ir.ir.types import AlgType
 
 
+# ----------------------------------------------------------------------
+# Pruned-SSA helper: collect names assigned within a list of statements
+# ----------------------------------------------------------------------
+def _extract_assigned_names(target: ast.expr, out: set[str]) -> None:
+    """Extract bound Name strings from an assignment target expr.
+
+    Handles ``Name``, ``Tuple``/``List`` (destructuring), and ``Starred``.
+    ``Subscript`` / ``Attribute`` targets do NOT introduce new names —
+    they mutate an existing object — and are deliberately ignored.
+    """
+    if isinstance(target, ast.Name):
+        out.add(target.id)
+    elif isinstance(target, (ast.Tuple, ast.List)):
+        for elt in target.elts:
+            _extract_assigned_names(elt, out)
+    elif isinstance(target, ast.Starred):
+        _extract_assigned_names(target.value, out)
+
+
+def _collect_assigned_names(stmts: list[ast.stmt]) -> set[str]:
+    """Recursively collect every name *assigned* within ``stmts``.
+
+    Descends into nested ``If`` / ``For`` / ``While`` / ``With`` / ``Try``
+    bodies (they share the enclosing function's scope), but does NOT
+    descend into nested ``FunctionDef`` / ``AsyncFunctionDef`` / ``Lambda``
+    / ``ClassDef`` (those introduce their own scopes).
+
+    Used by :meth:`IRBuilder._compile_while` and ``_compile_for`` to
+    realize *pruned SSA*: only emit loop-header phi nodes for variables
+    that are actually mutated by the loop body (transitively through any
+    nested loops). Variables that are read-only inside the loop need no
+    phi at all — eliminating the entire class of "iteratively-trivial"
+    forwarder phis at the source.
+    """
+    assigned: set[str] = set()
+
+    def visit(node: ast.AST) -> None:
+        # Stop at nested-scope boundaries.
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef,
+                             ast.Lambda, ast.ClassDef)):
+            return
+        if isinstance(node, ast.Assign):
+            for tgt in node.targets:
+                _extract_assigned_names(tgt, assigned)
+        elif isinstance(node, (ast.AugAssign, ast.AnnAssign)):
+            _extract_assigned_names(node.target, assigned)
+        elif isinstance(node, ast.For):
+            # The loop variable IS rebound on every iteration → counts
+            # as an assignment within the enclosing scope.
+            _extract_assigned_names(node.target, assigned)
+        elif isinstance(node, ast.NamedExpr):  # walrus :=
+            _extract_assigned_names(node.target, assigned)
+        elif isinstance(node, ast.With):
+            for item in node.items:
+                if item.optional_vars is not None:
+                    _extract_assigned_names(item.optional_vars, assigned)
+        elif isinstance(node, ast.ExceptHandler):
+            if node.name:
+                assigned.add(node.name)
+        for child in ast.iter_child_nodes(node):
+            visit(child)
+
+    for stmt in stmts:
+        visit(stmt)
+    return assigned
+
+
 SUPPORTED_AST = (
     ast.Module,
     ast.FunctionDef,
@@ -343,6 +410,11 @@ class IRBuilder:
 
     def _compile_while(self, stmt: ast.While) -> None:
         before_env = dict(self.state.name_env)
+        # Pruned SSA: only emit phi for names that are actually
+        # (re)assigned somewhere in the loop body, transitively through
+        # nested loops / conditionals. Read-only names get no phi —
+        # they keep their pre-loop SSA value across the loop boundary.
+        assigned_in_body = _collect_assigned_names(stmt.body)
         test_block = self._new_block("while_test")
         body_block = self._new_block("while_body")
         exit_block = self._new_block("while_exit")
@@ -352,6 +424,8 @@ class IRBuilder:
         loop_phi_inputs: dict[str, tuple[str, str]] = {}  # name -> (phi_op_id, entry_value)
         self.state.name_env = dict(before_env)
         for name, incoming_value in before_env.items():
+            if name not in assigned_in_body:
+                continue
             phi_type = unify_type_infos(self._value_type_info(incoming_value))
             phi_out = self._new_versioned_name(
                 name, stmt,
@@ -405,6 +479,12 @@ class IRBuilder:
         modified in the loop body weren't properly propagated to the next iteration.
         """
         before_env = dict(self.state.name_env)
+        # Pruned SSA: only emit phi for names actually reassigned in the
+        # loop body (transitively through nested constructs). Note we do
+        # NOT include ``stmt.target`` here — the loop variable is bound
+        # by ``_assign_target`` immediately after iter_next inside the
+        # test block, so any phi we'd create for it would be dead.
+        assigned_in_body = _collect_assigned_names(stmt.body)
 
         iter_value = self._compile_expr(stmt.iter)
         iter_handle = self._emit_iter_init(iter_value, stmt)
@@ -414,11 +494,14 @@ class IRBuilder:
         exit_block = self._new_block("for_exit")
         self._emit_jump(test_block, stmt)
 
-        # Create phi nodes in test block for all variables in scope
+        # Create phi nodes in test block ONLY for variables in scope
+        # that are reassigned in the body.
         self.state.current_block = test_block
         loop_phi_inputs: dict[str, tuple[str, str]] = {}  # name -> (phi_op_id, entry_value)
         self.state.name_env = dict(before_env)
         for name, incoming_value in before_env.items():
+            if name not in assigned_in_body:
+                continue
             phi_type = unify_type_infos(self._value_type_info(incoming_value))
             phi_out = self._new_versioned_name(
                 name, stmt,
