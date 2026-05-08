@@ -1141,21 +1141,95 @@ class GraftScorer(nn.Module):
 - `behavior`：预测嫁接后行为是否会改变
 - `perf`：预测嫁接后的性能
 
-#### 4.4.2 `BoundaryRegionPolicy` — 采样边界值
+#### 4.4.2 `BoundaryRegionPolicy` — 同时作用于 Host 和 Donor 的共享策略网络
+
+**同一个 `BoundaryRegionPolicy` 网络被复用于 host 和 donor 两侧**。它不区分"host 策略"和"donor 策略"——两者共享同一套模型参数。区别仅在于（a）传入的上下文嵌入和（b）采样时施加的 mask 约束。
+
+**架构**：
 
 ```python
-# 第 369-433 行
+# evolution/gnn_pattern_matcher.py, 第 369-433 行
 class BoundaryRegionPolicy(nn.Module):
-    def encode_values(self, value_feats):         # 编码候选值的特征
-    def output_logits(self, ctx_emb, candidate_emb, output_summary):
-        # 为每个候选输出值产生选择概率
-    def cut_logits(self, ctx_emb, candidate_emb, output_summary):
-        # 为每个候选 cut 值产生选择概率
+    def __init__(self):
+        # 将高维 value 特征（约 5× 的 IR 原始特征）投影到 32 维
+        self.value_encoder = nn.Linear(_VALUE_FEAT_DIM, 32)
+        # 将 context_emb 投影到 32 维
+        self.context_proj = nn.Linear(32, 32)
+        # output_logits head: 对候选输出值打分
+        self.output_head = nn.Sequential(nn.Linear(64, 32), nn.ReLU(), nn.Linear(32, 1))
+        # cut_logits head: 对候选 cut 值打分
+        self.cut_head = nn.Sequential(nn.Linear(64, 32), nn.ReLU(), nn.Linear(32, 1))
+        # STOP logit: 全局标量（控制采样是否提前终止）
+        self.stop_head = nn.Linear(32, 1)
+
+    def encode_values(self, value_feats_np):
+        """将候选值的高维特征编码为 32 维嵌入。"""
+        return self.value_encoder(torch.from_numpy(value_feats_np))
+
+    def output_logits(self, ctx_emb, candidate_emb, output_summary=None):
+        """对每个候选输出值产生 logit 分数。
+
+        输入：
+          ctx_emb: 32 维上下文向量（下文详细解释）
+          candidate_emb: (N, 32) 候选值嵌入
+          output_summary: (1, 32) 已选输出值的摘要嵌入
+        输出：
+          每个候选值的标量 logit + 一个全局 STOP logit
+        """
+        ctx = self.context_proj(ctx_emb)                # 32 维
+        summary = self.output_summary_proj(output_summary) if output_summary is not None else 0
+        combined = ctx + summary                         # 32 维（上下文 + 已选摘要）
+        combined_expanded = combined.expand(N, 32)       # (N, 32)
+        pair_feats = torch.cat([combined_expanded, candidate_emb], dim=-1)  # (N, 64)
+        logits = self.output_head(pair_feats).squeeze(-1)  # (N,) 标量分数
+        stop_logit = self.stop_head(ctx.unsqueeze(0))  # (1,) 标量 STOP 分数
+        return logits, stop_logit
+
+    def cut_logits(self, ctx_emb, candidate_emb, output_summary=None):
+        """对每个候选 cut 值产生 logit 分数。结构与 output_logits 相同但使用 cut_head。"""
+        # ... 相同结构，用 self.cut_head 替代 self.output_head
 ```
 
-**输出策略（output policy）**：给定上下文嵌入（donor 的图向量），对宿主 IR 中的每个 observable value 产生一个选择概率。选中概率高的值更可能成为区域的输出边界。
+**关键：上下文嵌入的交叉模式**
 
-**切割策略（cut policy）**：类似地，对候选 cut 值产生选择概率。cut 值决定了区域的"入口"——在 backward slice 中，cut 值标记了停止搜索引擎进一步扩展的点。
+策略网络的核心设计是 **交叉上下文**（cross-context）——当为 host 采样时，看到的是 donor 的嵌入；当为 donor 采样时，看到的是 host 的嵌入。这模拟了"考虑对方的情况来做自己的决策"：
+
+```python
+# gnn_pattern_matcher.py, 第 1392 行 — HOST 侧：
+# host 选输出值时，使用 donor 的图嵌入作为上下文
+context_emb_np = info["donor_ctx"]["emb"]
+
+# gnn_pattern_matcher.py, 第 1723 行 — DONOR 侧：
+# donor 选输出值时，使用 host 的图嵌入作为上下文
+context_emb_np = info["host_ctx"]["emb"]
+```
+
+用自然语言来说：
+- 当 GNN 为**宿主**选择"哪些值作为输出"时，它看到的是**捐赠者算法**的信息（"这个捐赠者能提供什么？"），然后决定宿主的哪些部分适合被替换。
+- 当 GNN 为**捐赠者**选择"哪些值作为输出"时，它看到的是**宿主算法**的信息（"宿主需要什么类型/结构？"），然后决定捐赠者的哪些部分最匹配。
+
+**Mask 层：同样的 logits，不同的掩码**
+
+虽然 host 和 donor 使用同一个 `BoundaryRegionPolicy` 产生 logits，但在实际采样时施加的 mask 完全不同：
+
+| | Host 侧 | Donor 侧 |
+|---|---|---|
+| 输出采样 mask | `output_step_mask()` — 上界约束（不等式） | `donor_output_step_mask()` — 等号约束 + `BoundarySignature.exit_types` 类型匹配 |
+| Cut 采样 mask | `cut_step_mask()` — 上界约束 + `max_region_outputs` | `donor_cut_step_mask()` — 等号约束 + `BoundarySignature.entry_types` 类型匹配 |
+| 候选池 | Host 自己的 observable values | Donor 自己的 observable values |
+| 上下文嵌入 | `donor_ctx["emb"]` | `host_ctx["emb"]` |
+| 温度/探索 | `region_temperature` / `region_eps` | `donor_temperature` / `donor_eps` |
+
+**示例：为什么这个设计有效**
+
+假设 host 是一个使用复数矩阵的算法（类型 `mat_cx`），donor 是一个使用浮点向量的算法（类型 `vec_f`）。当 policy 为 host 选输出值时：
+
+1. Policy 看到 `donor_ctx["emb"]`（donor 的图嵌入，编码了"这个 donor 有很多浮点运算"的信息）
+2. Host 的候选值中有一个类型为 `mat_cx` 的值 v_H
+3. Policy 计算 `output_logit = f(ctx_donor, emb(v_H))`
+4. 由于 donor 是浮点类型而 v_H 是复数类型，policy 可能会给 v_H 一个较低的 logit（因为类型不兼容）
+
+然后 `output_step_mask`（host mask Layer 2）会进一步通过类型兼容性 + 连通性 + 可行性筛选来 mask 掉不合适的候选。
 
 #### 4.4.3 `CriticHead` — 状态值估计
 
@@ -1166,18 +1240,35 @@ class CriticHead(nn.Module):
         return net(cat([host_emb, donor_emb]))   # 1 维标量 V(s)
 ```
 
-**状态值函数 $V(s)$**：估计在给定一对 (host, donor) 的状态下，期望能获得的总奖励。这是一个 Actor-Critic RL 架构中的 Critic 部分。
+**状态值函数 $V(s)$**：估计在给定一对 (host, donor) 的状态下，期望能获得的总奖励。这是一个 Actor-Critic RL 架构中的 Critic 部分。它接收 host 和 donor 的图嵌入，输出一个标量——这对算法的"价值"。
 
 ### 4.5 整条 GNN 管线
 
-1. `_encode_entries(entries)` → 每个算法 IR → `ir_to_graph()` → `IRGraphEncoder` → 32 维向量
-2. `_score_pairs(entries)` → 对每对 (host, donor) 计算 `GraftScorer(emb_h, emb_d)`
-3. `_select_pair_candidates(scores)` → 按分数排序选 top-K 对
-4. `_propose_pairs(pairs)` → 对每对：
-   - `BoundaryRegionPolicy.output_logits()` → 采样 host 输出值
-   - `BoundaryRegionPolicy.cut_logits()` → 采样 host cut 值
-   - `define_rewrite_region(outputs, cuts)` → 构建 RewriteRegion
-   - 匹配 donor 区域 → `GraftProposal`
+```
+_encode_entries(entries)
+  → 每个算法 IR → ir_to_graph() → IRGraphEncoder.forward() → 32 维向量
+
+_score_pairs(entries)
+  → 对每对 (host, donor)：GraftScorer(emb_h, emb_d) → 标量 score
+
+_select_pair_candidates(scores)
+  → 按 score 排序选 top-K 对（warmstart 时均匀采样 2×cap）
+
+_propose_pairs(pairs) → 对每对执行完整的 9 层 mask 管线（见 3.2.5 节的流程图）：
+  Host 侧：
+    BoundaryRegionPolicy.output_logits(donor_emb, host_candidate_emb)
+    → + output_step_mask → 采样 host 输出值
+    BoundaryRegionPolicy.cut_logits(donor_emb, host_cut_candidate_emb)
+    → + cut_step_mask → 采样 host cut 值
+    → define_rewrite_region → validate → infer_boundary_contract → BoundarySignature
+  Donor 侧：
+    BoundaryRegionPolicy.output_logits(host_emb, donor_candidate_emb)
+    → + donor_output_step_mask → 采样 donor 输出值
+    BoundaryRegionPolicy.cut_logits(host_emb, donor_cut_candidate_emb)
+    → + donor_cut_step_mask → 采样 donor cut 值
+    → build BoundaryRegion + classify Case I/II/III
+    → GraftProposal
+```
 
 ---
 
@@ -1293,8 +1384,54 @@ $$- \lambda_{ent} \cdot H(\pi) - \lambda_{legal} \cdot H(\pi_{legal})$$
 
 ### 5.6 训练调度
 
-- **Warmstart 代**（前 `warmstart_gens` 代）：GNN 不训练，只是收集经验（探索）。`_score_pairs` 使用随机权重，`_select_pair_candidates` 均匀采样
-- **稳态代**：每 `train_interval` 代训练一次（做 `train_steps` 步梯度更新）。经验从 replay buffer 中采样，优先选择最近的、高奖励的经验
+训练调度由两个独立的门控机制共同决定：
+
+**门控 1：`__call__` 中的训练触发条件**（第 708 行）：
+
+```python
+# gnn_pattern_matcher.py, 第 708 行
+if generation > 0 and generation % self.train_interval == 0:
+    self._train_step(n_steps=self.train_steps)
+```
+
+当 `generation > 0`（即从第 1 代开始）且 `generation % train_interval == 0`（默认 `train_interval=1`，即每代都训练）时，`_train_step` 被调用。**此门控不检查 `is_warmstart_generation()`，因此 warmstart 代也不例外。**
+
+**门控 2：`_train_step` 内部的缓冲区大小检查**（第 2844 行）：
+
+```python
+# gnn_pattern_matcher.py, 第 2844 行
+matched = [
+    (exp, self._outcomes[exp["proposal_id"]])
+    for exp in self._experience
+    if exp["proposal_id"] in self._outcomes
+]
+if len(matched) < 2:
+    return  # 经验不足 → 跳过训练
+```
+
+`_train_step` 需要至少 2 个已匹配的经验（proposal 已发出且 outcome 已记录）才真正执行梯度更新。
+
+**两阶段的实际训练行为**：
+
+| 代 | 阶段 | `_train_step` 被调用？ | `len(matched) ≥ 2`？ | 实际训练？ |
+|---|---|------|------|------|
+| 第 1 代 | warmstart | ✅（generation=1, train_interval=1） | ❌（replay buffer 为空） | **不训练**（被门控 2 拦截） |
+| 第 2 代 | warmstart | ✅ | ✅（第 1 代已积累经验） | **训练** |
+| 第 3 代+ | warmstart | ✅ | ✅ | **训练** |
+| warmstart 之后 | 稳态 | ✅ | ✅ | **训练** |
+
+所以准确的说法是：**第 1 代不训练**（因为 replay buffer 为空），但从第 2 代开始——无论是否在 warmstart 阶段——GNN 都正常执行 `_train_step()`。
+
+**Warmstart 与稳态的真正区别**不在于是否训练，而在于：
+
+| 维度 | Warmstart | 稳态 |
+|------|----------|------|
+| Pair 选择 | `_select_pair_candidates` 均匀随机采样 2×cap 对 | GNN-scored 采样（带 host diversity cap） |
+| 最大 proposal 数 | `len(selected_pairs)`（全部选中对） | `max_proposals_per_gen` |
+| 经验权重 | 统一权重 | 优先最近的、高奖励的经验 |
+| 目标 | 广泛探索（cover 尽可能多的 host-donor 组合） | 精准利用（focus 在高潜力对） |
+
+经验记录（`record_outcome`）会将每次嫁接的结果写入 replay buffer，包含 host/donor embedding、选择的边界值、reward 和 mask 信息。这使得 GNN 能够从第 2 代起就开始"记住"过去的嫁接尝试并从中学习。
 
 经验记录（`record_outcome`）会被写入 replay buffer，包含 host/donor embedding、选择的边界值、reward 和 mask 信息。这使得 GNN 能够"记住"过去的嫁接尝试并从中学习。
 

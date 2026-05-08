@@ -52,12 +52,125 @@ _ALWAYS_TRIVIAL_OPCODES = frozenset({
 })
 
 
-def is_trivial_op(op: "Op", _ir: "FunctionIR" | None = None) -> bool:
+_ITER_TRIVIAL_PHI_CACHE_KEY = "_iter_trivial_phi_cache"
+
+
+def _compute_iterative_trivial_phi(
+    ir: "FunctionIR",
+) -> tuple[set[str], dict[str, str]]:
+    """Iteratively collapse trivial phi to a fixed point.
+
+    A phi is **iteratively trivial** if, after collapsing all other
+    iteratively-trivial phi to their canonical inputs, its non-self
+    inputs all reduce to the same value. This is the classic
+    "redundant phi elimination" used in SSA optimizers (Cytron et al.,
+    later refined by Briggs/Cooper).
+
+    The single-input ``is_trivial_op`` check only catches direct
+    ``phi(x, x)`` — but in nested loops, an outer phi like
+    ``phi(entry, inner_phi_output)`` is dead only after the inner phi
+    is recognized as trivial. Iterating to a fixed point handles this.
+
+    Returns
+    -------
+    (trivial_phi_ids, rep)
+        ``trivial_phi_ids`` is the set of phi ``op.id`` values that
+        collapse. ``rep`` maps each value-id to its canonical
+        representative (a value-id that is *not* defined by any
+        iteratively-trivial phi). Walk via ``find()``-style chasing.
+    """
+    rep: dict[str, str] = {}
+
+    def find(v: str) -> str:
+        # Path-compressed lookup.
+        path: list[str] = []
+        while rep.get(v, v) != v:
+            path.append(v)
+            v = rep[v]
+        for p in path:
+            rep[p] = v
+        return v
+
+    phi_ops = [op for op in ir.ops.values() if op.opcode == "phi"]
+    changed = True
+    while changed:
+        changed = False
+        for op in phi_ops:
+            if not op.outputs:
+                continue
+            out = op.outputs[0]
+            if find(out) != out:
+                continue  # already collapsed
+            # Canonicalize each input, dropping self-references that
+            # only refer back to this phi (loop carry of unmodified value).
+            canonical: list[str] = []
+            for inp in op.inputs:
+                fi = find(inp)
+                if fi != out:
+                    canonical.append(fi)
+            if not canonical:
+                continue
+            first = canonical[0]
+            if all(c == first for c in canonical[1:]):
+                rep[out] = first
+                changed = True
+
+    trivial_ids = {
+        op.id for op in phi_ops
+        if op.outputs and find(op.outputs[0]) != op.outputs[0]
+    }
+    return trivial_ids, rep
+
+
+def _get_iter_trivial_cache(
+    ir: "FunctionIR | None",
+) -> tuple[set[str], dict[str, str]] | tuple[None, None]:
+    """Return cached ``(trivial_phi_ids, rep)`` for ``ir``, computing on demand.
+
+    The cache is stashed on ``ir.attrs`` under a private key so it is
+    transparent to the rest of the system. Callers that mutate ``ir``
+    must invalidate via :func:`invalidate_iter_trivial_cache`.
+    """
+    if ir is None:
+        return None, None
+    cache = ir.attrs.get(_ITER_TRIVIAL_PHI_CACHE_KEY)
+    if cache is None:
+        cache = _compute_iterative_trivial_phi(ir)
+        ir.attrs[_ITER_TRIVIAL_PHI_CACHE_KEY] = cache
+    return cache
+
+
+def invalidate_iter_trivial_cache(ir: "FunctionIR") -> None:
+    """Drop the cached iterative-trivial-phi analysis after IR mutation."""
+    if ir is None:
+        return
+    ir.attrs.pop(_ITER_TRIVIAL_PHI_CACHE_KEY, None)
+
+
+def _canonical_value(ir: "FunctionIR | None", vid: str) -> str:
+    """Walk a value through any iteratively-trivial phi rep chain."""
+    if ir is None:
+        return vid
+    _, rep = _get_iter_trivial_cache(ir)
+    if not rep:
+        return vid
+    cur = vid
+    seen: set[str] = set()
+    while cur in rep and rep[cur] != cur:
+        if cur in seen:
+            return cur
+        seen.add(cur)
+        cur = rep[cur]
+    return cur
+
+
+def is_trivial_op(op: "Op", ir: "FunctionIR | None" = None) -> bool:
     """Return True iff ``op`` is a pure forwarder/constant.
 
-    The optional ``_ir`` parameter is reserved for future opcode rules
-    that may need to look up referenced values; current rules need only
-    the op itself.
+    When ``ir`` is provided, phi triviality is also checked against the
+    iterative fixed-point analysis (covers nested-loop phi chains where
+    the outer phi only becomes trivial after the inner phi collapses).
+    Without ``ir``, only the single-step ``phi(x, x)`` check is used.
     """
     if op is None:
         return False
@@ -69,7 +182,13 @@ def is_trivial_op(op: "Op", _ir: "FunctionIR" | None = None) -> bool:
         if not inputs:
             return True
         first = inputs[0]
-        return all(v == first for v in inputs[1:])
+        if all(v == first for v in inputs[1:]):
+            return True
+        if ir is not None:
+            trivial_ids, _ = _get_iter_trivial_cache(ir)
+            if trivial_ids and op.id in trivial_ids:
+                return True
+        return False
     return False
 
 
@@ -83,6 +202,8 @@ def visible_def_op(ir: "FunctionIR", value_id: str) -> "Op | None":
     seen: set[str] = set()
     current = value_id
     while True:
+        # Canonicalize through any iteratively-trivial phi chain first.
+        current = _canonical_value(ir, current)
         if current in seen:
             return None  # cycle guard (should not happen in well-formed SSA)
         seen.add(current)
@@ -98,7 +219,9 @@ def visible_def_op(ir: "FunctionIR", value_id: str) -> "Op | None":
         if not op.inputs:
             return None  # const has no predecessor
         if op.opcode == "phi":
-            # All inputs equal by triviality definition.
+            # All inputs equal by single-step triviality, OR the phi is
+            # iteratively trivial (handled by _canonical_value at the
+            # next loop iteration).
             current = op.inputs[0]
         else:
             # const handled above (no inputs); get_attr/assign have one input.
@@ -130,9 +253,9 @@ def visible_def_ops(ir: "FunctionIR", value_id: str) -> list["Op"]:
     out: list["Op"] = []
     seen_ops: set[str] = set()
     seen_vals: set[str] = set()
-    stack: list[str] = [value_id]
+    stack: list[str] = [_canonical_value(ir, value_id)]
     while stack:
-        vid = stack.pop()
+        vid = _canonical_value(ir, stack.pop())
         if vid in seen_vals:
             continue
         seen_vals.add(vid)
@@ -157,4 +280,5 @@ __all__ = [
     "is_trivial_value",
     "visible_def_op",
     "visible_def_ops",
+    "invalidate_iter_trivial_cache",
 ]
