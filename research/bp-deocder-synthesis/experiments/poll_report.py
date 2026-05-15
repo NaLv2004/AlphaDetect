@@ -222,12 +222,87 @@ def render_program(plist: List[Dict[str, Any]], max_chars: int = 360) -> str:
     return s
 
 
+# ------------------------------- structural skeleton ------------------------
+# A truthful, indented pretty-print of the program structure.  Unlike the LIVE
+# trace, this DOES expand Exec.DoTimes / Exec.DoRange / Exec.While / Exec.If /
+# Exec.When code blocks so the reader can see the real control flow that makes
+# the program permutation-invariant (typically a loop body containing
+# FVec.PopBack / FVec.At / FVec.Pop that consumes the incoming vector).
+_LOOP_OPS = {"Exec.DoTimes", "Exec.DoRange", "Exec.While", "Exec.DoCount"}
+_COND_OPS = {"Exec.If", "Exec.When", "Exec.Unless"}
+
+
+def _skel_lines(plist: List[Any], indent: int = 0) -> List[str]:
+    """Return a list of indented text lines for ``plist``.
+
+    Each instruction either prints as a single line ``<indent><op>`` or, if it
+    is a control-flow opcode with code blocks, as a header line followed by
+    the recursively-rendered body lines (and a closing ``end <op>`` line).
+    """
+    lines: List[str] = []
+    pad = "  " * indent
+    for ins in plist:
+        if not isinstance(ins, dict):
+            lines.append(f"{pad}{ins!r}")
+            continue
+        op = ins.get("name", ins.get("op", "?"))
+        body1 = ins.get("code_block")
+        body2 = ins.get("code_block2")
+        # Render extra immediate fields (anything other than name/op/body)
+        extras = {
+            k: v for k, v in ins.items()
+            if k not in ("name", "op", "code_block", "code_block2")
+        }
+        extras_str = (" " + " ".join(f"{k}={v}" for k, v in extras.items())
+                      if extras else "")
+        if op in _LOOP_OPS and isinstance(body1, list):
+            lines.append(f"{pad}{op}{extras_str} {{")
+            lines.extend(_skel_lines(body1, indent + 1))
+            lines.append(f"{pad}}}")
+        elif op in _COND_OPS:
+            if isinstance(body1, list) and isinstance(body2, list):
+                lines.append(f"{pad}{op}{extras_str} then {{")
+                lines.extend(_skel_lines(body1, indent + 1))
+                lines.append(f"{pad}}} else {{")
+                lines.extend(_skel_lines(body2, indent + 1))
+                lines.append(f"{pad}}}")
+            elif isinstance(body1, list):
+                lines.append(f"{pad}{op}{extras_str} {{")
+                lines.extend(_skel_lines(body1, indent + 1))
+                lines.append(f"{pad}}}")
+            else:
+                lines.append(f"{pad}{op}{extras_str}")
+        else:
+            lines.append(f"{pad}{op}{extras_str}")
+    return lines
+
+
+def render_skeleton(plist: List[Any], max_lines: int = 40) -> str:
+    """Return a structural, indented skeleton of the program.
+
+    Truncates at ``max_lines`` so output stays readable even for size-100
+    programs.  The skeleton is deliberately TRUTHFUL: it shows every operator
+    in the static program (including ones that may be no-ops at runtime when
+    a stack happens to be empty) so the reader can see the real control flow.
+    """
+    lines = _skel_lines(plist, indent=0)
+    if len(lines) > max_lines:
+        head = lines[: max_lines - 1]
+        head.append(f"  ... ({len(lines) - max_lines + 1} more lines)")
+        lines = head
+    return "\n".join("    " + ln for ln in lines)
+
+
 # ------------------------------- main --------------------------------------
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("run_name")
     ap.add_argument("--top-k", type=int, default=5)
     ap.add_argument("--max-chars", type=int, default=400)
+    ap.add_argument("--skeleton-lines", type=int, default=30,
+                    help="max lines per program in the structural skeleton view")
+    ap.add_argument("--no-skeleton", action="store_true",
+                    help="hide the structural skeleton view")
     args = ap.parse_args()
 
     rd = find_run_dir(args.run_name)
@@ -314,6 +389,11 @@ def main() -> int:
         print(f"  C2V [size={c_sz}, sample_out={c_tr.get('value')}]:")
         print(f"     LIVE: {(c_tr.get('live_expr') or '<empty>')[:args.max_chars]}")
         print(f"     MATH: {interpret(c_tr.get('live_expr'), evo_vals)[:args.max_chars]}")
+        if not args.no_skeleton:
+            print("  V2C SKELETON (truthful structure, loop bodies expanded):")
+            print(render_skeleton(r.get("v2c", []), args.skeleton_lines))
+            print("  C2V SKELETON (truthful structure, loop bodies expanded):")
+            print(render_skeleton(r.get("c2v", []), args.skeleton_lines))
         if is_new and i == 0:
             print(f"  CHAMPION RAW V2C: {render_program(r.get('v2c', []), args.max_chars)}")
             print(f"  CHAMPION RAW C2V: {render_program(r.get('c2v', []), args.max_chars)}")
