@@ -377,16 +377,32 @@ _BEHAV_DEFAULT_K: np.ndarray = np.array(
 )
 
 
-def _behav_fingerprint(side: str, prog) -> str:
+def _behav_fingerprint(side: str, prog,
+                        evo_consts: Optional[np.ndarray] = None,
+                        iter_idx: int = 0) -> str:
     """Quantized output vector on the fixed 32-entry behavioral panel.
 
     Bit-identical between Python and the C++ seeder (same panel, same
-    ``%.8g`` formatting, same ``|`` separator).  Programs whose entire
-    panel is non-finite collapse to the single bucket ``"NAN"`` (they
-    are functionally equivalent — useless decoders).
+    ``%.8g`` formatting, same ``|`` separator) **when called with
+    default arguments** (``evo_consts=None``, ``iter_idx=0``).
+
+    Parameters
+    ----------
+    evo_consts : np.ndarray, optional
+        Override the evolved-constant array fed to the VM.  Defaults to
+        ``_BEHAV_DEFAULT_K`` (the fixed dedup panel).  Pass the
+        genome's actual K values (``10 ** genome.log_constants``)
+        when using this fingerprint as a DCE oracle so that instructions
+        that reference ``ctx_evo_constants`` are not incorrectly pruned.
+    iter_idx : int
+        Value of ``ctx_iter`` fed to the VM.  Defaults to ``0`` for
+        backward compatibility with seeding-time dedup.  DCE callers
+        should sample multiple values (e.g., ``{0, 2, 4}``) to catch
+        instructions that are guarded by iteration count.
     """
     from .validators import _make_vm, _seed_v2c_stacks, _seed_c2v_stacks  # noqa: E402
 
+    panel_k = _BEHAV_DEFAULT_K if evo_consts is None else evo_consts
     outs: List[str] = []
     finite_count = 0
     for i in range(_BEHAV_PANEL_SIZE):
@@ -394,12 +410,12 @@ def _behav_fingerprint(side: str, prog) -> str:
             L_v = float(_BEHAV_PANEL_V2C_LV[i])
             incoming = _BEHAV_PANEL_V2C_INC[i]
             vm = _make_vm(incoming, channel_llr=L_v, deg=_BEHAV_DEG,
-                          iter_idx=0, evo_consts=_BEHAV_DEFAULT_K)
+                          iter_idx=iter_idx, evo_consts=panel_k)
             _seed_v2c_stacks(vm)
         else:
             incoming = _BEHAV_PANEL_C2V_INC[i]
             vm = _make_vm(incoming, has_channel_llr=False, deg=_BEHAV_DEG,
-                          iter_idx=0, evo_consts=_BEHAV_DEFAULT_K)
+                          iter_idx=iter_idx, evo_consts=panel_k)
             _seed_c2v_stacks(vm)
         try:
             out = vm.run(prog)
