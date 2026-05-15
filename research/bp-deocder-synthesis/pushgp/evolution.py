@@ -59,6 +59,11 @@ class EvolutionConfig:
     n_mutations_max: int = 6
     # Reject duplicates by structural fingerprint.
     dedup: bool = True
+    # If True, use C++ pybind11 seeder (pushgp_cpp_seeder.parallel_seed)
+    # instead of the Python multiprocessing pipeline for the *initial*
+    # random fill (and dedup top-up) of pop_v / pop_c.  Bit-identical VM
+    # and validator semantics; ~7x faster on pop=100.
+    cpp_seeder: bool = False
 
 
 @dataclass
@@ -516,6 +521,13 @@ def evolve_from_scratch(
     rng = np.random.default_rng(cfg.seed)
     rpg = RandomProgramGenerator(rng=rng)
 
+    # Choose seeding backend (Python multiprocessing or C++ pybind11).
+    if cfg.cpp_seeder:
+        from .cpp_seeder_adapter import cpp_parallel_fill_random as _fill_random
+        print("[init] using C++ seeder (pushgp_cpp_seeder.parallel_seed)", flush=True)
+    else:
+        _fill_random = parallel_fill_random
+
     # Persistent pool reused across gens for both init and offspring
     # validation (avoids spawning overhead).
     from multiprocessing import Pool
@@ -538,7 +550,7 @@ def evolve_from_scratch(
                 flush=True,
             )
 
-        pop_v, v_attempts = parallel_fill_random(
+        pop_v, v_attempts = _fill_random(
             "v2c", cfg.pop_size,
             max_attempts=cfg.max_attempts_per_slot * cfg.pop_size * 1000,
             workers=workers,
@@ -548,7 +560,7 @@ def evolve_from_scratch(
             pool=pool,
             progress_cb=_seed_progress,
         )
-        pop_c, c_attempts = parallel_fill_random(
+        pop_c, c_attempts = _fill_random(
             "c2v", cfg.pop_size,
             max_attempts=cfg.max_attempts_per_slot * cfg.pop_size * 1000,
             workers=workers,
@@ -573,7 +585,7 @@ def evolve_from_scratch(
                 seen_v.add(fp)
                 uniq_v.append(p)
             while len(uniq_v) < cfg.pop_size:
-                extra, n_extra = parallel_fill_random(
+                extra, n_extra = _fill_random(
                     "v2c", cfg.pop_size - len(uniq_v),
                     max_attempts=cfg.max_attempts_per_slot * cfg.pop_size * 100,
                     workers=workers, chunk_attempts=2000,
@@ -602,7 +614,7 @@ def evolve_from_scratch(
                 seen_c.add(fp)
                 uniq_c.append(p)
             while len(uniq_c) < cfg.pop_size:
-                extra, n_extra = parallel_fill_random(
+                extra, n_extra = _fill_random(
                     "c2v", cfg.pop_size - len(uniq_c),
                     max_attempts=cfg.max_attempts_per_slot * cfg.pop_size * 100,
                     workers=workers, chunk_attempts=2000,

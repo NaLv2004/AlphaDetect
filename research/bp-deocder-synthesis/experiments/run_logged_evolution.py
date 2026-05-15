@@ -85,6 +85,11 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--workers", type=int, default=DEFAULT_WORKERS,
                    help="Multiprocessing pool size for parallel random "
                         "init + offspring validation.")
+    p.add_argument("--cpp-seeder", dest="cpp_seeder", action="store_true",
+                   default=False,
+                   help="Use C++ pybind11 seeder (pushgp_cpp_seeder) for "
+                        "initial random fill of pop_v / pop_c. Bit-identical "
+                        "VM/validator semantics; ~7x faster than Python.")
     return p.parse_args()
 
 
@@ -293,6 +298,7 @@ def main() -> int:
         rand_min_size=args.rand_min_size,
         rand_max_size=args.rand_max_size,
         dedup=args.dedup,
+        cpp_seeder=args.cpp_seeder,
     )
 
     meta = {
