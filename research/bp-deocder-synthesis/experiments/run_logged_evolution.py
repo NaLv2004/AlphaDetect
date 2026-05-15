@@ -111,6 +111,10 @@ class GenerationLogger:
         self.sum_path = out_dir / "gen_summary.jsonl"
         self.fit_cfg = fit_cfg
         self._cache: Dict[int, GenomeMetrics] = {}
+        # Optional ParallelPairEvaluator: if set, on_generation_two_pop
+        # will pull metrics from `parallel_eval.last_metrics` instead of
+        # re-running evaluate_genome_with_ber for each individual.
+        self.parallel_eval = None
 
     def fitness_fn(self, g: Genome) -> float:
         m = evaluate_genome_with_ber(g, self.fit_cfg)
@@ -184,10 +188,12 @@ class GenerationLogger:
                            prog_c2v=deep_copy_program(c_prog),
                            log_constants=k.copy())
                 gd = genome_to_dict(g)
-                # Quick re-eval to recover BER/FER (cached in evolve loop
-                # only inside the worker; here we fall through to the
-                # full eval — same cost as the search itself).
-                m = evaluate_genome_with_ber(g, self.fit_cfg)
+                # Prefer pre-computed metrics from the parallel evaluator.
+                pe = self.parallel_eval
+                if pe is not None and i < len(pe.last_metrics):
+                    m = pe.last_metrics[i]
+                else:
+                    m = evaluate_genome_with_ber(g, self.fit_cfg)
                 rec = {
                     "gen": int(gen_log.gen),
                     "idx": int(i),
@@ -369,12 +375,22 @@ def main() -> int:
 
     t0 = time.time()
     if args.from_scratch:
-        # Two-pop evolve_from_scratch: fitness fn evaluates a Genome triple.
-        res = evolve_from_scratch(
-            logger.fitness_fn, ev_cfg,
-            workers=args.workers,
-            on_generation=logger.on_generation_two_pop,
-        )
+        # Two-pop evolve_from_scratch with parallel pair-fitness eval.
+        from pushgp_ldpc.parallel_eval import ParallelPairEvaluator
+        eval_workers = max(1, args.workers)
+        print(f"[init] starting ParallelPairEvaluator with {eval_workers} workers",
+              flush=True)
+        pev = ParallelPairEvaluator(fit_cfg, eval_workers)
+        logger.parallel_eval = pev
+        try:
+            res = evolve_from_scratch(
+                logger.fitness_fn, ev_cfg,
+                workers=args.workers,
+                batch_eval_fn=pev.eval_pairs,
+                on_generation=logger.on_generation_two_pop,
+            )
+        finally:
+            pev.close()
     else:
         # Legacy single-pop evolve with init-eval progress.
         n_seen = [0]

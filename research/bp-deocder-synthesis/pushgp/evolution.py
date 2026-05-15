@@ -390,6 +390,7 @@ def evolve_from_scratch(
     cfg: "EvolutionConfig",
     *,
     workers: int = DEFAULT_WORKERS,
+    batch_eval_fn: Optional[Callable[[List, List, List, List[int]], List[float]]] = None,
     on_generation: Optional[Callable[
         [TwoPopGenLog, List, List, List, List[int], List[float]], None
     ]] = None,
@@ -514,8 +515,15 @@ def evolve_from_scratch(
 
         # ---- 2. Initial fitness evaluation via positional pairing -----
         perm = list(rng.permutation(cfg.pop_size))
-        fits = _eval_pairs(pop_v, pop_c, pop_k, perm, fitness_pair_fn,
-                           prefix="[init-eval]")
+        if batch_eval_fn is not None:
+            t_e = time.time()
+            fits = batch_eval_fn(pop_v, pop_c, pop_k, perm)
+            print(f"[init-eval] {len(fits)} pairs in {time.time()-t_e:.1f}s "
+                  f"(parallel)  best={min(fits):+.4f} med={float(np.median(fits)):+.4f}",
+                  flush=True)
+        else:
+            fits = _eval_pairs(pop_v, pop_c, pop_k, perm, fitness_pair_fn,
+                               prefix="[init-eval]")
 
         history: List[TwoPopGenLog] = []
 
@@ -546,10 +554,18 @@ def evolve_from_scratch(
             pop_v, pop_c, pop_k = new_pop_v, new_pop_c, new_pop_k
 
             perm = list(rng.permutation(cfg.pop_size))
-            fits = _eval_pairs(
-                pop_v, pop_c, pop_k, perm, fitness_pair_fn,
-                prefix=f"[gen {gen_idx}]",
-            )
+            if batch_eval_fn is not None:
+                t_e = time.time()
+                fits = batch_eval_fn(pop_v, pop_c, pop_k, perm)
+                print(f"[gen {gen_idx}] eval {len(fits)} pairs in "
+                      f"{time.time()-t_e:.1f}s (parallel)  "
+                      f"best={min(fits):+.4f} med={float(np.median(fits)):+.4f}",
+                      flush=True)
+            else:
+                fits = _eval_pairs(
+                    pop_v, pop_c, pop_k, perm, fitness_pair_fn,
+                    prefix=f"[gen {gen_idx}]",
+                )
 
             f_arr = np.asarray(fits, dtype=np.float64)
             f_arr = np.where(np.isfinite(f_arr), f_arr, np.inf)

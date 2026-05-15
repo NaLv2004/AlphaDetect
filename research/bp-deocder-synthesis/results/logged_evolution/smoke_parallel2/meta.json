@@ -1,0 +1,33 @@
+{
+  "run_name": "smoke_parallel2",
+  "started_at": "2026-05-15T17:35:40",
+  "from_scratch": true,
+  "code": {
+    "bgn": 2,
+    "set_idx": 1,
+    "zc": 2,
+    "N": 104,
+    "M": 84
+  },
+  "snr_list_db": [
+    -1.0,
+    0.0
+  ],
+  "n_frames_per_snr": 6,
+  "max_iter": 8,
+  "evolution": {
+    "pop_size": 16,
+    "generations": 2,
+    "elitism": 2,
+    "tournament_k": 3,
+    "p_crossover": 0.7,
+    "n_mutations": 2,
+    "n_mutations_max": 6,
+    "p_const_tweak": 0.25,
+    "seed": 42,
+    "dedup": true,
+    "max_attempts_per_slot": 500,
+    "rand_min_size": 4,
+    "rand_max_size": 30
+  }
+}

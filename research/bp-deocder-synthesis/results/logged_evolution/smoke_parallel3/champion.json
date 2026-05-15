@@ -1,0 +1,137 @@
+{
+  "prog_v2c": [
+    {
+      "name": "Float.Mul"
+    },
+    {
+      "name": "Exec.DoTimes",
+      "code_block": [
+        {
+          "name": "Float.Sub"
+        },
+        {
+          "name": "Int.Mod"
+        },
+        {
+          "name": "Bool.False"
+        },
+        {
+          "name": "FVec.PopBack"
+        },
+        {
+          "name": "Int.Add"
+        },
+        {
+          "name": "IVec.Set"
+        },
+        {
+          "name": "Env.GetDeg"
+        },
+        {
+          "name": "Exec.While",
+          "code_block": [
+            {
+              "name": "Bool.Or"
+            },
+            {
+              "name": "Float.Const1"
+            },
+            {
+              "name": "Float.FromInt"
+            },
+            {
+              "name": "IVec.Reverse"
+            },
+            {
+              "name": "Int.Dec"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Float.FromInt"
+    },
+    {
+      "name": "Float.Pop"
+    },
+    {
+      "name": "Env.GetMaxIter"
+    },
+    {
+      "name": "Bool.Xor"
+    },
+    {
+      "name": "IVec.Push"
+    }
+  ],
+  "prog_c2v": [
+    {
+      "name": "Exec.When",
+      "code_block": [
+        {
+          "name": "Float.ConstNeg1"
+        },
+        {
+          "name": "BVec.Dup"
+        },
+        {
+          "name": "FVec.Len"
+        },
+        {
+          "name": "Exec.DoRange",
+          "code_block": [
+            {
+              "name": "Float.Min"
+            },
+            {
+              "name": "BVec.Concat"
+            },
+            {
+              "name": "FVec.FromFloat"
+            }
+          ]
+        },
+        {
+          "name": "Mem.Read"
+        }
+      ]
+    },
+    {
+      "name": "BVec.Concat"
+    },
+    {
+      "name": "Int.FromFloat"
+    },
+    {
+      "name": "Exec.DoTimes",
+      "code_block": [
+        {
+          "name": "FVec.PopBack"
+        },
+        {
+          "name": "Float.Mul"
+        },
+        {
+          "name": "Env.GetMaxIter"
+        },
+        {
+          "name": "Int.Mul"
+        }
+      ]
+    },
+    {
+      "name": "FVec.Pop"
+    }
+  ],
+  "log_constants": [
+    -2.6962814262093793,
+    -0.5134077289275368,
+    0.41104350316042704,
+    -2.284976854068848,
+    -0.9514494838653702,
+    0.02731049491888493,
+    -1.1762093365656696,
+    -0.4929819890812315
+  ]
+}

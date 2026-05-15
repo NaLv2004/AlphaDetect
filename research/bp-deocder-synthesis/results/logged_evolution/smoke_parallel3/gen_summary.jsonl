@@ -1,0 +1,2 @@
+{"gen": 0, "best_fit": -0.7138851973972665, "mean_fit": -0.6132971980237245, "median_fit": -0.6954831310574732, "v_offspring_attempts": 71, "v_offspring_invalid": 41, "c_offspring_attempts": 160, "c_offspring_invalid": 130, "elapsed_s": 18.264976024627686}
+{"gen": 1, "best_fit": -0.7138851973972665, "mean_fit": -0.6493489436851986, "median_fit": -0.7138851973972665, "v_offspring_attempts": 52, "v_offspring_invalid": 29, "c_offspring_attempts": 53, "c_offspring_invalid": 33, "elapsed_s": 20.17767071723938}

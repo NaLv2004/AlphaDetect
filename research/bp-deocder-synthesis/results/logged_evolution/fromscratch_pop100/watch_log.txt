@@ -1,0 +1,124 @@
+
+==============================================================================
+[2026-05-15 16:56:03] poll #1  (individuals.jsonl bytes=0)
+==============================================================================
+[poll] run dir: results\logged_evolution\fromscratch_pop100
+[OMS baseline] fit=-1.0950549162658938  BER=[0.11217948717948718, 0.04006410256410257, 0.11538461538461539]
+
+=== generation distribution (best / mean / median / worst) ===
+
+[poll] no individuals yet (init still running).
+
+
+==============================================================================
+[2026-05-15 17:30:04] poll #35  (individuals.jsonl bytes=8703)
+==============================================================================
+[poll] run dir: results\logged_evolution\fromscratch_pop100
+[OMS baseline] fit=-1.0950549162658938  BER=[0.11217948717948718, 0.04006410256410257, 0.11538461538461539]
+
+=== generation distribution (best / mean / median / worst) ===
+
+=== gen 0  pop_size=4 ===
+  fit:  best=-0.6415  med=-0.4664  mean=-0.4657  worst=-0.2887  valid=4/4
+
+*** NEW CHAMPION: gen=0  fit=-0.6415  (prev best=+inf) ***
+
+--- #1  v=82 c=2  fit=-0.6415  BER=[0.258, 0.216, 0.213]  valid=True
+  V2C [size=23, sample_out=968629901546.7632]:
+     LIVE: Float.Square(Float.Square(Float.Abs(Float.Abs(Float.Div(Float.Abs(Float.Div(Float.Abs(Float.Div(Float.Abs(Float.Div(Float.Abs(Float.Div(Float.Abs(Float.Div(Float.Abs(Float.Div(L_v, FVec.PopBack)), FVec.PopBack)), FVec.PopBack)), FVec.PopBack)), FVec.PopBack)), FVec.PopBack)), FVec.PopBack)))))
+     MATH: sq(sq(abs(abs((abs((abs((abs((abs((abs((abs((Lv/m1))/m2))/m3))/m4))/m5))/m6))/m7)))))    [uses channel LLR; refs 7 neighbor msgs]
+  C2V [size=10, sample_out=-99.8808000966333]:
+     LIVE: Float.Div(Float.Div(Float.Div(Float.Div(Float.Div(Float.Div(Float.Div(Float.EvoConst3, FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack)
+     MATH: (((((((K3(0.0503)/m1)/m2)/m3)/m4)/m5)/m6)/m7)    [ignores channel LLR; refs 7 neighbor msgs]
+  CHAMPION RAW V2C: Exec.DoTimes{Float.LT ; FVec.PopBack ; Float.Div ; Float.Abs} ; Int.Mod ; Int.Add ; Float.Swap ; Int.Const0 ; IVec.Len ; Int.Add ; FVec.Concat ; BVec.Concat ; BVec.Set ; FVec.Concat ; FVec.Len ; Env.GetDeg ; BVec.Reverse ; IVec.Set ; BVec.Slice ; Float.Square ; Float.Dup ; Float.Square
+  CHAMPION RAW C2V: Float.EvoConst3 ; Exec.DoTimes{FVec.PopBack ; Float.Div ; Int.Max ; Int.Const1 ; BVec.Set ; Int.Min} ; Env.GetDeg ; Float.Mul
+  K (log10): [+2.25, -0.83, +1.47, -1.30, -1.98, +1.63, +2.94, +0.53]
+
+--- #2  v=72 c=3  fit=-0.6400  BER=[0.263, 0.210, 0.218]  valid=True
+  V2C [size=27, sample_out=-0.00042000000000000007]:
+     LIVE: Float.Mul(Float.Mul(Float.Mul(Float.Mul(Float.Mul(Float.Mul(L_v, FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack)
+     MATH: ((((((Lv*m1)*m2)*m3)*m4)*m5)*m6)    [uses channel LLR; refs 6 neighbor msgs]
+  C2V [size=52, sample_out=0.015297786704804821]:
+     LIVE: Float.Mul(Float.Add(Float.Add(Float.Add(Float.Add(Float.Add(Float.Add(Float.Add(Float.Const1e-6, FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack), Float.EvoConst5)
+     MATH: ((((((((Float.Const1e+m1)+m2)+m3)+m4)+m5)+m6)+m7)*K5(0.0765))    [ignores channel LLR; refs 7 neighbor msgs]
+  K (log10): [+1.32, +0.30, -0.61, +3.00, +0.96, -1.12, +1.77, +1.76]
+
+--- #3  v=69 c=0  fit=-0.2928  BER=[0.510, 0.510, 0.510]  valid=True
+  V2C [size=42, sample_out=17.213071270168477]:
+     LIVE: Float.Add(Float.Add(Float.Add(Float.Add(Float.Square(L_v), Float.Add(Float.Inv(Float.Const0_1), Float.Add(Float.Add(Float.Add(Float.Inv(Float.EvoConst1), FVec.PopBack), Float.Add(Float.Add(Float.Add(Float.Inv(Float.EvoConst1), FVec.PopBack), FVec.PopBack), Float.Add(Float.Add(Float.Add(Float.Add(Float.Inv(Float.EvoConst1), FVec.PopBack), FVec.PopBack), FVec.PopBack), Float.Add(Float.Inv(Float.EvoC
+     MATH: ((((sq(Lv)+(inv(0.1)+(((inv(K1(1.28))+m1)+(((inv(K1(1.28))+m2)+m3)+((((inv(K1(1.28))+m4)+m5)+m6)+(inv(K1(1.28))+m7))))+inv(K1(1.28)))))+inv(K1(1.28)))+inv(K1(1.28)))+K1(1.28))    [uses channel LLR; refs 7 neighbor msgs]
+  C2V [size=58, sample_out=0.2]:
+     LIVE: Float.Add(Float.Add(Float.Add(Float.Add(Float.Add(Float.Add(FVec.PopBack, FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack)
+     MATH: ((((((m1+m2)+m3)+m4)+m5)+m6)+m7)    [ignores channel LLR; refs 7 neighbor msgs]
+  K (log10): [-1.33, +0.11, +1.83, +1.60, +0.44, +2.11, +2.11, -0.77]
+
+--- #4  v=7 c=1  fit=-0.2887  BER=[0.514, 0.514, 0.514]  valid=True
+  V2C [size=19, sample_out=0.8999999999999999]:
+     LIVE: Float.Sub(Float.Sub(Float.Sub(Float.Sub(Float.Sub(Float.Sub(L_v, FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack)
+     MATH: ((((((Lv-m1)-m2)-m3)-m4)-m5)-m6)    [uses channel LLR; refs 6 neighbor msgs]
+  C2V [size=25, sample_out=64.854464634164]:
+     LIVE: Float.Abs(Float.Abs(Float.Abs(Float.Abs(Float.Abs(Float.Abs(Float.Mul(Float.Abs(Float.Abs(Float.Abs(Float.Mul(Float.Ceil(Float.Const0_1), Float.Abs(Float.Mul(Float.Tanh(Env.GetNoiseVar), Float.Abs(Float.Mul(Float.Mul(Float.Const1, Float.Abs(Float.Mul(Float.Mul(Float.Mul(Float.Mul(Float.Const1, Float.Abs(Float.EvoConst7)), Float.Abs(FVec.PopBack)), Float.Abs(FVec.PopBack)), Float.Abs(Float.Mul(Floa
+     MATH: abs(abs(abs(abs(abs(abs((abs(abs(abs((ceil(0.1)*abs((tanh(Env.GetNoiseVar)*abs(((1*abs(((((1*abs(K7(17.6)))*abs(m1))*abs(m2))*abs((((((0.1*abs(K7(17.6)))*abs(m3))*abs(m4))*abs(m5))*abs(((m6*abs(K7(17.6)))*abs(m7))))))))*abs(K7(17.6))))))))))*abs(K7(17.6)))))))))    [ignores channel LLR; refs 7 neighbor msgs]
+  K (log10): [-2.96, +0.37, -2.62, -2.40, -2.33, -2.70, -2.95, +1.25]
+
+
+==============================================================================
+[2026-05-15 17:31:04] poll #36  (individuals.jsonl bytes=18482)
+==============================================================================
+[poll] run dir: results\logged_evolution\fromscratch_pop100
+[OMS baseline] fit=-1.0950549162658938  BER=[0.11217948717948718, 0.04006410256410257, 0.11538461538461539]
+
+=== generation distribution (best / mean / median / worst) ===
+
+=== gen 0  pop_size=8 ===
+  fit:  best=-0.6439  med=-0.6407  mean=-0.5260  worst=-0.2887  valid=8/8
+
+*** NEW CHAMPION: gen=0  fit=-0.6439  (prev best=-0.6415) ***
+
+--- #1  v=66 c=6  fit=-0.6439  BER=[0.268, 0.208, 0.210]  valid=True
+  V2C [size=64, sample_out=447786397.8224131]:
+     LIVE: Float.Div(Float.Div(Float.Div(L_v, Float.Div(FVec.PopBack, Float.Div(Float.Div(Float.ConstNeg1, Float.Div(FVec.PopBack, Float.Div(Float.ConstNeg1, Float.Div(FVec.PopBack, Float.Div(Float.Div(Float.ConstNeg1, Float.Div(FVec.PopBack, Float.Div(Float.ConstNeg1, Float.Div(Float.Div(FVec.PopBack, Float.Div(Float.ConstNeg1, Float.Div(Float.Div(FVec.PopBack, Float.Div(Float.Div(Float.ConstNeg1, Float.Mul
+     MATH: (((Lv/(m1/((-1/(m2/(-1/(m3/((-1/(m4/(-1/((m5/(-1/((m6/((-1/(m7*neg((-1*(-1*K7(0.0779))))))/K1(0.0305)))/K1(0.0305))))/K1(0.0305)))))/K1(0.0305))))))/K1(0.0305))))/K1(0.0305))/K1(0.0305))    [uses channel LLR; refs 7 neighbor msgs]
+  C2V [size=43, sample_out=5.000000000000002e-06]:
+     LIVE: Float.Mul(Float.Mul(Float.Mul(Float.Mul(Float.Mul(FVec.PopBack, Float.Const0_1), Float.Const0_1), Float.Const0_1), Float.Const0_1), Float.Const0_1)
+     MATH: (((((m1*0.1)*0.1)*0.1)*0.1)*0.1)    [ignores channel LLR; refs 1 neighbor msgs]
+  CHAMPION RAW V2C: Float.Min ; Exec.If{Int.LT ; Float.LT ; IVec.Set ; Exec.While{BVec.New}}{Bool.Not ; BVec.Len} ; Exec.DoTimes{FVec.PopBack ; BVec.Len ; IVec.New ; Float.ConstNeg1 ; Exec.DoRange{Env.GetDeg ; BVec.Push ; Int.Sub ; Int.Const2 ; Env.GetMaxIter} ; Int.Pop} ; Float.EvoConst7 ; Float.Mul ; FVec.Reverse ; FVec.Dup ; Int.Min ; Exec.When{Float.Log ; Float.Const0} ; FVec.Reverse ; Float.Mul ; IVec.Slice ;...
+  CHAMPION RAW C2V: Float.Min ; Int.Dec ; Exec.If{Exec.If{BVec.PopBack ; Int.Const0 ; Bool.True ; Float.EQ}{Float.EvoConst3 ; IVec.New} ; Bool.Xor ; Int.GT ; Int.LT ; Mem.WriteVec ; Exec.DoRange{IVec.Concat ; Int.Mul ; Int.Div ; Float.EvoConst6 ; IVec.At}}{FVec.At ; Float.Log ; Int.Min ; Float.GT ; FVec.Len ; Int.ConstNeg1} ; Float.Shove ; FVec.PopBack ; Exec.When{Env.GetNoiseVar ; Float.FromInt ; Float.GT} ; BVec...
+  K (log10): [-1.35, -1.52, -2.48, +1.07, -0.81, -0.42, +2.94, -1.11]
+
+--- #2  v=48 c=7  fit=-0.6427  BER=[0.247, 0.224, 0.213]  valid=True
+  V2C [size=38, sample_out=-0.10478618399054107]:
+     LIVE: Float.Div(Float.Mul(Float.Mul(Float.Mul(Float.Mul(Float.Mul(Float.Mul(L_v, FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack), Float.Add(Float.Const0, Float.EvoConst3))
+     MATH: (((((((Lv*m1)*m2)*m3)*m4)*m5)*m6)/(0+K3(0.00401)))    [uses channel LLR; refs 6 neighbor msgs]
+  C2V [size=38, sample_out=5.000000000000002e-06]:
+     LIVE: Float.Mul(Float.Mul(Float.Mul(Float.Mul(Float.Mul(FVec.PopBack, Float.Const0_1), Float.Const0_1), Float.Const0_1), Float.Const0_1), Float.Const0_1)
+     MATH: (((((m1*0.1)*0.1)*0.1)*0.1)*0.1)    [ignores channel LLR; refs 1 neighbor msgs]
+  K (log10): [-2.96, -0.12, -2.62, -2.40, -2.33, -2.70, -3.00, +1.25]
+
+--- #3  v=33 c=4  fit=-0.6426  BER=[0.258, 0.216, 0.212]  valid=True
+  V2C [size=28, sample_out=0.6]:
+     LIVE: Float.Abs(FVec.PopBack)
+     MATH: abs(m1)    [ignores channel LLR; refs 1 neighbor msgs]
+  C2V [size=28, sample_out=-0.007367564272642374]:
+     LIVE: Float.Mod(FVec.PopBack, Float.Div(Float.Exp(FVec.At(Int.Neg)), FVec.At(Int.Min(v_index, Int.Neg(Int.Neg(Int.Neg(Int.Neg(Int.Neg(Int.Neg(deg))))))))))
+     MATH: Float.Mod(m1, (exp(FVec.At(Int.Neg))/FVec.At(Int.Min(v_index, Int.Neg(Int.Neg(Int.Neg(Int.Neg(Int.Neg(Int.Neg(deg))))))))))    [ignores channel LLR; refs 1 neighbor msgs]
+  K (log10): [+1.67, +2.51, -2.23, -1.49, +2.40, +3.00, +2.41, +2.68]
+
+--- #4  v=82 c=2  fit=-0.6415  BER=[0.258, 0.216, 0.213]  valid=True
+  V2C [size=23, sample_out=968629901546.7632]:
+     LIVE: Float.Square(Float.Square(Float.Abs(Float.Abs(Float.Div(Float.Abs(Float.Div(Float.Abs(Float.Div(Float.Abs(Float.Div(Float.Abs(Float.Div(Float.Abs(Float.Div(Float.Abs(Float.Div(L_v, FVec.PopBack)), FVec.PopBack)), FVec.PopBack)), FVec.PopBack)), FVec.PopBack)), FVec.PopBack)), FVec.PopBack)))))
+     MATH: sq(sq(abs(abs((abs((abs((abs((abs((abs((abs((Lv/m1))/m2))/m3))/m4))/m5))/m6))/m7)))))    [uses channel LLR; refs 7 neighbor msgs]
+  C2V [size=10, sample_out=-99.8808000966333]:
+     LIVE: Float.Div(Float.Div(Float.Div(Float.Div(Float.Div(Float.Div(Float.Div(Float.EvoConst3, FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack)
+     MATH: (((((((K3(0.0503)/m1)/m2)/m3)/m4)/m5)/m6)/m7)    [ignores channel LLR; refs 7 neighbor msgs]
+  K (log10): [+2.25, -0.83, +1.47, -1.30, -1.98, +1.63, +2.94, +0.53]
+
+--- #5  v=72 c=3  fit=-0.6400  BER=[0.263, 0.210, 0.218]  valid=True
+  V2C [size=27, sample_out=-0.00042000000000000007]:
+     LIVE: Float.Mul(Float.Mul(Float.Mul(Float.Mul(Float.Mul(Float.Mul(L_v, FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack)
+     MATH: ((((((Lv*m1)*m2)*m3)*m4)*m5)*m6)    [uses channel LLR; refs 6 neighbor msgs]
+  C2V [size=52, sample_out=0.015297786704804821]:
+     LIVE: Float.Mul(Float.Add(Float.Add(Float.Add(Float.Add(Float.Add(Float.Add(Float.Add(Float.Const1e-6, FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack), Float.EvoConst5)
+     MATH: ((((((((Float.Const1e+m1)+m2)+m3)+m4)+m5)+m6)+m7)*K5(0.0765))    [ignores channel LLR; refs 7 neighbor msgs]
+  K (log10): [+1.32, +0.30, -0.61, +3.00, +0.96, -1.12, +1.77, +1.76]
+
