@@ -1,0 +1,182 @@
+[
+  {
+    "ebno_db": -1.0,
+    "oms": {
+      "frames": 241,
+      "frame_errors": 50,
+      "bit_errors": 260,
+      "info_bits": 4820,
+      "BER": 0.05394190871369295,
+      "FER": 0.2074688796680498,
+      "avg_iter": 5.435684647302905
+    },
+    "uncoded": {
+      "bits": 24100,
+      "bit_errors": 4502,
+      "frame_errors": 241,
+      "frames": 241,
+      "BER": 0.18680497925311204,
+      "FER": 1.0
+    }
+  },
+  {
+    "ebno_db": -0.75,
+    "oms": {
+      "frames": 385,
+      "frame_errors": 50,
+      "bit_errors": 286,
+      "info_bits": 7700,
+      "BER": 0.037142857142857144,
+      "FER": 0.12987012987012986,
+      "avg_iter": 4.9818181818181815
+    },
+    "uncoded": {
+      "bits": 38500,
+      "bit_errors": 6857,
+      "frame_errors": 385,
+      "frames": 385,
+      "BER": 0.1781038961038961,
+      "FER": 1.0
+    }
+  },
+  {
+    "ebno_db": -0.5,
+    "oms": {
+      "frames": 485,
+      "frame_errors": 50,
+      "bit_errors": 300,
+      "info_bits": 9700,
+      "BER": 0.030927835051546393,
+      "FER": 0.10309278350515463,
+      "avg_iter": 4.703092783505155
+    },
+    "uncoded": {
+      "bits": 48500,
+      "bit_errors": 8254,
+      "frame_errors": 485,
+      "frames": 485,
+      "BER": 0.1701855670103093,
+      "FER": 1.0
+    }
+  },
+  {
+    "ebno_db": -0.25,
+    "oms": {
+      "frames": 500,
+      "frame_errors": 50,
+      "bit_errors": 277,
+      "info_bits": 10000,
+      "BER": 0.0277,
+      "FER": 0.1,
+      "avg_iter": 4.626
+    },
+    "uncoded": {
+      "bits": 50000,
+      "bit_errors": 8268,
+      "frame_errors": 500,
+      "frames": 500,
+      "BER": 0.16536,
+      "FER": 1.0
+    }
+  },
+  {
+    "ebno_db": 0.0,
+    "oms": {
+      "frames": 715,
+      "frame_errors": 50,
+      "bit_errors": 294,
+      "info_bits": 14300,
+      "BER": 0.020559440559440558,
+      "FER": 0.06993006993006994,
+      "avg_iter": 4.3552447552447555
+    },
+    "uncoded": {
+      "bits": 71500,
+      "bit_errors": 11272,
+      "frame_errors": 715,
+      "frames": 715,
+      "BER": 0.15765034965034966,
+      "FER": 1.0
+    }
+  },
+  {
+    "ebno_db": 0.25,
+    "oms": {
+      "frames": 786,
+      "frame_errors": 50,
+      "bit_errors": 312,
+      "info_bits": 15720,
+      "BER": 0.01984732824427481,
+      "FER": 0.06361323155216285,
+      "avg_iter": 4.236641221374046
+    },
+    "uncoded": {
+      "bits": 78600,
+      "bit_errors": 11847,
+      "frame_errors": 786,
+      "frames": 786,
+      "BER": 0.15072519083969466,
+      "FER": 1.0
+    }
+  },
+  {
+    "ebno_db": 0.5,
+    "oms": {
+      "frames": 1363,
+      "frame_errors": 50,
+      "bit_errors": 274,
+      "info_bits": 27260,
+      "BER": 0.010051357300073368,
+      "FER": 0.036683785766691124,
+      "avg_iter": 4.010271460014674
+    },
+    "uncoded": {
+      "bits": 136300,
+      "bit_errors": 19730,
+      "frame_errors": 1363,
+      "frames": 1363,
+      "BER": 0.14475421863536317,
+      "FER": 1.0
+    }
+  },
+  {
+    "ebno_db": 0.75,
+    "oms": {
+      "frames": 1628,
+      "frame_errors": 50,
+      "bit_errors": 295,
+      "info_bits": 32560,
+      "BER": 0.00906019656019656,
+      "FER": 0.030712530712530713,
+      "avg_iter": 3.883292383292383
+    },
+    "uncoded": {
+      "bits": 162800,
+      "bit_errors": 22485,
+      "frame_errors": 1628,
+      "frames": 1628,
+      "BER": 0.13811425061425062,
+      "FER": 1.0
+    }
+  },
+  {
+    "ebno_db": 1.0,
+    "oms": {
+      "frames": 1838,
+      "frame_errors": 50,
+      "bit_errors": 329,
+      "info_bits": 36760,
+      "BER": 0.00894994559303591,
+      "FER": 0.02720348204570185,
+      "avg_iter": 3.752448313384113
+    },
+    "uncoded": {
+      "bits": 183800,
+      "bit_errors": 23993,
+      "frame_errors": 1838,
+      "frames": 1838,
+      "BER": 0.1305386289445049,
+      "FER": 1.0
+    }
+  }
+]
