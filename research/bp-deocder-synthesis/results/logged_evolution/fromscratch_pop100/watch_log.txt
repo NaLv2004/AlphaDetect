@@ -1972,3 +1972,398 @@
       ... (35 more lines)
   K (log10): [+0.20, +2.45, -2.40, +2.31, -0.92, -0.81, +0.65, +2.44]
 
+
+==============================================================================
+[2026-05-15 19:08:55] poll #83  (individuals.jsonl bytes=8617641)
+==============================================================================
+[poll] run dir: results\logged_evolution\fromscratch_pop100
+[OMS baseline] fit=-1.0950549162658938  BER=[0.11217948717948718, 0.04006410256410257, 0.11538461538461539]
+
+=== generation distribution (best / mean / median / worst) ===
+  gen=0
+  gen=1
+  gen=2
+  gen=3
+  gen=4
+  gen=5
+  gen=6
+  gen=7
+  gen=8
+  gen=9
+  gen=10
+  gen=11
+  gen=12
+  gen=13
+  gen=14
+  gen=15
+  gen=16
+  gen=17
+  gen=18
+  gen=19
+  gen=20
+  gen=21
+  gen=22
+  gen=23
+
+=== gen 23  pop_size=100 ===
+  fit:  best=-0.6794  med=-0.6716  mean=-0.6577  worst=-0.4411  valid=100/100
+
+*** NEW CHAMPION: gen=23  fit=-0.6794  (prev best=-0.6794) ***
+
+--- #1  v=5 c=38  fit=-0.6794  BER=[0.244, 0.192, 0.196]  valid=True
+  V2C [size=69, sample_out=0.499748]:
+     LIVE: Float.Add(Float.Mul(Float.Mul(Float.Mul(Float.Mul(Float.Mul(Float.Mul(Float.Mul(L_v, FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack), Env.GetChannelLLR)
+     MATH: ((((((((Lv*m1)*m2)*m3)*m4)*m5)*m6)*m7)+Env.GetChannelLLR)    [uses channel LLR; refs 7 neighbor msgs]
+  C2V [size=46, sample_out=-4.427716502412624e-06]:
+     LIVE: Float.Mul(Float.Mul(Float.Mul(Float.Mul(Float.Mul(Float.Mul(Float.EvoConst5, FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack), Float.Mul(FVec.PopBack, Float.Mul(Float.Mul(Float.Const0_1, Float.ConstHalf), FVec.PopBack)))
+     MATH: ((((((K5(0.176)*m1)*m2)*m3)*m4)*m5)*(m6*((0.1*0.5)*m7)))    [ignores channel LLR; refs 7 neighbor msgs]
+  V2C SKELETON (truthful structure, loop bodies expanded):
+    Exec.DoTimes {
+      Int.Mod
+      FVec.PopBack
+      Int.Const2
+      Float.Mul
+      BVec.Reverse
+    }
+    Float.Yank
+    FVec.Rot
+    Mem.WriteVec
+    Float.EvoConst1
+    Bool.And
+    Float.Pop
+    FVec.Roll
+    Env.GetIter
+    BVec.Push
+    Int.FromBool
+    Int.Sub
+    Exec.When {
+      Env.GetIter
+      IVec.At
+      Int.FromBool
+      Exec.DoRange {
+        Int.Add
+        Env.GetIncomingVec
+        Bool.False
+      }
+      Int.Inc
+      Int.ConstNeg1
+      ... (49 more lines)
+  C2V SKELETON (truthful structure, loop bodies expanded):
+    Float.EvoConst5
+    Exec.DoRange {
+      BVec.New
+      Float.Mul
+      FVec.PopBack
+    }
+    IVec.Slice
+    Exec.While {
+      Exec.DoTimes {
+        Mem.Read
+        Float.Ceil
+        Int.Const1
+        BVec.Dup
+        IVec.Slice
+      }
+      FVec.Swap
+      FVec.Dup
+      Bool.Not
+      Float.Swap
+    }
+    BVec.Push
+    Exec.While {
+      Float.LT
+      FVec.Concat
+      Float.Abs
+      Env.GetMaxIter
+      BVec.New
+      Float.Sign
+    }
+      ... (24 more lines)
+  CHAMPION RAW V2C: Exec.DoTimes{Int.Mod ; FVec.PopBack ; Int.Const2 ; Float.Mul ; BVec.Reverse} ; Float.Yank ; FVec.Rot ; Mem.WriteVec ; Float.EvoConst1 ; Bool.And ; Float.Pop ; FVec.Roll ; Env.GetIter ; BVec.Push ; Int.FromBool ; Int.Sub ; Exec.When{Env.GetIter ; IVec.At ; Int.FromBool ; Exec.DoRange{Int.Add ; Env.GetIncomingVec ; Bool.False} ; Int.Inc ; Int.ConstNeg1 ; IVec.Concat ; BVec.New} ; Exec.While{Int.G...
+  CHAMPION RAW C2V: Float.EvoConst5 ; Exec.DoRange{BVec.New ; Float.Mul ; FVec.PopBack} ; IVec.Slice ; Exec.While{Exec.DoTimes{Mem.Read ; Float.Ceil ; Int.Const1 ; BVec.Dup ; IVec.Slice} ; FVec.Swap ; FVec.Dup ; Bool.Not ; Float.Swap} ; BVec.Push ; Exec.While{Float.LT ; FVec.Concat ; Float.Abs ; Env.GetMaxIter ; BVec.New ; Float.Sign} ; Env.GetEdgeIndex ; Int.Max ; Exec.When{Int.Div ; Bool.Pop ; Bool.Xor ; BVec.Sl...
+  K (log10): [-0.01, +2.08, -2.96, +1.96, -0.89, -0.76, +0.72, +2.41]
+
+--- #2  v=33 c=0  fit=-0.6794  BER=[0.244, 0.194, 0.194]  valid=True
+  V2C [size=76, sample_out=0.499748]:
+     LIVE: Float.Add(Float.Mul(Float.Mul(Float.Mul(Float.Mul(Float.Mul(Float.Mul(Float.Mul(L_v, FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack), Env.GetChannelLLR)
+     MATH: ((((((((Lv*m1)*m2)*m3)*m4)*m5)*m6)*m7)+Env.GetChannelLLR)    [uses channel LLR; refs 7 neighbor msgs]
+  C2V [size=61, sample_out=-3.996193547803104e-06]:
+     LIVE: Float.Mul(Float.Mul(Float.Mul(Float.Mul(Float.Mul(Float.Mul(Float.EvoConst5, FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack), Float.Mul(FVec.PopBack, Float.Mul(Float.Mul(Float.Const0_1, Float.ConstHalf), FVec.PopBack)))
+     MATH: ((((((K5(0.159)*m1)*m2)*m3)*m4)*m5)*(m6*((0.1*0.5)*m7)))    [ignores channel LLR; refs 7 neighbor msgs]
+  V2C SKELETON (truthful structure, loop bodies expanded):
+    BVec.Push
+    BVec.Pop
+    Exec.DoTimes {
+      FVec.PopBack
+      Int.Const2
+      Float.Mul
+      Int.Inc
+    }
+    Float.Yank
+    Env.GetDeg
+    Bool.And
+    Bool.Not
+    Bool.False
+    Float.EvoConst1
+    FVec.Slice
+    Float.Pop
+    Env.GetIter
+    BVec.Push
+    Int.Inc
+    Env.GetIter
+    Int.Max
+    Exec.When {
+      Float.Const1
+      Int.Sub
+      Float.EvoConst0
+      FVec.Roll
+    }
+    FVec.Slice
+    FVec.PopBack
+      ... (57 more lines)
+  C2V SKELETON (truthful structure, loop bodies expanded):
+    Float.EvoConst5
+    Exec.DoRange {
+      BVec.New
+      Float.Mul
+      FVec.PopBack
+    }
+    IVec.Slice
+    Exec.While {
+      Exec.DoTimes {
+        Mem.Read
+        Float.Ceil
+        Int.Const1
+        BVec.Dup
+        IVec.Slice
+      }
+      FVec.Swap
+      FVec.Dup
+      Bool.Not
+      Float.Swap
+    }
+    BVec.Push
+    Exec.While {
+      Int.Max
+      Bool.And
+      Int.FromFloat
+      BVec.New
+      Float.Const0
+      Exec.If then {
+        FVec.Slice
+      ... (41 more lines)
+  K (log10): [+0.42, +2.88, -1.37, +2.97, -1.87, -0.80, +1.44, +2.35]
+
+--- #3  v=72 c=53  fit=-0.6794  BER=[0.244, 0.194, 0.194]  valid=True
+  V2C [size=78, sample_out=0.499748]:
+     LIVE: Float.Add(Float.Mul(Float.Mul(Float.Mul(Float.Mul(Float.Mul(Float.Mul(Float.Mul(L_v, FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack), Env.GetChannelLLR)
+     MATH: ((((((((Lv*m1)*m2)*m3)*m4)*m5)*m6)*m7)+Env.GetChannelLLR)    [uses channel LLR; refs 7 neighbor msgs]
+  C2V [size=61, sample_out=-4.084824138199896e-06]:
+     LIVE: Float.Mul(Float.Mul(Float.Mul(Float.Mul(Float.Mul(Float.Mul(Float.EvoConst5, FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack), Float.Mul(FVec.PopBack, Float.Mul(Float.Mul(Float.Const0_1, Float.ConstHalf), FVec.PopBack)))
+     MATH: ((((((K5(0.162)*m1)*m2)*m3)*m4)*m5)*(m6*((0.1*0.5)*m7)))    [ignores channel LLR; refs 7 neighbor msgs]
+  V2C SKELETON (truthful structure, loop bodies expanded):
+    Exec.DoTimes {
+      Int.Mod
+      Int.Min
+      FVec.PopBack
+      Int.Const2
+      Float.Mul
+      BVec.Reverse
+    }
+    Float.Yank
+    FVec.Rot
+    FVec.Slice
+    Int.Max
+    Int.Max
+    Exec.When {
+      BVec.Reverse
+      Int.Const2
+      IVec.Push
+      Exec.While {
+        Float.Ceil
+        Float.Abs
+        Float.FromInt
+        Mem.Write
+      }
+      Bool.Dup
+      Float.Dup
+      BVec.Push
+      Bool.Xor
+      Exec.When {
+        Float.Const1
+      ... (57 more lines)
+  C2V SKELETON (truthful structure, loop bodies expanded):
+    Float.EvoConst5
+    Exec.DoRange {
+      BVec.New
+      Float.Mul
+      FVec.PopBack
+    }
+    IVec.Slice
+    Exec.While {
+      Exec.DoTimes {
+        Mem.Read
+        Bool.Not
+        Int.Const1
+        BVec.Dup
+        IVec.Slice
+      }
+      FVec.Swap
+      FVec.Dup
+      Float.Ceil
+      Float.Swap
+    }
+    BVec.Push
+    Exec.While {
+      Int.Max
+      Env.GetCodeRate
+      Int.FromFloat
+      BVec.New
+      Float.Const0
+      Exec.If then {
+        FVec.Slice
+      ... (41 more lines)
+  K (log10): [+0.08, +2.81, -2.01, +2.04, -1.64, -0.79, +1.78, +2.69]
+
+--- #4  v=30 c=59  fit=-0.6794  BER=[0.244, 0.194, 0.194]  valid=True
+  V2C [size=58, sample_out=0.499748]:
+     LIVE: Float.Add(Float.Neg(Float.Neg(Float.Mul(Float.Mul(Float.Mul(Float.Mul(Float.Mul(Float.Mul(Float.Mul(L_v, FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack))), Env.GetChannelLLR)
+     MATH: (neg(neg((((((((Lv*m1)*m2)*m3)*m4)*m5)*m6)*m7)))+Env.GetChannelLLR)    [uses channel LLR; refs 7 neighbor msgs]
+  C2V [size=56, sample_out=-3.996193547803104e-06]:
+     LIVE: Float.Mul(Float.Mul(Float.Mul(Float.Mul(Float.Mul(Float.Mul(Float.EvoConst5, FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack), Float.Mul(FVec.PopBack, Float.Mul(Float.Mul(Float.Const0_1, Float.ConstHalf), FVec.PopBack)))
+     MATH: ((((((K5(0.159)*m1)*m2)*m3)*m4)*m5)*(m6*((0.1*0.5)*m7)))    [ignores channel LLR; refs 7 neighbor msgs]
+  V2C SKELETON (truthful structure, loop bodies expanded):
+    Exec.DoTimes {
+      Int.Min
+      FVec.PopBack
+      Int.Const2
+      Float.Mul
+      BVec.Reverse
+    }
+    Float.Yank
+    FVec.Rot
+    FVec.Slice
+    Float.Neg
+    Int.Max
+    IVec.Push
+    Exec.When {
+      Float.ConstNeg1
+      BVec.Reverse
+      Float.Swap
+      BVec.Len
+    }
+    FVec.PopBack
+    BVec.Slice
+    Exec.When {
+      Exec.When {
+        Float.Swap
+        Float.Floor
+        Float.Const0_1
+        BVec.Reverse
+      }
+      Exec.If then {
+      ... (38 more lines)
+  C2V SKELETON (truthful structure, loop bodies expanded):
+    Float.EvoConst5
+    Exec.DoRange {
+      BVec.New
+      Float.Mul
+      FVec.PopBack
+    }
+    IVec.Slice
+    Exec.While {
+      Exec.DoTimes {
+        Mem.Read
+        Float.Ceil
+        Int.Const1
+        BVec.Dup
+        IVec.Slice
+      }
+      FVec.Swap
+      FVec.Dup
+      Bool.Not
+      Float.Swap
+    }
+    BVec.Push
+    Exec.While {
+      Int.Max
+      Bool.And
+      Int.FromFloat
+      BVec.New
+      Float.Const0
+      Exec.If then {
+        FVec.Slice
+      ... (35 more lines)
+  K (log10): [+0.08, +2.80, -2.17, +2.57, -1.64, -0.80, +1.78, +2.18]
+
+--- #5  v=36 c=68  fit=-0.6794  BER=[0.244, 0.194, 0.194]  valid=True
+  V2C [size=73, sample_out=0.499748]:
+     LIVE: Float.Add(Float.Mul(Float.Mul(Float.Mul(Float.Mul(Float.Mul(Float.Mul(Float.Mul(L_v, FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack), Env.GetChannelLLR)
+     MATH: ((((((((Lv*m1)*m2)*m3)*m4)*m5)*m6)*m7)+Env.GetChannelLLR)    [uses channel LLR; refs 7 neighbor msgs]
+  C2V [size=61, sample_out=-3.30607954334463e-06]:
+     LIVE: Float.Mul(Float.Mul(Float.Mul(Float.Mul(Float.Mul(Float.Mul(Float.EvoConst5, FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack), FVec.PopBack), Float.Mul(FVec.PopBack, Float.Mul(Float.Mul(Float.Const0_1, Float.ConstHalf), FVec.PopBack)))
+     MATH: ((((((K5(0.131)*m1)*m2)*m3)*m4)*m5)*(m6*((0.1*0.5)*m7)))    [ignores channel LLR; refs 7 neighbor msgs]
+  V2C SKELETON (truthful structure, loop bodies expanded):
+    BVec.Push
+    BVec.Pop
+    Exec.DoTimes {
+      FVec.PopBack
+      Int.Const2
+      Float.Mul
+      Int.Inc
+    }
+    Float.Yank
+    Env.GetDeg
+    Bool.And
+    Bool.Not
+    BVec.Push
+    Float.EvoConst1
+    FVec.Slice
+    Float.Pop
+    Env.GetIter
+    BVec.Push
+    Float.Swap
+    Env.GetIter
+    Int.Max
+    Exec.When {
+      Float.Const1
+      Int.Sub
+      Float.EvoConst0
+      FVec.Roll
+    }
+    FVec.Slice
+    FVec.PopBack
+      ... (54 more lines)
+  C2V SKELETON (truthful structure, loop bodies expanded):
+    Float.EvoConst5
+    Exec.DoRange {
+      BVec.New
+      Float.Mul
+      FVec.PopBack
+    }
+    IVec.Slice
+    Exec.While {
+      Exec.DoTimes {
+        Mem.Read
+        Float.Ceil
+        Int.Const1
+        BVec.Dup
+        IVec.Slice
+      }
+      FVec.Swap
+      FVec.Dup
+      IVec.Concat
+      Float.Swap
+    }
+    BVec.Push
+    Exec.While {
+      Int.Max
+      Bool.And
+      Int.FromFloat
+      BVec.New
+      Float.Const0
+      Exec.If then {
+        Env.GetIncomingVec
+      ... (41 more lines)
+  K (log10): [-0.12, +2.33, -1.57, +3.00, -1.13, -0.88, +0.82, +2.44]
+
