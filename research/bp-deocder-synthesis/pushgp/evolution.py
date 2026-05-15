@@ -260,62 +260,144 @@ def _prog_fingerprint(prog) -> str:
 # The panel uses a fixed RNG seed so the fingerprint is stable across calls
 # and across processes.
 _BEHAV_DEG: int = 8  # matches DEFAULT_DEG in validators.py
-_BEHAV_PANEL_SIZE: int = 6
-_BEHAV_QUANT: int = 8  # significant figures kept
+_BEHAV_PANEL_SIZE: int = 32
+_BEHAV_QUANT: int = 8  # significant figures kept (matches C++ %.8g format)
 
-_BEHAV_PANEL_V2C: Optional[List[Tuple[float, np.ndarray]]] = None
-_BEHAV_PANEL_C2V: Optional[List[np.ndarray]] = None
-_BEHAV_DEFAULT_K: Optional[np.ndarray] = None
-
-
-def _build_behav_panels() -> None:
-    global _BEHAV_PANEL_V2C, _BEHAV_PANEL_C2V, _BEHAV_DEFAULT_K
-    if _BEHAV_PANEL_V2C is not None:
-        return
-    rng = np.random.default_rng(0xBE4AC1D)
-    panel_v: List[Tuple[float, np.ndarray]] = []
-    panel_c: List[np.ndarray] = []
-    for _ in range(_BEHAV_PANEL_SIZE):
-        L_v = float(rng.uniform(-2.5, 2.5))
-        incoming = rng.uniform(-3.0, 3.0,
-                               size=_BEHAV_DEG - 1).astype(np.float64)
-        panel_v.append((L_v, incoming))
-        # C2V panel uses different incoming vectors so the two sides exercise
-        # disjoint inputs.
-        incoming_c = rng.uniform(-3.0, 3.0,
-                                 size=_BEHAV_DEG - 1).astype(np.float64)
-        panel_c.append(incoming_c)
-    # Default constants: small geometric spread so EvoConst-using programs
-    # produce distinct outputs depending on which constant they pick.
-    k = np.array([0.1, 0.25, 0.5, 1.0, 2.0, 4.0, 8.0, 16.0],
-                 dtype=np.float64)
-    _BEHAV_PANEL_V2C = panel_v
-    _BEHAV_PANEL_C2V = panel_c
-    _BEHAV_DEFAULT_K = k
+# 32-entry behavioral panel: byte-identical between Python and the C++
+# seeder (cpp_seeder/src/behav_panel.hpp).  Generated once by
+# cpp_seeder/src/gen_behav_panel.py — do NOT regenerate without also
+# updating the C++ literals.  Includes 3 fixed extreme rows (zeros,
+# ±1 alternating, ±5 alternating) so degenerate "constant-output" /
+# "identity" programs are distinguished, plus 29 random rows from the
+# fixed seed 0xBE4AC1D for broad coverage of input space.
+_BEHAV_PANEL_V2C_LV = np.array([
+    0.0,
+    1.0,
+    -1.0,
+    -4.429313121490904,
+    3.7180681225643593,
+    -1.8422510099813563,
+    -2.944240111774201,
+    2.978053891128174,
+    3.145892309156789,
+    1.9608548733364213,
+    0.6036942562978478,
+    -2.3775784129892843,
+    -2.500005473373532,
+    2.6246615516833662,
+    -0.3539625139596625,
+    3.597270361983945,
+    -0.05242604149925789,
+    1.1373780568991512,
+    1.5415666842737874,
+    2.864876690207292,
+    4.2008138972758395,
+    -2.69617102214713,
+    1.9317684238743071,
+    0.2428401682290362,
+    -1.704661996906017,
+    2.441235225475708,
+    -0.9612759606610952,
+    -0.04324149007083378,
+    2.5828596115264704,
+    1.8516089468808872,
+    3.474604176889155,
+    2.5876566095352604,
+], dtype=np.float64)
+_BEHAV_PANEL_V2C_INC = np.array([
+    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+    [1.0, -1.0, 1.0, -1.0, 1.0, -1.0, 1.0],
+    [5.0, -5.0, 5.0, -5.0, 5.0, -5.0, 5.0],
+    [0.6573715864633813, -2.8697900669971674, -0.6660533867254497, -3.9372247433374716, 2.4430036450052715, -1.5331464973900335, -0.36076551353060005],
+    [-5.790515963874704, 4.867168205370163, 2.1455543786937596, 2.842902646594064, 4.759032909447409, 2.8520002027393883, -1.509388485853436],
+    [1.0840503274328306, -1.5228966019738888, 0.9909322642203069, -2.9777554048676476, -1.6831563563344272, 4.782692140075424, 5.735849311988561],
+    [-3.8750714784056752, 2.5594133947531006, -0.20184750646504845, -0.9550211120953334, 5.138110304635452, -3.5409354816337655, -2.1989643321501107],
+    [1.7490196956523132, 1.9863333349389958, -5.531669297588129, -4.854183184752477, -1.7820030053478373, 0.3695231384912816, -0.715900608659715],
+    [-0.14169408186802102, 1.3236538493346428, -4.368151562359232, -4.531618072323482, -1.7757219561735482, -1.1111456233823507, 1.045374096093088],
+    [-4.557764189274966, 5.854965105315712, -0.534024250499602, 3.6194092720027786, -4.64964403888508, -3.751244724387965, 1.9459940909104958],
+    [5.562416982192257, 4.624521909537632, 2.3138764447769447, 5.709375584617646, -1.3055043165674602, -0.064691827437235, 0.5996209110108701],
+    [-3.6084833012311486, -4.836862940277552, 0.4619417218776558, 1.1991570930214888, -4.49590049570927, -2.8619479914886603, 3.3417749592095767],
+    [1.5028175744015542, -1.4052149187384142, -5.115246476524565, 5.697827228548862, -5.0515086655724035, -0.6452829222919378, 4.0651830068626165],
+    [-0.8537427389187116, 4.526038961768361, -4.489258674699138, 5.295410057205586, 1.8577300849540936, 4.30551208361366, -2.2853655679716502],
+    [-1.785882954968633, 0.40774282316146593, 5.527772399955381, -2.915846098121977, -2.4060178923712794, 3.6463818664324137, -5.61261711904687],
+    [-5.120838856633525, -2.421740163122876, 1.4281967598247043, -4.007630301650638, 3.8360343572951265, -5.229259710844429, -1.6769583600555347],
+    [-3.0351351245632534, 5.714411544425607, 3.9856261877523735, 4.6727726760680905, 5.062428131334183, -5.672915973710234, -3.913738332597487],
+    [3.7823697774044156, 5.679395498560641, -3.1937163813408005, 4.046717720688809, -2.539579877289521, -5.444010886703005, 1.8478847381447476],
+    [1.5756545545211793, 2.463233730810259, 3.7956877047368778, -3.4227500757758373, 5.740233275271514, -1.0423065915284173, -5.456168496336254],
+    [0.3597014630319739, 4.073027171859195, 2.972539402548019, 2.708809841645106, -4.149753148865383, 2.6956218028237124, -3.3715997425672293],
+    [0.35551152758383964, 5.73101482732193, 0.7445064221856974, 2.9041075859259156, -4.124538030949289, 0.9348535760499423, -2.52966106498698],
+    [-0.3544633387971299, 3.0778838821170638, -1.2337055456217492, 5.278411738218821, 4.41477406731307, 0.07765703719653061, -2.1608404701921753],
+    [-5.517214902971641, 4.945874501441862, -3.3223829544590457, -2.8997778753441477, -0.020336307901036577, 2.3827540268039886, 4.083327050192548],
+    [0.41907001507798913, -1.2372928461618766, -1.6522643650657827, -2.6188195251475648, 2.997539695016682, -5.686068203836747, 4.817429907917713],
+    [-0.5835572161254934, -4.163574753210925, -3.371921438471627, -3.3817709021662887, -0.08906687765763621, -4.858840966409547, -5.7311923282860375],
+    [-3.2879042387276285, 1.6221213158549812, 3.9252647614620066, -4.13681832883501, 0.1441993000653703, 2.644914371833117, 3.2346025322058196],
+    [0.379417433838551, -0.44350328941163397, -1.7996129828841454, 1.5441741351210876, -2.9515467845997883, -4.988373300026565, -2.74280634160269],
+    [1.27168351871385, 4.36687413973479, 3.27625104569327, 4.2257460213300195, 2.7196773922120894, 1.526680984486159, -2.866812502895207],
+    [0.5965931745006632, -2.614211460447913, -4.574865293768197, 0.8230351363159301, 2.3273984640710452, -0.24506132961844074, -5.509028732749912],
+    [3.7468736875367714, 1.2363338304767808, -4.204427397878462, -1.3551720953268704, 3.9558548960378666, -2.056239957578574, 4.388991173187101],
+    [-0.48420680653059023, 2.768686124090854, 4.438119279391639, -3.8294161950982284, 3.497225739458621, 1.2042256895977719, 2.1042338624001875],
+    [1.5049786716371152, 4.063452842796561, 3.3000884612194454, 4.214906894577105, -1.0151343277732447, -3.2237068437863083, 3.0859013004621776],
+], dtype=np.float64)
+_BEHAV_PANEL_C2V_INC = np.array([
+    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+    [1.0, -1.0, 1.0, -1.0, 1.0, -1.0, 1.0],
+    [5.0, -5.0, 5.0, -5.0, 5.0, -5.0, 5.0],
+    [-0.5178391694904727, 2.6913881454585997, 0.6893965279367933, 1.8281851833757727, -0.8286013560109362, -3.1867069257173304, -5.659097076536992],
+    [-2.2657646788530417, 3.657798998958304, 4.793935410621382, 5.41678756463962, 2.3913063735770557, -0.858965243077499, 5.2079506644808795],
+    [2.9751149388714584, 1.5776561332016588, 2.1568546868343006, 0.08020140273960052, 1.4798988147074716, 4.176045020570477, -2.886011021086163],
+    [-2.91748985992837, -5.7382017385365245, 2.9473126211677005, -1.5669217350215998, -4.150815832577168, 3.2992143175245587, -0.238426789236577],
+    [-0.9338151276708953, -3.5332344039154537, -4.391593076967116, 0.8101652389000176, -1.994976120639655, -5.926272239280312, 4.150729089567571],
+    [1.9808704229933163, 0.2643261754245527, -4.825552122183705, 0.0841683219304219, 3.3286810213852807, -1.1534926909447805, 2.931813737457487],
+    [-0.8511075407210118, -4.870494812703325, -0.6348855933444337, -4.995336057618448, -1.380612435908688, -5.182078158842726, 0.6968894880019434],
+    [4.3145743723294245, 2.0470981308806078, 2.1013318818008386, -4.762539020061556, -3.336613717983235, 4.153211699100444, 3.6420859929392613],
+    [-4.590389553559623, 2.0394790694098432, -3.604324191834535, 3.955765686267668, 1.111091600300922, -1.7982848563057772, 3.240892593521277],
+    [-1.9190076857246865, 4.110578931262424, -3.0476009828043686, 4.989748960731244, -2.8554212456006853, 2.9052857062936503, 5.53164622283864],
+    [-5.55094171215444, 5.372221886334325, -4.231011778255343, 3.7385955833503175, 5.78503825955616, 2.8221214567011863, -3.016116825953063],
+    [3.914246162994882, -5.352851664381519, -0.559939803132802, 3.651151345826394, 3.3356769204751, -1.830899742528734, 3.511400758149014],
+    [-1.0191216810629182, 1.4044752091800996, -1.3093944005338196, -0.5163421509582342, 1.6770875557258211, 5.7550687632028925, -4.808663493033571],
+    [4.704934094292295, -5.534425249149857, -1.8688297201402726, -1.0151035625366172, -2.081630206616744, 2.8741610023813386, 1.64981416274912],
+    [1.6996194626745584, 0.17423400627945362, 4.4420137621018085, 4.163860752936166, 3.114887039758699, 0.05568224456201332, -5.7931983930320285],
+    [-2.9967166750083765, 5.906840038092755, 4.31914735363978, -4.716901486588957, -0.5487429334980769, 3.898920777404431, 4.764724736819014],
+    [3.204537599460263, -1.4239541803443148, -2.875866209879818, -4.190555208189014, 4.931398679363552, 0.7608873158170137, -0.6186071967531612],
+    [-2.9868896710251427, 1.2533370357104117, -3.98694378788222, 1.931652623017742, -2.2739609076757064, -0.5830534249185018, -4.8718994773341215],
+    [-1.9252928353812608, 2.285333305432083, 0.16083672272997163, -1.7512888715496437, -0.2801949051451942, 2.9851671521625036, 1.2529905763150788],
+    [1.5457489979434058, -4.778492803209793, 1.9672658823795963, -1.810282271577912, 1.6709706059741558, -5.394573925817644, 0.2920568626719495],
+    [-3.940245996938802, -4.788982909538069, -5.56608152510131, 5.6261735853315855, 4.039467612474867, 4.3113416940164, 5.713212584381036],
+    [-5.701369577818141, 1.1075264387288506, -5.52942344931447, 4.5990623612992305, -2.3628905365384285, 2.077210082263157, -3.2485904981588107],
+    [-4.912955788828915, 4.5900785244212585, 1.4413897852105508, -3.9076848604871612, 2.088119707499539, 4.0372407385212625, 1.5048524316762455],
+    [0.7588004165771904, -3.4982231078314348, -5.554842939024305, -5.428117915426038, 5.625620654253336, -3.175565791465958, 0.7902118516941243],
+    [5.984537659161534, 3.3919304601487, 0.7757194106390131, 4.2798925306709314, 3.9108618382202565, 0.9056330208936281, -0.40474004461490676],
+    [0.1222039253228715, 5.821370913488126, 5.566756747166259, 3.9065556716001772, 2.8973171899188657, -4.755408419082743, 1.277634566022611],
+    [2.6784078835510456, 4.531876292056296, -4.166854180844967, -1.287652943466524, -5.766261504036334, -2.162266543906359, -2.481131992693572],
+    [4.9952921436276245, 0.00025253092035626423, 5.7662358312432485, 0.8568771807567872, -1.8513919399745822, -0.40654511870165244, -1.6224062437682036],
+    [-2.1062936729699313, 2.2218461154579785, -2.149205948248634, -4.047911888747918, -0.24109849608043454, 3.03649607205314, 4.25327242832498],
+], dtype=np.float64)
+_BEHAV_DEFAULT_K: np.ndarray = np.array(
+    [0.1, 0.25, 0.5, 1.0, 2.0, 4.0, 8.0, 16.0], dtype=np.float64
+)
 
 
 def _behav_fingerprint(side: str, prog) -> str:
-    """Quantized output vector on a fixed test panel.
+    """Quantized output vector on the fixed 32-entry behavioral panel.
 
-    Falls back to a marker-tagged structural hash if the program throws or
-    returns non-finite outputs across the entire panel (so all-NaN programs
-    don't all collide to one fingerprint and lose their unique structural
-    identity for the purposes of selection).
+    Bit-identical between Python and the C++ seeder (same panel, same
+    ``%.8g`` formatting, same ``|`` separator).  Programs whose entire
+    panel is non-finite collapse to the single bucket ``"NAN"`` (they
+    are functionally equivalent — useless decoders).
     """
     from .validators import _make_vm, _seed_v2c_stacks, _seed_c2v_stacks  # noqa: E402
 
-    _build_behav_panels()
-    panel = _BEHAV_PANEL_V2C if side == "v2c" else _BEHAV_PANEL_C2V
     outs: List[str] = []
     finite_count = 0
-    for entry in panel:
+    for i in range(_BEHAV_PANEL_SIZE):
         if side == "v2c":
-            L_v, incoming = entry
+            L_v = float(_BEHAV_PANEL_V2C_LV[i])
+            incoming = _BEHAV_PANEL_V2C_INC[i]
             vm = _make_vm(incoming, channel_llr=L_v, deg=_BEHAV_DEG,
                           iter_idx=0, evo_consts=_BEHAV_DEFAULT_K)
             _seed_v2c_stacks(vm)
         else:
-            incoming = entry
+            incoming = _BEHAV_PANEL_C2V_INC[i]
             vm = _make_vm(incoming, has_channel_llr=False, deg=_BEHAV_DEG,
                           iter_idx=0, evo_consts=_BEHAV_DEFAULT_K)
             _seed_c2v_stacks(vm)
@@ -328,12 +410,9 @@ def _behav_fingerprint(side: str, prog) -> str:
         else:
             finite_count += 1
             outs.append(format(float(out), f".{_BEHAV_QUANT}g"))
-    sig = "|".join(outs)
     if finite_count == 0:
-        # All non-finite: fall back to structural hash so we don't collapse
-        # every faulty program to one bucket.
-        return "NAN:" + _prog_fingerprint(prog)
-    return sig
+        return "NAN"
+    return "|".join(outs)
 
 
 
@@ -365,30 +444,40 @@ def _evolve_side_offspring(
     instr_set: Sequence[str],
     pool=None,
     n_workers: int = 1,
+    seen_fps_in: Optional[set] = None,
 ) -> Tuple[List, int, int]:
     """Build the next-generation pop for one side (V2C or C2V).
 
     Returns `(new_pop, n_attempts, n_invalid_rejected)`.
+
+    `seen_fps_in` (optional) is a set of behavioral fingerprints already
+    present in the population (typically built from `current pop` by the
+    caller).  Any newly-generated offspring whose fingerprint is in this
+    set is rejected — guaranteeing the next-gen pop has no duplicate of
+    any existing member.  Accepted offspring also extend the set so that
+    siblings within the same gen do not collide.
+
     Strategy:
-      1. Optional elitism: keep top cfg.elitism untouched.
+      1. Optional elitism: copy top cfg.elitism untouched (elites are
+         in the current pop by definition, so seen_fps_in already
+         covers them).
       2. Round-robin: generate `pop_size - elites` candidates from
          tournament parents (mut/crossover, rank-scaled mutation).
       3. Batch-validate via multiprocessing pool.
-      4. Accept valid + distinct.  Repeat until pop full.
+      4. Accept valid + non-colliding.  Repeat until pop full.
     """
     order = np.argsort(np.where(np.isfinite(fits), fits, np.inf))
     rank_of: Dict[int, int] = {int(idx): r for r, idx in enumerate(order)}
 
     new_pop: List = []
-    seen: set = set()
+    # Inherit the caller's "already in population" set so offspring
+    # can't duplicate any current member.  Local additions track
+    # newly-accepted siblings.
+    seen: set = set(seen_fps_in) if seen_fps_in is not None else set()
     if cfg.elitism > 0:
+        from .program import deep_copy_program
         for i in order[: cfg.elitism]:
             g = pop[int(i)]
-            fp = _behav_fingerprint(side, g)
-            if cfg.dedup and fp in seen:
-                continue
-            seen.add(fp)
-            from .program import deep_copy_program
             new_pop.append(deep_copy_program(g))
 
     n_attempts = 0
@@ -550,6 +639,13 @@ def evolve_from_scratch(
                 flush=True,
             )
 
+        # Behavioral-fingerprint dedup is now part of validation: the
+        # seeder rejects any candidate whose 32-entry behavior matches
+        # any program already in `seen_v` / `seen_c`.  No post-hoc
+        # dedup loop is needed.
+        seen_v: set = set()
+        seen_c: set = set()
+
         pop_v, v_attempts = _fill_random(
             "v2c", cfg.pop_size,
             max_attempts=cfg.max_attempts_per_slot * cfg.pop_size * 1000,
@@ -559,6 +655,7 @@ def evolve_from_scratch(
             deg=cfg.validator_deg, base_seed=cfg.seed * 17 + 1,
             pool=pool,
             progress_cb=_seed_progress,
+            seen_fingerprints=seen_v,
         )
         pop_c, c_attempts = _fill_random(
             "c2v", cfg.pop_size,
@@ -569,70 +666,9 @@ def evolve_from_scratch(
             deg=cfg.validator_deg, base_seed=cfg.seed * 17 + 2,
             pool=pool,
             progress_cb=_seed_progress,
+            seen_fingerprints=seen_c,
         )
         pop_k = [rpg.random_log_constants() for _ in range(cfg.pop_size)]
-
-        # Dedup the initial pop_v / pop_c (parallel_fill_random doesn't
-        # dedup, so fingerprint-collide entries get re-randomized via
-        # extra fills — usually redundant given the entropy).
-        if cfg.dedup:
-            seen_v: set = set()
-            uniq_v = []
-            for p in pop_v:
-                fp = _behav_fingerprint("v2c", p)
-                if fp in seen_v:
-                    continue
-                seen_v.add(fp)
-                uniq_v.append(p)
-            while len(uniq_v) < cfg.pop_size:
-                extra, n_extra = _fill_random(
-                    "v2c", cfg.pop_size - len(uniq_v),
-                    max_attempts=cfg.max_attempts_per_slot * cfg.pop_size * 100,
-                    workers=workers, chunk_attempts=2000,
-                    min_size=cfg.rand_min_size, max_size=cfg.rand_max_size,
-                    deg=cfg.validator_deg,
-                    base_seed=cfg.seed * 17 + 1001 + len(uniq_v),
-                    pool=pool,
-                )
-                v_attempts += n_extra
-                for p in extra:
-                    fp = _behav_fingerprint("v2c", p)
-                    if fp in seen_v:
-                        continue
-                    seen_v.add(fp)
-                    uniq_v.append(p)
-                    if len(uniq_v) >= cfg.pop_size:
-                        break
-            pop_v = uniq_v[: cfg.pop_size]
-
-            seen_c: set = set()
-            uniq_c = []
-            for p in pop_c:
-                fp = _behav_fingerprint("c2v", p)
-                if fp in seen_c:
-                    continue
-                seen_c.add(fp)
-                uniq_c.append(p)
-            while len(uniq_c) < cfg.pop_size:
-                extra, n_extra = _fill_random(
-                    "c2v", cfg.pop_size - len(uniq_c),
-                    max_attempts=cfg.max_attempts_per_slot * cfg.pop_size * 100,
-                    workers=workers, chunk_attempts=2000,
-                    min_size=cfg.rand_min_size, max_size=cfg.rand_max_size,
-                    deg=cfg.validator_deg,
-                    base_seed=cfg.seed * 17 + 2001 + len(uniq_c),
-                    pool=pool,
-                )
-                c_attempts += n_extra
-                for p in extra:
-                    fp = _behav_fingerprint("c2v", p)
-                    if fp in seen_c:
-                        continue
-                    seen_c.add(fp)
-                    uniq_c.append(p)
-                    if len(uniq_c) >= cfg.pop_size:
-                        break
-            pop_c = uniq_c[: cfg.pop_size]
 
         print(f"[init] V pop filled: {len(pop_v)} valid in {v_attempts} attempts "
               f"({len(pop_v)/v_attempts:.4%})", flush=True)
@@ -669,10 +705,12 @@ def evolve_from_scratch(
             new_pop_v, va, vinv = _evolve_side_offspring(
                 side="v2c", pop=pop_v, fits=fits_v, cfg=cfg, rng=rng,
                 rpg=rpg, instr_set=V2C_INSTR, pool=pool, n_workers=workers,
+                seen_fps_in={_behav_fingerprint("v2c", p) for p in pop_v},
             )
             new_pop_c, ca, cinv = _evolve_side_offspring(
                 side="c2v", pop=pop_c, fits=fits_c, cfg=cfg, rng=rng,
                 rpg=rpg, instr_set=C2V_INSTR, pool=pool, n_workers=workers,
+                seen_fps_in={_behav_fingerprint("c2v", p) for p in pop_c},
             )
             new_pop_k = _evolve_constants(
                 pop_k, fits_k, cfg, rng,

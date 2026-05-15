@@ -37,10 +37,11 @@ DEFAULT_WORKERS = max(1, (os.cpu_count() or 4) - 1)
 
 
 def _gen_and_validate_chunk(args):
-    """Worker: generate `n_attempts` random programs of `side`, return
-    serialized valid ones.
+    """Worker: generate `n_attempts` random programs of `side`, validate
+    each, and for survivors compute the behavioral fingerprint.
 
     Args tuple: (side, seed, n_attempts, min_size, max_size, deg)
+    Returns:    (side, [(serialized_prog, fingerprint), ...], n_attempts)
     """
     side, seed, n_attempts, min_size, max_size, deg = args
     rng = np.random.default_rng(seed)
@@ -54,13 +55,17 @@ def _gen_and_validate_chunk(args):
     else:
         raise ValueError(side)
 
-    valid = []
+    # Late import to avoid circulars at module load.
+    from .evolution import _behav_fingerprint  # noqa: E402
+
+    valid: List[Tuple[dict, str]] = []
     for i in range(n_attempts):
         prog = gen(min_size=min_size, max_size=max_size)
         sub_seed = (seed * 0x9E3779B9 + i) & 0xFFFFFFFF
         ok, _ = val(prog, rng=np.random.default_rng(sub_seed), deg=deg)
         if ok:
-            valid.append(program_to_dict(prog))
+            fp = _behav_fingerprint(side, prog)
+            valid.append((program_to_dict(prog), fp))
     return side, valid, n_attempts
 
 
@@ -101,6 +106,7 @@ def parallel_fill_random(
     base_seed: int = 0,
     progress_cb=None,
     pool: Optional[Pool] = None,
+    seen_fingerprints: Optional[set] = None,
 ) -> Tuple[List[List[Instruction]], int]:
     """Generate `n_target` valid random programs of `side` (v2c or c2v).
 
@@ -110,12 +116,21 @@ def parallel_fill_random(
     `progress_cb(side, n_valid, n_attempts, elapsed_s)` invoked after
     every chunk wave (optional).
 
+    `seen_fingerprints` (optional) is an externally-owned set of
+    behavioral fingerprints (strings).  Any candidate whose fingerprint
+    is already in the set is rejected; accepted candidates have their
+    fingerprint inserted into the set.  This makes deduplication a
+    first-class part of validation: the seeder will never return two
+    programs with identical behavior on the 32-entry panel.
+
     If `pool` is given it is used (caller manages lifecycle); otherwise
     a fresh Pool is created and torn down here.
     """
     own_pool = pool is None
     if own_pool:
         pool = Pool(processes=workers)
+    if seen_fingerprints is None:
+        seen_fingerprints = set()
     try:
         valid: List[List[Instruction]] = []
         attempts = 0
@@ -132,14 +147,21 @@ def parallel_fill_random(
                 _gen_and_validate_chunk, jobs
             ):
                 attempts += n_att
-                for dprog in vlist:
+                for dprog, fp in vlist:
+                    if fp in seen_fingerprints:
+                        continue
+                    seen_fingerprints.add(fp)
                     valid.append(dict_to_program(dprog))
+                    if len(valid) >= n_target:
+                        break
+                if len(valid) >= n_target:
+                    break
             if progress_cb is not None:
                 progress_cb(side, len(valid), attempts, _time.time() - t0)
         if len(valid) < n_target:
             raise RuntimeError(
                 f"parallel_fill_random({side}) exhausted: got {len(valid)}/{n_target} "
-                f"valid in {attempts} attempts"
+                f"valid (after dedup) in {attempts} attempts"
             )
         return valid[:n_target], attempts
     finally:
