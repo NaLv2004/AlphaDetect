@@ -21,6 +21,7 @@
 #include "validator.hpp"
 #include "vm.hpp"
 #include "vm_state.hpp"
+#include "behav_panel.hpp"
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -30,7 +31,10 @@
 #include <chrono>
 #include <memory>
 #include <mutex>
+#include <string>
 #include <thread>
+#include <unordered_set>
+#include <vector>
 
 namespace py = pybind11;
 using namespace pushgp_cpp;
@@ -187,6 +191,7 @@ static py::tuple validate_random_impl(
 
 struct SeedResult {
     std::vector<std::shared_ptr<Program>> programs;
+    std::vector<std::string>              fingerprints;  // parallel to programs
     int64_t total_attempts = 0;
 };
 
@@ -202,28 +207,33 @@ static SeedResult parallel_seed_impl(
     int num_configs,
     int num_permutations,
     uint64_t base_seed,
-    py::object progress_cb)
+    py::object progress_cb,
+    const std::vector<std::string>& seen_in)
 {
     if (threads <= 0) threads = 1;
     std::atomic<int64_t> attempts_total{0};
     std::atomic<int>     valid_count{0};
 
     std::vector<std::shared_ptr<Program>> valid;
+    std::vector<std::string>              valid_fps;
+    std::unordered_set<std::string>       seen(seen_in.begin(), seen_in.end());
     std::mutex mu_valid;
 
     auto t0 = std::chrono::steady_clock::now();
 
+    if (side != "v2c" && side != "c2v") throw std::invalid_argument("side must be v2c/c2v");
     std::vector<Op> instr_set = (side == "v2c")
         ? RandomProgramGenerator::v2c_set()
         : RandomProgramGenerator::c2v_set();
-    if (side != "v2c" && side != "c2v") throw std::invalid_argument("side must be v2c/c2v");
 
     std::array<double, N_EVO_CONSTS> evo_default{{1,1,1,1,1,1,1,1}};
 
     std::atomic<uint64_t> seed_counter{base_seed};
     std::atomic<bool> done{false};
 
-    // Worker
+    // Worker -- validates, then computes behavioral fp; the shared
+    // `seen` set is the source of truth: a candidate is only accepted
+    // if its fingerprint hasn't been claimed yet.
     auto worker_fn = [&](int worker_id) {
         while (!done.load(std::memory_order_relaxed)) {
             int64_t attempts_so_far = attempts_total.load(std::memory_order_relaxed);
@@ -236,7 +246,9 @@ static SeedResult parallel_seed_impl(
 
             int my_chunk = chunk_attempts;
             int my_attempts = 0;
-            std::vector<std::shared_ptr<Program>> my_valid;
+            // Collect (program, fingerprint) pairs locally; we lock
+            // once at the end of the chunk to commit to the global set.
+            std::vector<std::pair<std::shared_ptr<Program>, std::string>> my_valid;
             for (int i = 0; i < my_chunk; ++i) {
                 if (valid_count.load(std::memory_order_relaxed) >= n_target) break;
                 ++my_attempts;
@@ -245,18 +257,23 @@ static SeedResult parallel_seed_impl(
                 ValidationResult r = (side == "v2c")
                     ? validate_v2c_random(prog, evo_default, deg, num_configs, num_permutations, sub_seed)
                     : validate_c2v_random(prog, evo_default, deg, num_configs, num_permutations, sub_seed);
-                if (r.ok) {
-                    my_valid.push_back(std::make_shared<Program>(std::move(prog)));
-                }
+                if (!r.ok) continue;
+                std::string fp = compute_behav_fp(side, prog);
+                my_valid.emplace_back(
+                    std::make_shared<Program>(std::move(prog)), std::move(fp));
             }
             attempts_total.fetch_add(my_attempts, std::memory_order_relaxed);
             if (!my_valid.empty()) {
                 std::lock_guard<std::mutex> lk(mu_valid);
-                int avail = n_target - static_cast<int>(valid.size());
-                if (avail <= 0) { done.store(true); break; }
-                int take = std::min(static_cast<int>(my_valid.size()), avail);
-                for (int i = 0; i < take; ++i) {
-                    valid.push_back(std::move(my_valid[i]));
+                for (auto& pf : my_valid) {
+                    if (static_cast<int>(valid.size()) >= n_target) {
+                        done.store(true);
+                        break;
+                    }
+                    if (seen.count(pf.second)) continue;       // dedup-as-validation
+                    seen.insert(pf.second);
+                    valid.push_back(std::move(pf.first));
+                    valid_fps.push_back(std::move(pf.second));
                 }
                 valid_count.store(static_cast<int>(valid.size()), std::memory_order_relaxed);
                 if (static_cast<int>(valid.size()) >= n_target) done.store(true);
@@ -289,6 +306,7 @@ static SeedResult parallel_seed_impl(
 
     SeedResult res;
     res.programs = std::move(valid);
+    res.fingerprints = std::move(valid_fps);
     res.total_attempts = attempts_total.load();
     return res;
 }
@@ -361,20 +379,24 @@ PYBIND11_MODULE(pushgp_cpp_seeder, m) {
         [](const std::string& side, int n_target, int64_t max_attempts,
            int threads, int chunk_attempts, int min_size, int max_size,
            int deg, int num_configs, int num_permutations,
-           uint64_t base_seed, py::object progress_cb) {
+           uint64_t base_seed, py::object progress_cb,
+           std::vector<std::string> seen_in) {
             SeedResult r;
             {
                 py::gil_scoped_release rel;
                 r = parallel_seed_impl(side, n_target, max_attempts, threads,
                     chunk_attempts, min_size, max_size, deg,
-                    num_configs, num_permutations, base_seed, progress_cb);
+                    num_configs, num_permutations, base_seed, progress_cb,
+                    seen_in);
             }
             py::list out;
             for (auto& sp : r.programs) {
                 ProgramHandle h; h.prog = sp;
                 out.append(py::cast(h));
             }
-            return py::make_tuple(out, r.total_attempts);
+            // Also return the fingerprints so the Python caller can
+            // update its own seen-set without recomputing.
+            return py::make_tuple(out, r.total_attempts, r.fingerprints);
         },
         py::arg("side"), py::arg("n_target"),
         py::arg("max_attempts") = 100000000LL,
@@ -386,5 +408,13 @@ PYBIND11_MODULE(pushgp_cpp_seeder, m) {
         py::arg("num_configs") = DEFAULT_NUM_CONFIGS,
         py::arg("num_permutations") = DEFAULT_NUM_PERMUTATIONS,
         py::arg("base_seed") = 1234,
-        py::arg("progress_cb") = py::none());
+        py::arg("progress_cb") = py::none(),
+        py::arg("seen_fingerprints") = std::vector<std::string>{});
+
+    m.def("compute_behav_fp",
+        [](const std::string& side, const ProgramHandle& h) {
+            if (!h.prog) return std::string("NAN");
+            return compute_behav_fp(side, *h.prog);
+        },
+        py::arg("side"), py::arg("prog"));
 }

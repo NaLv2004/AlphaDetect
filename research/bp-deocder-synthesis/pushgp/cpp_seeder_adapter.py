@@ -47,11 +47,21 @@ def cpp_parallel_fill_random(
     deg: int = 8,
     base_seed: int = 0,
     progress_cb=None,
-    pool: Optional[Any] = None,  # ignored; kept for signature compatibility
+    pool: Optional[Any] = None,            # ignored; signature compatibility
+    seen_fingerprints: Optional[set] = None,  # dedup-as-validation (Phase B)
 ) -> Tuple[List[List[Instruction]], int]:
-    """Fill `n_target` valid programs of `side` using the C++ seeder."""
+    """Fill `n_target` valid programs of `side` using the C++ seeder.
+
+    If `seen_fingerprints` is provided, the C++ side rejects any
+    candidate whose 32-entry behavioral fingerprint is already in the
+    set; on success, the returned new fingerprints are inserted into
+    the same set (in-place) so callers see the updated state.
+    """
     M = _load_module()
-    handles, attempts = M.parallel_seed(
+    seen_in: List[str] = (
+        list(seen_fingerprints) if seen_fingerprints is not None else []
+    )
+    handles, attempts, fps = M.parallel_seed(
         side=side,
         n_target=n_target,
         max_attempts=int(max_attempts),
@@ -64,15 +74,19 @@ def cpp_parallel_fill_random(
         num_permutations=5,
         base_seed=int(base_seed) & 0xFFFFFFFFFFFFFFFF,
         progress_cb=progress_cb,
+        seen_fingerprints=seen_in,
     )
     if len(handles) < n_target:
         raise RuntimeError(
-            f"cpp_parallel_fill_random({side}) exhausted: "
+            f"cpp_parallel_fill_random({side}) exhausted (after dedup): "
             f"got {len(handles)}/{n_target} valid in {attempts} attempts"
         )
     progs: List[List[Instruction]] = []
     for h in handles[:n_target]:
         progs.append(dict_to_program(h.to_dict()))
+    if seen_fingerprints is not None:
+        for fp in fps[:n_target]:
+            seen_fingerprints.add(fp)
     return progs, int(attempts)
 
 
