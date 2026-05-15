@@ -1,0 +1,33 @@
+{
+  "run_name": "fs_smoke",
+  "started_at": "2026-05-15T14:54:02",
+  "from_scratch": true,
+  "code": {
+    "bgn": 2,
+    "set_idx": 1,
+    "zc": 2,
+    "N": 104,
+    "M": 84
+  },
+  "snr_list_db": [
+    -2.0,
+    -1.0
+  ],
+  "n_frames_per_snr": 3,
+  "max_iter": 6,
+  "evolution": {
+    "pop_size": 6,
+    "generations": 1,
+    "elitism": 0,
+    "tournament_k": 3,
+    "p_crossover": 0.6,
+    "n_mutations": 2,
+    "n_mutations_max": 6,
+    "p_const_tweak": 0.25,
+    "seed": 7,
+    "dedup": true,
+    "max_attempts_per_slot": 500,
+    "rand_min_size": 4,
+    "rand_max_size": 14
+  }
+}

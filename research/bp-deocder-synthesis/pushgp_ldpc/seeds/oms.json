@@ -1,0 +1,94 @@
+{
+  "prog_v2c": [
+    {
+      "name": "FVec.Len"
+    },
+    {
+      "name": "Exec.DoTimes",
+      "code_block": [
+        {
+          "name": "FVec.At"
+        },
+        {
+          "name": "Float.Add"
+        }
+      ]
+    }
+  ],
+  "prog_c2v": [
+    {
+      "name": "Bool.False"
+    },
+    {
+      "name": "FVec.Len"
+    },
+    {
+      "name": "Exec.DoTimes",
+      "code_block": [
+        {
+          "name": "FVec.At"
+        },
+        {
+          "name": "Float.Const0"
+        },
+        {
+          "name": "Float.LT"
+        },
+        {
+          "name": "Bool.Xor"
+        }
+      ]
+    },
+    {
+      "name": "Float.EvoConst1"
+    },
+    {
+      "name": "FVec.Len"
+    },
+    {
+      "name": "Exec.DoTimes",
+      "code_block": [
+        {
+          "name": "FVec.At"
+        },
+        {
+          "name": "Float.Abs"
+        },
+        {
+          "name": "Float.Min"
+        }
+      ]
+    },
+    {
+      "name": "Float.EvoConst0"
+    },
+    {
+      "name": "Float.Sub"
+    },
+    {
+      "name": "Float.Const0"
+    },
+    {
+      "name": "Float.Max"
+    },
+    {
+      "name": "Exec.If",
+      "code_block": [
+        {
+          "name": "Float.Neg"
+        }
+      ],
+      "code_block2": []
+    }
+  ],
+  "log_constants": [
+    -0.6020599913279624,
+    6.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+  ]
+}

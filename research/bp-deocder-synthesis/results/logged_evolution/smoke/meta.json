@@ -1,0 +1,27 @@
+{
+  "run_name": "smoke",
+  "started_at": "2026-05-15T13:53:55",
+  "code": {
+    "bgn": 2,
+    "set_idx": 1,
+    "zc": 2,
+    "N": 104,
+    "M": 84
+  },
+  "snr_list_db": [
+    -2.0,
+    -1.0
+  ],
+  "n_frames_per_snr": 4,
+  "max_iter": 6,
+  "evolution": {
+    "pop_size": 8,
+    "generations": 3,
+    "elitism": 3,
+    "tournament_k": 4,
+    "p_crossover": 0.7,
+    "n_mutations": 2,
+    "p_const_tweak": 0.25,
+    "seed": 2025
+  }
+}

@@ -1,0 +1,5 @@
+# 3GPP NR LDPC, BPSK, AWGN, Offset Min-Sum (offset=0.25)
+# A=512  rate=0.5  bgn=2  setIdx=5  Zc=72  outlen=1024
+# EbN0_dB  frames  frame_errors  bit_errors  FER  BER  avg_iter  elapsed_s
+2.500  42782  30  650  7.012295e-04  2.877520e-05  9.692  284.84
+3.000  60000  2  58  3.333333e-05  1.830808e-06  7.770  340.76
