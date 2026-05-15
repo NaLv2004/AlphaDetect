@@ -334,6 +334,37 @@ def main() -> int:
               f"BER={seed_m.ber_per_snr}  FER={seed_m.fer_per_snr}",
               flush=True)
 
+    # ---- ALWAYS evaluate OMS baseline through the SAME evaluator the
+    # evolution uses, regardless of --from-scratch.  This is step 0 of
+    # every run: a hand-coded reference under the EXACT same code,
+    # SNR list, n_frames, and max_iter as evolution.  Required so the
+    # baseline is fully aligned with the evolution scoring.
+    from pushgp_ldpc.adapter import oms_seed_genome  # local import to avoid surprise on legacy path
+    oms_baseline = oms_seed_genome()
+    baseline_m = evaluate_genome_with_ber(oms_baseline, fit_cfg)
+    print(f"[baseline] OMS@evo-cfg: fit={baseline_m.fitness:+.4f} "
+          f"BER={baseline_m.ber_per_snr}  FER={baseline_m.fer_per_snr}  "
+          f"valid={baseline_m.valid}", flush=True)
+    baseline_record = {
+        "kind": "oms_baseline",
+        "fit_cfg": {
+            "snr_list_db": list(snr_list),
+            "n_frames_per_snr": args.n_frames,
+            "max_iter": args.max_iter,
+            "code_rate": 0.5,
+            "code": {"bgn": args.bgn, "set_idx": args.set_idx, "zc": args.zc,
+                     "N": int(par.cols), "M": int(par.rows)},
+        },
+        "fitness": baseline_m.fitness,
+        "ber_per_snr": list(baseline_m.ber_per_snr),
+        "fer_per_snr": list(baseline_m.fer_per_snr),
+        "n_frames_per_snr": baseline_m.n_frames_per_snr,
+        "valid": baseline_m.valid,
+        "error": baseline_m.error,
+    }
+    (out_dir / "baseline.json").write_text(
+        json.dumps(baseline_record, indent=2), encoding="utf-8")
+
     logger = GenerationLogger(out_dir, fit_cfg)
 
     t0 = time.time()
