@@ -1,0 +1,14 @@
+D:\detector_code\C_code\BsP-IDD\CFBsP_5GLDPC_N1024_IDD-R766-arma_mmse_llrpro\GAMP_Test\ch_mem.cpp;D:\detector_code\C_code\BsP-IDD\CFBsP_5GLDPC_N1024_IDD-R766-arma_mmse_llrpro\GAMP_Test\x64\Debug\ch_mem.obj
+D:\detector_code\C_code\BsP-IDD\CFBsP_5GLDPC_N1024_IDD-R766-arma_mmse_llrpro\GAMP_Test\coding_mem.cpp;D:\detector_code\C_code\BsP-IDD\CFBsP_5GLDPC_N1024_IDD-R766-arma_mmse_llrpro\GAMP_Test\x64\Debug\coding_mem.obj
+D:\detector_code\C_code\BsP-IDD\CFBsP_5GLDPC_N1024_IDD-R766-arma_mmse_llrpro\GAMP_Test\crc.cpp;D:\detector_code\C_code\BsP-IDD\CFBsP_5GLDPC_N1024_IDD-R766-arma_mmse_llrpro\GAMP_Test\x64\Debug\crc.obj
+D:\detector_code\C_code\BsP-IDD\CFBsP_5GLDPC_N1024_IDD-R766-arma_mmse_llrpro\GAMP_Test\data_mem.cpp;D:\detector_code\C_code\BsP-IDD\CFBsP_5GLDPC_N1024_IDD-R766-arma_mmse_llrpro\GAMP_Test\x64\Debug\data_mem.obj
+D:\detector_code\C_code\BsP-IDD\CFBsP_5GLDPC_N1024_IDD-R766-arma_mmse_llrpro\GAMP_Test\decode.cpp;D:\detector_code\C_code\BsP-IDD\CFBsP_5GLDPC_N1024_IDD-R766-arma_mmse_llrpro\GAMP_Test\x64\Debug\decode.obj
+D:\detector_code\C_code\BsP-IDD\CFBsP_5GLDPC_N1024_IDD-R766-arma_mmse_llrpro\GAMP_Test\detection.cpp;D:\detector_code\C_code\BsP-IDD\CFBsP_5GLDPC_N1024_IDD-R766-arma_mmse_llrpro\GAMP_Test\x64\Debug\detection.obj
+D:\detector_code\C_code\BsP-IDD\CFBsP_5GLDPC_N1024_IDD-R766-arma_mmse_llrpro\GAMP_Test\det_mem.cpp;D:\detector_code\C_code\BsP-IDD\CFBsP_5GLDPC_N1024_IDD-R766-arma_mmse_llrpro\GAMP_Test\x64\Debug\det_mem.obj
+D:\detector_code\C_code\BsP-IDD\CFBsP_5GLDPC_N1024_IDD-R766-arma_mmse_llrpro\GAMP_Test\encode.cpp;D:\detector_code\C_code\BsP-IDD\CFBsP_5GLDPC_N1024_IDD-R766-arma_mmse_llrpro\GAMP_Test\x64\Debug\encode.obj
+D:\detector_code\C_code\BsP-IDD\CFBsP_5GLDPC_N1024_IDD-R766-arma_mmse_llrpro\GAMP_Test\LDPCfunctions.cpp;D:\detector_code\C_code\BsP-IDD\CFBsP_5GLDPC_N1024_IDD-R766-arma_mmse_llrpro\GAMP_Test\x64\Debug\LDPCfunctions.obj
+D:\detector_code\C_code\BsP-IDD\CFBsP_5GLDPC_N1024_IDD-R766-arma_mmse_llrpro\GAMP_Test\main.cpp;D:\detector_code\C_code\BsP-IDD\CFBsP_5GLDPC_N1024_IDD-R766-arma_mmse_llrpro\GAMP_Test\x64\Debug\main.obj
+D:\detector_code\C_code\BsP-IDD\CFBsP_5GLDPC_N1024_IDD-R766-arma_mmse_llrpro\GAMP_Test\mem_init.cpp;D:\detector_code\C_code\BsP-IDD\CFBsP_5GLDPC_N1024_IDD-R766-arma_mmse_llrpro\GAMP_Test\x64\Debug\mem_init.obj
+D:\detector_code\C_code\BsP-IDD\CFBsP_5GLDPC_N1024_IDD-R766-arma_mmse_llrpro\GAMP_Test\modem.cpp;D:\detector_code\C_code\BsP-IDD\CFBsP_5GLDPC_N1024_IDD-R766-arma_mmse_llrpro\GAMP_Test\x64\Debug\modem.obj
+D:\detector_code\C_code\BsP-IDD\CFBsP_5GLDPC_N1024_IDD-R766-arma_mmse_llrpro\GAMP_Test\ratematch.cpp;D:\detector_code\C_code\BsP-IDD\CFBsP_5GLDPC_N1024_IDD-R766-arma_mmse_llrpro\GAMP_Test\x64\Debug\ratematch.obj
+D:\detector_code\C_code\BsP-IDD\CFBsP_5GLDPC_N1024_IDD-R766-arma_mmse_llrpro\GAMP_Test\utils.cpp;D:\detector_code\C_code\BsP-IDD\CFBsP_5GLDPC_N1024_IDD-R766-arma_mmse_llrpro\GAMP_Test\x64\Debug\utils.obj

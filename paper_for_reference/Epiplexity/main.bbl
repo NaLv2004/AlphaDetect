@@ -1,0 +1,573 @@
+\begin{thebibliography}{111}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Aaronson et~al.(2014)Aaronson, Carroll, and Ouellette]{aaronson2014quantifying}
+Scott Aaronson, Sean~M Carroll, and Lauren Ouellette.
+\newblock Quantifying the rise and fall of complexity in closed systems: the coffee automaton.
+\newblock \emph{arXiv preprint arXiv:1405.6903}, 2014.
+
+\bibitem[Abdin et~al.(2024)Abdin, Aneja, Behl, Bubeck, Eldan, Gunasekar, Harrison, Hewett, Javaheripi, Kauffmann, et~al.]{abdin2024phi}
+Marah Abdin, Jyoti Aneja, Harkirat Behl, S{\'e}bastien Bubeck, Ronen Eldan, Suriya Gunasekar, Michael Harrison, Russell~J Hewett, Mojan Javaheripi, Piero Kauffmann, et~al.
+\newblock Phi-4 technical report.
+\newblock \emph{arXiv preprint arXiv:2412.08905}, 2024.
+
+\bibitem[Achille and Soatto(2025)]{achille2025ai}
+Alessandro Achille and Stefano Soatto.
+\newblock Ai agents as universal task solvers.
+\newblock \emph{arXiv preprint arXiv:2510.12066}, 2025.
+
+\bibitem[Ahn et~al.(2022)Ahn, Brohan, Brown, Chebotar, Cortes, David, Finn, Fu, Gopalakrishnan, Hausman, et~al.]{ahn2022can}
+Michael Ahn, Anthony Brohan, Noah Brown, Yevgen Chebotar, Omar Cortes, Byron David, Chelsea Finn, Chuyuan Fu, Keerthana Gopalakrishnan, Karol Hausman, et~al.
+\newblock Do as i can, not as i say: Grounding language in robotic affordances.
+\newblock \emph{arXiv preprint arXiv:2204.01691}, 2022.
+
+\bibitem[Allender et~al.(2011)Allender, Kouck{\`y}, Ronneburger, and Roy]{allender2011pervasive}
+Eric Allender, Michal Kouck{\`y}, Detlef Ronneburger, and Sambuddha Roy.
+\newblock The pervasive reach of resource-bounded kolmogorov complexity in computational complexity theory.
+\newblock \emph{Journal of Computer and System Sciences}, 77\penalty0 (1):\penalty0 14--40, 2011.
+
+\bibitem[Anderson(1972)]{anderson1972more}
+Philip~W Anderson.
+\newblock More is different: Broken symmetry and the nature of the hierarchical structure of science.
+\newblock \emph{Science}, 177\penalty0 (4047):\penalty0 393--396, 1972.
+
+\bibitem[Antunes et~al.(2005)Antunes, Fortnow, van Melkebeek, and Vinodchandran]{antunes2006sophistication}
+Luis Antunes, Lance Fortnow, Dieter van Melkebeek, and N.~V. Vinodchandran.
+\newblock Sophistication revisited.
+\newblock \emph{Theory of Computing Systems}, 38\penalty0 (4):\penalty0 535--555, 2005.
+
+\bibitem[Applebaum(2016)]{applebaum2016cryptographic}
+Benny Applebaum.
+\newblock Cryptographic hardness of random local functions: Survey.
+\newblock \emph{Computational complexity}, 25\penalty0 (3):\penalty0 667--722, 2016.
+
+\bibitem[Ay et~al.(2010)Ay, M{\"u}ller, and Szkola]{ay2010effective}
+Nihat Ay, Markus M{\"u}ller, and Arleta Szkola.
+\newblock Effective complexity and its relation to logical depth.
+\newblock \emph{IEEE transactions on information theory}, 56\penalty0 (9):\penalty0 4593--4607, 2010.
+
+\bibitem[Ball{\'e} et~al.(2018)Ball{\'e}, Minnen, Singh, Hwang, and Johnston]{balle2018variational}
+Johannes Ball{\'e}, David Minnen, Saurabh Singh, Sung~Jin Hwang, and Nick Johnston.
+\newblock Variational image compression with a scale hyperprior.
+\newblock \emph{arXiv preprint arXiv:1802.01436}, 2018.
+
+\bibitem[Barak et~al.(2003)Barak, Shaltiel, and Wigderson]{barak2003computational}
+Boaz Barak, Ronen Shaltiel, and Avi Wigderson.
+\newblock Computational analogues of entropy.
+\newblock In \emph{International Workshop on Randomization and Approximation Techniques in Computer Science}, pages 200--215. Springer, 2003.
+
+\bibitem[Bengio et~al.(2019)Bengio, Deleu, Rahaman, Ke, Lachapelle, Bilaniuk, Goyal, and Pal]{bengio2019meta}
+Yoshua Bengio, Tristan Deleu, Nasim Rahaman, Rosemary Ke, S{\'e}bastien Lachapelle, Olexa Bilaniuk, Anirudh Goyal, and Christopher Pal.
+\newblock A meta-transfer objective for learning to disentangle causal mechanisms.
+\newblock \emph{arXiv preprint arXiv:1901.10912}, 2019.
+
+\bibitem[Bennett(1988)]{bennett1988logical}
+Charles~H Bennett.
+\newblock Logical depth and physical complexity.
+\newblock \emph{The Universal Turing Machine: A Half-Century Survey}, 1:\penalty0 227--257, 1988.
+
+\bibitem[Berthet and Rigollet(2013)]{berthet2013computational}
+Quentin Berthet and Philippe Rigollet.
+\newblock Computational lower bounds for sparse pca.
+\newblock \emph{arXiv preprint arXiv:1304.0828}, 2013.
+
+\bibitem[Blum and Micali(1982)]{blum1984generate}
+Manuel Blum and Silvio Micali.
+\newblock How to generate cryptographically strong sequences of pseudo random bits.
+\newblock In \emph{23rd Annual Symposium on Foundations of Computer Science (sfcs 1982)}, pages 112--117, 1982.
+\newblock \doi{10.1109/SFCS.1982.72}.
+
+\bibitem[Bradbury et~al.(2018)Bradbury, Frostig, Hawkins, Johnson, Leary, Maclaurin, Necula, Paszke, Vander{P}las, Wanderman-{M}ilne, and Zhang]{jax2018github}
+James Bradbury, Roy Frostig, Peter Hawkins, Matthew~James Johnson, Chris Leary, Dougal Maclaurin, George Necula, Adam Paszke, Jake Vander{P}las, Skye Wanderman-{M}ilne, and Qiao Zhang.
+\newblock {JAX}: composable transformations of {P}ython+{N}um{P}y programs, 2018.
+\newblock URL \url{http://github.com/jax-ml/jax}.
+
+\bibitem[Burns et~al.(2023)Burns, Izmailov, Kirchner, Baker, Gao, Aschenbrenner, Chen, Ecoffet, Joglekar, Leike, et~al.]{burns2023weak}
+Collin Burns, Pavel Izmailov, Jan~Hendrik Kirchner, Bowen Baker, Leo Gao, Leopold Aschenbrenner, Yining Chen, Adrien Ecoffet, Manas Joglekar, Jan Leike, et~al.
+\newblock Weak-to-strong generalization: Eliciting strong capabilities with weak supervision.
+\newblock \emph{arXiv preprint arXiv:2312.09390}, 2023.
+
+\bibitem[Carroll and Parola(2024)]{carroll2024emergence}
+Sean~M Carroll and Achyuth Parola.
+\newblock What emergence can possibly mean.
+\newblock \emph{arXiv preprint arXiv:2410.15468}, 2024.
+
+\bibitem[Chaitin(1974)]{chaitin1974information}
+Gregory~J Chaitin.
+\newblock Information-theoretic limitations of formal systems.
+\newblock \emph{Journal of the ACM (JACM)}, 21\penalty0 (3):\penalty0 403--424, 1974.
+
+\bibitem[Chaitin(1975)]{chaitin1975theory}
+Gregory~J Chaitin.
+\newblock A theory of program size formally identical to information theory.
+\newblock \emph{Journal of the ACM (JACM)}, 22\penalty0 (3):\penalty0 329--340, 1975.
+
+\bibitem[Chaitin(1998)]{chaitin1998limits}
+Gregory~J Chaitin.
+\newblock \emph{The limits of mathematics: A course on information theory and the limits of formal reasoning}.
+\newblock Springer, 1998.
+
+\bibitem[Crutchfield and Packard(1983)]{crutchfield1983symbolic}
+James~P Crutchfield and NH719053 Packard.
+\newblock Symbolic dynamics of noisy chaos.
+\newblock \emph{Physica D: Nonlinear Phenomena}, 7\penalty0 (1-3):\penalty0 201--223, 1983.
+
+\bibitem[Dawid(1984)]{dawid1984present}
+A~Philip Dawid.
+\newblock Present position and potential developments: Some personal views statistical theory the prequential approach.
+\newblock \emph{Journal of the Royal Statistical Society: Series A (General)}, 147\penalty0 (2):\penalty0 278--290, 1984.
+
+\bibitem[Dehghani et~al.(2018)Dehghani, Gouws, Vinyals, Uszkoreit, and Kaiser]{dehghani2018universal}
+Mostafa Dehghani, Stephan Gouws, Oriol Vinyals, Jakob Uszkoreit, and Lukasz Kaiser.
+\newblock Universal transformers.
+\newblock \emph{arXiv preprint arXiv:1807.03819}, 2018.
+
+\bibitem[Del{\'e}tang et~al.(2023)Del{\'e}tang, Ruoss, Duquenne, Catt, Genewein, Mattern, Grau-Moya, Wenliang, Aitchison, Orseau, et~al.]{deletang2023language}
+Gr{\'e}goire Del{\'e}tang, Anian Ruoss, Paul-Ambroise Duquenne, Elliot Catt, Tim Genewein, Christopher Mattern, Jordi Grau-Moya, Li~Kevin Wenliang, Matthew Aitchison, Laurent Orseau, et~al.
+\newblock Language modeling is compression.
+\newblock \emph{arXiv preprint arXiv:2309.10668}, 2023.
+
+\bibitem[Dey et~al.(2025)Dey, Zhang, Noci, Li, Bordelon, Bergsma, Pehlevan, Hanin, and Hestness]{dey2025don}
+Nolan Dey, Bin~Claire Zhang, Lorenzo Noci, Mufan Li, Blake Bordelon, Shane Bergsma, Cengiz Pehlevan, Boris Hanin, and Joel Hestness.
+\newblock Don't be lazy: Completep enables compute-efficient deep transformers.
+\newblock \emph{arXiv preprint arXiv:2505.01618}, 2025.
+
+\bibitem[Downey and Hirschfeldt(2019)]{downey2019algorithmic}
+Rod Downey and Denis~R Hirschfeldt.
+\newblock Algorithmic randomness.
+\newblock \emph{Communications of the ACM}, 62\penalty0 (5):\penalty0 70--80, 2019.
+
+\bibitem[Dziugaite and Roy(2025)]{dziugaite2025size}
+Gintare~Karolina Dziugaite and Daniel~M Roy.
+\newblock The size of teachers as a measure of data complexity: Pac-bayes excess risk bounds and scaling laws.
+\newblock In \emph{The 28th International Conference on Artificial Intelligence and Statistics}, 2025.
+
+\bibitem[Edelman et~al.(2024)Edelman, Edelman, Goel, Malach, and Tsilivis]{edelman2024evolution}
+Benjamin~L Edelman, Ezra Edelman, Surbhi Goel, Eran Malach, and Nikolaos Tsilivis.
+\newblock The evolution of statistical induction heads: In-context learning markov chains.
+\newblock \emph{arXiv preprint arXiv:2402.11004}, 2024.
+
+\bibitem[Feldman(1998)]{feldman1998information}
+David Feldman.
+\newblock Information theory, excess entropy.
+\newblock 1998.
+
+\bibitem[Finzi et~al.(2025)Finzi, Kapoor, Granziol, Gu, De~Sa, Kolter, and Wilson]{finzi2025compute}
+Marc Finzi, Sanyam Kapoor, Diego Granziol, Anming Gu, Christopher De~Sa, J~Zico Kolter, and Andrew~Gordon Wilson.
+\newblock Compute-optimal llms provably generalize better with scale.
+\newblock \emph{arXiv preprint arXiv:2504.15208}, 2025.
+
+\bibitem[Finzi et~al.(2026)Finzi, et, and al]{finzi2026requential}
+Marc Finzi, et, and al.
+\newblock Requential coding.
+\newblock Forthcoming, 2026.
+
+\bibitem[Fraenkel and Lichtenstein(1981)]{fraenkel1981computing}
+Aviezri~S Fraenkel and David Lichtenstein.
+\newblock Computing a perfect strategy for n$\times$ n chess requires time exponential in n.
+\newblock In \emph{International Colloquium on Automata, Languages, and Programming}, pages 278--293. Springer, 1981.
+
+\bibitem[Gao et~al.(2020)Gao, Biderman, Black, Golding, Hoppe, Foster, Phang, He, Thite, Nabeshima, et~al.]{gao2020pile}
+Leo Gao, Stella Biderman, Sid Black, Laurence Golding, Travis Hoppe, Charles Foster, Jason Phang, Horace He, Anish Thite, Noa Nabeshima, et~al.
+\newblock The pile: An 800gb dataset of diverse text for language modeling.
+\newblock \emph{arXiv preprint arXiv:2101.00027}, 2020.
+
+\bibitem[Gardner(1970)]{gardner1970mathematical}
+Martin Gardner.
+\newblock Mathematical games.
+\newblock \emph{Scientific american}, 222\penalty0 (6):\penalty0 132--140, 1970.
+
+\bibitem[Gell-Mann and Lloyd(1996)]{gell1996information}
+Murray Gell-Mann and Seth Lloyd.
+\newblock Information measures, effective complexity, and total information.
+\newblock \emph{Complexity}, 2\penalty0 (1):\penalty0 44--52, 1996.
+
+\bibitem[Gerstgrasser et~al.(2024)Gerstgrasser, Schaeffer, Dey, Rafailov, Sleight, Hughes, Korbak, Agrawal, Pai, Gromov, et~al.]{gerstgrasser2024model}
+Matthias Gerstgrasser, Rylan Schaeffer, Apratim Dey, Rafael Rafailov, Henry Sleight, John Hughes, Tomasz Korbak, Rajashree Agrawal, Dhruv Pai, Andrey Gromov, et~al.
+\newblock Is model collapse inevitable? breaking the curse of recursion by accumulating real and synthetic data.
+\newblock \emph{arXiv preprint arXiv:2404.01413}, 2024.
+
+\bibitem[Giannou et~al.(2023)Giannou, Rajput, Sohn, Lee, Lee, and Papailiopoulos]{giannou2023looped}
+Angeliki Giannou, Shashank Rajput, Jy-yong Sohn, Kangwook Lee, Jason~D Lee, and Dimitris Papailiopoulos.
+\newblock Looped transformers as programmable computers.
+\newblock In \emph{International Conference on Machine Learning}, pages 11398--11442. PMLR, 2023.
+
+\bibitem[Goldblum et~al.(2023)Goldblum, Finzi, Rowan, and Wilson]{goldblum2023no}
+Micah Goldblum, Marc Finzi, Keefer Rowan, and Andrew~Gordon Wilson.
+\newblock The no free lunch theorem, kolmogorov complexity, and the role of inductive biases in machine learning.
+\newblock \emph{arXiv preprint arXiv:2304.05366}, 2023.
+
+\bibitem[Goldreich(2006)]{goldreich2001foundations1}
+Oded Goldreich.
+\newblock \emph{Foundations of Cryptography: Volume 1, Basic Tools}.
+\newblock Cambridge University Press, 2006.
+
+\bibitem[Goldreich and Levin(1989)]{goldreich1989hard}
+Oded Goldreich and Leonid~A Levin.
+\newblock A hard-core predicate for all one-way functions.
+\newblock In \emph{Proceedings of the twenty-first annual ACM symposium on Theory of computing}, pages 25--32, 1989.
+
+\bibitem[Grassberger(1986)]{grassberger1986toward}
+Peter Grassberger.
+\newblock Toward a quantitative theory of self-generated complexity.
+\newblock \emph{International Journal of Theoretical Physics}, 25\penalty0 (9):\penalty0 907--938, 1986.
+
+\bibitem[Gr{\"u}nwald(2007)]{grunwald2007minimum}
+Peter~D Gr{\"u}nwald.
+\newblock \emph{The minimum description length principle}.
+\newblock MIT press, 2007.
+
+\bibitem[Gr{\"u}nwald et~al.(2008)Gr{\"u}nwald, Vit{\'a}nyi, et~al.]{grunwald2008algorithmic}
+Peter~D Gr{\"u}nwald, PM~Vit{\'a}nyi, et~al.
+\newblock Algorithmic information theory, 2008.
+
+\bibitem[Gruver et~al.(2023)Gruver, Finzi, Qiu, and Wilson]{gruver2023large}
+Nate Gruver, Marc Finzi, Shikai Qiu, and Andrew~G Wilson.
+\newblock Large language models are zero-shot time series forecasters.
+\newblock \emph{Advances in Neural Information Processing Systems}, 36:\penalty0 19622--19635, 2023.
+
+\bibitem[H{\"a}gele et~al.(2024)H{\"a}gele, Bakouch, Kosson, Von~Werra, Jaggi, et~al.]{hagele2024scaling}
+Alex H{\"a}gele, Elie Bakouch, Atli Kosson, Leandro Von~Werra, Martin Jaggi, et~al.
+\newblock Scaling laws and compute-optimal training beyond fixed training durations.
+\newblock \emph{Advances in Neural Information Processing Systems}, 37:\penalty0 76232--76264, 2024.
+
+\bibitem[H{\aa}stad et~al.(1999)H{\aa}stad, Impagliazzo, Levin, and Luby]{haastad1999pseudorandom}
+Johan H{\aa}stad, Russell Impagliazzo, Leonid~A Levin, and Michael Luby.
+\newblock A pseudorandom generator from any one-way function.
+\newblock \emph{SIAM Journal on Computing}, 28\penalty0 (4):\penalty0 1364--1396, 1999.
+
+\bibitem[Henighan et~al.(2020)Henighan, Kaplan, Katz, Chen, Hesse, Jackson, Jun, Brown, Dhariwal, Gray, et~al.]{henighan2020scaling}
+Tom Henighan, Jared Kaplan, Mor Katz, Mark Chen, Christopher Hesse, Jacob Jackson, Heewoo Jun, Tom~B Brown, Prafulla Dhariwal, Scott Gray, et~al.
+\newblock Scaling laws for autoregressive generative modeling.
+\newblock \emph{arXiv preprint arXiv:2010.14701}, 2020.
+
+\bibitem[Hoffmann et~al.(2022)Hoffmann, Borgeaud, Mensch, Buchatskaya, Cai, Rutherford, Casas, Hendricks, Welbl, Clark, et~al.]{hoffmann2022training}
+Jordan Hoffmann, Sebastian Borgeaud, Arthur Mensch, Elena Buchatskaya, Trevor Cai, Eliza Rutherford, Diego de~Las Casas, Lisa~Anne Hendricks, Johannes Welbl, Aidan Clark, et~al.
+\newblock Training compute-optimal large language models.
+\newblock \emph{arXiv preprint arXiv:2203.15556}, 2022.
+
+\bibitem[Hsiao et~al.(2007)Hsiao, Lu, and Reyzin]{hsiao2007conditional}
+Chun-Yuan Hsiao, Chi-Jen Lu, and Leonid Reyzin.
+\newblock Conditional computational entropy, or toward separating pseudoentropy from compressibility.
+\newblock In \emph{Annual International Conference on the Theory and Applications of Cryptographic Techniques}, pages 169--186. Springer, 2007.
+
+\bibitem[Hutter(2021)]{hutter2021learning}
+Marcus Hutter.
+\newblock Learning curve theory.
+\newblock \emph{arXiv preprint arXiv:2102.04074}, 2021.
+
+\bibitem[Jiang et~al.(2025)Jiang, Zhou, Feng, Malladi, and Kolter]{jiang2025adaptive}
+Yiding Jiang, Allan Zhou, Zhili Feng, Sadhika Malladi, and J~Zico Kolter.
+\newblock Adaptive data optimization: Dynamic sample selection with scaling laws.
+\newblock In \emph{The Thirteenth International Conference on Learning Representations}, 2025.
+\newblock URL \url{https://openreview.net/forum?id=aqok1UX7Z1}.
+
+\bibitem[Kaplan et~al.(2020)Kaplan, McCandlish, Henighan, Brown, Chess, Child, Gray, Radford, Wu, and Amodei]{kaplan2020scaling}
+Jared Kaplan, Sam McCandlish, Tom Henighan, Tom~B Brown, Benjamin Chess, Rewon Child, Scott Gray, Alec Radford, Jeffrey Wu, and Dario Amodei.
+\newblock Scaling laws for neural language models.
+\newblock \emph{arXiv preprint arXiv:2001.08361}, 2020.
+
+\bibitem[Kingma et~al.(2013)Kingma, Welling, et~al.]{kingma2013auto}
+Diederik~P Kingma, Max Welling, et~al.
+\newblock Auto-encoding variational bayes, 2013.
+
+\bibitem[Kolmogorov(1968)]{Kolmogorov01011968}
+A.~N. Kolmogorov.
+\newblock Three approaches to the quantitative definition of information *.
+\newblock \emph{International Journal of Computer Mathematics}, 2\penalty0 (1-4):\penalty0 157--168, 1968.
+\newblock \doi{10.1080/00207166808803030}.
+\newblock URL \url{https://doi.org/10.1080/00207166808803030}.
+
+\bibitem[Koppel(1988)]{koppel1987structure}
+Moshe Koppel.
+\newblock Structure.
+\newblock In Rolf Herken, editor, \emph{The Universal Turing Machine: A Half-Century Survey}, pages 435--452. Oxford University Press, 1988.
+
+\bibitem[Kraft(1949)]{Kraft1949Device}
+Leon~G. Kraft.
+\newblock A device for quantizing, grouping, and coding amplitude-modulated pulses.
+\newblock S.m. thesis, Massachusetts Institute of Technology, Cambridge, MA, 1949.
+\newblock URL \url{https://hdl.handle.net/1721.1/12390}.
+
+\bibitem[Li and Vitányi(2008)]{LiVitanyi2008}
+Ming Li and Paul Vitányi.
+\newblock \emph{An introduction to {K}olmogorov complexity and its applications}.
+\newblock Springer, New York, NY, 2008.
+
+\bibitem[Li et~al.(2008)Li, Vit{\'a}nyi, et~al.]{li2008introduction}
+Ming Li, Paul Vit{\'a}nyi, et~al.
+\newblock \emph{An introduction to Kolmogorov complexity and its applications}, volume~3.
+\newblock Springer, 2008.
+
+\bibitem[Liu et~al.(2024)Liu, Feng, Xue, Wang, Wu, Lu, Zhao, Deng, Zhang, Ruan, et~al.]{liu2024deepseek}
+Aixin Liu, Bei Feng, Bing Xue, Bingxuan Wang, Bochao Wu, Chengda Lu, Chenggang Zhao, Chengqi Deng, Chenyu Zhang, Chong Ruan, et~al.
+\newblock Deepseek-v3 technical report.
+\newblock \emph{arXiv preprint arXiv:2412.19437}, 2024.
+
+\bibitem[Liu and Pass(2024)]{liu2024direct}
+Yanyi Liu and Rafael Pass.
+\newblock A direct prf construction from kolmogorov complexity.
+\newblock In \emph{Annual International Conference on the Theory and Applications of Cryptographic Techniques}, pages 375--406. Springer, 2024.
+
+\bibitem[MacKay(2003)]{mackay2003information}
+David~JC MacKay.
+\newblock \emph{Information theory, inference and learning algorithms}.
+\newblock Cambridge university press, 2003.
+
+\bibitem[Maini et~al.(2024)Maini, Seto, Bai, Grangier, Zhang, and Jaitly]{maini2024rephrasing}
+Pratyush Maini, Skyler Seto, He~Bai, David Grangier, Yizhe Zhang, and Navdeep Jaitly.
+\newblock Rephrasing the web: A recipe for compute and data-efficient language modeling.
+\newblock \emph{arXiv preprint arXiv:2401.16380}, 2024.
+
+\bibitem[Martin-L{\"o}f(1966)]{martin1966definition}
+Per Martin-L{\"o}f.
+\newblock The definition of random sequences.
+\newblock \emph{Information and control}, 9\penalty0 (6):\penalty0 602--619, 1966.
+
+\bibitem[Mart{\'\i}nez et~al.(2006)Mart{\'\i}nez, Adamatzky, and McIntosh]{martinez2006phenomenology}
+Genaro~Ju{\'a}rez Mart{\'\i}nez, Andrew Adamatzky, and Harold~V McIntosh.
+\newblock Phenomenology of glider collisions in cellular automaton rule 54 and associated logical gates.
+\newblock \emph{Chaos, Solitons \& Fractals}, 28\penalty0 (1):\penalty0 100--111, 2006.
+
+\bibitem[McLeish et~al.(2025)McLeish, Kirchenbauer, Miller, Singh, Bhatele, Goldblum, Panda, and Goldstein]{mcleish2025gemstones}
+Sean McLeish, John Kirchenbauer, David~Yu Miller, Siddharth Singh, Abhinav Bhatele, Micah Goldblum, Ashwinee Panda, and Tom Goldstein.
+\newblock Gemstones: A model suite for multi-faceted scaling laws.
+\newblock \emph{arXiv preprint arXiv:2502.06857}, 2025.
+
+\bibitem[McMillan(1956)]{McMillan1956TwoInequalities}
+Brockway McMillan.
+\newblock Two inequalities implied by unique decipherability.
+\newblock \emph{IRE Transactions on Information Theory}, 2\penalty0 (4):\penalty0 115--116, December 1956.
+\newblock \doi{10.1109/TIT.1956.1056818}.
+
+\bibitem[Merkle(1978)]{merkle1978secure}
+Ralph~C Merkle.
+\newblock Secure communications over insecure channels.
+\newblock \emph{Communications of the ACM}, 21\penalty0 (4):\penalty0 294--299, 1978.
+
+\bibitem[Metzger(2000)]{metzger2000sinai}
+Roger~J. Metzger.
+\newblock Sinai-ruelle-bowen measures for contracting {Lorenz} maps and flows.
+\newblock \emph{Annales de l'I.H.P. Analyse non lin\'eaire}, 17\penalty0 (2):\penalty0 247--276, 2000.
+\newblock URL \url{https://www.numdam.org/item/AIHPC_2000__17_2_247_0/}.
+
+\bibitem[Mota et~al.(2013)Mota, Aaronson, Antunes, and Souto]{mota2013sophistication}
+Francisco Mota, Scott Aaronson, Lu{\'\i}s Antunes, and Andr{\'e} Souto.
+\newblock Sophistication as randomness deficiency.
+\newblock In \emph{Descriptional Complexity of Formal Systems: 15th International Workshop, DCFS 2013, London, ON, Canada, July 22-25, 2013. Proceedings 15}, pages 172--181. Springer, 2013.
+
+\bibitem[Nakkiran et~al.(2020)Nakkiran, Neyshabur, and Sedghi]{nakkiran2020deep}
+Preetum Nakkiran, Behnam Neyshabur, and Hanie Sedghi.
+\newblock The deep bootstrap framework: Good online learners are good offline generalizers.
+\newblock \emph{arXiv preprint arXiv:2010.08127}, 2020.
+
+\bibitem[Olsson et~al.(2022)Olsson, Elhage, Nanda, Joseph, DasSarma, Henighan, Mann, Askell, Bai, Chen, et~al.]{olsson2022context}
+Catherine Olsson, Nelson Elhage, Neel Nanda, Nicholas Joseph, Nova DasSarma, Tom Henighan, Ben Mann, Amanda Askell, Yuntao Bai, Anna Chen, et~al.
+\newblock In-context learning and induction heads.
+\newblock \emph{arXiv preprint arXiv:2209.11895}, 2022.
+
+\bibitem[{OpenAI}(2025)]{openai2025gpt5systemcard}
+{OpenAI}.
+\newblock {GPT-5 System Card}.
+\newblock \url{https://cdn.openai.com/gpt-5-system-card.pdf}, August 2025.
+\newblock Version dated August 13, 2025. Accessed: 2026-01-05.
+
+\bibitem[Papadopoulos et~al.(2024)Papadopoulos, Wenger, and Hongler]{papadopoulos2024arrows}
+Vassilis Papadopoulos, J{\'e}r{\'e}mie Wenger, and Cl{\'e}ment Hongler.
+\newblock Arrows of time for large language models.
+\newblock In \emph{Forty-first International Conference on Machine Learning}, 2024.
+\newblock URL \url{https://openreview.net/forum?id=UpSe7ag34v}.
+
+\bibitem[Pearce and Song(2024)]{pearce2024reconciling}
+Tim Pearce and Jinyeop Song.
+\newblock Reconciling kaplan and chinchilla scaling laws.
+\newblock \emph{arXiv preprint arXiv:2406.12907}, 2024.
+
+\bibitem[Penedo et~al.(2024)Penedo, Kydl{\'\i}{\v{c}}ek, Lozhkov, Mitchell, Raffel, Von~Werra, Wolf, et~al.]{penedo2024fineweb}
+Guilherme Penedo, Hynek Kydl{\'\i}{\v{c}}ek, Anton Lozhkov, Margaret Mitchell, Colin~A Raffel, Leandro Von~Werra, Thomas Wolf, et~al.
+\newblock The fineweb datasets: Decanting the web for the finest text data at scale.
+\newblock \emph{Advances in Neural Information Processing Systems}, 37:\penalty0 30811--30849, 2024.
+
+\bibitem[Pesin(1977)]{pesin1977characteristic}
+Ya~B Pesin.
+\newblock Characteristic lyapunov exponents and smooth ergodic theory.
+\newblock \emph{Russian Mathematical Surveys}, 32\penalty0 (4):\penalty0 55, 1977.
+
+\bibitem[Radford et~al.(2019)Radford, Wu, Child, Luan, Amodei, Sutskever, et~al.]{radford2019language}
+Alec Radford, Jeffrey Wu, Rewon Child, David Luan, Dario Amodei, Ilya Sutskever, et~al.
+\newblock Language models are unsupervised multitask learners.
+\newblock \emph{OpenAI blog}, 1\penalty0 (8):\penalty0 9, 2019.
+
+\bibitem[Raz(2018)]{raz2018fast}
+Ran Raz.
+\newblock Fast learning requires good memory: A time-space lower bound for parity learning.
+\newblock \emph{Journal of the ACM (JACM)}, 66\penalty0 (1):\penalty0 1--18, 2018.
+
+\bibitem[Redeker(2010)]{redeker2010language}
+Markus Redeker.
+\newblock A language for particle interactions in one-dimensional cellular automata.
+\newblock \emph{arXiv preprint arXiv:1012.0158}, 2010.
+
+\bibitem[Rissanen(2004)]{rissanen2004minimum}
+Jorma Rissanen.
+\newblock Minimum description length principle.
+\newblock \emph{Encyclopedia of statistical sciences}, 7, 2004.
+
+\bibitem[Salmon et~al.(2011)Salmon, Moraes, Dror, and Shaw]{salmon2011parallel}
+John~K Salmon, Mark~A Moraes, Ron~O Dror, and David~E Shaw.
+\newblock Parallel random numbers: as easy as 1, 2, 3.
+\newblock In \emph{Proceedings of 2011 international conference for high performance computing, networking, storage and analysis}, pages 1--12, 2011.
+
+\bibitem[Saunshi et~al.(2025)Saunshi, Dikkala, Li, Kumar, and Reddi]{saunshi2025reasoning}
+Nikunj Saunshi, Nishanth Dikkala, Zhiyuan Li, Sanjiv Kumar, and Sashank~J Reddi.
+\newblock Reasoning with latent thoughts: On the power of looped transformers.
+\newblock \emph{arXiv preprint arXiv:2502.17416}, 2025.
+
+\bibitem[Schmidhuber(2002)]{schmidhuber2002speed}
+J{\"u}rgen Schmidhuber.
+\newblock The speed prior: a new simplicity measure yielding near-optimal computable predictions.
+\newblock In \emph{International conference on computational learning theory}, pages 216--228. Springer, 2002.
+
+\bibitem[Shafer and Vovk(2006)]{shafer2006sources}
+Glenn Shafer and Vladimir Vovk.
+\newblock The sources of kolmogorov’s grundbegriffe.
+\newblock 2006.
+
+\bibitem[Shalizi and Crutchfield(2001)]{shalizi2001computational}
+Cosma~Rohilla Shalizi and James~P Crutchfield.
+\newblock Computational mechanics: Pattern and prediction, structure and simplicity.
+\newblock \emph{Journal of Statistical Physics}, 104\penalty0 (3--4):\penalty0 817--879, 2001.
+
+\bibitem[Shannon(1948)]{shannon1948mathematical}
+Claude~E Shannon.
+\newblock A mathematical theory of communication.
+\newblock \emph{The Bell system technical journal}, 27\penalty0 (3):\penalty0 379--423, 1948.
+
+\bibitem[Shannon(1950)]{shannon1950chess}
+Claude~E. Shannon.
+\newblock Programming a computer for playing chess.
+\newblock \emph{Philosophical Magazine}, 41\penalty0 (314):\penalty0 256--275, 1950.
+
+\bibitem[Shaw(1984)]{shaw1984dripping}
+Robert Shaw.
+\newblock The dripping faucet as a model chaotic system.
+\newblock \emph{(No Title)}, 1984.
+
+\bibitem[Silver et~al.(2018)Silver, Hubert, Schrittwieser, Antonoglou, Lai, Guez, Lanctot, Sifre, Kumaran, Graepel, et~al.]{silver2018general}
+David Silver, Thomas Hubert, Julian Schrittwieser, Ioannis Antonoglou, Matthew Lai, Arthur Guez, Marc Lanctot, Laurent Sifre, Dharshan Kumaran, Thore Graepel, et~al.
+\newblock A general reinforcement learning algorithm that masters chess, shogi, and go through self-play.
+\newblock \emph{Science}, 362\penalty0 (6419):\penalty0 1140--1144, 2018.
+
+\bibitem[Soboleva et~al.(2023)Soboleva, Al-Khateeb, Myers, Steeves, Hestness, and Dey]{cerebras2023slimpajama}
+Daria Soboleva, Faisal Al-Khateeb, Robert Myers, Jacob~R Steeves, Joel Hestness, and Nolan Dey.
+\newblock {SlimPajama: A 627B token cleaned and deduplicated version of RedPajama}.
+\newblock \url{https://cerebras.ai/blog/slimpajama-a-627b-token-cleaned-and-deduplicated-version-of-redpajama}, 2023.
+\newblock URL \url{https://huggingface.co/datasets/cerebras/SlimPajama-627B}.
+
+\bibitem[Song et~al.(2024)Song, Yang, and Anandkumar]{song2024lean}
+Peiyang Song, Kaiyu Yang, and Anima Anandkumar.
+\newblock Towards large language models as copilots for theorem proving in lean.
+\newblock \emph{arXiv preprint arXiv:2404.12534}, 2024.
+
+\bibitem[Steinhardt et~al.(2016)Steinhardt, Valiant, and Wager]{steinhardt2016memory}
+Jacob Steinhardt, Gregory Valiant, and Stefan Wager.
+\newblock Memory, communication, and statistical queries.
+\newblock In \emph{Conference on Learning Theory}, pages 1490--1516. PMLR, 2016.
+
+\bibitem[Sutskever(2019)]{sutskever2019gpt2}
+Ilya Sutskever.
+\newblock Gpt-2.
+\newblock Presented at the Scaled Machine Learning Conference 2019, Computer History Museum, 2019.
+\newblock \url{https://www.youtube.com/watch?v=T0I88NhR_9M}.
+
+\bibitem[Terwijn(2016)]{terwijn2016mathematical}
+Sebastiaan~A Terwijn.
+\newblock The mathematical foundations of randomness.
+\newblock In \emph{The Challenge of Chance: A Multidisciplinary Approach from Science and the Humanities}, pages 49--66. Springer International Publishing Cham, 2016.
+
+\bibitem[Theis and Ahmed(2022)]{theis2022algorithms}
+Lucas Theis and Noureldin~Y Ahmed.
+\newblock Algorithms for the communication of samples.
+\newblock In \emph{International Conference on Machine Learning}, pages 21308--21328. PMLR, 2022.
+
+\bibitem[Tishby et~al.(2000)Tishby, Pereira, and Bialek]{tishby2000information}
+Naftali Tishby, Fernando~C Pereira, and William Bialek.
+\newblock The information bottleneck method.
+\newblock \emph{arXiv preprint physics/0004057}, 2000.
+
+\bibitem[Vereshchagin and Vit{\'a}nyi(2004)]{vereshchagin2004kolmogorov}
+Nikolay Vereshchagin and Paul~M.B. Vit{\'a}nyi.
+\newblock Kolmogorov's structure functions and model selection.
+\newblock \emph{IEEE Transactions on Information Theory}, 50\penalty0 (12):\penalty0 3265--3290, 2004.
+
+\bibitem[von Neumann(1928)]{vonneumann1928theorie}
+John von Neumann.
+\newblock Zur theorie der gesellschaftsspiele.
+\newblock \emph{Mathematische Annalen}, 100\penalty0 (1):\penalty0 295--320, 1928.
+
+\bibitem[Von~Neumann(1951)]{vonNeumann1951RandomDigits}
+John Von~Neumann.
+\newblock Various techniques used in connection with random digits.
+\newblock \emph{Appl. Math Ser}, 12\penalty0 (36-38):\penalty0 3, 1951.
+
+\bibitem[Wei et~al.(2022)Wei, Wang, Schuurmans, Bosma, Xia, Chi, Le, Zhou, et~al.]{wei2022chain}
+Jason Wei, Xuezhi Wang, Dale Schuurmans, Maarten Bosma, Fei Xia, Ed~Chi, Quoc~V Le, Denny Zhou, et~al.
+\newblock Chain-of-thought prompting elicits reasoning in large language models.
+\newblock \emph{Advances in neural information processing systems}, 35:\penalty0 24824--24837, 2022.
+
+\bibitem[Weiss et~al.(2021)Weiss, Goldberg, and Yahav]{weiss2021thinking}
+Gail Weiss, Yoav Goldberg, and Eran Yahav.
+\newblock Thinking like transformers.
+\newblock In \emph{International Conference on Machine Learning}, pages 11080--11090. PMLR, 2021.
+
+\bibitem[Whitney et~al.(2020)Whitney, Song, Brandfonbrener, Altosaar, and Cho]{whitney2020evaluating}
+William~F Whitney, Min~Jae Song, David Brandfonbrener, Jaan Altosaar, and Kyunghyun Cho.
+\newblock Evaluating representations by the complexity of learning low-loss predictors.
+\newblock \emph{arXiv preprint arXiv:2009.07368}, 2020.
+
+\bibitem[Wolfram and Gad-el Hak(2003)]{wolfram2003new}
+Stephen Wolfram and M~Gad-el Hak.
+\newblock A new kind of science.
+\newblock \emph{Appl. Mech. Rev.}, 56\penalty0 (2):\penalty0 B18--B19, 2003.
+
+\bibitem[Xu et~al.(2020)Xu, Zhao, Song, Stewart, and Ermon]{xu2020theory}
+Yilun Xu, Shengjia Zhao, Jiaming Song, Russell Stewart, and Stefano Ermon.
+\newblock A theory of usable information under computational constraints.
+\newblock \emph{arXiv preprint arXiv:2002.10689}, 2020.
+
+\bibitem[Yang and Littwin(2023)]{yang2023tensor}
+Greg Yang and Etai Littwin.
+\newblock Tensor programs ivb: Adaptive optimization in the infinite-width limit.
+\newblock \emph{arXiv preprint arXiv:2308.01814}, 2023.
+
+\bibitem[Yang et~al.(2022)Yang, Hu, Babuschkin, Sidor, Liu, Farhi, Ryder, Pachocki, Chen, and Gao]{yang2022tensor}
+Greg Yang, Edward~J Hu, Igor Babuschkin, Szymon Sidor, Xiaodong Liu, David Farhi, Nick Ryder, Jakub Pachocki, Weizhu Chen, and Jianfeng Gao.
+\newblock Tensor programs v: Tuning large neural networks via zero-shot hyperparameter transfer.
+\newblock \emph{arXiv preprint arXiv:2203.03466}, 2022.
+
+\bibitem[Yao(1982)]{Yao1982Trapdoor}
+Andrew~Chi{-}Chih Yao.
+\newblock Theory and applications of trapdoor functions (extended abstract).
+\newblock In \emph{23rd Annual Symposium on Foundations of Computer Science (FOCS)}, pages 80--91. IEEE Computer Society, 1982.
+\newblock \doi{10.1109/SFCS.1982.95}.
+
+\bibitem[Zhang et~al.(2024)Zhang, Patel, Rizvi, Liu, He, Karbasi, Zappala, and van Dijk]{zhang2024intelligence}
+Shiyang Zhang, Aakash Patel, Syed~A Rizvi, Nianchen Liu, Sizhuang He, Amin Karbasi, Emanuele Zappala, and David van Dijk.
+\newblock Intelligence at the edge of chaos.
+\newblock \emph{arXiv preprint arXiv:2410.02536}, 2024.
+
+\bibitem[Zhang et~al.(2020)Zhang, Li, Dou, and Wu]{zhang2020measuring}
+Xiao Zhang, Xingjian Li, Dejing Dou, and Ji~Wu.
+\newblock Measuring information transfer in neural networks.
+\newblock \emph{arXiv preprint arXiv:2009.07624}, 2020.
+
+\bibitem[Zhou et~al.(2023)Zhou, Bradley, Littwin, Razin, Saremi, Susskind, Bengio, and Nakkiran]{zhou2023algorithms}
+Hattie Zhou, Arwen Bradley, Etai Littwin, Noam Razin, Omid Saremi, Josh Susskind, Samy Bengio, and Preetum Nakkiran.
+\newblock What algorithms can transformers learn? a study in length generalization.
+\newblock \emph{arXiv preprint arXiv:2310.16028}, 2023.
+
+\end{thebibliography}

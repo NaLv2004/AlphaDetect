@@ -1,0 +1,22 @@
+{
+  "elapsed_s": 3899.5666530132294,
+  "from_scratch": true,
+  "seed_fitness": null,
+  "seed_ber_per_snr": null,
+  "seed_fer_per_snr": null,
+  "champion_fitness": -0.664516624234525,
+  "champion_ber_per_snr": [
+    0.26121794871794873,
+    0.1971153846153846,
+    0.1971153846153846
+  ],
+  "champion_fer_per_snr": [
+    1.0,
+    1.0,
+    1.0
+  ],
+  "champion_v2c_size": 23,
+  "champion_c2v_size": 32,
+  "champion_v2c_max_depth": 2,
+  "champion_c2v_max_depth": 2
+}

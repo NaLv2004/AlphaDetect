@@ -1,0 +1,197 @@
+{
+  "prog_v2c": [
+    {
+      "name": "Exec.DoRange",
+      "code_block": [
+        {
+          "name": "Exec.DoRange",
+          "code_block": [
+            {
+              "name": "FVec.PopBack"
+            },
+            {
+              "name": "Env.GetEdgeIndex"
+            }
+          ]
+        },
+        {
+          "name": "Float.Mul"
+        }
+      ]
+    },
+    {
+      "name": "Float.Min"
+    },
+    {
+      "name": "Float.Inv"
+    },
+    {
+      "name": "Float.Min"
+    },
+    {
+      "name": "Float.LT"
+    },
+    {
+      "name": "FVec.PopBack"
+    },
+    {
+      "name": "Exec.DoRange",
+      "code_block": [
+        {
+          "name": "Env.GetIncomingVec"
+        },
+        {
+          "name": "FVec.Set"
+        }
+      ]
+    },
+    {
+      "name": "Exec.When",
+      "code_block": [
+        {
+          "name": "Bool.Or"
+        },
+        {
+          "name": "Bool.Pop"
+        },
+        {
+          "name": "Float.EvoConst1"
+        }
+      ]
+    },
+    {
+      "name": "Env.GetDeg"
+    },
+    {
+      "name": "Float.Min"
+    },
+    {
+      "name": "BVec.Len"
+    },
+    {
+      "name": "Float.Min"
+    },
+    {
+      "name": "IVec.Set"
+    },
+    {
+      "name": "Mem.WriteVec"
+    }
+  ],
+  "prog_c2v": [
+    {
+      "name": "Bool.Not"
+    },
+    {
+      "name": "Float.Atanh"
+    },
+    {
+      "name": "Float.EvoConst6"
+    },
+    {
+      "name": "Exec.DoTimes",
+      "code_block": [
+        {
+          "name": "Int.Neg"
+        },
+        {
+          "name": "Float.Div"
+        },
+        {
+          "name": "FVec.PopBack"
+        }
+      ]
+    },
+    {
+      "name": "Exec.If",
+      "code_block": [
+        {
+          "name": "Mem.Write"
+        },
+        {
+          "name": "Float.Div"
+        },
+        {
+          "name": "Bool.FromInt"
+        },
+        {
+          "name": "Float.Tanh"
+        },
+        {
+          "name": "Float.EvoConst7"
+        },
+        {
+          "name": "FVec.Concat"
+        },
+        {
+          "name": "Exec.When",
+          "code_block": [
+            {
+              "name": "IVec.New"
+            },
+            {
+              "name": "Int.Dec"
+            },
+            {
+              "name": "FVec.Concat"
+            }
+          ]
+        },
+        {
+          "name": "Int.Mod"
+        },
+        {
+          "name": "Env.GetCodeRate"
+        },
+        {
+          "name": "FVec.Len"
+        }
+      ],
+      "code_block2": [
+        {
+          "name": "IVec.Pop"
+        },
+        {
+          "name": "Int.EQ"
+        },
+        {
+          "name": "Env.GetCodeRate"
+        },
+        {
+          "name": "Float.Mod"
+        }
+      ]
+    },
+    {
+      "name": "FVec.Rot"
+    },
+    {
+      "name": "Bool.Swap"
+    },
+    {
+      "name": "Float.Tanh"
+    },
+    {
+      "name": "Float.FromInt"
+    },
+    {
+      "name": "Bool.FromFloat"
+    },
+    {
+      "name": "Mem.WriteVec"
+    },
+    {
+      "name": "Float.Max"
+    }
+  ],
+  "log_constants": [
+    -1.968987281068618,
+    -0.05610739399323078,
+    -2.3118421017384048,
+    -0.10742479729610216,
+    3.0,
+    2.2307830803025697,
+    1.323252053080134,
+    1.8227657212630581
+  ]
+}

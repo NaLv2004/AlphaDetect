@@ -1,0 +1,14 @@
+C:\Users\24134\Desktop\MMSE_5GLDPC_N1024_IDD_arma\GAMP_Test\ch_mem.cpp;C:\Users\24134\Desktop\MMSE_5GLDPC_N1024_IDD_arma\GAMP_Test\x64\Release\ch_mem.obj
+C:\Users\24134\Desktop\MMSE_5GLDPC_N1024_IDD_arma\GAMP_Test\coding_mem.cpp;C:\Users\24134\Desktop\MMSE_5GLDPC_N1024_IDD_arma\GAMP_Test\x64\Release\coding_mem.obj
+C:\Users\24134\Desktop\MMSE_5GLDPC_N1024_IDD_arma\GAMP_Test\crc.cpp;C:\Users\24134\Desktop\MMSE_5GLDPC_N1024_IDD_arma\GAMP_Test\x64\Release\crc.obj
+C:\Users\24134\Desktop\MMSE_5GLDPC_N1024_IDD_arma\GAMP_Test\data_mem.cpp;C:\Users\24134\Desktop\MMSE_5GLDPC_N1024_IDD_arma\GAMP_Test\x64\Release\data_mem.obj
+C:\Users\24134\Desktop\MMSE_5GLDPC_N1024_IDD_arma\GAMP_Test\decode.cpp;C:\Users\24134\Desktop\MMSE_5GLDPC_N1024_IDD_arma\GAMP_Test\x64\Release\decode.obj
+C:\Users\24134\Desktop\MMSE_5GLDPC_N1024_IDD_arma\GAMP_Test\detection.cpp;C:\Users\24134\Desktop\MMSE_5GLDPC_N1024_IDD_arma\GAMP_Test\x64\Release\detection.obj
+C:\Users\24134\Desktop\MMSE_5GLDPC_N1024_IDD_arma\GAMP_Test\det_mem.cpp;C:\Users\24134\Desktop\MMSE_5GLDPC_N1024_IDD_arma\GAMP_Test\x64\Release\det_mem.obj
+C:\Users\24134\Desktop\MMSE_5GLDPC_N1024_IDD_arma\GAMP_Test\encode.cpp;C:\Users\24134\Desktop\MMSE_5GLDPC_N1024_IDD_arma\GAMP_Test\x64\Release\encode.obj
+C:\Users\24134\Desktop\MMSE_5GLDPC_N1024_IDD_arma\GAMP_Test\LDPCfunctions.cpp;C:\Users\24134\Desktop\MMSE_5GLDPC_N1024_IDD_arma\GAMP_Test\x64\Release\LDPCfunctions.obj
+C:\Users\24134\Desktop\MMSE_5GLDPC_N1024_IDD_arma\GAMP_Test\main.cpp;C:\Users\24134\Desktop\MMSE_5GLDPC_N1024_IDD_arma\GAMP_Test\x64\Release\main.obj
+C:\Users\24134\Desktop\MMSE_5GLDPC_N1024_IDD_arma\GAMP_Test\mem_init.cpp;C:\Users\24134\Desktop\MMSE_5GLDPC_N1024_IDD_arma\GAMP_Test\x64\Release\mem_init.obj
+C:\Users\24134\Desktop\MMSE_5GLDPC_N1024_IDD_arma\GAMP_Test\modem.cpp;C:\Users\24134\Desktop\MMSE_5GLDPC_N1024_IDD_arma\GAMP_Test\x64\Release\modem.obj
+C:\Users\24134\Desktop\MMSE_5GLDPC_N1024_IDD_arma\GAMP_Test\ratematch.cpp;C:\Users\24134\Desktop\MMSE_5GLDPC_N1024_IDD_arma\GAMP_Test\x64\Release\ratematch.obj
+C:\Users\24134\Desktop\MMSE_5GLDPC_N1024_IDD_arma\GAMP_Test\utils.cpp;C:\Users\24134\Desktop\MMSE_5GLDPC_N1024_IDD_arma\GAMP_Test\x64\Release\utils.obj

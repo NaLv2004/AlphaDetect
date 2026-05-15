@@ -34,11 +34,20 @@ from .vm import VM
 
 
 class TaggedStack:
-    """Parallel string-stack mirroring a TypedStack."""
-    def __init__(self) -> None:
+    """Parallel string-stack mirroring a TypedStack.
+
+    Mirrors `TypedStack.push`'s overflow behaviour: when full, the
+    bottom element is dropped so the top stays aligned with the real
+    stack.  Without this the tag at the top can be from an older
+    operation than the value at the top of the real stack.
+    """
+    def __init__(self, max_depth: int = 10**9) -> None:
         self._tags: List[str] = []
+        self._max_depth = max_depth
 
     def push(self, t: str) -> None:
+        if len(self._tags) >= self._max_depth:
+            del self._tags[0]
         self._tags.append(t)
 
     def pop(self) -> str:
@@ -184,8 +193,12 @@ class TraceVM(VM):
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self._tracer = Tracer()
-        # Build tag stacks and wrap typed stacks.
-        self._tag_stacks = {t: TaggedStack() for t in Type}
+        # Build tag stacks bound to the same max_depth as their real
+        # stacks so overflow drops the bottom on both sides in sync.
+        self._tag_stacks = {
+            t: TaggedStack(max_depth=self.state.stack_for(t).max_depth)
+            for t in Type
+        }
         # Replace stacks on the VMState with wrappers.
         for t in Type:
             real = self.state.stack_for(t)
@@ -249,7 +262,18 @@ def trace_program(
     ctx_has_channel_llr: bool = True,
 ) -> dict:
     """Run a program in trace mode and return {'value': float|None,
-    'live_expr': str|None, 'fault': str}."""
+    'live_expr': str|None, 'fault': str}.
+
+    IMPORTANT: matches the same entry-point stack seeding used by
+    `pushgp.validators._seed_v2c_stacks` / `_seed_c2v_stacks` so that
+    the trace's live-expression reflects the SAME execution path the
+    validator and BP simulator take.  Without seeding the program runs
+    against empty stacks and the live expression is meaningless.
+
+    The seeded entries are tagged with semantic atoms ("L_v",
+    "v_index", "deg", "iter", "max_iter", "incoming") so the live
+    expression reads naturally.
+    """
     import numpy as np
     if ctx_incoming is None:
         ctx_incoming = np.array([0.4, -0.3, 0.7, -0.2, 0.1, -0.5], dtype=np.float64)
@@ -266,6 +290,32 @@ def trace_program(
     vm.state.ctx_edge_index = ctx_edge_index
     vm.state.ctx_evo_constants = ctx_evo_constants
     vm.state.ctx_has_channel_llr = ctx_has_channel_llr
+
+    # Seed the entry-point stacks identically to validators._seed_*_stacks.
+    # We do this WITHOUT going through the wrapper.push (which would
+    # build a tag from the empty consumed buffer + cur_op="" — would
+    # produce blank tags); instead, push to underlying real stacks
+    # directly and push semantic tags onto the tag stacks.
+    real_floats = vm.state.floats._real
+    real_ints = vm.state.ints._real
+    real_fvecs = vm.state.fvecs._real
+    tag_floats = vm._tag_stacks[Type.FLOAT]
+    tag_ints = vm._tag_stacks[Type.INT]
+    tag_fvecs = vm._tag_stacks[Type.FLOATVEC]
+
+    if ctx_has_channel_llr:
+        real_floats.push(float(ctx_channel_llr))
+        tag_floats.push("L_v")
+    real_ints.push(int(ctx_edge_index))
+    tag_ints.push("v_index")
+    real_ints.push(int(ctx_deg))
+    tag_ints.push("deg")
+    real_ints.push(int(ctx_iter))
+    tag_ints.push("iter")
+    real_ints.push(int(ctx_max_iter))
+    tag_ints.push("max_iter")
+    real_fvecs.push(ctx_incoming.copy())
+    tag_fvecs.push("incoming")
 
     val = vm.run(program)
     expr = vm.get_top_float_tag()
