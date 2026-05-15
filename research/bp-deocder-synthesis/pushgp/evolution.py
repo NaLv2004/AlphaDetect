@@ -234,6 +234,104 @@ def _prog_fingerprint(prog) -> str:
     return _json.dumps(program_to_dict(prog), sort_keys=True, separators=(",", ":"))
 
 
+# ---------------------------------------------------------------------------
+# Behavioral fingerprint.
+#
+# Motivation: empirical audit on the from-scratch run showed that 70%+ of the
+# population had IDENTICAL V2C output vectors on a fixed input panel even
+# though every program had a unique structural (syntactic) fingerprint.  This
+# means most of the diversity introduced by mutation/crossover is "dead code"
+# that does not affect the stack-top output, and selection sees a much smaller
+# effective pool than `pop_size`.
+#
+# The behavioral fingerprint runs the candidate program on a small fixed panel
+# of input contexts and quantizes the resulting outputs into a string.  Two
+# candidates that produce the same output on every panel entry are treated as
+# duplicates (they will receive identical fitness anyway, modulo evaluator
+# noise, so deduplicating them is strictly beneficial for population
+# diversity).  This subsumes static dead-code-elimination for the purposes of
+# dedup: any DCE-equivalent pair of programs collides.
+#
+# The panel uses a fixed RNG seed so the fingerprint is stable across calls
+# and across processes.
+_BEHAV_DEG: int = 8  # matches DEFAULT_DEG in validators.py
+_BEHAV_PANEL_SIZE: int = 6
+_BEHAV_QUANT: int = 8  # significant figures kept
+
+_BEHAV_PANEL_V2C: Optional[List[Tuple[float, np.ndarray]]] = None
+_BEHAV_PANEL_C2V: Optional[List[np.ndarray]] = None
+_BEHAV_DEFAULT_K: Optional[np.ndarray] = None
+
+
+def _build_behav_panels() -> None:
+    global _BEHAV_PANEL_V2C, _BEHAV_PANEL_C2V, _BEHAV_DEFAULT_K
+    if _BEHAV_PANEL_V2C is not None:
+        return
+    rng = np.random.default_rng(0xBE4AC1D)
+    panel_v: List[Tuple[float, np.ndarray]] = []
+    panel_c: List[np.ndarray] = []
+    for _ in range(_BEHAV_PANEL_SIZE):
+        L_v = float(rng.uniform(-2.5, 2.5))
+        incoming = rng.uniform(-3.0, 3.0,
+                               size=_BEHAV_DEG - 1).astype(np.float64)
+        panel_v.append((L_v, incoming))
+        # C2V panel uses different incoming vectors so the two sides exercise
+        # disjoint inputs.
+        incoming_c = rng.uniform(-3.0, 3.0,
+                                 size=_BEHAV_DEG - 1).astype(np.float64)
+        panel_c.append(incoming_c)
+    # Default constants: small geometric spread so EvoConst-using programs
+    # produce distinct outputs depending on which constant they pick.
+    k = np.array([0.1, 0.25, 0.5, 1.0, 2.0, 4.0, 8.0, 16.0],
+                 dtype=np.float64)
+    _BEHAV_PANEL_V2C = panel_v
+    _BEHAV_PANEL_C2V = panel_c
+    _BEHAV_DEFAULT_K = k
+
+
+def _behav_fingerprint(side: str, prog) -> str:
+    """Quantized output vector on a fixed test panel.
+
+    Falls back to a marker-tagged structural hash if the program throws or
+    returns non-finite outputs across the entire panel (so all-NaN programs
+    don't all collide to one fingerprint and lose their unique structural
+    identity for the purposes of selection).
+    """
+    from .validators import _make_vm, _seed_v2c_stacks, _seed_c2v_stacks  # noqa: E402
+
+    _build_behav_panels()
+    panel = _BEHAV_PANEL_V2C if side == "v2c" else _BEHAV_PANEL_C2V
+    outs: List[str] = []
+    finite_count = 0
+    for entry in panel:
+        if side == "v2c":
+            L_v, incoming = entry
+            vm = _make_vm(incoming, channel_llr=L_v, deg=_BEHAV_DEG,
+                          iter_idx=0, evo_consts=_BEHAV_DEFAULT_K)
+            _seed_v2c_stacks(vm)
+        else:
+            incoming = entry
+            vm = _make_vm(incoming, has_channel_llr=False, deg=_BEHAV_DEG,
+                          iter_idx=0, evo_consts=_BEHAV_DEFAULT_K)
+            _seed_c2v_stacks(vm)
+        try:
+            out = vm.run(prog)
+        except Exception:
+            out = None
+        if out is None or not np.isfinite(out):
+            outs.append("nan")
+        else:
+            finite_count += 1
+            outs.append(format(float(out), f".{_BEHAV_QUANT}g"))
+    sig = "|".join(outs)
+    if finite_count == 0:
+        # All non-finite: fall back to structural hash so we don't collapse
+        # every faulty program to one bucket.
+        return "NAN:" + _prog_fingerprint(prog)
+    return sig
+
+
+
 def _const_fingerprint(k: np.ndarray, *, quant: int = 2) -> str:
     return ",".join(f"{round(float(x), quant)}" for x in k)
 
@@ -281,7 +379,7 @@ def _evolve_side_offspring(
     if cfg.elitism > 0:
         for i in order[: cfg.elitism]:
             g = pop[int(i)]
-            fp = _prog_fingerprint(g)
+            fp = _behav_fingerprint(side, g)
             if cfg.dedup and fp in seen:
                 continue
             seen.add(fp)
@@ -335,7 +433,7 @@ def _evolve_side_offspring(
                 n_invalid += 1
                 continue
             if cfg.dedup:
-                fp = _prog_fingerprint(cand)
+                fp = _behav_fingerprint(side, cand)
                 if fp in seen:
                     continue
                 seen.add(fp)
@@ -425,6 +523,21 @@ def evolve_from_scratch(
     try:
         # ---- 1. Initial pops via parallel brute-force fill -------------
         t_init = time.time()
+
+        def _seed_progress(side, n_valid, n_attempts, elapsed_s):
+            target = cfg.pop_size
+            rate = (n_valid / elapsed_s) if elapsed_s > 0 else 0.0
+            remaining = max(0, target - n_valid)
+            eta = (remaining / rate) if rate > 0 else float("inf")
+            pass_rate = (n_valid / n_attempts) if n_attempts > 0 else 0.0
+            eta_s = f"{eta:6.1f}s" if eta != float("inf") else "  inf "
+            print(
+                f"[init-seed {side}] {n_valid:4d}/{target}  "
+                f"attempts={n_attempts:>9d}  pass={pass_rate:7.4%}  "
+                f"elapsed={elapsed_s:6.1f}s  rate={rate:6.2f}/s  ETA={eta_s}",
+                flush=True,
+            )
+
         pop_v, v_attempts = parallel_fill_random(
             "v2c", cfg.pop_size,
             max_attempts=cfg.max_attempts_per_slot * cfg.pop_size * 1000,
@@ -433,6 +546,7 @@ def evolve_from_scratch(
             min_size=cfg.rand_min_size, max_size=cfg.rand_max_size,
             deg=cfg.validator_deg, base_seed=cfg.seed * 17 + 1,
             pool=pool,
+            progress_cb=_seed_progress,
         )
         pop_c, c_attempts = parallel_fill_random(
             "c2v", cfg.pop_size,
@@ -442,6 +556,7 @@ def evolve_from_scratch(
             min_size=cfg.rand_min_size, max_size=cfg.rand_max_size,
             deg=cfg.validator_deg, base_seed=cfg.seed * 17 + 2,
             pool=pool,
+            progress_cb=_seed_progress,
         )
         pop_k = [rpg.random_log_constants() for _ in range(cfg.pop_size)]
 
@@ -452,7 +567,7 @@ def evolve_from_scratch(
             seen_v: set = set()
             uniq_v = []
             for p in pop_v:
-                fp = _prog_fingerprint(p)
+                fp = _behav_fingerprint("v2c", p)
                 if fp in seen_v:
                     continue
                 seen_v.add(fp)
@@ -469,7 +584,7 @@ def evolve_from_scratch(
                 )
                 v_attempts += n_extra
                 for p in extra:
-                    fp = _prog_fingerprint(p)
+                    fp = _behav_fingerprint("v2c", p)
                     if fp in seen_v:
                         continue
                     seen_v.add(fp)
@@ -481,7 +596,7 @@ def evolve_from_scratch(
             seen_c: set = set()
             uniq_c = []
             for p in pop_c:
-                fp = _prog_fingerprint(p)
+                fp = _behav_fingerprint("c2v", p)
                 if fp in seen_c:
                     continue
                 seen_c.add(fp)
@@ -498,7 +613,7 @@ def evolve_from_scratch(
                 )
                 c_attempts += n_extra
                 for p in extra:
-                    fp = _prog_fingerprint(p)
+                    fp = _behav_fingerprint("c2v", p)
                     if fp in seen_c:
                         continue
                     seen_c.add(fp)
