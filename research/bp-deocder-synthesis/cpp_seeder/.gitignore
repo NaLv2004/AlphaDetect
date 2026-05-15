@@ -1,0 +1,6 @@
+build/
+*.pyd
+*.obj
+*.exp
+*.lib
+__pycache__/
