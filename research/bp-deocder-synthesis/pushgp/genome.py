@@ -20,8 +20,21 @@ import numpy as np
 from .program import Instruction, deep_copy_program
 
 N_EVO_CONSTS = 8
-LOG_CONST_MIN = -3.0
-LOG_CONST_MAX = 3.0
+# Constraint:  EvoConst values live in [10**LOG_CONST_MIN, 10**LOG_CONST_MAX].
+# Tightened from [-3.0, 3.0] (i.e. K in [1e-3, 1e3]) to [-1.0, 0.0]
+# (i.e. K in [0.1, 1.0]) on 2026-05-15.  Empirical analysis of the
+# fromscratch_pop100_dedup run showed that *all* live (post dead-code
+# elimination) symbolic expressions across 10 generations used at most
+# K-values in [1e-3, 1.0]; large-magnitude EvoConsts (K > 10) appeared
+# in dead code only.  Restricting the search space to [0.1, 1.0]
+# concentrates sampling on the regime where normalized min-sum
+# (alpha~0.75), damping (rho~0.5), and SP scaling factors actually
+# live, which should improve the rate at which useful structures are
+# found.  Built-in literals (Float.Const0_1, Float.Const1, Float.Const2,
+# Float.ConstHalf, Float.ConstPi, Float.Const1e-6, ...) cover the
+# remaining structural constants and are unaffected by this change.
+LOG_CONST_MIN = -1.0
+LOG_CONST_MAX = 0.0
 MAX_PROG_LEN = 80  # total instruction count (incl. nested) per V2C / C2V program
 
 
