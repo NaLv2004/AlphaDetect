@@ -18,7 +18,7 @@ def progress(side, val, att, elapsed):
 def main(n_target=100, threads=8):
     print(f"=== C++ parallel_seed: n_target={n_target}, threads={threads} ===")
     t0 = time.perf_counter()
-    progs, attempts = M.parallel_seed(
+    progs, attempts, _ = M.parallel_seed(
         side="v2c",
         n_target=n_target,
         max_attempts=10_000_000,
@@ -37,7 +37,7 @@ def main(n_target=100, threads=8):
           f"pass={len(progs)/max(1,attempts)*100:.4f}%")
 
     t0 = time.perf_counter()
-    progs2, attempts2 = M.parallel_seed(
+    progs2, attempts2, _ = M.parallel_seed(
         side="c2v", n_target=n_target, max_attempts=10_000_000,
         threads=threads, chunk_attempts=2000, min_size=4, max_size=30,
         deg=8, num_configs=3, num_permutations=5, base_seed=4096,

@@ -224,7 +224,7 @@ def main(n_progs=200, seed=42, deg=8, n_seeded=20):
     if n_seeded > 0:
         print(f"[harvest] requesting {n_seeded} valid v2c + {n_seeded} c2v programs...")
         for side in ("v2c", "c2v"):
-            handles, _ = M.parallel_seed(
+            handles, _, _ = M.parallel_seed(
                 side=side, n_target=n_seeded, max_attempts=2_000_000,
                 threads=8, chunk_attempts=2000, min_size=4, max_size=30,
                 deg=deg, num_configs=3, num_permutations=5, base_seed=seed * 31,
