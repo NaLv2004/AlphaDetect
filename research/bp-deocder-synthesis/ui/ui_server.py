@@ -109,6 +109,7 @@ class LaunchParams(BaseModel):
     cpp_seeder: bool = True
     from_scratch: bool = True
     bind_pairs: bool = True
+    use_cpp_fitness: bool = True
     label: Optional[str] = None
     start_watcher: bool = True
 
@@ -142,6 +143,10 @@ class LaunchParams(BaseModel):
         # the user explicitly disables it in the form.
         if not self.bind_pairs:
             cmd.append("--no-bind-pairs")
+        # Default is use_cpp_fitness=True; only emit --no-cpp-fitness
+        # when the user explicitly disables it.
+        if not self.use_cpp_fitness:
+            cmd.append("--no-cpp-fitness")
         if self.dce_bp:
             cmd += [
                 "--dce-bp",

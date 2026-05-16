@@ -127,6 +127,16 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--no-bind-pairs", dest="bind_pairs", action="store_false",
                    help="Restore legacy random-permutation pairing every "
                         "generation (per-side independent offspring).")
+    # ---- C++-accelerated fitness evaluation ----
+    p.add_argument("--cpp-fitness", dest="cpp_fitness", action="store_true",
+                   default=True,
+                   help="Route every BP decode in fitness eval through the "
+                        "C++ kernel `pushgp_cpp_dce.decode_bp` (default ON, "
+                        "10-50x speedup; byte-locked to the Python path to "
+                        "6 decimals by cpp_dce/tests/test_bp_equivalence.py).")
+    p.add_argument("--no-cpp-fitness", dest="cpp_fitness", action="store_false",
+                   help="Use the legacy pure-Python fitness eval loop "
+                        "(useful for A/B equivalence testing).")
     return p.parse_args()
 
 
@@ -305,6 +315,7 @@ def main() -> int:
         n_frames_per_snr=args.n_frames,
         max_iter=args.max_iter,
         code_rate=0.5,
+        use_cpp_fitness=bool(args.cpp_fitness),
     )
 
     # Seed (only used if --use-oms-seed).
@@ -382,6 +393,7 @@ def main() -> int:
             "dce_bp_n_frames": args.dce_bp_n_frames,
             "dce_bp_oracle_seed": args.dce_bp_oracle_seed,
             "bind_pairs": bool(ev_cfg.bind_pairs),
+            "use_cpp_fitness": bool(fit_cfg.use_cpp_fitness),
         },
     }
     (out_dir / "meta.json").write_text(

@@ -60,6 +60,14 @@ class FitnessConfig:
     seed_base: int = 12345           # shared channel seed
     info_bits_per_frame: int = 0     # 0 → use par.cols (transmit codeword=0)
     early_fail_threshold: float = 0.45  # bail out if BER > this on first SNR
+    # When True, route every BP decode through the C++ kernel
+    # `pushgp_cpp_dce.decode_bp` instead of the Python `decode_bp`. The
+    # cpp path is byte-locked to the Python path to 6 decimals by
+    # `cpp_dce/tests/test_bp_equivalence.py` and reproduces the exact
+    # SNR/frame/BER bookkeeping in `pushgp_ldpc.eval_cpp`.  Disable to
+    # fall back to the legacy Python loop (useful for A/B equivalence
+    # tests and for environments where the .pyd cannot be loaded).
+    use_cpp_fitness: bool = True
 
 
 def _channel_inputs(cfg: FitnessConfig, snr_db: float) -> List[Tuple[np.ndarray, np.ndarray]]:

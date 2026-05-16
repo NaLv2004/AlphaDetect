@@ -31,6 +31,12 @@ _BAD = GenomeMetrics(fitness=6.0, ber_per_snr=[], fer_per_snr=[],
 
 
 def evaluate_genome_with_ber(genome: Genome, cfg: FitnessConfig) -> GenomeMetrics:
+    # Optional C++ fast path. Behaviourally equivalent to the Python
+    # loop below (verified by code_review/smoke_cpp_fitness_equiv.py).
+    if getattr(cfg, "use_cpp_fitness", False):
+        from pushgp_ldpc.eval_cpp import evaluate_genome_cpp_ber
+        return evaluate_genome_cpp_ber(genome, cfg)
+
     try:
         v2c_fn, c2v_fn = make_callables(genome)
     except Exception as e:  # noqa: BLE001
