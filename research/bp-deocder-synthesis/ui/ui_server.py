@@ -94,6 +94,11 @@ class LaunchParams(BaseModel):
     bgn: int = 2
     set_idx: int = 1
     zc: int = 8
+    # Optional explicit transmitted code rate.  Leave as 0 / blank to
+    # use the base graph's physical rate (BG2 set1 = 0.20, BG1 set1 =
+    # 0.333).  Any positive value <= 1 triggers parity puncturing in
+    # the channel pipeline.  Must be >= base graph rate.
+    target_code_rate: float = 0.0
 
     # DCE
     dce_bp: bool = True
@@ -137,6 +142,8 @@ class LaunchParams(BaseModel):
             "--set-idx", str(self.set_idx),
             "--zc", str(self.zc),
         ]
+        if self.target_code_rate and self.target_code_rate > 0.0:
+            cmd += ["--target-code-rate", str(self.target_code_rate)]
         if self.cpp_seeder:
             cmd.append("--cpp-seeder")
         if not self.from_scratch:

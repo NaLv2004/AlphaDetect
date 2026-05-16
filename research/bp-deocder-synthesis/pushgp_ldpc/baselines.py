@@ -55,13 +55,15 @@ def uncoded_rate1_baseline(cfg: FitnessConfig,
 def channel_hard_baseline(cfg: FitnessConfig) -> Dict[str, list]:
     """Same encoder+channel+noise as fitness; decoder = hard slice on channel LLR.
 
-    Bit-comparison is restricted to the transmitted positions (i.e. the
-    coded bits with index ≥ 2*Zc).  This makes the curve directly
-    comparable to the OMS-decoded BER, which is also reported on the
-    full codeword but where the punctured bits are reconstructed by BP.
+    Bit-comparison is restricted to the actually-transmitted positions
+    (skipping both the mandatory 2*Zc info prefix AND any rate-matched
+    parity tail).  This makes the curve directly comparable to the
+    OMS-decoded BER computed over the full codeword: punctured bits
+    have LLR=0 and would corrupt the hard-slice BER if included.
     """
     par = cfg.par
     skip = 2 * par.zc
+    tx_len = cfg.tx_len
     snrs: List[float] = [float(s) for s in cfg.snr_list]
     bers: List[float] = []
     for snr in snrs:
@@ -69,9 +71,9 @@ def channel_hard_baseline(cfg: FitnessConfig) -> Dict[str, list]:
         n_err = 0
         n_bits = 0
         for cw, llr in pairs:
-            # hard decision on channel LLR (LLR>0 → bit 0, LLR<0 → bit 1)
-            hat = (llr[skip:] < 0.0).astype(np.int8)
-            ref = cw[skip:].astype(np.int8)
+            # hard decision on channel LLR over the transmitted slice only
+            hat = (llr[skip : skip + tx_len] < 0.0).astype(np.int8)
+            ref = cw[skip : skip + tx_len].astype(np.int8)
             n_err += int(np.sum(hat != ref))
             n_bits += int(ref.size)
         bers.append(n_err / max(1, n_bits))
@@ -81,7 +83,8 @@ def channel_hard_baseline(cfg: FitnessConfig) -> Dict[str, list]:
         "ber_per_snr": bers,
         "n_frames_per_snr": cfg.n_frames_per_snr,
         "code_rate_used": cfg.effective_code_rate,
-        "note": "hard-slice channel LLR; excludes first 2*Zc punctured bits",
+        "tx_len": tx_len,
+        "note": "hard-slice channel LLR; excludes 2*Zc prefix and rate-matched parity tail",
     }
 
 

@@ -107,6 +107,7 @@ def _channel_for(cfg: FitnessConfig, snr_db: float):
         cfg.n_frames_per_snr,
         float(snr_db),
         cfg.effective_code_rate,
+        cfg.tx_len,
     )
     cached = _CHANNEL_CACHE.get(key)
     if cached is not None:

@@ -65,6 +65,10 @@ def parse_args() -> argparse.Namespace:
                    help="Comma-sep SNRs in dB.")
     p.add_argument("--n-frames", type=int, default=6)
     p.add_argument("--max-iter", type=int, default=8)
+    p.add_argument("--target-code-rate", type=float, default=None,
+                   help="If set, additionally puncture parity bits so the "
+                        "transmitted rate is exactly this value (must be "
+                        ">= base graph physical rate).")
     # ---- From-scratch / diversity-first knobs ----
     p.add_argument("--from-scratch", action="store_true", default=True,
                    help="Initialize from random valid genomes (no OMS seed). "
@@ -317,6 +321,7 @@ def main() -> int:
         # code_rate intentionally omitted: derived from `par` via
         # `physical_code_rate(par)`.  Hard-coding 0.5 here previously
         # under-estimated σ² by ~2.6× on BG2 Zc=2 and biased fitness.
+        target_code_rate=args.target_code_rate,
         use_cpp_fitness=bool(args.cpp_fitness),
     )
 

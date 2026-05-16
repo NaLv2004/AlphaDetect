@@ -37,13 +37,13 @@ EPS = 1e-6
 
 
 def physical_code_rate(par: LiftedParity) -> float:
-    """True transmitted code rate: K_info / (N - 2*Zc).
+    """True transmitted code rate when ONLY the mandatory 2*Zc info bits
+    are punctured: K_info / (N - 2*Zc).
 
-    Derived strictly from the 5G NR base-graph + lifting size.  The
-    first 2*Zc info bits are punctured (not transmitted), so the
-    spectral rate used in the Eb/N0 → σ² conversion is K_info over the
-    actual number of transmitted symbols.  This function is the ONLY
-    place a code rate may be derived; callers must never hard-code 0.5.
+    For 5G NR BG2 set1 this is fixed by the base graph at 10/50 = 0.20;
+    for BG1 set1 it is 22/66 ≈ 0.333.  To achieve any other rate the
+    transmitter must additionally puncture parity bits (rate matching),
+    which is controlled by `FitnessConfig.target_code_rate`.
     """
     Kb = 10 if par.bgn == 2 else 22
     K_info = Kb * par.zc
@@ -51,6 +51,36 @@ def physical_code_rate(par: LiftedParity) -> float:
     if N_tx <= 0:
         raise ValueError(f"degenerate par (N_tx={N_tx})")
     return float(K_info) / float(N_tx)
+
+
+def info_bits_count(par: LiftedParity) -> int:
+    Kb = 10 if par.bgn == 2 else 22
+    return Kb * par.zc
+
+
+def tx_length(par: LiftedParity, target_code_rate: Optional[float]) -> int:
+    """Number of bits actually transmitted per codeword (BPSK symbols).
+
+    Always >= K_info and <= N - 2*Zc.  When `target_code_rate` is None
+    we fall back to the full un-puncturable suffix (no extra parity
+    puncturing).  When a target rate is requested we compute
+    ceil(K_info / target_rate) and clip into the legal range.
+    """
+    K = info_bits_count(par)
+    N_full = par.cols - 2 * par.zc
+    if target_code_rate is None:
+        return N_full
+    if target_code_rate <= 0.0 or target_code_rate > 1.0:
+        raise ValueError(f"target_code_rate out of range: {target_code_rate}")
+    import math
+    tx = int(math.ceil(K / float(target_code_rate)))
+    if tx < K:
+        raise ValueError(f"target rate {target_code_rate} would shorten below K={K}")
+    if tx > N_full:
+        raise ValueError(
+            f"target rate {target_code_rate} demands tx={tx} > N-2*Zc={N_full}; "
+            f"choose a base graph with lower base rate or a larger Zc")
+    return tx
 
 
 def _random_codeword(par: LiftedParity, htype: int, rng: np.random.Generator) -> np.ndarray:
@@ -80,6 +110,13 @@ class FitnessConfig:
     # to a real evolution — it under-estimates σ² by ~2.6× on BG2 Zc=2
     # and makes every decoder look better than it really is.
     code_rate: Optional[float] = None
+    # Target transmitted code rate.  When set, the channel pipeline
+    # additionally punctures parity bits past position `tx_length(par,
+    # target_code_rate)` so the actual transmitted rate is exactly the
+    # requested value (up to integer ceiling).  When None, no extra
+    # parity puncturing is applied and the rate equals the base graph's
+    # physical rate.
+    target_code_rate: Optional[float] = None
     seed_base: int = 12345           # shared channel seed
     info_bits_per_frame: int = 0     # 0 → use par.cols (transmit codeword=0)
     early_fail_threshold: float = 0.45  # bail out if BER > this on first SNR
@@ -96,12 +133,22 @@ class FitnessConfig:
     def effective_code_rate(self) -> float:
         """Resolved code rate used by `_channel_inputs` and BP kernels.
 
-        Returns the explicit `code_rate` if the caller supplied one,
-        otherwise derives `K_info / (N - 2*Zc)` from the 5G NR code.
+        Priority (highest first):
+            1. explicit `code_rate` (legacy callers only);
+            2. computed from `target_code_rate` + actual tx_length;
+            3. `physical_code_rate(par)` (no extra parity puncturing).
         """
         if self.code_rate is not None:
             return float(self.code_rate)
+        if self.target_code_rate is not None:
+            K = info_bits_count(self.par)
+            return float(K) / float(tx_length(self.par, self.target_code_rate))
         return physical_code_rate(self.par)
+
+    @property
+    def tx_len(self) -> int:
+        """Number of transmitted BPSK symbols per codeword."""
+        return tx_length(self.par, self.target_code_rate)
 
 
 def _channel_inputs(cfg: FitnessConfig, snr_db: float) -> List[Tuple[np.ndarray, np.ndarray]]:
@@ -116,15 +163,22 @@ def _channel_inputs(cfg: FitnessConfig, snr_db: float) -> List[Tuple[np.ndarray,
     rate = cfg.effective_code_rate
     sigma2 = 1.0 / (2.0 * rate * 10.0 ** (snr_db / 10.0))
     sigma = float(np.sqrt(sigma2))
+    tx_len = cfg.tx_len  # number of BPSK symbols actually transmitted
+    N_full = par.cols - 2 * par.zc
     pairs = []
     for _ in range(cfg.n_frames_per_snr):
         cw = _random_codeword(par, htype, rng)
-        # BPSK only the non-punctured part; first 2*Zc bits get LLR=0.
-        tx = bpsk_modulate(cw[2 * par.zc :])
+        # Transmit only the first tx_len bits of the non-punctured suffix
+        # (per TS 38.212 §5.4.2.1 rate-matching RV0 from circular buffer
+        # start).  Remaining parity bits are additionally punctured.
+        tx_bits = cw[2 * par.zc : 2 * par.zc + tx_len]
+        tx = bpsk_modulate(tx_bits)
         rx = tx + sigma * rng.standard_normal(tx.shape)
         llr_part = bpsk_llr(rx, sigma2)
         llr = np.zeros(par.cols, dtype=np.float64)
-        llr[2 * par.zc :] = llr_part
+        # mandatory 2*Zc prefix already zero; fill transmitted region:
+        llr[2 * par.zc : 2 * par.zc + tx_len] = llr_part
+        # positions [2*Zc + tx_len : N] stay zero (additional puncturing)
         pairs.append((cw, llr))
     return pairs
 
@@ -170,4 +224,7 @@ def evaluate_genome(genome: Genome, cfg: FitnessConfig) -> float:
     return float(np.mean(log_bers))
 
 
-__all__ = ["FitnessConfig", "evaluate_genome", "EPS", "physical_code_rate"]
+__all__ = [
+    "FitnessConfig", "evaluate_genome", "EPS",
+    "physical_code_rate", "info_bits_count", "tx_length",
+]
