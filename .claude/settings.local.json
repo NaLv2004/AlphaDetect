@@ -6,7 +6,21 @@
       "Bash(\"C:/ProgramData/anaconda3/envs/AutoGenOld/python.exe\":*)",
       "Bash(C:/ProgramData/anaconda3/envs/AutoGenOld/python.exe -c ' *)",
       "Bash(set ALPHADETECT_PROFILE_DONOR=1)",
-      "Bash(ALPHADETECT_PROFILE_DONOR=1 \"C:/ProgramData/anaconda3/envs/AutoGenOld/python.exe\" train_gnn.py --gens 1 --proposals 100 --snr-start 16 --snr-target 16 --warmstart-gens 1 --warmstart-trials 1 --warmstart-timeout 0.5 --warmstart-eval-workers 8 --proposal-batch --proposal-batch-size 128 --progress --viz-grafts-per-gen 0 --n-trials 2 --timeout 0.5 --seed 42 --micro-pop-size 4 --micro-generations 1 --probe-timeout 1.5)"
+      "Bash(ALPHADETECT_PROFILE_DONOR=1 \"C:/ProgramData/anaconda3/envs/AutoGenOld/python.exe\" train_gnn.py --gens 1 --proposals 100 --snr-start 16 --snr-target 16 --warmstart-gens 1 --warmstart-trials 1 --warmstart-timeout 0.5 --warmstart-eval-workers 8 --proposal-batch --proposal-batch-size 128 --progress --viz-grafts-per-gen 0 --n-trials 2 --timeout 0.5 --seed 42 --micro-pop-size 4 --micro-generations 1 --probe-timeout 1.5)",
+      "Bash(powershell -NoProfile -Command '$env:PYTHONUNBUFFERED=\"1\"; & \"C:\\\\ProgramData\\\\anaconda3\\\\python.exe\" \"-c\" \"import conda; print\\(conda.__version__\\)\" 2>&1')",
+      "Bash(powershell -NoProfile -Command '$env:CONDA_AUTO_UPDATE_CONDA=\"false\"; & \"C:\\\\ProgramData\\\\anaconda3\\\\Scripts\\\\conda.exe\" \"info\" \"-v\" 2>&1; Write-Host \"DONE\"')",
+      "Bash(powershell -NoProfile -Command '$env:PYTHONUNBUFFERED=\"1\"; & \"C:\\\\ProgramData\\\\anaconda3\\\\python.exe\" \"-m\" \"conda\" \"shell.powershell\" \"hook\" 2>&1; Write-Host \"DONE\"')",
+      "Bash(powershell -NoProfile -Command \"Get-Process -Name 'conda','_conda','python' -ErrorAction SilentlyContinue | Select-Object Name,Id,StartTime | Format-Table -AutoSize\")",
+      "Bash(powershell -NoProfile -Command \"Get-Process -Name 'conda' -ErrorAction SilentlyContinue | Stop-Process -Force; Write-Host 'Killed conda processes'\")",
+      "Bash(taskkill /F /IM conda.exe)",
+      "Bash(powershell -NoProfile -Command '$env:CONDA_NO_PLUGINS=\"true\"; & \"C:\\\\ProgramData\\\\anaconda3\\\\Scripts\\\\conda.exe\" \"--offline\" \"info\" 2>&1; Write-Host \"---OFFLINE-DONE---\"')",
+      "Bash(powershell -NoProfile -Command '$env:PYTHONUNBUFFERED=\"1\"; & \"C:\\\\ProgramData\\\\anaconda3\\\\python.exe\" \"-c\" @\" *)",
+      "Bash(powershell -NoProfile -Command '$env:PYTHONUNBUFFERED=\"1\"; & \"C:\\\\ProgramData\\\\anaconda3\\\\python.exe\" -c \"import conda; print\\(\\\\\"conda imported OK\\\\\"\\)\"')",
+      "Bash(\"C:/ProgramData/anaconda3/python.exe\" -c \"import conda; print\\(conda.__version__\\)\")",
+      "Bash(\"C:/ProgramData/anaconda3/python.exe\" -m conda shell.powershell hook)",
+      "Bash(powershell -NoProfile -Command '$env:CONDA_NO_PLUGINS = \"true\"; $env:CONDA_AUTO_UPDATE_CONDA = \"false\"; & \"C:\\\\ProgramData\\\\anaconda3\\\\python.exe\" -m conda info --offline 2>&1; Write-Host \"EXIT-CODE: $LASTEXITCODE\"')",
+      "Bash(powershell -NoProfile -Command \"Get-Process -Name 'conda','python' -ErrorAction SilentlyContinue | Measure-Object | Select-Object -ExpandProperty Count\")",
+      "Bash(powershell -NoProfile -Command '$env:PYTHONUNBUFFERED=\"1\"; & \"C:\\\\ProgramData\\\\anaconda3\\\\python.exe\" \"-c\" \"import conda; print\\(conda.__version__\\)\"')"
     ]
   }
 }

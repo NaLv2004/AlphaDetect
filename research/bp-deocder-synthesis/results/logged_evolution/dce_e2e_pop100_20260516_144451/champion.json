@@ -1,0 +1,100 @@
+{
+  "prog_v2c": [
+    {
+      "name": "Exec.DoTimes",
+      "code_block": [
+        {
+          "name": "FVec.PopBack"
+        },
+        {
+          "name": "Float.Add"
+        }
+      ]
+    },
+    {
+      "name": "Float.EvoConst0"
+    },
+    {
+      "name": "Float.Square"
+    },
+    {
+      "name": "FVec.PopBack"
+    },
+    {
+      "name": "Float.Add"
+    },
+    {
+      "name": "Float.Const0_1"
+    },
+    {
+      "name": "Bool.FromFloat"
+    },
+    {
+      "name": "Float.ConstPi"
+    },
+    {
+      "name": "Float.Const2"
+    },
+    {
+      "name": "Exec.DoTimes",
+      "code_block": [
+        {
+          "name": "Float.Mul"
+        },
+        {
+          "name": "FVec.PopBack"
+        }
+      ]
+    },
+    {
+      "name": "Float.EvoConst5"
+    },
+    {
+      "name": "FVec.Push"
+    }
+  ],
+  "prog_c2v": [
+    {
+      "name": "Float.Const2"
+    },
+    {
+      "name": "IVec.New"
+    },
+    {
+      "name": "Int.Add"
+    },
+    {
+      "name": "Exec.DoRange",
+      "code_block": [
+        {
+          "name": "Float.Mul"
+        },
+        {
+          "name": "Float.Exp"
+        },
+        {
+          "name": "Float.Log"
+        },
+        {
+          "name": "FVec.PopBack"
+        }
+      ]
+    },
+    {
+      "name": "Float.EvoConst6"
+    },
+    {
+      "name": "Float.Mod"
+    }
+  ],
+  "log_constants": [
+    -0.3483721808995063,
+    -0.18688673836089326,
+    -0.3695731513413119,
+    -0.1269754019141352,
+    -0.6313915818471353,
+    -0.9322953881288834,
+    -0.8213984686308092,
+    0.0
+  ]
+}

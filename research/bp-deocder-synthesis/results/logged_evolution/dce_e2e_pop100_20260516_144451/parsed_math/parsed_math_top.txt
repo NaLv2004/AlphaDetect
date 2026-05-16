@@ -1,0 +1,75 @@
+# Run: dce_e2e_pop100_20260516_144451
+# Source: D:\ChannelCoding\RCOM\AlphaDetect\research\bp-deocder-synthesis\results\logged_evolution\dce_e2e_pop100_20260516_144451\individuals.jsonl
+# Total individuals parsed: 300
+# v_fault=0  c_fault=0
+# top_k_per_gen=3  all=False  max_chars=400
+
+================ gen 000  (n=100  best_fit=-0.6415) ================
+
+-- gen=000 idx=001  fit=-0.6415  valid=True  v2c_size=10 c2v_size=0  BER=[0.2580, 0.2163, 0.2131]
+   K = [-0.3483721808995063, -0.46231261077256003, -0.9602532865608123, -0.6173245095501945, -0.6313915818471353, -0.8857052643125235, -0.8213984686308092, -0.1308081235651678]
+   V2C math : ((Lv-(((((((K5(0.13)-m1)-m2)-m3)-m4)-m5)-m6)-m7))/sqrt(K6(0.151)))
+   V2C notes: ((Lv-(((((((K5(0.13)-m1)-m2)-m3)-m4)-m5)-m6)-m7))/sqrt(K6(0.151)))    [uses channel LLR; refs 7 neighbor msgs]
+   C2V math : <empty>
+   C2V notes: <empty>
+
+-- gen=000 idx=009  fit=-0.6415  valid=True  v2c_size=4 c2v_size=0  BER=[0.2580, 0.2163, 0.2131]
+   K = [-0.005542194832239167, -0.6463438757194763, -0.17285198719390027, -0.16274472381001037, -0.02419098984304302, -0.9227749711400317, -0.6825435903261411, -0.08044459310193997]
+   V2C math : (((((((tanh(Lv)+m1)+m2)+m3)+m4)+m5)+m6)+m7)
+   V2C notes: (((((((tanh(Lv)+m1)+m2)+m3)+m4)+m5)+m6)+m7)    [uses channel LLR; refs 7 neighbor msgs]
+   C2V math : <empty>
+   C2V notes: <empty>
+
+-- gen=000 idx=013  fit=-0.6415  valid=True  v2c_size=7 c2v_size=0  BER=[0.2580, 0.2163, 0.2131]
+   K = [-0.3483721808995063, -0.18688673836089326, -0.8591258452567107, -0.1269754019141352, -0.6313915818471353, -0.8857052643125235, -0.8213984686308092, -0.1308081235651678]
+   V2C math : ((((((sq(K5(0.13))+m1)+m2)+m3)+m4)+m5)+m6)
+   V2C notes: ((((((sq(K5(0.13))+m1)+m2)+m3)+m4)+m5)+m6)    [ignores channel LLR; refs 6 neighbor msgs]
+   C2V math : <empty>
+   C2V notes: <empty>
+
+================ gen 001  (n=100  best_fit=-0.6498) ================
+
+-- gen=001 idx=087  fit=-0.6498  valid=True  v2c_size=9 c2v_size=8  BER=[0.2628, 0.2067, 0.2067]
+   K = [-0.9668120312032915, -0.4981996479337336, -0.9360101912797415, -0.89950912241661, -0.8888587462029561, -0.9506043624627601, -0.9916084819163457, -0.20241866068109987]
+   V2C math : ((Lv+(K5(0.112)+(m1+(m2+((m3+m4)+((m5+m6)+m7))))))-0.1)
+   V2C notes: ((Lv+(K5(0.112)+(m1+(m2+((m3+m4)+((m5+m6)+m7))))))-0.1)    [uses channel LLR; refs 7 neighbor msgs]
+   C2V math : (((((((((((((((K4(0.129)/m1)/m2)/m3)/m4)/m5)/m6)/m7)/m8)/m9)/m10)/m11)/m12)/m13)/m14)/m15)
+   C2V notes: (((((((((((((((K4(0.129)/m1)/m2)/m3)/m4)/m5)/m6)/m7)/m8)/m9)/m10)/m11)/m12)/m13)/m14)/m15)    [ignores channel LLR; refs 15 neighbor msgs]
+
+-- gen=001 idx=016  fit=-0.6470  valid=True  v2c_size=19 c2v_size=10  BER=[0.2580, 0.2099, 0.2115]
+   K = [-0.9213200851783585, -1.0, -0.22765914724791514, -0.24187636740111007, -0.26018095234283545, -0.4237574151615895, -0.47513089825988064, -0.32104700573603473]
+   V2C math : log(neg(((K0(0.12)+Mem.Read(Exec.DoTimes(Int.Dec(e))))+Mem.Read(Float.Add))))
+   V2C notes: log(neg(((K0(0.12)+Mem.Read(Exec.DoTimes(Int.Dec(e))))+Mem.Read(Float.Add))))    [ignores channel LLR; refs 0 neighbor msgs]
+   C2V math : (log(exp((log(exp(K4(0.549)))*m1)))*m2)
+   C2V notes: (log(exp((log(exp(K4(0.549)))*m1)))*m2)    [ignores channel LLR; refs 2 neighbor msgs]
+
+-- gen=001 idx=064  fit=-0.6464  valid=True  v2c_size=8 c2v_size=11  BER=[0.2612, 0.2035, 0.2163]
+   K = [-0.6467939701181796, -0.25933688892326223, -0.19271960081428474, -0.34685478621715404, -0.017692514340928917, -0.4453176480133145, -0.892812399139171, -0.05089237683925574]
+   V2C math : m1
+   V2C notes: m1    [ignores channel LLR; refs 1 neighbor msgs]
+   C2V math : neg(m1)
+   C2V notes: neg(m1)    [ignores channel LLR; refs 1 neighbor msgs]
+
+================ gen 002  (n=100  best_fit=-0.6490) ================
+
+-- gen=002 idx=022  fit=-0.6490  valid=True  v2c_size=11 c2v_size=10  BER=[0.2468, 0.2163, 0.2115]
+   K = [-1.0, -0.3983124019333217, -0.9360101912797415, -0.89950912241661, -0.8888587462029561, -0.735658803090325, -1.0, -0.292407142022288]
+   V2C math : (Lv+tanh((((((((sqrt((K5(0.184)--1))+tanh(m1))+tanh(m2))+tanh(m3))+tanh(m4))+tanh(m5))+tanh(m6))+tanh(m7))))
+   V2C notes: (Lv+tanh((((((((sqrt((K5(0.184)--1))+tanh(m1))+tanh(m2))+tanh(m3))+tanh(m4))+tanh(m5))+tanh(m6))+tanh(m7))))    [uses channel LLR; refs 7 neighbor msgs]
+   C2V math : m1
+   C2V notes: m1    [ignores channel LLR; refs 1 neighbor msgs]
+
+-- gen=002 idx=095  fit=-0.6490  valid=True  v2c_size=11 c2v_size=8  BER=[0.2564, 0.2067, 0.2131]
+   K = [-0.9213200851783585, -1.0, -0.5294987865983812, -0.24187636740111007, -0.26018095234283545, -0.4237574151615895, -0.47513089825988064, -0.31671011705499047]
+   V2C math : ((Lv+tanh((((((((Env.GetChannelLLR+tanh(m1))+tanh(m2))+tanh(m3))+tanh(m4))+tanh(m5))+tanh(m6))+tanh(m7))))*-1)
+   V2C notes: ((Lv+tanh((((((((Env.GetChannelLLR+tanh(m1))+tanh(m2))+tanh(m3))+tanh(m4))+tanh(m5))+tanh(m6))+tanh(m7))))*-1)    [uses channel LLR; refs 7 neighbor msgs]
+   C2V math : (((((((((((((((1+1)+1)+1)+1)+1)+1)+1)/K4(0.549))/m1)/m2)/m3)/m4)/m5)/m6)/m7)
+   C2V notes: (((((((((((((((1+1)+1)+1)+1)+1)+1)+1)/K4(0.549))/m1)/m2)/m3)/m4)/m5)/m6)/m7)    [ignores channel LLR; refs 7 neighbor msgs]
+
+-- gen=002 idx=089  fit=-0.6457  valid=True  v2c_size=11 c2v_size=9  BER=[0.2564, 0.2099, 0.2147]
+   K = [-0.40973252147185946, -0.7464085819234254, -0.7347157458258003, -0.7413432642803027, -0.5657912081927465, -0.8612438102295292, -0.5536207271816636, -0.7010453801448242]
+   V2C math : neg(((atanh(Lv)+Mem.Read(Exec.DoTimes(iter)))+Mem.Read(Float.Add)))
+   V2C notes: neg(((atanh(Lv)+Mem.Read(Exec.DoTimes(iter)))+Mem.Read(Float.Add)))    [sum-product family (tanh/atanh); uses channel LLR; refs 0 neighbor msgs]
+   C2V math : m1
+   C2V notes: m1    [ignores channel LLR; refs 1 neighbor msgs]
+

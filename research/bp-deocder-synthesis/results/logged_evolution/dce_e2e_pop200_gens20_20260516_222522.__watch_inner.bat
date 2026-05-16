@@ -1,0 +1,2 @@
+@echo off
+"C:\ProgramData\anaconda3\envs\AutoGenOld\python.exe" -B -u "D:\ChannelCoding\RCOM\AlphaDetect\research\bp-deocder-synthesis\experiments\parse_individuals_math.py" dce_e2e_pop200_gens20_20260516_222522 --watch --poll-interval 3.0 --max-chars 500 1> "D:\ChannelCoding\RCOM\AlphaDetect\research\bp-deocder-synthesis\results\logged_evolution\dce_e2e_pop200_gens20_20260516_222522.watcher.console.log" 2> "D:\ChannelCoding\RCOM\AlphaDetect\research\bp-deocder-synthesis\results\logged_evolution\dce_e2e_pop200_gens20_20260516_222522.watcher.console.err.log"

@@ -1,0 +1,54 @@
+{
+  "prog_v2c": [],
+  "prog_c2v": [
+    {
+      "name": "Float.Yank"
+    },
+    {
+      "name": "Float.EvoConst4"
+    },
+    {
+      "name": "BVec.New"
+    },
+    {
+      "name": "Exec.DoRange",
+      "code_block": [
+        {
+          "name": "Float.Mul"
+        },
+        {
+          "name": "FVec.PopBack"
+        }
+      ]
+    },
+    {
+      "name": "Exec.DoRange",
+      "code_block": [
+        {
+          "name": "Float.ConstHalf"
+        }
+      ]
+    },
+    {
+      "name": "Exec.DoTimes",
+      "code_block": [
+        {
+          "name": "Float.Tanh"
+        },
+        {
+          "name": "Float.Div"
+        }
+      ]
+    }
+  ],
+  "log_constants": [
+    -1.0,
+    -1.0,
+    -0.6350876171776418,
+    -0.35353578665118757,
+    -0.628903851300711,
+    -1.0,
+    -0.8172857327956446,
+    -0.5773394052478785
+  ]
+}

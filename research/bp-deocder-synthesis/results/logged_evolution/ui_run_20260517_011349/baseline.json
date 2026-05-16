@@ -1,0 +1,31 @@
+{
+  "kind": "oms_baseline",
+  "fit_cfg": {
+    "snr_list_db": [
+      4.0,
+      5.0
+    ],
+    "n_frames_per_snr": 20,
+    "max_iter": 20,
+    "code_rate": 0.5,
+    "code": {
+      "bgn": 2,
+      "set_idx": 1,
+      "zc": 2,
+      "N": 104,
+      "M": 84
+    }
+  },
+  "fitness": -1.6323258572492252,
+  "ber_per_snr": [
+    0.026923076923076925,
+    0.020192307692307693
+  ],
+  "fer_per_snr": [
+    0.95,
+    0.95
+  ],
+  "n_frames_per_snr": 20,
+  "valid": true,
+  "error": ""
+}

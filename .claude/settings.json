@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(powershell -NoProfile -Command \"Write-Host 'NoProfile OK' -ForegroundColor Green\")",
+      "Read(//c/Users/31363/Documents/WindowsPowerShell/**)",
+      "Bash(powershell -NoProfile -Command \"Get-ItemProperty 'HKCU:\\\\Software\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Explorer\\\\User Shell Folders' 2>&1\")",
+      "Read(//c/Users/31363/**)",
+      "Read(//c/ProgramData/anaconda3/**)",
+      "Read(//c/ProgramData/anaconda3/conda-meta/**)",
+      "Read(//c/Users/31363/.conda/**)",
+      "Bash(\"C:/ProgramData/anaconda3/python.exe\" --version)",
+      "Bash(\"C:/ProgramData/anaconda3/_conda.exe\" --version)"
+    ]
+  }
+}

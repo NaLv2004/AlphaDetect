@@ -1,0 +1,45 @@
+{
+  "run_name": "dce_e2e_pop200_gens20_20260516_222549",
+  "started_at": "2026-05-16T22:25:49",
+  "from_scratch": true,
+  "code": {
+    "bgn": 2,
+    "set_idx": 1,
+    "zc": 2,
+    "N": 104,
+    "M": 84
+  },
+  "snr_list_db": [
+    -3.0,
+    -2.0,
+    -1.0
+  ],
+  "n_frames_per_snr": 6,
+  "max_iter": 8,
+  "evolution": {
+    "pop_size": 200,
+    "generations": 20,
+    "elitism": 0,
+    "tournament_k": 4,
+    "p_crossover": 0.7,
+    "n_mutations": 2,
+    "n_mutations_max": 6,
+    "p_const_tweak": 0.25,
+    "seed": 2025,
+    "dedup": true,
+    "max_attempts_per_slot": 500,
+    "rand_min_size": 4,
+    "rand_max_size": 30,
+    "cpp_seeder": true,
+    "dce_bp_enabled": true,
+    "dce_bp_max_iter": 8,
+    "dce_bp_decimals": 6,
+    "dce_bp_max_passes": 800,
+    "dce_bp_max_decode_evals": -1,
+    "dce_bp_threads": 0,
+    "dce_bp_use_cpp": true,
+    "dce_bp_snr_db": -2.0,
+    "dce_bp_n_frames": 1,
+    "dce_bp_oracle_seed": 20000
+  }
+}

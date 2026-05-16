@@ -1,0 +1,44 @@
+{
+  "run_name": "ui_run_20260517_011705",
+  "started_at": "2026-05-17T01:17:05",
+  "from_scratch": true,
+  "code": {
+    "bgn": 2,
+    "set_idx": 1,
+    "zc": 4,
+    "N": 208,
+    "M": 168
+  },
+  "snr_list_db": [
+    4.0,
+    5.0
+  ],
+  "n_frames_per_snr": 20,
+  "max_iter": 20,
+  "evolution": {
+    "pop_size": 500,
+    "generations": 100,
+    "elitism": 3,
+    "tournament_k": 4,
+    "p_crossover": 0.7,
+    "n_mutations": 2,
+    "n_mutations_max": 6,
+    "p_const_tweak": 0.25,
+    "seed": 2025,
+    "dedup": true,
+    "max_attempts_per_slot": 500,
+    "rand_min_size": 4,
+    "rand_max_size": 30,
+    "cpp_seeder": true,
+    "dce_bp_enabled": true,
+    "dce_bp_max_iter": 8,
+    "dce_bp_decimals": 6,
+    "dce_bp_max_passes": 800,
+    "dce_bp_max_decode_evals": -1,
+    "dce_bp_threads": 0,
+    "dce_bp_use_cpp": true,
+    "dce_bp_snr_db": -2.0,
+    "dce_bp_n_frames": 1,
+    "dce_bp_oracle_seed": 20000
+  }
+}

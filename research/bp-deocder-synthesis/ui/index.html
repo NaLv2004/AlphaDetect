@@ -1,0 +1,1028 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>PushGP Evolution UI</title>
+<style>
+  :root {
+    --bg:#0e1116; --fg:#dde2ec; --mut:#7c8597; --acc:#5fb1ff;
+    --good:#5fd96a; --warn:#e6c542; --bad:#ff6660; --panel:#171b22;
+    --border:#272d39; --hover:#1f2530;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; height:100%; background:var(--bg);
+               color:var(--fg); font:13px/1.4 -apple-system, "Segoe UI",
+               sans-serif; }
+  a { color:var(--acc); text-decoration:none; }
+  button { background:var(--panel); color:var(--fg); border:1px solid var(--border);
+           padding:6px 12px; border-radius:4px; cursor:pointer; font:inherit;}
+  button:hover { background:var(--hover); }
+  button.primary { background:var(--acc); color:#0e1116; border-color:var(--acc);}
+  button.danger { background:var(--bad); color:#fff; border-color:var(--bad);}
+  input, select { background:#0a0d12; color:var(--fg); border:1px solid var(--border);
+                  padding:5px 8px; border-radius:3px; font:inherit; min-width:0;}
+  pre, code { font-family:Consolas,Menlo,monospace; font-size:12px; }
+  .row { display:flex; gap:8px; }
+  .col { display:flex; flex-direction:column; gap:8px; }
+  .panel { background:var(--panel); border:1px solid var(--border); border-radius:6px;
+           padding:10px; }
+  .panel h3 { margin:0 0 6px 0; font-size:13px; color:var(--mut);
+              text-transform:uppercase; letter-spacing:.5px; }
+  .grid2 { display:grid; grid-template-columns:repeat(2,1fr); gap:8px;}
+  .grid4 { display:grid; grid-template-columns:repeat(4,1fr); gap:8px;}
+  .grid-form { display:grid; grid-template-columns:140px 1fr; gap:6px 10px;
+               align-items:center; }
+  .grid-form label { color:var(--mut); }
+  .status { display:inline-block; padding:2px 7px; border-radius:10px;
+            font-size:11px; font-weight:600; }
+  .s-running { background:#1a3a52; color:var(--acc); }
+  .s-exited  { background:#1a3f24; color:var(--good); }
+  .s-killed  { background:#3a2929; color:var(--warn); }
+  .s-error   { background:#4a1f1f; color:var(--bad); }
+  .s-external{ background:#332e1f; color:var(--warn); }
+  table { width:100%; border-collapse:collapse; font-size:12px; }
+  th, td { padding:4px 6px; border-bottom:1px solid var(--border);
+           text-align:left; }
+  th { color:var(--mut); font-weight:600; }
+  tr:hover td { background:var(--hover); cursor:pointer; }
+  tr.selected td { background:#1f2f48; }
+  .tab-bar { display:flex; gap:2px; border-bottom:1px solid var(--border);
+             margin-bottom:8px; }
+  .tab { padding:6px 14px; background:transparent; border:1px solid transparent;
+         border-bottom:none; border-radius:4px 4px 0 0; cursor:pointer;
+         color:var(--mut); }
+  .tab.active { background:var(--panel); border-color:var(--border);
+                color:var(--fg); margin-bottom:-1px; }
+  .runtab { display:flex; gap:4px; padding:4px 10px; align-items:center;
+            background:var(--panel); border:1px solid var(--border);
+            border-radius:4px 4px 0 0; cursor:pointer; }
+  .runtab.active { background:var(--hover); }
+  .scroll { overflow:auto; }
+  .log-pane { background:#06080c; border:1px solid var(--border); padding:6px;
+              white-space:pre; font-family:Consolas,monospace; font-size:11.5px;
+              height:280px; overflow:auto; border-radius:4px; }
+  .full { height:100%; }
+  #app { display:grid; grid-template-rows:auto 1fr; height:100vh; }
+  header { display:flex; justify-content:space-between; align-items:center;
+           padding:10px 14px; border-bottom:1px solid var(--border); gap:14px;}
+  header h1 { font-size:14px; margin:0; color:var(--acc); letter-spacing:.5px;}
+  main { display:grid; grid-template-columns:280px 1fr; gap:8px;
+         padding:8px; min-height:0; }
+  .left { display:flex; flex-direction:column; gap:8px; min-height:0;
+          overflow:auto; }
+  .right { display:flex; flex-direction:column; gap:8px; min-height:0; }
+  canvas { width:100% !important; }
+  .kv { display:grid; grid-template-columns:120px 1fr; gap:2px 8px;
+        font-size:12px; }
+  .kv .k { color:var(--mut); }
+  .pill { display:inline-block; padding:1px 6px; border-radius:8px;
+          background:#0a0d12; color:var(--mut); font-size:11px;
+          border:1px solid var(--border); margin-right:4px; }
+  .mut { color:var(--mut); }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>PushGP Evolution UI</h1>
+    <div class="row" style="gap:14px;">
+      <span class="mut" id="health">connecting...</span>
+      <button onclick="App.refreshAll()">⟳ Refresh</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- ===== LEFT: launch + run list ===== -->
+    <div class="left">
+      <div class="panel">
+        <h3>Launch new run</h3>
+        <div id="budgetBox" class="mut" style="margin-bottom:6px;
+             font-size:12px;">CPU budget: —</div>
+        <div class="grid-form" id="launchForm"></div>
+        <div class="row" style="margin-top:8px; gap:6px;">
+          <button class="primary" onclick="App.launch()">▶ Launch</button>
+          <button onclick="App.fillDefaults()">Reset defaults</button>
+        </div>
+        <div id="launchMsg" class="mut" style="margin-top:6px;"></div>
+      </div>
+
+      <div class="panel">
+        <h3>Active runs</h3>
+        <div id="runList"></div>
+      </div>
+
+      <div class="panel">
+        <h3>Discovered runs (attach)</h3>
+        <div id="discoverList"></div>
+      </div>
+    </div>
+
+    <!-- ===== RIGHT: per-run dashboard ===== -->
+    <div class="right">
+      <div id="runTabs" class="tab-bar" style="flex-wrap:wrap;"></div>
+      <div id="runPane" class="panel" style="flex:1; min-height:0;
+           overflow:auto;">
+        <div class="mut">Launch a run or pick one from the left.</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+// ----------------------------------------------------------------- //
+// Tiny no-framework reactive app                                     //
+// ----------------------------------------------------------------- //
+const App = {
+  defaults: null,
+  runs: [],            // tracked runs (from /api/runs)
+  discovered: [],
+  activeRid: null,
+  runViews: {},        // rid -> RunView
+  pollMsFast: 2500,    // active run, visible tab
+  pollMsSlow: 8000,    // run list + background runs
+  budget: null,        // {used, budget, free, cpu_count}
+};
+
+const PARAMS = [
+  ["run_name",  "Run name (auto)",     "text",   ""],
+  ["label",     "Label",               "text",   ""],
+  ["pop_size",  "Pop size",            "number", 200],
+  ["gens",      "Generations",         "number", 20],
+  ["seed",      "Seed",                "number", 2025],
+  ["snr_list",  "SNR list (csv)",      "text",   "-3,-2,-1"],
+  ["n_frames",  "Frames/SNR",          "number", 6],
+  ["max_iter",  "BP max iter",         "number", 8],
+  ["workers",   "Workers",             "number", 8],
+  ["rand_min_size","Rand min size",    "number", 4],
+  ["rand_max_size","Rand max size",    "number", 30],
+  ["elitism",   "Elitism",             "number", 3],
+  ["tournament_k","Tournament k",      "number", 4],
+  ["p_crossover","P(crossover)",       "number", 0.7],
+  ["n_mutations","N mutations",        "number", 2],
+  ["p_const_tweak","P(const tweak)",   "number", 0.25],
+  ["bgn",       "BG #",                "number", 2],
+  ["set_idx",   "Set idx",             "number", 1],
+  ["zc",        "Z_c",                 "number", 2],
+  ["dce_bp_snr_db","DCE oracle SNR(dB)","number",-2],
+  ["dce_bp_n_frames","DCE oracle frames","number",1],
+  ["dce_bp_max_iter","DCE max iter",   "number", 8],
+  ["dce_bp_decimals","DCE decimals",   "number", 6],
+  ["cpp_seeder","C++ seeder",          "bool",   true],
+  ["dce_bp",    "DCE enabled",         "bool",   true],
+  ["dce_bp_use_cpp","DCE use C++",     "bool",   true],
+  ["from_scratch","From scratch",      "bool",   true],
+  ["start_watcher","Start parser watcher","bool",true],
+];
+
+function el(tag, attrs={}, ...children){
+  const e = document.createElement(tag);
+  for (const [k,v] of Object.entries(attrs)){
+    if (k === "class") e.className = v;
+    else if (k === "style") e.style.cssText = v;
+    else if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
+    else e.setAttribute(k, v);
+  }
+  for (const c of children){
+    if (c == null) continue;
+    e.appendChild(typeof c === "string" ? document.createTextNode(c) : c);
+  }
+  return e;
+}
+
+async function api(path, opts={}){
+  const r = await fetch(path, opts);
+  if (!r.ok){
+    const t = await r.text();
+    throw new Error(`${r.status}: ${t}`);
+  }
+  return r.json();
+}
+
+// In-place chart upsert: avoids GPU/canvas churn that previously crashed
+// the browser renderer after a few minutes of polling.  If the chart
+// already exists on the canvas, just mutate its data/options and call
+// update('none') (no animation, no GC pressure).
+function upsertChart(prevChart, cv, type, data, options){
+  if (prevChart && prevChart.canvas === cv){
+    prevChart.config.type = type;
+    prevChart.data = data;
+    if (options) prevChart.options = options;
+    prevChart.update('none');
+    return prevChart;
+  }
+  if (prevChart) {
+    try { prevChart.destroy(); } catch(e) {}
+  }
+  return new Chart(cv, {type, data, options: Object.assign({animation:false}, options||{})});
+}
+
+// -------- launch form ----------------------------------------------- //
+App.fillDefaults = function(){
+  const f = document.getElementById("launchForm");
+  f.innerHTML = "";
+  for (const [k, lbl, type, dflt] of PARAMS){
+    const id = "p_"+k;
+    f.appendChild(el("label",{for:id}, lbl));
+    let inp;
+    if (type === "bool"){
+      inp = el("input",{type:"checkbox", id});
+      inp.checked = !!dflt;
+    } else {
+      inp = el("input",{type, id, value:String(dflt)});
+    }
+    f.appendChild(inp);
+  }
+};
+
+App.collectParams = function(){
+  const out = {};
+  for (const [k,_l,type,_d] of PARAMS){
+    const inp = document.getElementById("p_"+k);
+    if (type === "bool") out[k] = inp.checked;
+    else if (type === "number") {
+      if (inp.value === "") continue;
+      out[k] = inp.value.includes(".") ? parseFloat(inp.value)
+                                       : parseInt(inp.value);
+    } else {
+      if (inp.value === "") continue;
+      out[k] = inp.value;
+    }
+  }
+  return out;
+};
+
+App.launch = async function(){
+  const msg = document.getElementById("launchMsg");
+  msg.textContent = "launching...";
+  msg.style.color = "var(--mut)";
+  try{
+    const params = App.collectParams();
+    // Pre-flight CPU budget check (server enforces this too; this just
+    // gives a friendlier error before issuing the POST).
+    if (App.budget && params.workers != null){
+      const free = App.budget.free;
+      if (params.workers > free){
+        if (!confirm(
+          `Requested workers=${params.workers} but only ${free} of `+
+          `${App.budget.budget} CPU slots free (${App.budget.cpu_count} `+
+          `logical cores total, OS reserves 4).  Server will reject.  `+
+          `Continue anyway?`)){
+          msg.textContent = "cancelled (budget)";
+          msg.style.color = "var(--mut)";
+          return;
+        }
+      }
+    }
+    const rec = await api("/api/runs", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify(params),
+    });
+    msg.textContent = `started: ${rec.rid} (pid ${rec.pid})`;
+    msg.style.color = "var(--good)";
+    App.activeRid = rec.rid;
+    await App.refreshRuns();
+    await App.refreshBudget();
+    App.renderTabs();
+    App.showRun(rec.rid);
+  }catch(e){
+    msg.textContent = "ERROR: "+e.message;
+    msg.style.color = "var(--bad)";
+  }
+};
+
+App.refreshBudget = async function(){
+  try{
+    App.budget = await api("/api/budget");
+    const el = document.getElementById("budgetBox");
+    if (el){
+      const b = App.budget;
+      const pct = b.budget ? Math.round(100*b.used/b.budget) : 0;
+      const color = pct >= 100 ? "var(--bad)"
+                  : pct >= 75  ? "var(--warn,#e6c542)"
+                  : "var(--good,#5fd96a)";
+      el.innerHTML = `CPU worker budget: <b style="color:${color}">`+
+        `${b.used} / ${b.budget}</b> used `+
+        `<span class="mut">(${b.cpu_count} cores, OS reserve 4)</span>`;
+    }
+  }catch(e){ /* ignore */ }
+};
+
+// -------- run lists -------------------------------------------------- //
+App.refreshRuns = async function(){
+  try{
+    App.runs = await api("/api/runs");
+    App.renderRunList();
+    App.renderTabs();
+  }catch(e){ console.warn(e); }
+};
+App.refreshDiscovered = async function(){
+  try{
+    const d = await api("/api/discover");
+    App.discovered = d.runs || [];
+    App.renderDiscovered();
+  }catch(e){ console.warn(e); }
+};
+
+App.renderRunList = function(){
+  const c = document.getElementById("runList");
+  c.innerHTML = "";
+  if (App.runs.length === 0){
+    c.appendChild(el("div",{class:"mut"},"none"));
+    return;
+  }
+  // hide watcher__ siblings (show only main)
+  for (const r of App.runs){
+    if (r.rid.endsWith("__watcher")) continue;
+    const watcher = App.runs.find(x => x.rid === r.rid+"__watcher");
+    const row = el("div",{class:"row",
+                          style:"align-items:center; gap:6px; padding:4px 0;"});
+    const st = el("span",{class:"status s-"+r.status}, r.status);
+    const a = el("a", {href:"#",
+                       onclick:(e)=>{e.preventDefault(); App.showRun(r.rid);}},
+                 r.rid);
+    a.style.flex = "1";
+    a.style.overflow = "hidden";
+    a.style.textOverflow = "ellipsis";
+    a.style.whiteSpace = "nowrap";
+    row.appendChild(st);
+    row.appendChild(a);
+    if (r.status === "running"){
+      const btn = el("button",{class:"danger",
+        onclick:()=>App.killRun(r.rid)}, "Stop");
+      row.appendChild(btn);
+    }
+    c.appendChild(row);
+    if (watcher){
+      const w = el("div",{class:"mut", style:"padding-left:18px;"},
+        `↳ watcher ${watcher.status}`);
+      c.appendChild(w);
+    }
+  }
+};
+
+App.renderDiscovered = function(){
+  const c = document.getElementById("discoverList");
+  c.innerHTML = "";
+  const ex = App.discovered.filter(d => !d.tracked).slice(0, 12);
+  if (ex.length === 0){
+    c.appendChild(el("div",{class:"mut"},"(none — all visible runs are tracked)"));
+    return;
+  }
+  for (const d of ex){
+    const row = el("div",{class:"row",
+                          style:"align-items:center; padding:3px 0; gap:6px;"});
+    if (d.has_champion) row.appendChild(el("span",{class:"status s-exited"},"done"));
+    else row.appendChild(el("span",{class:"status s-external"},"extern"));
+    const a = el("a", {href:"#",
+      onclick:(e)=>{e.preventDefault(); App.attachExternal(d.rid);}}, d.rid);
+    a.style.flex = "1";
+    a.style.overflow = "hidden";
+    a.style.textOverflow = "ellipsis";
+    a.style.whiteSpace = "nowrap";
+    row.appendChild(a);
+    c.appendChild(row);
+  }
+};
+
+App.attachExternal = function(rid){
+  if (!App.runs.find(r => r.rid === rid)){
+    App.runs.push({rid, label:rid, status:"external", pid:null,
+                   meta:{}, log_stdout:null, log_stderr:null});
+  }
+  App.renderTabs();
+  App.showRun(rid);
+};
+
+App.killRun = async function(rid){
+  if (!confirm(`Stop run ${rid}? (will taskkill /F /T)`)) return;
+  await api("/api/runs/"+encodeURIComponent(rid), {method:"DELETE"});
+  await App.refreshRuns();
+};
+
+// -------- run tabs --------------------------------------------------- //
+App.renderTabs = function(){
+  const c = document.getElementById("runTabs");
+  c.innerHTML = "";
+  const mains = App.runs.filter(r => !r.rid.endsWith("__watcher"));
+  if (mains.length === 0) return;
+  for (const r of mains){
+    const t = el("div",{class:"tab"+(r.rid===App.activeRid?" active":""),
+                        onclick:()=>App.showRun(r.rid)},
+                 r.rid + " ");
+    t.appendChild(el("span",{class:"status s-"+r.status,
+                             style:"margin-left:4px;"}, r.status));
+    c.appendChild(t);
+  }
+};
+
+App.showRun = function(rid){
+  App.activeRid = rid;
+  App.renderTabs();
+  let v = App.runViews[rid];
+  if (!v){
+    v = new RunView(rid);
+    App.runViews[rid] = v;
+  }
+  const pane = document.getElementById("runPane");
+  pane.innerHTML = "";
+  pane.appendChild(v.root);
+  v.refresh(true);
+};
+
+App.refreshAll = async function(){
+  if (document.hidden) return;  // browser tab hidden -> skip everything
+  await Promise.all([App.refreshRuns(), App.refreshBudget()]);
+  if (App.activeRid && App.runViews[App.activeRid]){
+    await App.runViews[App.activeRid].refresh(false);
+  }
+};
+
+// Lower-frequency loop: discover + run-list update.  Runs every
+// pollMsSlow regardless of which tab is open.
+App.refreshSlow = async function(){
+  if (document.hidden) return;
+  await App.refreshDiscovered();
+};
+
+// -------- RunView ---------------------------------------------------- //
+class RunView {
+  constructor(rid){
+    this.rid = rid;
+    this.summaryOffset = 0;
+    this.summaryRows = [];
+    this.logOffsets = {stdout:0, stderr:0, watcher:0};
+    this.logBufs = {stdout:"", stderr:"", watcher:""};
+    this.selectedGen = null;
+    this.populationByGen = {};
+    this.activeTab = "progress";
+    this.chartFit = null;
+    this.chartPop = null;
+    this.chartBer = null;
+    this.chartDce = null;
+    this.build();
+  }
+
+  build(){
+    this.root = el("div",{class:"col", style:"min-height:0;"});
+    const tabbar = el("div",{class:"tab-bar"});
+    const tabs = [
+      ["progress","Progress"],
+      ["population","Population"],
+      ["individual","Individual"],
+      ["ber","BER vs OMS"],
+      ["dce","DCE / Sizes"],
+      ["log","Logs"],
+      ["meta","Meta"],
+    ];
+    this.tabBtns = {};
+    for (const [k,n] of tabs){
+      const b = el("div",{class:"tab"+(k===this.activeTab?" active":""),
+                          onclick:()=>this.setTab(k)}, n);
+      this.tabBtns[k] = b;
+      tabbar.appendChild(b);
+    }
+    this.root.appendChild(tabbar);
+    this.body = el("div",{style:"flex:1; min-height:0; overflow:auto;"});
+    this.root.appendChild(this.body);
+    this.renderTab();
+  }
+
+  setTab(k){
+    this.activeTab = k;
+    for (const [n,b] of Object.entries(this.tabBtns))
+      b.className = "tab" + (n===k?" active":"");
+    this.renderTab();
+    this.refresh(false);
+  }
+
+  renderTab(){
+    this.body.innerHTML = "";
+    switch (this.activeTab){
+      case "progress":   this.buildProgress(); break;
+      case "population": this.buildPopulation(); break;
+      case "individual": this.buildIndividual(); break;
+      case "ber":        this.buildBer(); break;
+      case "dce":        this.buildDce(); break;
+      case "log":        this.buildLog(); break;
+      case "meta":       this.buildMeta(); break;
+    }
+  }
+
+  buildProgress(){
+    const wrap = el("div",{class:"col"});
+    const top = el("div",{class:"grid4"});
+    this.kpiBox = (lbl,id)=>{
+      const b = el("div",{class:"panel", style:"padding:8px;"},
+        el("div",{class:"mut", style:"font-size:11px;"}, lbl),
+        el("div",{id, style:"font-size:18px; font-weight:600;"},"—"));
+      return b;
+    };
+    top.appendChild(this.kpiBox("Generations done","kpi_g"));
+    top.appendChild(this.kpiBox("Best fitness","kpi_best"));
+    top.appendChild(this.kpiBox("Mean fitness","kpi_mean"));
+    top.appendChild(this.kpiBox("OMS baseline","kpi_oms"));
+    wrap.appendChild(top);
+    const cv = el("canvas",{id:"chartFit_"+this.rid, height:"260"});
+    const cwrap = el("div",{class:"panel"}, el("h3",{},"Fitness vs generation"),
+                     cv);
+    wrap.appendChild(cwrap);
+    const table = el("div",{class:"panel"}, el("h3",{},"Per-generation log"),
+                     el("div",{class:"scroll", style:"max-height:320px;"},
+                       el("table",{id:"sumtbl_"+this.rid})));
+    wrap.appendChild(table);
+    this.body.appendChild(wrap);
+  }
+
+  buildPopulation(){
+    const wrap = el("div",{class:"col"});
+    const ctl = el("div",{class:"row", style:"align-items:center; gap:8px;"},
+      el("span",{class:"mut"},"Generation:"),
+      el("select",{id:"genSel_"+this.rid,
+                   onchange:(e)=>this.selectGen(parseInt(e.target.value))}),
+      el("button",{onclick:()=>this.refreshPopulation(true)}, "↻"));
+    wrap.appendChild(ctl);
+    const grid = el("div",{class:"grid2"});
+    grid.appendChild(el("div",{class:"panel"},
+      el("h3",{},"Fitness histogram"),
+      el("canvas",{id:"chartHist_"+this.rid, height:"200"})));
+    grid.appendChild(el("div",{class:"panel"},
+      el("h3",{},"Size vs fitness scatter"),
+      el("canvas",{id:"chartScat_"+this.rid, height:"200"})));
+    wrap.appendChild(grid);
+    wrap.appendChild(el("div",{class:"panel"},
+      el("h3",{},"Population (click row → Individual tab)"),
+      el("div",{class:"scroll", style:"max-height:340px;"},
+        el("table",{id:"popTbl_"+this.rid}))));
+    this.body.appendChild(wrap);
+  }
+
+  buildIndividual(){
+    const wrap = el("div",{class:"col"});
+    const ctl = el("div",{class:"row", style:"gap:8px; align-items:center;"},
+      el("span",{class:"mut"},"gen:"),
+      el("input",{id:"indGen_"+this.rid, type:"number",
+                  value:this.selectedGen ?? "", style:"width:80px;"}),
+      el("span",{class:"mut"},"idx:"),
+      el("input",{id:"indIdx_"+this.rid, type:"number", value:"0",
+                  style:"width:80px;"}),
+      el("button",{class:"primary",
+                   onclick:()=>this.loadIndividual()}, "Load"));
+    wrap.appendChild(ctl);
+    this.indPane = el("div",{class:"col"});
+    wrap.appendChild(this.indPane);
+    this.body.appendChild(wrap);
+  }
+
+  buildBer(){
+    const wrap = el("div",{class:"col"});
+    wrap.appendChild(el("div",{class:"panel"},
+      el("h3",{},"Best individual BER vs OMS baseline"),
+      el("canvas",{id:"chartBer_"+this.rid, height:"260"})));
+    this.body.appendChild(wrap);
+  }
+
+  buildDce(){
+    const wrap = el("div",{class:"col"});
+    wrap.appendChild(el("div",{class:"panel"},
+      el("h3",{},"Program size (post-DCE) over generations"),
+      el("canvas",{id:"chartDce_"+this.rid, height:"260"})));
+    this.body.appendChild(wrap);
+  }
+
+  buildLog(){
+    const wrap = el("div",{class:"col"});
+    for (const [k, lbl] of [["stdout","Evolution stdout"],
+                            ["stderr","Evolution stderr"],
+                            ["watcher","Watcher stdout"]]){
+      wrap.appendChild(el("div",{class:"panel"},
+        el("h3",{}, lbl),
+        el("div",{class:"log-pane", id:"log_"+k+"_"+this.rid},"")));
+    }
+    this.body.appendChild(wrap);
+  }
+
+  buildMeta(){
+    const wrap = el("div",{class:"col"});
+    wrap.appendChild(el("div",{class:"panel"}, el("h3",{},"Run meta"),
+      el("pre",{id:"meta_"+this.rid, style:"white-space:pre-wrap; margin:0;"},
+        "loading...")));
+    wrap.appendChild(el("div",{class:"panel"}, el("h3",{},"Champion"),
+      el("pre",{id:"champ_"+this.rid, style:"white-space:pre-wrap; margin:0;"},
+        "—")));
+    this.body.appendChild(wrap);
+  }
+
+  // ---------- data fetching ---------- //
+  async refresh(forceReset){
+    if (forceReset){
+      this.summaryOffset = 0;
+      this.summaryRows = [];
+      this.logOffsets = {stdout:0, stderr:0, watcher:0};
+      this.logBufs = {stdout:"", stderr:"", watcher:""};
+      this.bestSizes = null;
+      this.meta = null;
+    }
+    try {
+      await this.fetchSummary();
+      if (!this.meta){
+        try { this.meta = await api(`/api/runs/${encodeURIComponent(this.rid)}/meta`); }
+        catch(e){ this.meta = null; }
+      }
+      if (this.activeTab === "progress") this.renderProgress();
+      if (this.activeTab === "ber")      this.renderBer();
+      if (this.activeTab === "dce")      await this.refreshAndRenderDce();
+      if (this.activeTab === "population") await this.refreshGenList();
+      if (this.activeTab === "log") await this.refreshLogs();
+      if (this.activeTab === "meta") await this.refreshMeta();
+    } catch(e){ console.warn(e); }
+  }
+
+  async fetchSummary(){
+    const r = await api(`/api/runs/${encodeURIComponent(this.rid)}/summary?since=${this.summaryOffset}`);
+    this.summaryOffset = r.offset;
+    for (const row of r.rows) this.summaryRows.push(row);
+    // baseline
+    try {
+      this.baseline = await api(`/api/runs/${encodeURIComponent(this.rid)}/baseline`);
+    } catch(e){ this.baseline = null; }
+  }
+
+  renderProgress(){
+    const g_done = this.summaryRows.length;
+    const last = this.summaryRows[g_done-1];
+    document.getElementById("kpi_g").textContent = g_done;
+    document.getElementById("kpi_best").textContent =
+      last ? last.best_fit.toFixed(4) : "—";
+    document.getElementById("kpi_mean").textContent =
+      last ? last.mean_fit.toFixed(4) : "—";
+    document.getElementById("kpi_oms").textContent =
+      this.baseline ? this.baseline.fitness.toFixed(4) : "—";
+    // chart
+    const cv = document.getElementById("chartFit_"+this.rid);
+    if (!cv) return;
+    const labels = this.summaryRows.map(r=>r.gen);
+    const datasets = [
+      {label:"best", data: this.summaryRows.map(r=>r.best_fit),
+       borderColor:"#5fb1ff", tension:0.1, pointRadius:2},
+      {label:"mean", data: this.summaryRows.map(r=>r.mean_fit),
+       borderColor:"#e6c542", tension:0.1, pointRadius:2},
+      {label:"median", data: this.summaryRows.map(r=>r.median_fit),
+       borderColor:"#7c8597", tension:0.1, pointRadius:2},
+    ];
+    if (this.baseline){
+      datasets.push({label:"OMS", data: labels.map(()=>this.baseline.fitness),
+        borderColor:"#ff6660", borderDash:[5,5], pointRadius:0});
+    }
+    this.chartFit = upsertChart(this.chartFit, cv, "line",
+      {labels, datasets},
+      {animation:false, plugins:{legend:{labels:{color:"#dde2ec"}}},
+       scales:{x:{ticks:{color:"#7c8597"}, grid:{color:"#1d222b"}},
+               y:{ticks:{color:"#7c8597"}, grid:{color:"#1d222b"}}}});
+    // table
+    const tbl = document.getElementById("sumtbl_"+this.rid);
+    tbl.innerHTML = "<thead><tr><th>gen</th><th>best</th><th>mean</th>"
+      +"<th>median</th><th>valid</th><th>t (s)</th></tr></thead>";
+    const tb = el("tbody");
+    for (const r of this.summaryRows.slice().reverse()){
+      tb.appendChild(el("tr",{},
+        el("td",{},String(r.gen)),
+        el("td",{},r.best_fit.toFixed(4)),
+        el("td",{},r.mean_fit.toFixed(4)),
+        el("td",{},r.median_fit.toFixed(4)),
+        el("td",{},String(r.n_valid_offspring)),
+        el("td",{},r.elapsed_s.toFixed(1)),
+      ));
+    }
+    tbl.appendChild(tb);
+  }
+
+  renderBer(){
+    const cv = document.getElementById("chartBer_"+this.rid); if (!cv) return;
+    if (!this.baseline){ return; }
+    // Build SNR labels from (in priority order):
+    //  1) baseline.fit_cfg.snr_list_db (canonical, written by the runner)
+    //  2) baseline.snrs / baseline.snr_db (legacy alternates)
+    //  3) meta.snr_list_db (canonical in meta.json)
+    //  4) meta.params.snr_list (CSV string from UI launch params)
+    //  5) baseline.ber_per_snr index positions (no hardcoded fallback!)
+    let labels = null;
+    const b = this.baseline || {};
+    const m = this.meta || {};
+    if (b.fit_cfg && Array.isArray(b.fit_cfg.snr_list_db))
+      labels = b.fit_cfg.snr_list_db.map(String);
+    else if (Array.isArray(b.snrs))      labels = b.snrs.map(String);
+    else if (Array.isArray(b.snr_db))    labels = b.snr_db.map(String);
+    else if (Array.isArray(m.snr_list_db)) labels = m.snr_list_db.map(String);
+    else {
+      const raw = (m.params && m.params.snr_list) || m.snr_list;
+      if (typeof raw === "string")
+        labels = raw.split(",").map(s=>s.trim()).filter(Boolean);
+      else if (Array.isArray(raw))
+        labels = raw.map(String);
+    }
+    const baseLine = (this.baseline.ber_per_snr || []).map(b=>Math.max(b,1e-6));
+    if (!labels) labels = baseLine.map((_,i)=>String(i));
+    const datasets = [{
+      label:"OMS baseline",
+      data: baseLine, borderColor:"#ff6660", borderDash:[5,5],
+      pointRadius:3, tension:0,
+    }];
+    if (this._bestBer){
+      datasets.push({
+        label:`best @ gen ${this._bestGen}`,
+        data:this._bestBer.map(b=>Math.max(b,1e-6)),
+        borderColor:"#5fd96a", pointRadius:3, tension:0,
+      });
+    }
+    this.chartBer = upsertChart(this.chartBer, cv, "line",
+      {labels, datasets},
+      {
+        animation:false,
+        scales:{
+          y:{type:"logarithmic", ticks:{color:"#7c8597"},
+             grid:{color:"#1d222b"}, title:{display:true, text:"BER",
+                                            color:"#7c8597"}},
+          x:{ticks:{color:"#7c8597"}, grid:{color:"#1d222b"},
+             title:{display:true, text:"SNR (dB)", color:"#7c8597"}}},
+        plugins:{legend:{labels:{color:"#dde2ec"}}},
+      });
+  }
+
+  async refreshAndRenderDce(){
+    try {
+      const r = await api(`/api/runs/${encodeURIComponent(this.rid)}/best_sizes`);
+      this.bestSizes = r.rows || [];
+    } catch(e){ this.bestSizes = []; }
+    this.renderDce();
+  }
+
+  renderDce(){
+    const cv = document.getElementById("chartDce_"+this.rid); if (!cv) return;
+    const src = this.bestSizes || [];
+    const labels = src.map(r=>r.gen);
+    const data1 = src.map(r=>r.best_v2c_size ?? null);
+    const data2 = src.map(r=>r.best_c2v_size ?? null);
+    this.chartDce = upsertChart(this.chartDce, cv, "line",
+      {labels, datasets:[
+        {label:"best v2c size (post-DCE)", data:data1,
+         borderColor:"#5fb1ff", pointRadius:2, tension:0.1},
+        {label:"best c2v size (post-DCE)", data:data2,
+         borderColor:"#e6c542", pointRadius:2, tension:0.1},
+      ]},
+      {animation:false,
+        scales:{x:{title:{display:true,text:"generation",color:"#7c8597"},
+                   ticks:{color:"#7c8597"}, grid:{color:"#1d222b"}},
+                y:{title:{display:true,text:"program size",color:"#7c8597"},
+                   ticks:{color:"#7c8597"}, grid:{color:"#1d222b"}}},
+        plugins:{legend:{labels:{color:"#dde2ec"}}}});
+  }
+
+  async refreshGenList(){
+    const r = await api(`/api/runs/${encodeURIComponent(this.rid)}/generations`);
+    const sel = document.getElementById("genSel_"+this.rid);
+    if (!sel) return;
+    const cur = sel.value;
+    sel.innerHTML = "";
+    for (const [g,n] of r.generations){
+      const o = el("option",{value:String(g)}, `gen ${g}  (${n})`);
+      sel.appendChild(o);
+    }
+    let pick = cur;
+    if (!cur && r.generations.length){
+      pick = String(r.generations[r.generations.length-1][0]);
+    }
+    if (pick){ sel.value = pick; this.selectGen(parseInt(pick)); }
+  }
+
+  async selectGen(g){
+    this.selectedGen = g;
+    await this.refreshPopulation(true);
+  }
+
+  async refreshPopulation(force){
+    if (this.selectedGen == null) return;
+    const r = await api(`/api/runs/${encodeURIComponent(this.rid)}/population?gen=${this.selectedGen}`);
+    this.populationByGen[this.selectedGen] = r.rows;
+    // LRU cap: keep only 3 most-recent gens to avoid JS heap blow-up
+    const keys = Object.keys(this.populationByGen);
+    if (keys.length > 3){
+      keys.sort((a,b)=>parseInt(a)-parseInt(b));
+      for (const k of keys.slice(0, keys.length-3))
+        delete this.populationByGen[k];
+    }
+    this.renderPopulation(r.rows);
+  }
+
+  renderPopulation(rows){
+    // histogram
+    const fits = rows.map(r=>r.fitness).filter(x=>x!=null && isFinite(x));
+    const sizes = rows.map(r=>(r.v2c_size||0)+(r.c2v_size||0));
+    const lo = Math.min(...fits), hi = Math.max(...fits);
+    const bins = 20;
+    const hist = new Array(bins).fill(0);
+    const step = (hi - lo) / bins || 1;
+    for (const f of fits){
+      const i = Math.min(bins-1, Math.max(0, Math.floor((f-lo)/step)));
+      hist[i]++;
+    }
+    const labels = hist.map((_,i)=>(lo + i*step).toFixed(3));
+    const cv = document.getElementById("chartHist_"+this.rid);
+    this.chartPop = upsertChart(this.chartPop, cv, "bar",
+      {labels, datasets:[{label:"count", data:hist,
+                          backgroundColor:"#5fb1ff"}]},
+      {animation:false,
+        scales:{x:{ticks:{color:"#7c8597", maxTicksLimit:8},
+                   grid:{color:"#1d222b"}},
+                y:{ticks:{color:"#7c8597"}, grid:{color:"#1d222b"}}},
+        plugins:{legend:{labels:{color:"#dde2ec"}}}});
+    // scatter (size vs fitness)
+    const cs = document.getElementById("chartScat_"+this.rid);
+    const points = rows.map(r => ({x: (r.v2c_size||0)+(r.c2v_size||0),
+                                   y: r.fitness}))
+                       .filter(p => p.y != null && isFinite(p.y));
+    this.chartScat = upsertChart(this.chartScat, cs, "scatter",
+      {datasets:[{label:"individuals", data:points,
+                  backgroundColor:"#5fd96a", pointRadius:3}]},
+      {animation:false,
+        scales:{x:{title:{display:true,text:"size",color:"#7c8597"},
+                   ticks:{color:"#7c8597"}, grid:{color:"#1d222b"}},
+                y:{title:{display:true,text:"fitness",color:"#7c8597"},
+                   ticks:{color:"#7c8597"}, grid:{color:"#1d222b"}}},
+        plugins:{legend:{labels:{color:"#dde2ec"}}}});
+    // table
+    const tbl = document.getElementById("popTbl_"+this.rid);
+    tbl.innerHTML = "<thead><tr><th>idx</th><th>fitness</th><th>valid</th>"
+      +"<th>v2c</th><th>c2v</th><th>BER</th></tr></thead>";
+    const tb = el("tbody");
+    for (const r of rows){
+      const tr = el("tr",{onclick:()=>{this.openIndividual(r.idx);}},
+        el("td",{},String(r.idx)),
+        el("td",{}, r.fitness==null ? "—" : r.fitness.toFixed(4)),
+        el("td",{}, r.valid?"✓":"·"),
+        el("td",{}, String(r.v2c_size)),
+        el("td",{}, String(r.c2v_size)),
+        el("td",{}, (r.ber_per_snr||[]).map(b=>b.toExponential(1)).join(" ")));
+      tb.appendChild(tr);
+    }
+    tbl.appendChild(tb);
+    // also: capture best-of-this-gen BER for the BER tab
+    const best = rows.find(r => r.fitness != null && isFinite(r.fitness));
+    if (best && best.ber_per_snr){
+      this._bestBer = best.ber_per_snr;
+      this._bestGen = this.selectedGen;
+    }
+  }
+
+  openIndividual(idx){
+    document.getElementById("indGen_"+this.rid).value = this.selectedGen;
+    document.getElementById("indIdx_"+this.rid).value = idx;
+    this.setTab("individual");
+    setTimeout(()=>this.loadIndividual(), 50);
+  }
+
+  async loadIndividual(){
+    const g = parseInt(document.getElementById("indGen_"+this.rid).value);
+    const i = parseInt(document.getElementById("indIdx_"+this.rid).value);
+    this.indPane.innerHTML = "<div class='mut'>loading...</div>";
+    try{
+      const r = await api(`/api/runs/${encodeURIComponent(this.rid)}/individual?gen=${g}&idx=${i}`);
+      this.renderIndividual(r);
+    }catch(e){
+      this.indPane.innerHTML = "";
+      this.indPane.appendChild(el("div",{style:"color:var(--bad);"},
+        "ERROR: "+e.message));
+    }
+  }
+
+  renderIndividual(r){
+    this.indPane.innerHTML = "";
+    const raw = r.raw, parsed = r.parsed;
+    const head = el("div",{class:"panel"},
+      el("div",{class:"kv"},
+        el("span",{class:"k"},"gen / idx"),
+        el("span",{}, `${raw.gen} / ${raw.idx}`),
+        el("span",{class:"k"},"fitness"),
+        el("span",{}, String(raw.fitness)),
+        el("span",{class:"k"},"valid"),
+        el("span",{}, String(raw.valid)),
+        el("span",{class:"k"},"v2c / c2v size"),
+        el("span",{}, `${raw.v2c_size} / ${raw.c2v_size}`),
+        el("span",{class:"k"},"max depth v2c/c2v"),
+        el("span",{}, `${raw.v2c_max_depth} / ${raw.c2v_max_depth}`),
+        el("span",{class:"k"},"log_constants"),
+        el("span",{}, JSON.stringify(raw.log_constants)),
+        el("span",{class:"k"},"BER / FER"),
+        el("span",{}, `${JSON.stringify(raw.ber_per_snr)} / ${JSON.stringify(raw.fer_per_snr)}`),
+      ));
+    this.indPane.appendChild(head);
+    // math
+    const math = el("div",{class:"panel"},
+      el("h3",{},"Symbolic math (post-DCE)"),
+      el("div",{class:"kv"},
+        el("span",{class:"k"},"V2C math"),
+        el("pre",{style:"margin:0;white-space:pre-wrap;color:#5fb1ff;"},
+            parsed.v2c_math || "—"),
+        el("span",{class:"k"},"V2C notes"),
+        el("pre",{style:"margin:0;white-space:pre-wrap;"},
+            parsed.v2c_notes || "—"),
+        el("span",{class:"k"},"V2C live"),
+        el("pre",{style:"margin:0;white-space:pre-wrap;color:#7c8597;"},
+            parsed.v2c_live_expr || "<empty>"),
+        el("span",{class:"k"},"C2V math"),
+        el("pre",{style:"margin:0;white-space:pre-wrap;color:#5fd96a;"},
+            parsed.c2v_math || "—"),
+        el("span",{class:"k"},"C2V notes"),
+        el("pre",{style:"margin:0;white-space:pre-wrap;"},
+            parsed.c2v_notes || "—"),
+        el("span",{class:"k"},"C2V live"),
+        el("pre",{style:"margin:0;white-space:pre-wrap;color:#7c8597;"},
+            parsed.c2v_live_expr || "<empty>"),
+      ));
+    if (parsed.v2c_fault) math.appendChild(el("div",{style:"color:var(--bad);"},
+      "V2C FAULT: "+parsed.v2c_fault));
+    if (parsed.c2v_fault) math.appendChild(el("div",{style:"color:var(--bad);"},
+      "C2V FAULT: "+parsed.c2v_fault));
+    this.indPane.appendChild(math);
+    // push code
+    const code = el("div",{class:"panel"}, el("h3",{},"Push code (raw)"),
+      el("div",{class:"grid2"},
+        el("div",{}, el("h3",{}, "V2C"),
+          el("pre",{style:"max-height:240px;overflow:auto;margin:0;"},
+            JSON.stringify(r.v2c_push, null, 1))),
+        el("div",{}, el("h3",{}, "C2V"),
+          el("pre",{style:"max-height:240px;overflow:auto;margin:0;"},
+            JSON.stringify(r.c2v_push, null, 1)))));
+    this.indPane.appendChild(code);
+  }
+
+  async refreshLogs(){
+    for (const [k, endpoint] of [
+      ["stdout", `/api/runs/${encodeURIComponent(this.rid)}/log?stream=stdout&offset=${this.logOffsets.stdout}`],
+      ["stderr", `/api/runs/${encodeURIComponent(this.rid)}/log?stream=stderr&offset=${this.logOffsets.stderr}`],
+      ["watcher", `/api/runs/${encodeURIComponent(this.rid)}/watcher_log?offset=${this.logOffsets.watcher}`],
+    ]){
+      try {
+        const r = await api(endpoint);
+        this.logOffsets[k] = r.offset;
+        this.logBufs[k] += r.text;
+        const max = 50000;
+        if (this.logBufs[k].length > max)
+          this.logBufs[k] = this.logBufs[k].slice(-max);
+        const pane = document.getElementById("log_"+k+"_"+this.rid);
+        if (pane){
+          pane.textContent = this.logBufs[k];
+          pane.scrollTop = pane.scrollHeight;
+        }
+      } catch(e){ /* ignore */ }
+    }
+  }
+
+  async refreshMeta(){
+    try {
+      const m = await api(`/api/runs/${encodeURIComponent(this.rid)}/meta`);
+      document.getElementById("meta_"+this.rid).textContent =
+        JSON.stringify(m, null, 2);
+    } catch(e){
+      document.getElementById("meta_"+this.rid).textContent =
+        "(no meta yet)";
+    }
+    try {
+      const c = await api(`/api/runs/${encodeURIComponent(this.rid)}/champion`);
+      document.getElementById("champ_"+this.rid).textContent =
+        JSON.stringify(c, null, 2);
+    } catch(e){
+      document.getElementById("champ_"+this.rid).textContent =
+        "(not finalized)";
+    }
+  }
+}
+
+// ---------- bootstrap ---------------------------------------------- //
+async function boot(){
+  try {
+    const h = await api("/api/health");
+    document.getElementById("health").textContent =
+      `OK · python: ${h.python}`;
+  } catch(e){
+    document.getElementById("health").textContent = "BACKEND DOWN";
+    document.getElementById("health").style.color = "var(--bad)";
+  }
+  App.fillDefaults();
+  await App.refreshRuns();
+  await App.refreshDiscovered();
+  await App.refreshBudget();
+  // fast loop: active run + budget + run list
+  setInterval(()=>App.refreshAll(), App.pollMsFast);
+  // slow loop: discover external runs
+  setInterval(()=>App.refreshSlow(), App.pollMsSlow);
+  // pause on tab hide / resume on show
+  document.addEventListener("visibilitychange", ()=>{
+    if (!document.hidden) App.refreshAll();
+  });
+}
+boot();
+</script>
+</body>
+</html>
