@@ -46,7 +46,7 @@ def _parse_args(argv=None):
     p.add_argument("--max-iter", type=int, default=8)
     p.add_argument("--bgn", type=int, default=2)
     p.add_argument("--set", dest="set_idx", type=int, default=1)
-    p.add_argument("--zc", type=int, default=2)
+    p.add_argument("--zc", type=int, default=8)
     p.add_argument("--code-rate", type=float, default=0.5)
     p.add_argument("--n-mutations", type=int, default=2)
     p.add_argument("--p-const-tweak", type=float, default=0.2)

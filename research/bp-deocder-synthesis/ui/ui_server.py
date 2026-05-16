@@ -84,7 +84,7 @@ class LaunchParams(BaseModel):
     p_crossover: float = 0.7
     n_mutations: int = 2
     p_const_tweak: float = 0.25
-    snr_list: str = "-3,-2,-1"
+    snr_list: str = "2,3,4"
     n_frames: int = 6
     max_iter: int = 8
     rand_min_size: int = 4
@@ -93,7 +93,7 @@ class LaunchParams(BaseModel):
     workers: int = 16
     bgn: int = 2
     set_idx: int = 1
-    zc: int = 2
+    zc: int = 8
 
     # DCE
     dce_bp: bool = True

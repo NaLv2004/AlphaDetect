@@ -60,8 +60,8 @@ def parse_args() -> argparse.Namespace:
     # Code + fitness eval
     p.add_argument("--bgn", type=int, default=2)
     p.add_argument("--set-idx", type=int, default=1)
-    p.add_argument("--zc", type=int, default=2)
-    p.add_argument("--snr-list", type=str, default="-3,-2,-1",
+    p.add_argument("--zc", type=int, default=8)
+    p.add_argument("--snr-list", type=str, default="2,3,4",
                    help="Comma-sep SNRs in dB.")
     p.add_argument("--n-frames", type=int, default=6)
     p.add_argument("--max-iter", type=int, default=8)
