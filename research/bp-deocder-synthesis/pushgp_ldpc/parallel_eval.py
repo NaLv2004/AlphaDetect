@@ -80,8 +80,18 @@ class ParallelPairEvaluator:
         except Exception:
             pass
 
-    def eval_pairs(self, pop_v, pop_c, pop_k, perm) -> List[float]:
-        """Evaluate `len(pop_c)` triples (v[perm[i]], c[i], k[i]). Returns list of fits."""
+    def eval_pairs(self, pop_v, pop_c, pop_k, perm,
+                   progress_prefix: str = "[fit-eval]",
+                   progress_interval_s: float = 1.0) -> List[float]:
+        """Evaluate `len(pop_c)` triples (v[perm[i]], c[i], k[i]). Returns list of fits.
+
+        Streams per-pair progress to stdout every `progress_interval_s`
+        seconds (and on first/last pair) so very fast cpp runs still
+        show liveness, and slow python runs no longer block silently.
+        """
+        import sys
+        import time as _time
+
         n = len(pop_c)
         jobs = [
             (
@@ -92,7 +102,31 @@ class ParallelPairEvaluator:
             for i in range(n)
         ]
         # imap preserves order; chunksize tuned for ~few seconds per task
-        results = list(self.pool.imap(_eval_one, jobs, chunksize=1))
+        t0 = _time.time()
+        t_last = t0
+        results: List[Tuple[float, List[float], List[float], int, bool, str]] = []
+        best = float("inf")
+        for k, r in enumerate(self.pool.imap(_eval_one, jobs, chunksize=1), start=1):
+            results.append(r)
+            fit = r[0]
+            if fit < best:
+                best = fit
+            now = _time.time()
+            is_last = (k == n)
+            if (now - t_last) >= progress_interval_s or k == 1 or is_last:
+                elapsed = now - t0
+                rate = k / elapsed if elapsed > 0 else 0.0
+                eta = (n - k) / rate if rate > 0 else 0.0
+                tag = " DONE" if is_last else ""
+                print(
+                    f"{progress_prefix} {k:>4}/{n}  "
+                    f"fit={fit:+.4f} best={best:+.4f}  "
+                    f"elapsed={elapsed:6.1f}s  rate={rate:5.2f}/s  "
+                    f"ETA={eta:5.1f}s{tag}",
+                    flush=True,
+                )
+                sys.stdout.flush()
+                t_last = now
         # Build lightweight metrics records
         from pushgp_ldpc.eval_logged import GenomeMetrics
         self.last_metrics = []

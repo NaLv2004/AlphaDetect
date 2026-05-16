@@ -790,7 +790,13 @@ def evolve_from_scratch(
             perm = list(rng.permutation(cfg.pop_size))
         if batch_eval_fn is not None:
             t_e = time.time()
-            fits = batch_eval_fn(pop_v, pop_c, pop_k, perm)
+            try:
+                fits = batch_eval_fn(pop_v, pop_c, pop_k, perm,
+                                     progress_prefix="[init-eval]")
+            except TypeError:
+                # Backwards-compat with batch_eval_fn signatures that
+                # do not accept the optional progress_prefix kwarg.
+                fits = batch_eval_fn(pop_v, pop_c, pop_k, perm)
             print(f"[init-eval] {len(fits)} pairs in {time.time()-t_e:.1f}s "
                   f"(parallel)  best={min(fits):+.4f} med={float(np.median(fits)):+.4f}",
                   flush=True)
@@ -851,7 +857,11 @@ def evolve_from_scratch(
                 perm = list(rng.permutation(cfg.pop_size))
             if batch_eval_fn is not None:
                 t_e = time.time()
-                fits = batch_eval_fn(pop_v, pop_c, pop_k, perm)
+                try:
+                    fits = batch_eval_fn(pop_v, pop_c, pop_k, perm,
+                                         progress_prefix=f"[gen {gen_idx} eval]")
+                except TypeError:
+                    fits = batch_eval_fn(pop_v, pop_c, pop_k, perm)
                 print(f"[gen {gen_idx}] eval {len(fits)} pairs in "
                       f"{time.time()-t_e:.1f}s (parallel)  "
                       f"best={min(fits):+.4f} med={float(np.median(fits)):+.4f}",
