@@ -1054,104 +1054,104 @@ def _evolve_triple_offspring(
     v_invalid = 0
     c_attempts = 0
     c_invalid = 0
-    n_grafts = 0
+    n_grafts_v = 0
+    n_grafts_c = 0
     target = n
-    max_attempts = cfg.max_attempts_per_slot * target
+    per_side_budget = cfg.max_attempts_per_slot  # per-slot, per-side
 
+    # ----- Per-slot independent fill --------------------------------
+    # IMPORTANT: binding semantics only requires that slot j's V and
+    # C children inherit from the SAME parent triple index ``a`` (and
+    # optionally a co-parent ``b`` for crossover).  V and C are
+    # otherwise INDEPENDENT — each side gets its own retry budget and
+    # its own dedup gate.  No joint accept/reject, no probability
+    # multiplication.
     while len(new_v) < target:
-        if v_attempts + c_attempts >= max_attempts * 2:
-            # ---- Graceful fallback: macro graft from existing parents.
-            # The standard crossover+mutate+validate+dedup pipeline has
-            # been exhausted (typical cause: bind_pairs requires BOTH
-            # v_cand AND c_cand to pass validation in the same trial,
-            # multiplying the per-side failure rate).  Instead of
-            # crashing the run, we fill the remaining slots by copying
-            # *parent* programs verbatim: the parents already passed
-            # validation when they entered the pool, so copies are
-            # guaranteed valid.  We deliberately CROSS-GRAFT (V from
-            # one tournament winner, C from a different one, K from a
-            # third) so the slot still introduces new triple-level
-            # behaviour even though each component is a clone.  Dedup
-            # is skipped — duplicates are acceptable when the
-            # alternative is an aborted generation.
-            need = target - len(new_v)
-            for _ in range(need):
-                a = tournament_select_idx(fits, cfg.tournament_k, rng)
-                b = tournament_select_idx(fits, cfg.tournament_k, rng)
-                c = tournament_select_idx(fits, cfg.tournament_k, rng)
-                new_v.append(deep_copy_program(pop_v[a]))
-                new_c.append(deep_copy_program(pop_c[b]))
-                new_k.append(pop_k[c].copy())
-                n_grafts += 1
-            warnings.warn(
-                f"[bind-pairs] triple offspring fill exhausted at "
-                f"{target - need}/{target} after v_attempts={v_attempts} "
-                f"c_attempts={c_attempts} (budget={max_attempts * 2}); "
-                f"filled remaining {need} slots via macro graft "
-                f"(verbatim V/C/K copies from independent tournament "
-                f"winners). Consider raising --max-attempts-per-slot "
-                f"or lowering --p-crossover / --n-mutations.",
-                RuntimeWarning, stacklevel=2,
-            )
-            print(
-                f"[bind-pairs WARN] triple offspring fill exhausted: "
-                f"{need}/{target} slots filled by macro graft "
-                f"(v_attempts={v_attempts} c_attempts={c_attempts} "
-                f"budget={max_attempts * 2}). Bump --max-attempts-per-slot "
-                f"if this happens repeatedly.",
-                flush=True,
-            )
-            break
         a = tournament_select_idx(fits, cfg.tournament_k, rng)
         n_mut = _rank_to_n_mutations(rank_of.get(a, 0), n, cfg)
-        if rng.random() < cfg.p_crossover:
-            b = tournament_select_idx(fits, cfg.tournament_k, rng)
-            v_child0 = crossover_program(pop_v[a], pop_v[b], rng,
-                                          instr_set=V2C_INSTR)
-            c_child0 = crossover_program(pop_c[a], pop_c[b], rng,
-                                          instr_set=C2V_INSTR)
+        do_xover = rng.random() < cfg.p_crossover
+        b = tournament_select_idx(fits, cfg.tournament_k, rng) if do_xover else a
+
+        # ---- (1) Constants child (no validator, no dedup) ----------
+        if do_xover:
             k_child = crossover_log_constants(pop_k[a], pop_k[b], rng)
         else:
-            v_child0 = deep_copy_program(pop_v[a])
-            c_child0 = deep_copy_program(pop_c[a])
             k_child = pop_k[a].copy()
-
-        v_cand = mutate_program(v_child0, rng, rpg, V2C_INSTR,
-                                 n_mutations=max(1, n_mut))
-        c_cand = mutate_program(c_child0, rng, rpg, C2V_INSTR,
-                                 n_mutations=max(1, n_mut))
         if rng.random() < cfg.p_const_tweak:
-            k_child = mutate_log_constants(k_child, rng,
-                                            n_tweaks=max(1, int(rng.integers(1, 3))))
+            k_child = mutate_log_constants(
+                k_child, rng,
+                n_tweaks=max(1, int(rng.integers(1, 3))),
+            )
 
-        # Independent per-side validation.  Both must pass.
-        v_attempts += 1
-        c_attempts += 1
-        v_seed = int(rng.integers(0, 2**31))
-        c_seed = int(rng.integers(0, 2**31))
-        v_ok = _validate_one("v2c", v_cand, deg=cfg.validator_deg, seed=v_seed)
-        if not v_ok:
-            v_invalid += 1
-            continue
-        c_ok = _validate_one("c2v", c_cand, deg=cfg.validator_deg, seed=c_seed)
-        if not c_ok:
-            c_invalid += 1
-            continue
-        # Dedup on both sides (independent: a pair is rejected if EITHER
-        # side collides with an existing member).
-        if cfg.dedup:
-            v_fp = _behav_fingerprint("v2c", v_cand)
-            if v_fp in seen_v:
+        # ---- (2) V child: independent retry up to per_side_budget --
+        v_cand = None
+        for _t in range(per_side_budget):
+            v_attempts += 1
+            if do_xover:
+                v_child0 = crossover_program(pop_v[a], pop_v[b], rng,
+                                              instr_set=V2C_INSTR)
+            else:
+                v_child0 = deep_copy_program(pop_v[a])
+            v_try = mutate_program(v_child0, rng, rpg, V2C_INSTR,
+                                    n_mutations=max(1, n_mut))
+            v_seed = int(rng.integers(0, 2**31))
+            if not _validate_one("v2c", v_try, deg=cfg.validator_deg,
+                                  seed=v_seed):
+                v_invalid += 1
                 continue
-            c_fp = _behav_fingerprint("c2v", c_cand)
-            if c_fp in seen_c:
+            if cfg.dedup:
+                v_fp = _behav_fingerprint("v2c", v_try)
+                if v_fp in seen_v:
+                    continue
+                seen_v.add(v_fp)
+            v_cand = v_try
+            break
+        if v_cand is None:
+            # V-side budget exhausted → macro graft V from parent ``a``.
+            v_cand = deep_copy_program(pop_v[a])
+            n_grafts_v += 1
+
+        # ---- (3) C child: independent retry up to per_side_budget --
+        c_cand = None
+        for _t in range(per_side_budget):
+            c_attempts += 1
+            if do_xover:
+                c_child0 = crossover_program(pop_c[a], pop_c[b], rng,
+                                              instr_set=C2V_INSTR)
+            else:
+                c_child0 = deep_copy_program(pop_c[a])
+            c_try = mutate_program(c_child0, rng, rpg, C2V_INSTR,
+                                    n_mutations=max(1, n_mut))
+            c_seed = int(rng.integers(0, 2**31))
+            if not _validate_one("c2v", c_try, deg=cfg.validator_deg,
+                                  seed=c_seed):
+                c_invalid += 1
                 continue
-            seen_v.add(v_fp)
-            seen_c.add(c_fp)
+            if cfg.dedup:
+                c_fp = _behav_fingerprint("c2v", c_try)
+                if c_fp in seen_c:
+                    continue
+                seen_c.add(c_fp)
+            c_cand = c_try
+            break
+        if c_cand is None:
+            c_cand = deep_copy_program(pop_c[a])
+            n_grafts_c += 1
 
         new_v.append(v_cand)
         new_c.append(c_cand)
         new_k.append(k_child)
+
+    if n_grafts_v > 0 or n_grafts_c > 0:
+        msg = (
+            f"[bind-pairs WARN] per-slot retry budget "
+            f"({per_side_budget}) exhausted: V-graft={n_grafts_v} "
+            f"C-graft={n_grafts_c} out of {target - cfg.elitism} "
+            f"non-elite slots. Bump --max-attempts-per-slot if this "
+            f"happens repeatedly."
+        )
+        warnings.warn(msg, RuntimeWarning, stacklevel=2)
+        print(msg, flush=True)
 
     return new_v, new_c, new_k, v_attempts, v_invalid, c_attempts, c_invalid
 
