@@ -16,6 +16,7 @@ Hard rules enforced here:
 from __future__ import annotations
 
 import time
+import warnings
 from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
@@ -1053,16 +1054,54 @@ def _evolve_triple_offspring(
     v_invalid = 0
     c_attempts = 0
     c_invalid = 0
+    n_grafts = 0
     target = n
     max_attempts = cfg.max_attempts_per_slot * target
 
     while len(new_v) < target:
         if v_attempts + c_attempts >= max_attempts * 2:
-            raise RuntimeError(
-                f"triple offspring fill exhausted: "
-                f"{len(new_v)}/{target} after "
-                f"v_attempts={v_attempts} c_attempts={c_attempts}"
+            # ---- Graceful fallback: macro graft from existing parents.
+            # The standard crossover+mutate+validate+dedup pipeline has
+            # been exhausted (typical cause: bind_pairs requires BOTH
+            # v_cand AND c_cand to pass validation in the same trial,
+            # multiplying the per-side failure rate).  Instead of
+            # crashing the run, we fill the remaining slots by copying
+            # *parent* programs verbatim: the parents already passed
+            # validation when they entered the pool, so copies are
+            # guaranteed valid.  We deliberately CROSS-GRAFT (V from
+            # one tournament winner, C from a different one, K from a
+            # third) so the slot still introduces new triple-level
+            # behaviour even though each component is a clone.  Dedup
+            # is skipped — duplicates are acceptable when the
+            # alternative is an aborted generation.
+            need = target - len(new_v)
+            for _ in range(need):
+                a = tournament_select_idx(fits, cfg.tournament_k, rng)
+                b = tournament_select_idx(fits, cfg.tournament_k, rng)
+                c = tournament_select_idx(fits, cfg.tournament_k, rng)
+                new_v.append(deep_copy_program(pop_v[a]))
+                new_c.append(deep_copy_program(pop_c[b]))
+                new_k.append(pop_k[c].copy())
+                n_grafts += 1
+            warnings.warn(
+                f"[bind-pairs] triple offspring fill exhausted at "
+                f"{target - need}/{target} after v_attempts={v_attempts} "
+                f"c_attempts={c_attempts} (budget={max_attempts * 2}); "
+                f"filled remaining {need} slots via macro graft "
+                f"(verbatim V/C/K copies from independent tournament "
+                f"winners). Consider raising --max-attempts-per-slot "
+                f"or lowering --p-crossover / --n-mutations.",
+                RuntimeWarning, stacklevel=2,
             )
+            print(
+                f"[bind-pairs WARN] triple offspring fill exhausted: "
+                f"{need}/{target} slots filled by macro graft "
+                f"(v_attempts={v_attempts} c_attempts={c_attempts} "
+                f"budget={max_attempts * 2}). Bump --max-attempts-per-slot "
+                f"if this happens repeatedly.",
+                flush=True,
+            )
+            break
         a = tournament_select_idx(fits, cfg.tournament_k, rng)
         n_mut = _rank_to_n_mutations(rank_of.get(a, 0), n, cfg)
         if rng.random() < cfg.p_crossover:

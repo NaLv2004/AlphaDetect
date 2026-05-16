@@ -89,6 +89,7 @@ class LaunchParams(BaseModel):
     max_iter: int = 8
     rand_min_size: int = 4
     rand_max_size: int = 30
+    max_attempts_per_slot: int = 500
     workers: int = 16
     bgn: int = 2
     set_idx: int = 1
@@ -130,6 +131,7 @@ class LaunchParams(BaseModel):
             "--max-iter", str(self.max_iter),
             "--rand-min-size", str(self.rand_min_size),
             "--rand-max-size", str(self.rand_max_size),
+            "--max-attempts-per-slot", str(self.max_attempts_per_slot),
             "--workers", str(self.workers),
             "--bgn", str(self.bgn),
             "--set-idx", str(self.set_idx),
