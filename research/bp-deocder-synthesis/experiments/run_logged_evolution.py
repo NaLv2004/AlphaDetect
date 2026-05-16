@@ -90,6 +90,33 @@ def parse_args() -> argparse.Namespace:
                    help="Use C++ pybind11 seeder (pushgp_cpp_seeder) for "
                         "initial random fill of pop_v / pop_c. Bit-identical "
                         "VM/validator semantics; ~7x faster than Python.")
+    # ---- BP-equivalence DCE (post-seed + per-gen post-offspring) ----
+    p.add_argument("--dce-bp", dest="dce_bp", action="store_true",
+                   default=False,
+                   help="Enable BP-equivalence DCE on populations after "
+                        "initial seeding and after each generation's "
+                        "offspring fill. Uses cpp acceleration by default.")
+    p.add_argument("--dce-bp-max-iter", type=int, default=8,
+                   help="BP max_iter used by DCE equivalence check.")
+    p.add_argument("--dce-bp-decimals", type=int, default=6,
+                   help="Rounding decimals for post-LLR equivalence.")
+    p.add_argument("--dce-bp-max-passes", type=int, default=800,
+                   help="Hard cap on DCE inner reduction passes.")
+    p.add_argument("--dce-bp-max-decode-evals", type=int, default=-1,
+                   help="Hard cap on BP decode invocations per program "
+                        "(<0 = unlimited).")
+    p.add_argument("--dce-bp-threads", type=int, default=0,
+                   help="Worker threads for cpp DCE batch (0 = use --workers).")
+    p.add_argument("--dce-bp-no-cpp", dest="dce_bp_use_cpp",
+                   action="store_false", default=True,
+                   help="Force pure-Python DCE (default cpp ON).")
+    p.add_argument("--dce-bp-snr-db", type=float, default=None,
+                   help="SNR (dB) used to build the DCE oracle's rx_llrs. "
+                        "Defaults to the median of --snr-list.")
+    p.add_argument("--dce-bp-n-frames", type=int, default=1,
+                   help="Number of channel frames per oracle (default 1).")
+    p.add_argument("--dce-bp-oracle-seed", type=int, default=20000,
+                   help="RNG seed for the DCE oracle channel realization.")
     return p.parse_args()
 
 
@@ -299,6 +326,13 @@ def main() -> int:
         rand_max_size=args.rand_max_size,
         dedup=args.dedup,
         cpp_seeder=args.cpp_seeder,
+        dce_bp_enabled=args.dce_bp,
+        dce_bp_max_iter=args.dce_bp_max_iter,
+        dce_bp_decimals=args.dce_bp_decimals,
+        dce_bp_max_passes=args.dce_bp_max_passes,
+        dce_bp_max_decode_evals=args.dce_bp_max_decode_evals,
+        dce_bp_threads=args.dce_bp_threads,
+        dce_bp_use_cpp=args.dce_bp_use_cpp,
     )
 
     meta = {
@@ -324,6 +358,18 @@ def main() -> int:
             "max_attempts_per_slot": ev_cfg.max_attempts_per_slot,
             "rand_min_size": ev_cfg.rand_min_size,
             "rand_max_size": ev_cfg.rand_max_size,
+            "cpp_seeder": ev_cfg.cpp_seeder,
+            "dce_bp_enabled": ev_cfg.dce_bp_enabled,
+            "dce_bp_max_iter": ev_cfg.dce_bp_max_iter,
+            "dce_bp_decimals": ev_cfg.dce_bp_decimals,
+            "dce_bp_max_passes": ev_cfg.dce_bp_max_passes,
+            "dce_bp_max_decode_evals": ev_cfg.dce_bp_max_decode_evals,
+            "dce_bp_threads": ev_cfg.dce_bp_threads,
+            "dce_bp_use_cpp": ev_cfg.dce_bp_use_cpp,
+            "dce_bp_snr_db": (args.dce_bp_snr_db
+                              if args.dce_bp_snr_db is not None else None),
+            "dce_bp_n_frames": args.dce_bp_n_frames,
+            "dce_bp_oracle_seed": args.dce_bp_oracle_seed,
         },
     }
     (out_dir / "meta.json").write_text(
@@ -380,6 +426,34 @@ def main() -> int:
     logger = GenerationLogger(out_dir, fit_cfg)
 
     t0 = time.time()
+    # ---- Build DCE oracle (par + rx_llrs) if requested ----------------
+    dce_oracle = None
+    if args.dce_bp:
+        snr_sorted = sorted(snr_list)
+        snr_pick = (args.dce_bp_snr_db if args.dce_bp_snr_db is not None
+                    else float(snr_sorted[len(snr_sorted) // 2]))
+        from ldpc_5g import HTYPE, bpsk_modulate, bpsk_llr
+        from pushgp_ldpc.eval import _random_codeword
+        htype = HTYPE[par.bgn - 1][par.set_idx - 1]
+        rate = 0.5
+        sigma2 = 1.0 / (2.0 * rate * 10.0 ** (snr_pick / 10.0))
+        sigma = float(np.sqrt(sigma2))
+        rx_llrs: List[np.ndarray] = []
+        for f_idx in range(int(max(1, args.dce_bp_n_frames))):
+            rng = np.random.default_rng(args.dce_bp_oracle_seed + f_idx)
+            cw = _random_codeword(par, htype, rng)
+            tx = bpsk_modulate(cw[2 * par.zc:])
+            rx = tx + sigma * rng.standard_normal(tx.shape)
+            llr_part = bpsk_llr(rx, sigma2)
+            llr = np.zeros(par.cols, dtype=np.float64)
+            llr[2 * par.zc:] = llr_part
+            rx_llrs.append(llr)
+        dce_oracle = {"par": par, "rx_llrs": rx_llrs}
+        print(f"[init] DCE oracle: snr={snr_pick:+.1f}dB  "
+              f"frames={len(rx_llrs)}  use_cpp={args.dce_bp_use_cpp}  "
+              f"max_iter={args.dce_bp_max_iter}  decimals={args.dce_bp_decimals}",
+              flush=True)
+
     if args.from_scratch:
         # Two-pop evolve_from_scratch with parallel pair-fitness eval.
         from pushgp_ldpc.parallel_eval import ParallelPairEvaluator
@@ -394,6 +468,7 @@ def main() -> int:
                 workers=args.workers,
                 batch_eval_fn=pev.eval_pairs,
                 on_generation=logger.on_generation_two_pop,
+                dce_oracle=dce_oracle,
             )
         finally:
             pev.close()
