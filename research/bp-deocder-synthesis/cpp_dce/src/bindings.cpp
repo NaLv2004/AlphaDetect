@@ -21,8 +21,12 @@
 #include <pybind11/stl.h>
 
 #include <array>
+#include <atomic>
+#include <chrono>
 #include <memory>
+#include <mutex>
 #include <string>
+#include <thread>
 #include <vector>
 
 namespace py = pybind11;
@@ -231,6 +235,124 @@ PYBIND11_MODULE(pushgp_cpp_dce, m) {
         Program p = dict_to_program(prog_dict);
         return program_to_dict(p);
     });
+
+    // ============================================================
+    // reduce_bp_batch: multi-threaded version of reduce_bp.
+    // Jobs is a list of dicts:
+    //   {"prog": list, "side": "v2c"|"c2v", "peer_prog": list,
+    //    "evo": np.ndarray}
+    // All jobs share parity_handle + rx_llrs + max_iter + ...  This is
+    // the typical DCE post-seeding pattern.
+    // ============================================================
+    m.def("reduce_bp_batch", [rx_list_to_cpp](
+        py::list jobs,
+        const ParityHandle& parH,
+        py::list rx_list,
+        int max_iter,
+        int max_passes,
+        int max_decode_evals,
+        int decimals,
+        int threads,
+        py::object progress_cb) {
+        if (threads <= 0) threads = 1;
+        const int n_jobs = static_cast<int>(jobs.size());
+
+        // ---- Convert all inputs UP FRONT (with GIL).
+        struct Job {
+            Program prog;
+            Program peer;
+            bool side_is_v2c;
+            std::array<double, N_EVO_CONSTS> evo;
+        };
+        std::vector<Job> in_jobs(n_jobs);
+        for (int i = 0; i < n_jobs; ++i) {
+            py::dict d = jobs[i].cast<py::dict>();
+            std::string side = d["side"].cast<std::string>();
+            if (side != "v2c" && side != "c2v") {
+                throw std::invalid_argument("job side must be v2c or c2v");
+            }
+            in_jobs[i].side_is_v2c = (side == "v2c");
+            in_jobs[i].prog = dict_to_program(d["prog"].cast<py::list>());
+            in_jobs[i].peer = dict_to_program(d["peer_prog"].cast<py::list>());
+            in_jobs[i].evo  = numpy_to_evo(
+                d["evo"].cast<py::array_t<double, py::array::c_style | py::array::forcecast>>());
+        }
+        auto rxs = rx_list_to_cpp(rx_list);
+
+        // ---- Output buffers.
+        std::vector<Program>     out_progs(n_jobs);
+        std::vector<ReduceStats> out_stats(n_jobs);
+        std::atomic<int>         next{0};
+        std::atomic<int>         done_count{0};
+        std::atomic<bool>        done{false};
+
+        auto t0 = std::chrono::steady_clock::now();
+        auto worker_fn = [&]() {
+            while (true) {
+                int idx = next.fetch_add(1, std::memory_order_relaxed);
+                if (idx >= n_jobs) break;
+                const Job& J = in_jobs[idx];
+                ReduceStats st;
+                out_progs[idx] = behavioral_reduce_bp_cpp(
+                    J.prog, J.side_is_v2c, J.peer, J.evo, *parH.par,
+                    rxs, max_iter, max_passes, max_decode_evals, decimals, &st);
+                out_stats[idx] = std::move(st);
+                done_count.fetch_add(1, std::memory_order_relaxed);
+            }
+        };
+
+        std::vector<std::thread> pool;
+        pool.reserve(threads);
+        {
+            py::gil_scoped_release release;
+            for (int t = 0; t < threads; ++t) pool.emplace_back(worker_fn);
+            // Progress polling (main thread keeps GIL released except
+            // when invoking the callback).
+            if (!progress_cb.is_none()) {
+                while (done_count.load() < n_jobs) {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(250));
+                    int dc = done_count.load();
+                    double elapsed = std::chrono::duration<double>(
+                        std::chrono::steady_clock::now() - t0).count();
+                    {
+                        py::gil_scoped_acquire g;
+                        try { progress_cb(dc, n_jobs, elapsed); } catch (...) {}
+                    }
+                    if (dc >= n_jobs) break;
+                }
+            }
+            for (auto& th : pool) th.join();
+        }
+
+        // ---- Convert outputs back (with GIL).
+        py::list out;
+        for (int i = 0; i < n_jobs; ++i) {
+            py::dict d;
+            d["prog"] = program_to_dict(out_progs[i]);
+            py::dict st;
+            st["passes"] = out_stats[i].passes;
+            st["fp_evals"] = out_stats[i].fp_evals;
+            st["size_before"] = out_stats[i].size_before;
+            st["size_after"] = out_stats[i].size_after;
+            py::list rp;
+            for (const auto& pos : out_stats[i].removed_positions) {
+                py::list one;
+                for (const auto& s : pos) one.append(py::make_tuple(s.idx, s.desc));
+                rp.append(std::move(one));
+            }
+            st["removed_positions"] = rp;
+            d["stats"] = st;
+            out.append(std::move(d));
+        }
+        return out;
+    },
+        py::arg("jobs"), py::arg("parity_handle"), py::arg("rx_llrs"),
+        py::arg("max_iter") = 8, py::arg("max_passes") = 800,
+        py::arg("max_decode_evals") = -1, py::arg("decimals") = 6,
+        py::arg("threads") = 1, py::arg("progress_cb") = py::none(),
+        "Multi-threaded reduce_bp.  Each worker thread runs the full\n"
+        "behavioral_reduce_bp_cpp on one job at a time using std::thread.\n"
+        "Returns a list parallel to `jobs`, each item {'prog':..,'stats':..}.");
 
     // We also need program_to_dict static helper to be accessible
     // from python so tests can compare structurally.  Already done via
