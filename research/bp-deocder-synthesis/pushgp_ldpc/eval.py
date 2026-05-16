@@ -14,7 +14,7 @@ programs fail.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Sequence, Tuple
+from typing import List, Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -34,6 +34,23 @@ from pushgp_ldpc.adapter import make_callables
 
 
 EPS = 1e-6
+
+
+def physical_code_rate(par: LiftedParity) -> float:
+    """True transmitted code rate: K_info / (N - 2*Zc).
+
+    Derived strictly from the 5G NR base-graph + lifting size.  The
+    first 2*Zc info bits are punctured (not transmitted), so the
+    spectral rate used in the Eb/N0 → σ² conversion is K_info over the
+    actual number of transmitted symbols.  This function is the ONLY
+    place a code rate may be derived; callers must never hard-code 0.5.
+    """
+    Kb = 10 if par.bgn == 2 else 22
+    K_info = Kb * par.zc
+    N_tx = par.cols - 2 * par.zc
+    if N_tx <= 0:
+        raise ValueError(f"degenerate par (N_tx={N_tx})")
+    return float(K_info) / float(N_tx)
 
 
 def _random_codeword(par: LiftedParity, htype: int, rng: np.random.Generator) -> np.ndarray:
@@ -56,7 +73,13 @@ class FitnessConfig:
     snr_list: Tuple[float, ...]      # in dB
     n_frames_per_snr: int = 4
     max_iter: int = 8
-    code_rate: float = 0.5
+    # When None (the canonical setting), the channel pipeline derives
+    # the rate from `par` via `physical_code_rate(par)`.  Explicit
+    # numeric values are tolerated only for legacy/scratch callers; the
+    # runner refuses to launch with a hard-coded rate.  Never pass 0.5
+    # to a real evolution — it under-estimates σ² by ~2.6× on BG2 Zc=2
+    # and makes every decoder look better than it really is.
+    code_rate: Optional[float] = None
     seed_base: int = 12345           # shared channel seed
     info_bits_per_frame: int = 0     # 0 → use par.cols (transmit codeword=0)
     early_fail_threshold: float = 0.45  # bail out if BER > this on first SNR
@@ -69,6 +92,17 @@ class FitnessConfig:
     # tests and for environments where the .pyd cannot be loaded).
     use_cpp_fitness: bool = True
 
+    @property
+    def effective_code_rate(self) -> float:
+        """Resolved code rate used by `_channel_inputs` and BP kernels.
+
+        Returns the explicit `code_rate` if the caller supplied one,
+        otherwise derives `K_info / (N - 2*Zc)` from the 5G NR code.
+        """
+        if self.code_rate is not None:
+            return float(self.code_rate)
+        return physical_code_rate(self.par)
+
 
 def _channel_inputs(cfg: FitnessConfig, snr_db: float) -> List[Tuple[np.ndarray, np.ndarray]]:
     """Pre-build (transmitted_codeword, channel_llr) pairs for one SNR.
@@ -79,7 +113,7 @@ def _channel_inputs(cfg: FitnessConfig, snr_db: float) -> List[Tuple[np.ndarray,
     rng = np.random.default_rng(cfg.seed_base + abs(int(snr_db * 1000)))
     par = cfg.par
     htype = HTYPE[par.bgn - 1][par.set_idx - 1]
-    rate = cfg.code_rate
+    rate = cfg.effective_code_rate
     sigma2 = 1.0 / (2.0 * rate * 10.0 ** (snr_db / 10.0))
     sigma = float(np.sqrt(sigma2))
     pairs = []
@@ -118,7 +152,7 @@ def evaluate_genome(genome: Genome, cfg: FitnessConfig) -> float:
                     llr, cfg.par,
                     v2c_fn=v2c_fn, c2v_fn=c2v_fn,
                     max_iter=cfg.max_iter, offset=0.25,
-                    code_rate=cfg.code_rate,
+                    code_rate=cfg.effective_code_rate,
                 )
             except Exception:
                 return 6.0
@@ -136,4 +170,4 @@ def evaluate_genome(genome: Genome, cfg: FitnessConfig) -> float:
     return float(np.mean(log_bers))
 
 
-__all__ = ["FitnessConfig", "evaluate_genome", "EPS"]
+__all__ = ["FitnessConfig", "evaluate_genome", "EPS", "physical_code_rate"]

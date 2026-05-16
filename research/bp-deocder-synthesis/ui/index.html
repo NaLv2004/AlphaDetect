@@ -732,6 +732,25 @@ class RunView {
       data: baseLine, borderColor:"#ff6660", borderDash:[5,5],
       pointRadius:3, tension:0,
     }];
+    // Uncoded references emitted by the runner into baseline.uncoded.
+    // Two curves overlayed so the user can SEE the coding gain.
+    const unc = this.baseline.uncoded || {};
+    if (unc.rate1_hard && Array.isArray(unc.rate1_hard.ber_per_snr)){
+      datasets.push({
+        label:"uncoded R=1 (BPSK+AWGN)",
+        data: unc.rate1_hard.ber_per_snr.map(b=>Math.max(b,1e-6)),
+        borderColor:"#7c8597", borderDash:[2,3], pointRadius:2, tension:0,
+      });
+    }
+    if (unc.channel_hard_same_pipeline &&
+        Array.isArray(unc.channel_hard_same_pipeline.ber_per_snr)){
+      datasets.push({
+        label:"channel-hard (same pipeline, no BP)",
+        data: unc.channel_hard_same_pipeline.ber_per_snr
+                  .map(b=>Math.max(b,1e-6)),
+        borderColor:"#e6c542", borderDash:[2,3], pointRadius:2, tension:0,
+      });
+    }
     if (this._bestBer){
       datasets.push({
         label:`best @ gen ${this._bestGen}`,

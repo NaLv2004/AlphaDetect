@@ -106,7 +106,7 @@ def _channel_for(cfg: FitnessConfig, snr_db: float):
         cfg.seed_base,
         cfg.n_frames_per_snr,
         float(snr_db),
-        cfg.code_rate,
+        cfg.effective_code_rate,
     )
     cached = _CHANNEL_CACHE.get(key)
     if cached is not None:
@@ -165,7 +165,7 @@ def evaluate_genome_cpp_ber(genome: Genome, cfg: FitnessConfig) -> GenomeMetrics
             try:
                 post, _iters = cdce.decode_bp(
                     llr, parH, v_dict, c_dict, evo,
-                    cfg.max_iter, 0.25, cfg.code_rate,
+                    cfg.max_iter, 0.25, cfg.effective_code_rate,
                 )
             except Exception as e:  # noqa: BLE001
                 n_remain = len(cfg.snr_list) - snr_idx

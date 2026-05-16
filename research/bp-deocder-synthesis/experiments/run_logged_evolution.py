@@ -314,7 +314,9 @@ def main() -> int:
         snr_list=snr_list,
         n_frames_per_snr=args.n_frames,
         max_iter=args.max_iter,
-        code_rate=0.5,
+        # code_rate intentionally omitted: derived from `par` via
+        # `physical_code_rate(par)`.  Hard-coding 0.5 here previously
+        # under-estimated σ² by ~2.6× on BG2 Zc=2 and biased fitness.
         use_cpp_fitness=bool(args.cpp_fitness),
     )
 
@@ -422,18 +424,28 @@ def main() -> int:
     # SNR list, n_frames, and max_iter as evolution.  Required so the
     # baseline is fully aligned with the evolution scoring.
     from pushgp_ldpc.adapter import oms_seed_genome  # local import to avoid surprise on legacy path
+    from pushgp_ldpc.baselines import (
+        uncoded_rate1_baseline, channel_hard_baseline,
+    )
     oms_baseline = oms_seed_genome()
     baseline_m = evaluate_genome_with_ber(oms_baseline, fit_cfg)
     print(f"[baseline] OMS@evo-cfg: fit={baseline_m.fitness:+.4f} "
           f"BER={baseline_m.ber_per_snr}  FER={baseline_m.fer_per_snr}  "
           f"valid={baseline_m.valid}", flush=True)
+    # --- Uncoded references (always computed, regardless of seed mode).
+    unc_r1 = uncoded_rate1_baseline(fit_cfg)
+    unc_ch = channel_hard_baseline(fit_cfg)
+    print(f"[baseline] uncoded R=1 hard:           BER={unc_r1['ber_per_snr']}",
+          flush=True)
+    print(f"[baseline] channel-hard same-pipeline: BER={unc_ch['ber_per_snr']}  "
+          f"(R_used={unc_ch['code_rate_used']:.4f})", flush=True)
     baseline_record = {
         "kind": "oms_baseline",
         "fit_cfg": {
             "snr_list_db": list(snr_list),
             "n_frames_per_snr": args.n_frames,
             "max_iter": args.max_iter,
-            "code_rate": 0.5,
+            "code_rate": fit_cfg.effective_code_rate,
             "code": {"bgn": args.bgn, "set_idx": args.set_idx, "zc": args.zc,
                      "N": int(par.cols), "M": int(par.rows)},
         },
@@ -443,6 +455,10 @@ def main() -> int:
         "n_frames_per_snr": baseline_m.n_frames_per_snr,
         "valid": baseline_m.valid,
         "error": baseline_m.error,
+        "uncoded": {
+            "rate1_hard": unc_r1,
+            "channel_hard_same_pipeline": unc_ch,
+        },
     }
     (out_dir / "baseline.json").write_text(
         json.dumps(baseline_record, indent=2), encoding="utf-8")
@@ -457,9 +473,9 @@ def main() -> int:
         snr_pick = (args.dce_bp_snr_db if args.dce_bp_snr_db is not None
                     else float(snr_sorted[len(snr_sorted) // 2]))
         from ldpc_5g import HTYPE, bpsk_modulate, bpsk_llr
-        from pushgp_ldpc.eval import _random_codeword
+        from pushgp_ldpc.eval import _random_codeword, physical_code_rate
         htype = HTYPE[par.bgn - 1][par.set_idx - 1]
-        rate = 0.5
+        rate = physical_code_rate(par)
         sigma2 = 1.0 / (2.0 * rate * 10.0 ** (snr_pick / 10.0))
         sigma = float(np.sqrt(sigma2))
         rx_llrs: List[np.ndarray] = []

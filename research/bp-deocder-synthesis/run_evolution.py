@@ -34,7 +34,7 @@ def main():
         snr_list=(-3.0, -2.0),
         n_frames_per_snr=4,
         max_iter=6,
-        code_rate=0.5,
+        # code_rate left as None => derived from `par` (physical_code_rate).
     )
 
     cfg = EvolutionConfig(
@@ -84,10 +84,11 @@ def main():
     # Benchmark champion vs OMS at a small waterfall.
     print("[bench] running benchmark…", flush=True)
     t0 = time.time()
+    from pushgp_ldpc.eval import physical_code_rate
     bench = run_benchmark(
         res.best_genome, par,
         snr_list=[-2.0, -1.0, 0.0, 1.0, 2.0, 3.0],
-        n_frames=40, max_iter=8, code_rate=0.5, seed=99,
+        n_frames=40, max_iter=8, code_rate=physical_code_rate(par), seed=99,
     )
     print(f"[bench] took {time.time() - t0:.1f}s", flush=True)
     write_csv(bench, out_dir / "bench.csv")
