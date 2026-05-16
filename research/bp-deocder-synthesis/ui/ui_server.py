@@ -108,6 +108,7 @@ class LaunchParams(BaseModel):
     # other
     cpp_seeder: bool = True
     from_scratch: bool = True
+    bind_pairs: bool = True
     label: Optional[str] = None
     start_watcher: bool = True
 
@@ -137,6 +138,10 @@ class LaunchParams(BaseModel):
             cmd.append("--cpp-seeder")
         if not self.from_scratch:
             cmd.append("--use-oms-seed")
+        # Default is bind_pairs=True; only emit --no-bind-pairs when
+        # the user explicitly disables it in the form.
+        if not self.bind_pairs:
+            cmd.append("--no-bind-pairs")
         if self.dce_bp:
             cmd += [
                 "--dce-bp",

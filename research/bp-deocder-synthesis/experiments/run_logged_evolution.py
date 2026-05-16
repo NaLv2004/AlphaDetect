@@ -117,6 +117,16 @@ def parse_args() -> argparse.Namespace:
                    help="Number of channel frames per oracle (default 1).")
     p.add_argument("--dce-bp-oracle-seed", type=int, default=20000,
                    help="RNG seed for the DCE oracle channel realization.")
+    # ---- Pair-binding (co-adaptation) ----
+    p.add_argument("--bind-pairs", dest="bind_pairs", action="store_true",
+                   default=True,
+                   help="Bind (V2C, C2V, K) triples from gen 0: identity "
+                        "pairing, single triple tournament, atomic triple "
+                        "crossover. Default ON. Solves the random-pairing "
+                        "co-adaptation problem of the legacy two-pop CCEA.")
+    p.add_argument("--no-bind-pairs", dest="bind_pairs", action="store_false",
+                   help="Restore legacy random-permutation pairing every "
+                        "generation (per-side independent offspring).")
     return p.parse_args()
 
 
@@ -333,6 +343,7 @@ def main() -> int:
         dce_bp_max_decode_evals=args.dce_bp_max_decode_evals,
         dce_bp_threads=args.dce_bp_threads,
         dce_bp_use_cpp=args.dce_bp_use_cpp,
+        bind_pairs=args.bind_pairs,
     )
 
     meta = {
@@ -370,6 +381,7 @@ def main() -> int:
                               if args.dce_bp_snr_db is not None else None),
             "dce_bp_n_frames": args.dce_bp_n_frames,
             "dce_bp_oracle_seed": args.dce_bp_oracle_seed,
+            "bind_pairs": bool(ev_cfg.bind_pairs),
         },
     }
     (out_dir / "meta.json").write_text(

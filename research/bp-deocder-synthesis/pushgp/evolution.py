@@ -83,6 +83,22 @@ class EvolutionConfig:
     dce_bp_threads: int = 0             # 0 -> use ``workers`` arg
     dce_bp_use_cpp: bool = True
 
+    # ---- Pair-binding (co-adaptation) -----------------------------
+    # In the original two-pop `evolve_from_scratch`, V2C and C2V
+    # populations are paired by a *fresh random permutation* every
+    # generation.  This decouples the per-side searches but injects
+    # large credit-assignment noise: a "good" V2C is only good with a
+    # matching "good" C2V, and random pairing routinely destroys such
+    # co-adapted partners.  Setting ``bind_pairs=True`` (the new
+    # default) keeps (v[i], c[i], k[i]) bound from the very first
+    # sampling: identity pairing, single triple tournament for parent
+    # selection, atomic triple crossover, per-side mutation (which
+    # preserves the slot index).  The three populations still exist
+    # as parallel arrays but behave as one population of Genomes.
+    # Setting ``bind_pairs=False`` restores the legacy per-side
+    # offspring path with random permutation pairing.
+    bind_pairs: bool = True
+
 
 @dataclass
 class GenLog:
@@ -764,7 +780,14 @@ def evolve_from_scratch(
         pop_v, pop_c = _apply_dce_bp(pop_v, pop_c, pop_k, tag="init")
 
         # ---- 2. Initial fitness evaluation via positional pairing -----
-        perm = list(rng.permutation(cfg.pop_size))
+        # When `bind_pairs` is True, identity permutation is used so
+        # (v[i], c[i], k[i]) are bound from gen 0 and reproduce as a
+        # single triple unit.  Random pairing (legacy two-pop CCEA)
+        # remains available via `cfg.bind_pairs=False`.
+        if cfg.bind_pairs:
+            perm = list(range(cfg.pop_size))
+        else:
+            perm = list(rng.permutation(cfg.pop_size))
         if batch_eval_fn is not None:
             t_e = time.time()
             fits = batch_eval_fn(pop_v, pop_c, pop_k, perm)
@@ -789,19 +812,32 @@ def evolve_from_scratch(
                 fits_v[vi] = fits[i]
                 fits_k[i] = fits[i]
 
-            new_pop_v, va, vinv = _evolve_side_offspring(
-                side="v2c", pop=pop_v, fits=fits_v, cfg=cfg, rng=rng,
-                rpg=rpg, instr_set=V2C_INSTR, pool=pool, n_workers=workers,
-                seen_fps_in={_behav_fingerprint("v2c", p) for p in pop_v},
-            )
-            new_pop_c, ca, cinv = _evolve_side_offspring(
-                side="c2v", pop=pop_c, fits=fits_c, cfg=cfg, rng=rng,
-                rpg=rpg, instr_set=C2V_INSTR, pool=pool, n_workers=workers,
-                seen_fps_in={_behav_fingerprint("c2v", p) for p in pop_c},
-            )
-            new_pop_k = _evolve_constants(
-                pop_k, fits_k, cfg, rng,
-            )
+            if cfg.bind_pairs:
+                # Atomic triple offspring: one tournament selects the
+                # parent triple index, both sides' offspring built from
+                # the *same* parent indices and stored at the same
+                # output slot.  Binding is preserved across generations.
+                (new_pop_v, new_pop_c, new_pop_k,
+                 va, vinv, ca, cinv) = _evolve_triple_offspring(
+                    pop_v=pop_v, pop_c=pop_c, pop_k=pop_k,
+                    fits=list(fits),  # pair fitness (identity perm)
+                    cfg=cfg, rng=rng, rpg=rpg,
+                    pool=pool, n_workers=workers,
+                )
+            else:
+                new_pop_v, va, vinv = _evolve_side_offspring(
+                    side="v2c", pop=pop_v, fits=fits_v, cfg=cfg, rng=rng,
+                    rpg=rpg, instr_set=V2C_INSTR, pool=pool, n_workers=workers,
+                    seen_fps_in={_behav_fingerprint("v2c", p) for p in pop_v},
+                )
+                new_pop_c, ca, cinv = _evolve_side_offspring(
+                    side="c2v", pop=pop_c, fits=fits_c, cfg=cfg, rng=rng,
+                    rpg=rpg, instr_set=C2V_INSTR, pool=pool, n_workers=workers,
+                    seen_fps_in={_behav_fingerprint("c2v", p) for p in pop_c},
+                )
+                new_pop_k = _evolve_constants(
+                    pop_k, fits_k, cfg, rng,
+                )
 
             pop_v, pop_c, pop_k = new_pop_v, new_pop_c, new_pop_k
 
@@ -809,7 +845,10 @@ def evolve_from_scratch(
             pop_v, pop_c = _apply_dce_bp(pop_v, pop_c, pop_k,
                                           tag=f"gen{gen_idx}")
 
-            perm = list(rng.permutation(cfg.pop_size))
+            if cfg.bind_pairs:
+                perm = list(range(cfg.pop_size))
+            else:
+                perm = list(rng.permutation(cfg.pop_size))
             if batch_eval_fn is not None:
                 t_e = time.time()
                 fits = batch_eval_fn(pop_v, pop_c, pop_k, perm)
@@ -938,4 +977,132 @@ def tournament_select_idx(
             best_i = int(ci)
             best_f = cf
     return best_i
+
+
+def _evolve_triple_offspring(
+    *,
+    pop_v: List, pop_c: List, pop_k: List[np.ndarray],
+    fits: List[float],
+    cfg: "EvolutionConfig",
+    rng: np.random.Generator,
+    rpg: RandomProgramGenerator,
+    pool=None,
+    n_workers: int = 1,
+) -> Tuple[List, List, List[np.ndarray], int, int, int, int]:
+    """Build next-generation populations as **bound triples**.
+
+    For each output slot j a single parent triple index ``a`` is picked
+    by tournament on ``fits`` (which is per-pair).  With prob
+    ``p_crossover`` a second triple ``b`` is picked.  The new
+    ``(v', c', k')`` triple is built by:
+
+      * v' = crossover_program(pop_v[a], pop_v[b])  (or copy of pop_v[a])
+        followed by mutate_program (V2C instruction set)
+      * c' = crossover_program(pop_c[a], pop_c[b])  (or copy of pop_c[a])
+        followed by mutate_program (C2V instruction set)
+      * k' = crossover_log_constants(pop_k[a], pop_k[b]) (or copy of
+        pop_k[a]) followed by mutate_log_constants with prob
+        ``p_const_tweak``
+
+    Validation gates entry: both v' AND c' must pass their respective
+    validators (the constants vector is bounded by construction).  If
+    either fails, the candidate is rejected and a fresh parent draw is
+    performed.
+
+    Elitism: top ``cfg.elitism`` triples (by pair fitness) are copied
+    untouched into the first slots.
+
+    Returns ``(new_pop_v, new_pop_c, new_pop_k, v_attempts, v_invalid,
+    c_attempts, c_invalid)`` — the per-side attempt / invalid counters
+    are kept for compatibility with ``TwoPopGenLog``.
+    """
+    from .crossover import crossover_log_constants
+    from .program import deep_copy_program
+    from .mutation import mutate_log_constants, mutate_program
+
+    n = cfg.pop_size
+    order = np.argsort(np.where(np.isfinite(fits), fits, np.inf))
+    rank_of = {int(idx): r for r, idx in enumerate(order)}
+
+    new_v: List = []
+    new_c: List = []
+    new_k: List[np.ndarray] = []
+    # Behavioral fingerprint dedup (per side, mirrors per-side path).
+    seen_v: set = {_behav_fingerprint("v2c", p) for p in pop_v}
+    seen_c: set = {_behav_fingerprint("c2v", p) for p in pop_c}
+
+    # ----- Elitism: copy top-k triples untouched ----------------------
+    if cfg.elitism > 0:
+        for i in order[: cfg.elitism]:
+            ii = int(i)
+            new_v.append(deep_copy_program(pop_v[ii]))
+            new_c.append(deep_copy_program(pop_c[ii]))
+            new_k.append(pop_k[ii].copy())
+
+    v_attempts = 0
+    v_invalid = 0
+    c_attempts = 0
+    c_invalid = 0
+    target = n
+    max_attempts = cfg.max_attempts_per_slot * target
+
+    while len(new_v) < target:
+        if v_attempts + c_attempts >= max_attempts * 2:
+            raise RuntimeError(
+                f"triple offspring fill exhausted: "
+                f"{len(new_v)}/{target} after "
+                f"v_attempts={v_attempts} c_attempts={c_attempts}"
+            )
+        a = tournament_select_idx(fits, cfg.tournament_k, rng)
+        n_mut = _rank_to_n_mutations(rank_of.get(a, 0), n, cfg)
+        if rng.random() < cfg.p_crossover:
+            b = tournament_select_idx(fits, cfg.tournament_k, rng)
+            v_child0 = crossover_program(pop_v[a], pop_v[b], rng,
+                                          instr_set=V2C_INSTR)
+            c_child0 = crossover_program(pop_c[a], pop_c[b], rng,
+                                          instr_set=C2V_INSTR)
+            k_child = crossover_log_constants(pop_k[a], pop_k[b], rng)
+        else:
+            v_child0 = deep_copy_program(pop_v[a])
+            c_child0 = deep_copy_program(pop_c[a])
+            k_child = pop_k[a].copy()
+
+        v_cand = mutate_program(v_child0, rng, rpg, V2C_INSTR,
+                                 n_mutations=max(1, n_mut))
+        c_cand = mutate_program(c_child0, rng, rpg, C2V_INSTR,
+                                 n_mutations=max(1, n_mut))
+        if rng.random() < cfg.p_const_tweak:
+            k_child = mutate_log_constants(k_child, rng,
+                                            n_tweaks=max(1, int(rng.integers(1, 3))))
+
+        # Independent per-side validation.  Both must pass.
+        v_attempts += 1
+        c_attempts += 1
+        v_seed = int(rng.integers(0, 2**31))
+        c_seed = int(rng.integers(0, 2**31))
+        v_ok = _validate_one("v2c", v_cand, deg=cfg.validator_deg, seed=v_seed)
+        if not v_ok:
+            v_invalid += 1
+            continue
+        c_ok = _validate_one("c2v", c_cand, deg=cfg.validator_deg, seed=c_seed)
+        if not c_ok:
+            c_invalid += 1
+            continue
+        # Dedup on both sides (independent: a pair is rejected if EITHER
+        # side collides with an existing member).
+        if cfg.dedup:
+            v_fp = _behav_fingerprint("v2c", v_cand)
+            if v_fp in seen_v:
+                continue
+            c_fp = _behav_fingerprint("c2v", c_cand)
+            if c_fp in seen_c:
+                continue
+            seen_v.add(v_fp)
+            seen_c.add(c_fp)
+
+        new_v.append(v_cand)
+        new_c.append(c_cand)
+        new_k.append(k_child)
+
+    return new_v, new_c, new_k, v_attempts, v_invalid, c_attempts, c_invalid
 
