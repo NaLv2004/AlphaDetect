@@ -14,6 +14,7 @@
 
 #include "parity_struct.hpp"
 #include "bp_decoder.hpp"
+#include "dce.hpp"
 
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
@@ -28,6 +29,10 @@ namespace py = pybind11;
 using namespace pushgp_cpp;
 using pushgp_cpp_dce::LiftedParityC;
 using pushgp_cpp_dce::decode_bp_cpp;
+using pushgp_cpp_dce::behavioral_reduce_bp_cpp;
+using pushgp_cpp_dce::Position;
+using pushgp_cpp_dce::PosStep;
+using pushgp_cpp_dce::ReduceStats;
 
 // ---- Program conversion (mirrors cpp_seeder/src/bindings.cpp) ----
 static Program dict_to_program(const py::list& lst);
@@ -55,6 +60,20 @@ static Program dict_to_program(const py::list& lst) {
         p.push_back(dict_to_instruction(item.cast<py::dict>()));
     }
     return p;
+}
+
+static py::list program_to_dict(const Program& p);
+static py::dict instruction_to_dict(const Instruction& ins) {
+    py::dict d;
+    d["name"] = op_to_name(ins.op);
+    if (ins.code_block)  d["code_block"]  = program_to_dict(*ins.code_block);
+    if (ins.code_block2) d["code_block2"] = program_to_dict(*ins.code_block2);
+    return d;
+}
+static py::list program_to_dict(const Program& p) {
+    py::list out;
+    for (const auto& ins : p) out.append(instruction_to_dict(ins));
+    return out;
 }
 
 static std::array<double, N_EVO_CONSTS> numpy_to_evo(
@@ -140,4 +159,80 @@ PYBIND11_MODULE(pushgp_cpp_dce, m) {
         py::arg("offset")    = 0.25,
         py::arg("code_rate") = 0.5,
         "Run the C++ BP decoder; returns (post_llr, iters_run).");
+
+    // Convert a Python list of np.ndarray to std::vector<std::vector<double>>.
+    auto rx_list_to_cpp = [](py::list rx_list) {
+        std::vector<std::vector<double>> out;
+        out.reserve(rx_list.size());
+        for (auto&& item : rx_list) {
+            py::array_t<double, py::array::c_style | py::array::forcecast> a =
+                item.cast<py::array_t<double, py::array::c_style | py::array::forcecast>>();
+            auto buf = a.unchecked<1>();
+            std::vector<double> v(buf.size());
+            for (py::ssize_t i = 0; i < buf.size(); ++i) v[i] = buf(i);
+            out.push_back(std::move(v));
+        }
+        return out;
+    };
+
+    m.def("reduce_bp", [rx_list_to_cpp](
+        py::list prog_dict,
+        const std::string& side,
+        py::list peer_dict,
+        const ParityHandle& parH,
+        py::list rx_list,
+        py::array_t<double, py::array::c_style | py::array::forcecast> evo,
+        int max_iter,
+        int max_passes,
+        int max_decode_evals,
+        int decimals) {
+        if (side != "v2c" && side != "c2v") {
+            throw std::invalid_argument("side must be 'v2c' or 'c2v'");
+        }
+        Program prog = dict_to_program(prog_dict);
+        Program peer = dict_to_program(peer_dict);
+        auto rxs = rx_list_to_cpp(rx_list);
+        auto evo_arr = numpy_to_evo(evo);
+        ReduceStats stats;
+        Program reduced;
+        {
+            py::gil_scoped_release release;
+            reduced = behavioral_reduce_bp_cpp(
+                prog, /*side_is_v2c=*/side == "v2c", peer, evo_arr, *parH.par,
+                rxs, max_iter, max_passes, max_decode_evals, decimals, &stats);
+        }
+        py::list out_prog = program_to_dict(reduced);
+        py::dict st;
+        st["passes"] = stats.passes;
+        st["fp_evals"] = stats.fp_evals;
+        st["size_before"] = stats.size_before;
+        st["size_after"] = stats.size_after;
+        py::list rp;
+        for (const auto& pos : stats.removed_positions) {
+            py::list one;
+            for (const auto& s : pos) {
+                one.append(py::make_tuple(s.idx, s.desc));
+            }
+            rp.append(std::move(one));
+        }
+        st["removed_positions"] = rp;
+        return py::make_tuple(out_prog, st);
+    },
+        py::arg("prog"), py::arg("side"), py::arg("peer_prog"),
+        py::arg("parity_handle"), py::arg("rx_llrs"), py::arg("evo"),
+        py::arg("max_iter") = 8, py::arg("max_passes") = 800,
+        py::arg("max_decode_evals") = -1, py::arg("decimals") = 6,
+        "C++ port of pushgp.dce.behavioral_reduce_bp (single-threaded).\n"
+        "Returns (reduced_prog_dict, stats_dict).");
+
+    // Local helper for tests: program_to_dict from a list-of-dict prog
+    // (round-trips via dict_to_program for byte-equality comparison).
+    m.def("program_roundtrip", [](py::list prog_dict) {
+        Program p = dict_to_program(prog_dict);
+        return program_to_dict(p);
+    });
+
+    // We also need program_to_dict static helper to be accessible
+    // from python so tests can compare structurally.  Already done via
+    // reduce_bp output.
 }
