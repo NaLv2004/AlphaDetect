@@ -544,7 +544,9 @@ class VM {
             }
         } break;
         case O::Exec_DoTimes: {
-            if (state.ints.empty() || !ins.code_block) break;
+            // Mirror Python: `if depth<1 or not ins.code_block: return`.
+            // Empty code_block ALSO returns before popping the int.
+            if (state.ints.empty() || !ins.code_block || ins.code_block->empty()) break;
             int64_t n; pop_int_(n);
             int nn = static_cast<int>(std::max<int64_t>(0, std::min<int64_t>(n, N_MAX_LOOP)));
             for (int i = 0; i < nn; ++i) {
@@ -554,7 +556,9 @@ class VM {
             }
         } break;
         case O::Exec_DoRange: {
-            if (state.ints.depth() < 2 || !ins.code_block) break;
+            // Mirror Python: `if depth<2 or not ins.code_block: return`.
+            // Empty code_block ALSO returns before popping the 2 ints.
+            if (state.ints.depth() < 2 || !ins.code_block || ins.code_block->empty()) break;
             int64_t end_; pop_int_(end_);
             int64_t start; pop_int_(start);
             if (end_ <= start) break;
@@ -566,7 +570,8 @@ class VM {
             }
         } break;
         case O::Exec_While: {
-            if (!ins.code_block) break;
+            // Mirror Python: `if not ins.code_block: return` (empty body too).
+            if (!ins.code_block || ins.code_block->empty()) break;
             for (int it = 0; it < N_MAX_WHILE; ++it) {
                 if (state.fault) return;
                 if (state.bools.empty()) return;

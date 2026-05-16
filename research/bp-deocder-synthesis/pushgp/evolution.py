@@ -65,6 +65,24 @@ class EvolutionConfig:
     # and validator semantics; ~7x faster on pop=100.
     cpp_seeder: bool = False
 
+    # ---- BP-equivalence DCE pass (post-seeding + post-offspring) ----
+    # When enabled and an ``dce_oracle`` is supplied to
+    # ``evolve_from_scratch``, the top-level Python loop calls
+    # ``pushgp.dce.reduce_populations_bp`` after the initial seeding
+    # and after each generation's offspring fill (BEFORE the next
+    # fitness eval).  The reducer pairs each V (or C) program with a
+    # random peer from the other side and removes instructions that
+    # do not change the BP post-LLR on a small reference frame bank
+    # (rounded to ``dce_bp_decimals``).  Cpp acceleration is used by
+    # default (``pushgp_cpp_dce.reduce_bp_batch``).
+    dce_bp_enabled: bool = False
+    dce_bp_max_iter: int = 8
+    dce_bp_decimals: int = 6
+    dce_bp_max_passes: int = 800
+    dce_bp_max_decode_evals: int = -1   # <0 -> unlimited
+    dce_bp_threads: int = 0             # 0 -> use ``workers`` arg
+    dce_bp_use_cpp: bool = True
+
 
 @dataclass
 class GenLog:
@@ -602,6 +620,7 @@ def evolve_from_scratch(
     on_generation: Optional[Callable[
         [TwoPopGenLog, List, List, List, List[int], List[float]], None
     ]] = None,
+    dce_oracle: Optional[Dict] = None,
 ) -> TwoPopResult:
     """Two-pop from-scratch evolution.
 
@@ -625,6 +644,55 @@ def evolve_from_scratch(
 
     rng = np.random.default_rng(cfg.seed)
     rpg = RandomProgramGenerator(rng=rng)
+
+    # ---- Resolve DCE-BP config (top-level Python orchestration) -----
+    _dce_enabled = bool(cfg.dce_bp_enabled and dce_oracle is not None
+                        and "par" in dce_oracle and "rx_llrs" in dce_oracle)
+    if cfg.dce_bp_enabled and dce_oracle is None:
+        print("[dce_bp] cfg.dce_bp_enabled=True but no dce_oracle "
+              "supplied; DCE pass disabled.", flush=True)
+    _dce_threads = cfg.dce_bp_threads if cfg.dce_bp_threads > 0 else max(1, workers)
+    from .program import program_length as _plen
+
+    def _apply_dce_bp(pop_v, pop_c, pop_k, *, tag: str):
+        """Run BP-equivalence DCE on the whole two-pop; replace in place."""
+        if not _dce_enabled:
+            return pop_v, pop_c
+        from .dce import reduce_populations_bp
+        t0 = time.time()
+        sz_v0 = [_plen(p) for p in pop_v]
+        sz_c0 = [_plen(p) for p in pop_c]
+
+        def _cb(side, done, total, elapsed):
+            if done == total or (done % max(1, total // 10) == 0):
+                print(f"[dce_bp {tag}] {done}/{total} jobs done in "
+                      f"{elapsed:.1f}s", flush=True)
+        new_v, new_c, st_v, st_c = reduce_populations_bp(
+            pop_v, pop_c, pop_k,
+            par=dce_oracle["par"],
+            rx_llrs=dce_oracle["rx_llrs"],
+            max_iter=cfg.dce_bp_max_iter,
+            max_passes=cfg.dce_bp_max_passes,
+            max_decode_evals=cfg.dce_bp_max_decode_evals,
+            decimals=cfg.dce_bp_decimals,
+            threads=_dce_threads,
+            use_cpp=cfg.dce_bp_use_cpp,
+            rng=np.random.default_rng((cfg.seed * 991
+                                       + (hash(tag) & 0xFFFFFFFF)) & 0xFFFFFFFF),
+            on_progress=_cb,
+        )
+        sz_v1 = [_plen(p) for p in new_v]
+        sz_c1 = [_plen(p) for p in new_c]
+        rem_v = sum(sz_v0) - sum(sz_v1)
+        rem_c = sum(sz_c0) - sum(sz_c1)
+        print(f"[dce_bp {tag}] V removed {rem_v} instr "
+              f"({float(np.mean(sz_v0)):.1f} -> {float(np.mean(sz_v1)):.1f} avg)  "
+              f"C removed {rem_c} instr "
+              f"({float(np.mean(sz_c0)):.1f} -> {float(np.mean(sz_c1)):.1f} avg)  "
+              f"elapsed={time.time()-t0:.1f}s  "
+              f"threads={_dce_threads}  use_cpp={cfg.dce_bp_use_cpp}",
+              flush=True)
+        return new_v, new_c
 
     # Choose seeding backend (Python multiprocessing or C++ pybind11).
     if cfg.cpp_seeder:
@@ -692,6 +760,9 @@ def evolve_from_scratch(
               f"({len(pop_c)/c_attempts:.4%})", flush=True)
         print(f"[init] elapsed: {time.time()-t_init:.1f}s", flush=True)
 
+        # ---- 1b. (Optional) BP-equivalence DCE on seeded populations.
+        pop_v, pop_c = _apply_dce_bp(pop_v, pop_c, pop_k, tag="init")
+
         # ---- 2. Initial fitness evaluation via positional pairing -----
         perm = list(rng.permutation(cfg.pop_size))
         if batch_eval_fn is not None:
@@ -733,6 +804,10 @@ def evolve_from_scratch(
             )
 
             pop_v, pop_c, pop_k = new_pop_v, new_pop_c, new_pop_k
+
+            # ---- 3b. (Optional) BP-equivalence DCE on offspring pops.
+            pop_v, pop_c = _apply_dce_bp(pop_v, pop_c, pop_k,
+                                          tag=f"gen{gen_idx}")
 
             perm = list(rng.permutation(cfg.pop_size))
             if batch_eval_fn is not None:

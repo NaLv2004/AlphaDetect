@@ -1,6 +1,6 @@
 {
-  "run_name": "fromscratch_pop100",
-  "started_at": "2026-05-15T19:42:15",
+  "run_name": "fromscratch_pop100_dedup",
+  "started_at": "2026-05-15T22:36:24",
   "from_scratch": true,
   "code": {
     "bgn": 2,
@@ -18,8 +18,8 @@
   "max_iter": 8,
   "evolution": {
     "pop_size": 100,
-    "generations": 40,
-    "elitism": 3,
+    "generations": 10,
+    "elitism": 0,
     "tournament_k": 4,
     "p_crossover": 0.7,
     "n_mutations": 2,

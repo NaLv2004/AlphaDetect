@@ -73,10 +73,39 @@ from typing import Callable, List, Optional, Sequence, Tuple
 
 from .program import Instruction, deep_copy_program, program_length
 
+
+def _try_import_pushgp_cpp_dce():
+    """Import ``pushgp_cpp_dce``; locate sibling ``cpp_dce/`` build dir.
+
+    The ``.pyd`` lives at ``<project_root>/cpp_dce/pushgp_cpp_dce.*.pyd``
+    and is not installed to site-packages.  We make it importable by
+    prepending that directory to ``sys.path`` on first attempt.  Cached.
+    """
+    import importlib
+    import sys as _sys
+    from pathlib import Path as _Path
+    try:
+        return importlib.import_module("pushgp_cpp_dce")
+    except ImportError:
+        pass
+    here = _Path(__file__).resolve()
+    # pushgp/dce.py -> pushgp/ -> bp-deocder-synthesis/ ; cpp_dce/ sibling.
+    candidates = [
+        here.parent.parent / "cpp_dce",
+    ]
+    for c in candidates:
+        if c.exists() and str(c) not in _sys.path:
+            _sys.path.insert(0, str(c))
+    try:
+        return importlib.import_module("pushgp_cpp_dce")
+    except ImportError:
+        return None
+
 __all__ = [
     "behavioral_reduce",
     "behavioral_reduce_bp",
     "reduce_seeded_population",
+    "reduce_populations_bp",
     "DCEStats",
 ]
 
@@ -454,43 +483,42 @@ def behavioral_reduce_bp(
         raise ValueError("rx_llrs must contain at least one frame")
 
     # ------------------------------------------------------------------
-    # Fast path: C++ port (pushgp_cpp_dce.reduce_bp).  T7 gate proves
-    # structural equality to the Python loop below, so the result is
-    # bit-identical at `decimals` precision while running x30+ faster.
+    # Fast path: C++ port (pushgp_cpp_dce.reduce_bp).  Tests assert
+    # structural equality to the Python loop below.  NO silent fallback:
+    # if cpp is requested and unavailable / errors out, raise loudly so
+    # bugs are not masked.  Pass use_cpp=False to force the reference.
     # ------------------------------------------------------------------
     if use_cpp:
-        try:
-            import pushgp_cpp_dce as _cdce  # noqa: F401
-            from .genome import Genome, program_to_list, dict_to_instruction
-            import numpy as _np_local
-            g = Genome(prog_v2c=prog if side == "v2c" else peer_prog,
-                       prog_c2v=peer_prog if side == "v2c" else prog,
-                       log_constants=log_constants)
-            evo = g.evo_const_values().astype(_np_local.float64)
-            parH = _cdce.build_parity_handle(par)
-            n0 = program_length(prog)
-            red_dict, st = _cdce.reduce_bp(
-                program_to_list(prog), side, program_to_list(peer_prog),
-                parH, list(rx_llrs), evo,
-                int(max_iter), int(max_passes),
-                int(max_decode_evals) if max_decode_evals is not None else -1,
-                int(decimals),
+        _cdce = _try_import_pushgp_cpp_dce()
+        if _cdce is None:
+            raise RuntimeError(
+                "behavioral_reduce_bp(use_cpp=True) but pushgp_cpp_dce "
+                "is not importable; build cpp_dce/ or pass use_cpp=False."
             )
-            reduced = [dict_to_instruction(d) for d in red_dict]
-            if stats is not None:
-                stats.side = side
-                stats.size_before = n0
-                stats.size_after  = int(st["size_after"])
-                stats.passes      = int(st["passes"])
-                stats.fp_evals    = int(st["fp_evals"])
-                stats.removed_positions = []  # cpp positions use {idx,desc} tuples
-            return reduced
-        except ImportError:
-            pass  # cpp module not built; fall back to python loop
-        except Exception:
-            # Any cpp-side error: fall back to python loop (slow but
-            # safe).  Tests would catch a true divergence.
-            pass
+        from .genome import Genome, program_to_list, dict_to_instruction
+        import numpy as _np_local
+        g = Genome(prog_v2c=prog if side == "v2c" else peer_prog,
+                   prog_c2v=peer_prog if side == "v2c" else prog,
+                   log_constants=log_constants)
+        evo = g.evo_const_values().astype(_np_local.float64)
+        parH = _cdce.build_parity_handle(par)
+        n0 = program_length(prog)
+        red_dict, st = _cdce.reduce_bp(
+            program_to_list(prog), side, program_to_list(peer_prog),
+            parH, list(rx_llrs), evo,
+            int(max_iter), int(max_passes),
+            int(max_decode_evals) if max_decode_evals is not None else -1,
+            int(decimals),
+        )
+        reduced = [dict_to_instruction(d) for d in red_dict]
+        if stats is not None:
+            stats.side = side
+            stats.size_before = n0
+            stats.size_after  = int(st["size_after"])
+            stats.passes      = int(st["passes"])
+            stats.fp_evals    = int(st["fp_evals"])
+            stats.removed_positions = []  # cpp positions use {idx,desc} tuples
+        return reduced
 
     def _decode_all(p):
         v = p if side == "v2c" else peer_prog
@@ -643,3 +671,159 @@ def reduce_seeded_population(
         if on_progress is not None:
             on_progress(i, n, stats)
     return out_progs, out_stats
+
+
+def reduce_populations_bp(
+    pop_v: Sequence[List[Instruction]],
+    pop_c: Sequence[List[Instruction]],
+    pop_k: Sequence["np.ndarray"],
+    *,
+    par,
+    rx_llrs: "Sequence[np.ndarray]",
+    max_iter: int = 8,
+    max_passes: int = 800,
+    max_decode_evals: int = -1,
+    decimals: int = 6,
+    threads: int = 1,
+    use_cpp: bool = True,
+    rng: Optional["np.random.Generator"] = None,
+    on_progress: Optional[Callable[[str, int, int, float], None]] = None,
+) -> Tuple[List[List[Instruction]], List[List[Instruction]],
+           List[DCEStats], List[DCEStats]]:
+    """Apply BP-equivalence DCE to a whole two-pop population.
+
+    For each i in [0, n), reduce ``pop_v[i]`` against a randomly-sampled
+    peer ``pop_c[π_v(i)]`` and reduce ``pop_c[i]`` against a randomly-
+    sampled peer ``pop_v[π_c(i)]``.  Constants come from ``pop_k[i]``.
+
+    When ``use_cpp=True`` (default), the entire batch is submitted to
+    ``pushgp_cpp_dce.reduce_bp_batch`` with ``threads`` workers; this
+    keeps the top-level orchestration in Python while pushing the
+    O(N^2) BP-evaluation work into native std::thread.
+
+    Returns
+    -------
+    (new_pop_v, new_pop_c, stats_v, stats_c)
+        Lists parallel to inputs.  Programs are deep copies; originals
+        unchanged.
+    """
+    import numpy as _np
+    from .genome import Genome, program_to_list, dict_to_instruction
+
+    n = len(pop_v)
+    if n == 0:
+        return [], [], [], []
+    if len(pop_c) != n or len(pop_k) != n:
+        raise ValueError(
+            f"pop_v / pop_c / pop_k must have equal length; "
+            f"got {n}, {len(pop_c)}, {len(pop_k)}"
+        )
+    if rng is None:
+        rng = _np.random.default_rng()
+
+    perm_v = _np.asarray(rng.permutation(n))  # peer-C index for each V
+    perm_c = _np.asarray(rng.permutation(n))  # peer-V index for each C
+
+    # Precompute evo vectors (10 ** log_constants).  Same length as n.
+    evo_all = []
+    for i in range(n):
+        g = Genome(prog_v2c=pop_v[i], prog_c2v=pop_c[i],
+                   log_constants=pop_k[i])
+        evo_all.append(g.evo_const_values().astype(_np.float64))
+
+    if use_cpp:
+        _cdce = _try_import_pushgp_cpp_dce()
+        if _cdce is None:
+            raise RuntimeError(
+                "reduce_populations_bp(use_cpp=True) but pushgp_cpp_dce "
+                "is not importable; build cpp_dce/ or pass use_cpp=False."
+            )
+        parH = _cdce.build_parity_handle(par)
+        rx_list = list(rx_llrs)
+        # Build a single job list: first n jobs are V-side, then C.
+        jobs = []
+        for i in range(n):
+            jobs.append({
+                "prog": program_to_list(pop_v[i]),
+                "side": "v2c",
+                "peer_prog": program_to_list(pop_c[int(perm_v[i])]),
+                "evo": evo_all[i],
+            })
+        for i in range(n):
+            jobs.append({
+                "prog": program_to_list(pop_c[i]),
+                "side": "c2v",
+                "peer_prog": program_to_list(pop_v[int(perm_c[i])]),
+                "evo": evo_all[i],
+            })
+
+        cb = None
+        if on_progress is not None:
+            def _cb(done, total, elapsed):
+                on_progress("batch", int(done), int(total), float(elapsed))
+            cb = _cb
+
+        results = _cdce.reduce_bp_batch(
+            jobs, parH, rx_list,
+            int(max_iter), int(max_passes), int(max_decode_evals),
+            int(decimals), int(max(1, threads)), cb,
+        )
+        new_pop_v: List[List[Instruction]] = []
+        new_pop_c: List[List[Instruction]] = []
+        stats_v: List[DCEStats] = []
+        stats_c: List[DCEStats] = []
+        for i in range(n):
+            r = results[i]
+            new_pop_v.append([dict_to_instruction(d) for d in r["prog"]])
+            st = DCEStats(side="v2c", size_before=int(r["stats"]["size_before"]))
+            st.size_after = int(r["stats"]["size_after"])
+            st.passes    = int(r["stats"]["passes"])
+            st.fp_evals  = int(r["stats"]["fp_evals"])
+            stats_v.append(st)
+        for i in range(n):
+            r = results[n + i]
+            new_pop_c.append([dict_to_instruction(d) for d in r["prog"]])
+            st = DCEStats(side="c2v", size_before=int(r["stats"]["size_before"]))
+            st.size_after = int(r["stats"]["size_after"])
+            st.passes    = int(r["stats"]["passes"])
+            st.fp_evals  = int(r["stats"]["fp_evals"])
+            stats_c.append(st)
+        return new_pop_v, new_pop_c, stats_v, stats_c
+
+    # ---- Python reference path (serial, slow).  Used to generate
+    # golden fixtures; cpp path is asserted structurally equal to this.
+    new_pop_v = []
+    new_pop_c = []
+    stats_v = []
+    stats_c = []
+    for i in range(n):
+        st = DCEStats(side="v2c", size_before=program_length(pop_v[i]))
+        red = behavioral_reduce_bp(
+            pop_v[i], "v2c",
+            peer_prog=pop_c[int(perm_v[i])], log_constants=pop_k[i],
+            par=par, rx_llrs=rx_llrs, max_iter=max_iter,
+            max_passes=max_passes,
+            max_decode_evals=(None if max_decode_evals < 0
+                              else max_decode_evals),
+            decimals=decimals, stats=st, use_cpp=False,
+        )
+        new_pop_v.append(red)
+        stats_v.append(st)
+        if on_progress is not None:
+            on_progress("v2c", i + 1, 2 * n, 0.0)
+    for i in range(n):
+        st = DCEStats(side="c2v", size_before=program_length(pop_c[i]))
+        red = behavioral_reduce_bp(
+            pop_c[i], "c2v",
+            peer_prog=pop_v[int(perm_c[i])], log_constants=pop_k[i],
+            par=par, rx_llrs=rx_llrs, max_iter=max_iter,
+            max_passes=max_passes,
+            max_decode_evals=(None if max_decode_evals < 0
+                              else max_decode_evals),
+            decimals=decimals, stats=st, use_cpp=False,
+        )
+        new_pop_c.append(red)
+        stats_c.append(st)
+        if on_progress is not None:
+            on_progress("c2v", n + i + 1, 2 * n, 0.0)
+    return new_pop_v, new_pop_c, stats_v, stats_c
