@@ -21,8 +21,9 @@ from typing import List, Optional, Sequence
 
 import numpy as np
 
-from .genome import Genome, MAX_PROG_LEN, N_EVO_CONSTS, LOG_CONST_MIN, LOG_CONST_MAX
+from .genome import Genome, MAX_PROG_LEN, N_EVO_CONSTS, RAND_LOG_CONST_MIN, RAND_LOG_CONST_MAX
 from .instructions import HANDLERS, has_two_blocks, is_control
+from .op_filter import OpFilter, filter_instr_set
 from .program import Instruction, program_length
 
 # ----------------------------------------------------------------- Subsets
@@ -75,9 +76,26 @@ class RandomProgramGenerator:
         self,
         rng: Optional[np.random.Generator] = None,
         max_recur_depth: int = 2,
+        op_filter: Optional[OpFilter] = None,
     ) -> None:
         self.rng = rng if rng is not None else np.random.default_rng()
         self.max_recur_depth = max_recur_depth
+        self.op_filter = op_filter
+        # Pre-compute side-specific filtered instruction sets.  When no
+        # filter is active these are identical to V2C_INSTR / C2V_INSTR.
+        self._v2c_instr: List[str] = filter_instr_set("v2c", V2C_INSTR, op_filter)
+        self._c2v_instr: List[str] = filter_instr_set("c2v", C2V_INSTR, op_filter)
+        if op_filter is not None and op_filter.applies():
+            if not self._v2c_instr:
+                raise ValueError(
+                    "OpFilter leaves V2C instruction set empty after "
+                    "intersection with base V2C ops."
+                )
+            if not self._c2v_instr:
+                raise ValueError(
+                    "OpFilter leaves C2V instruction set empty after "
+                    "intersection with base C2V ops."
+                )
 
     # ---------------------------------------------------------- public API
     def random_program(
@@ -91,13 +109,22 @@ class RandomProgramGenerator:
         return self._gen(instr_set, n, depth=0)
 
     def random_v2c(self, min_size: int = 4, max_size: int = 30) -> List[Instruction]:
-        return self.random_program(V2C_INSTR, min_size, max_size)
+        return self.random_program(self._v2c_instr, min_size, max_size)
 
     def random_c2v(self, min_size: int = 4, max_size: int = 30) -> List[Instruction]:
-        return self.random_program(C2V_INSTR, min_size, max_size)
+        return self.random_program(self._c2v_instr, min_size, max_size)
+
+    # ------- Accessor helpers used by evolution.py / mutation.py ------
+    def v2c_instr_set(self) -> List[str]:
+        """Effective V2C op list (filtered if op_filter active)."""
+        return list(self._v2c_instr)
+
+    def c2v_instr_set(self) -> List[str]:
+        """Effective C2V op list (filtered if op_filter active)."""
+        return list(self._c2v_instr)
 
     def random_log_constants(self) -> np.ndarray:
-        return self.rng.uniform(LOG_CONST_MIN, LOG_CONST_MAX, size=N_EVO_CONSTS)
+        return self.rng.uniform(RAND_LOG_CONST_MIN, RAND_LOG_CONST_MAX, size=N_EVO_CONSTS)
 
     def random_genome(
         self, min_size: int = 4, max_size: int = 30

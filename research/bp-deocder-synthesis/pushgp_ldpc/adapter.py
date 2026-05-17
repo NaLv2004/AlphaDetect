@@ -140,16 +140,21 @@ def _oms_c2v_program() -> list:
         fvecs:  [incoming]
 
     The sentinel for the min-fold is EvoConst1 (set to 1e6 in the seed).
+
+    Compact form using Float.Sign + Float.Mul (instead of Bool.LT/XOR/If),
+    uses 13 distinct op names — easier for evolution to rediscover than the
+    older bool-accumulator form (which used 15 ops).
+    Note: Float.Sign(0)=0, but P(incoming==0)=0 on AWGN so this is
+    numerically equivalent to OMS in practice.
     """
     return [
-        # ---- Sign-product as bool (True iff #negatives is odd) ----
-        _I("Bool.False"),
+        # ---- Sign-product via Float.Sign + Float.Mul ----
+        _I("Float.Const1"),        # sign accumulator = 1.0
         _I("FVec.Len"),
         _I("Exec.DoTimes", b1=[
-            _I("FVec.At"),         # pushes v[i]
-            _I("Float.Const0"),    # pushes 0
-            _I("Float.LT"),        # pops 0 then v[i], pushes (v[i] < 0)
-            _I("Bool.Xor"),        # XOR into accumulator
+            _I("FVec.At"),         # pushes incoming[i]
+            _I("Float.Sign"),      # ±1 (or 0)
+            _I("Float.Mul"),       # accumulate sign product
         ]),
         # ---- Min |incoming| using EvoConst1 sentinel (= 1e6) ----
         _I("Float.EvoConst1"),
@@ -164,8 +169,8 @@ def _oms_c2v_program() -> list:
         _I("Float.Sub"),
         _I("Float.Const0"),
         _I("Float.Max"),
-        # ---- Apply sign: if odd #negatives, negate ----
-        _I("Exec.If", b1=[_I("Float.Neg")], b2=[]),
+        # ---- Apply sign: sign_prod * magnitude ----
+        _I("Float.Mul"),
     ]
 
 

@@ -26,6 +26,7 @@ from typing import List, Optional, Tuple
 import numpy as np
 
 from .genome import Instruction
+from .op_filter import OpFilter
 from .random_program import RandomProgramGenerator
 from .serialize import program_to_dict, dict_to_program
 from .validators import validate_c2v, validate_v2c
@@ -40,12 +41,12 @@ def _gen_and_validate_chunk(args):
     """Worker: generate `n_attempts` random programs of `side`, validate
     each, and for survivors compute the behavioral fingerprint.
 
-    Args tuple: (side, seed, n_attempts, min_size, max_size, deg)
+    Args tuple: (side, seed, n_attempts, min_size, max_size, deg, op_filter)
     Returns:    (side, [(serialized_prog, fingerprint), ...], n_attempts)
     """
-    side, seed, n_attempts, min_size, max_size, deg = args
+    side, seed, n_attempts, min_size, max_size, deg, op_filter = args
     rng = np.random.default_rng(seed)
-    rpg = RandomProgramGenerator(rng=rng)
+    rpg = RandomProgramGenerator(rng=rng, op_filter=op_filter)
     if side == "v2c":
         gen = rpg.random_v2c
         val = validate_v2c
@@ -107,6 +108,7 @@ def parallel_fill_random(
     progress_cb=None,
     pool: Optional[Pool] = None,
     seen_fingerprints: Optional[set] = None,
+    op_filter: Optional[OpFilter] = None,
 ) -> Tuple[List[List[Instruction]], int]:
     """Generate `n_target` valid random programs of `side` (v2c or c2v).
 
@@ -142,7 +144,7 @@ def parallel_fill_random(
             for _ in range(workers):
                 seed_counter += 1
                 jobs.append((side, seed_counter, chunk_attempts,
-                             min_size, max_size, deg))
+                             min_size, max_size, deg, op_filter))
             for _side, vlist, n_att in pool.imap_unordered(
                 _gen_and_validate_chunk, jobs
             ):

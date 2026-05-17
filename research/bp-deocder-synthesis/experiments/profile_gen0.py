@@ -39,16 +39,17 @@ def main():
     SEED = 7777
     print(f"[profile] pop={POP} seed={SEED}", flush=True)
 
-    par = build_parity(bgn=2, set_idx=1, zc=2)
-    print(f"[code] BG2 set1 zc=2  N={par.cols}  M={par.rows}", flush=True)
     fit_cfg = FitnessConfig(
-        par=par,
+        info_len_A=20,
+        code_length_E=100,
         snr_list=[-3.0, -2.0, -1.0],
         n_frames_per_snr=6,
         max_iter=8,
-        code_rate=0.5,
         early_fail_threshold=0.4,
     )
+    par = fit_cfg.par
+    print(f"[code] BG{fit_cfg.bgn} set{fit_cfg.set_idx} Zc={fit_cfg.zc}  "
+          f"N={par.cols}  M={par.rows}  K_cb_bit={fit_cfg.K_cb_bit}", flush=True)
 
     # ------ 1. Seeding (C++) -----------------------------------------
     t0 = time.perf_counter()

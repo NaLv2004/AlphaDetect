@@ -1,4 +1,4 @@
-"""Uncoded reference baselines for the BER-vs-SNR comparison plot.
+"""Uncoded reference baselines for the info-bit BER-vs-SNR comparison plot.
 
 Two flavours of "uncoded" are reported alongside the OMS-decoded curve:
 
@@ -7,14 +7,15 @@ Two flavours of "uncoded" are reported alongside the OMS-decoded curve:
    textbook AWGN reference BER ≈ Q(√(2·10^(SNR/10))).
 
 2. **channel_hard_same_pipeline** ─ uses the *exact* fitness pipeline
-   (same `FitnessConfig`, same random codewords, same seeds, same
-   σ² derived from the physical code rate) but skips BP completely and
-   hard-decides on the channel LLR alone.  Punctured positions
-   (the first 2*Zc info bits, whose LLR is 0) are excluded from the
-   error count because their hard decision is undefined.
+   (same FitnessConfig, same random codewords, same rate-matching,
+   same σ² derived from A/E) but skips BP completely and hard-decides
+   the recovered LLR vector at the K_cb_bit info-bit positions.  The
+   first 2*Zc info bits are always punctured (LLR=0) so the hard-slice
+   error rate is 0.5 there — exactly the penalty a real receiver would
+   pay without a decoder, which makes this a useful "no BP" reference.
 
-Both baselines write a `{snr_db, ber_per_snr}` record so the UI can
-overlay them on the BER chart without touching the rest of the runner.
+Both baselines write `{snr_db, ber_per_snr}` records so the UI can
+overlay them on the info-bit BER chart.
 """
 from __future__ import annotations
 
@@ -37,8 +38,10 @@ def _ber_rate1_hard(snr_db: float, n_bits: int, rng: np.random.Generator) -> flo
 def uncoded_rate1_baseline(cfg: FitnessConfig,
                             bits_per_snr: int = 50_000,
                             seed: int = 20260601) -> Dict[str, list]:
-    """BPSK + AWGN with R=1 (no coding).  Independent of `cfg.par`."""
-    rng = np.random.default_rng(seed)
+    """BPSK + AWGN with R=1 (no coding).  Independent of code config.
+
+    Reports BER over `bits_per_snr` random info bits at each SNR.
+    """
     snrs: List[float] = [float(s) for s in cfg.snr_list]
     bers: List[float] = [
         _ber_rate1_hard(s, bits_per_snr, np.random.default_rng(seed + int(s * 1000)))
@@ -53,29 +56,27 @@ def uncoded_rate1_baseline(cfg: FitnessConfig,
 
 
 def channel_hard_baseline(cfg: FitnessConfig) -> Dict[str, list]:
-    """Same encoder+channel+noise as fitness; decoder = hard slice on channel LLR.
+    """Same encoder + channel + noise as fitness; decoder = hard slice on
+    the recovered LLR vector over the K_cb_bit info-bit positions.
 
-    Bit-comparison is restricted to the actually-transmitted positions
-    (skipping both the mandatory 2*Zc info prefix AND any rate-matched
-    parity tail).  This makes the curve directly comparable to the
-    OMS-decoded BER computed over the full codeword: punctured bits
-    have LLR=0 and would corrupt the hard-slice BER if included.
+    This is the canonical "no BP" reference: it exposes the 2*Zc
+    punctured info prefix as a 50%-error region (LLR=0 → arbitrary
+    hard decision).  Reported BER uses the SAME denominator
+    (K_cb_bit per frame) as the fitness BER, so the two curves are
+    directly comparable.
     """
-    par = cfg.par
-    skip = 2 * par.zc
-    tx_len = cfg.tx_len
+    K_cb_bit = cfg.K_cb_bit
     snrs: List[float] = [float(s) for s in cfg.snr_list]
     bers: List[float] = []
     for snr in snrs:
         pairs = _channel_inputs(cfg, snr)
         n_err = 0
         n_bits = 0
-        for cw, llr in pairs:
-            # hard decision on channel LLR over the transmitted slice only
-            hat = (llr[skip : skip + tx_len] < 0.0).astype(np.int8)
-            ref = cw[skip : skip + tx_len].astype(np.int8)
-            n_err += int(np.sum(hat != ref))
-            n_bits += int(ref.size)
+        for info_payload, llr in pairs:
+            # hard decision on llr over the K_cb_bit info-bit positions
+            hat = (llr[:K_cb_bit] < 0.0).astype(np.int8)
+            n_err += int(np.sum(hat != info_payload))
+            n_bits += K_cb_bit
         bers.append(n_err / max(1, n_bits))
     return {
         "kind": "channel_hard_same_pipeline",
@@ -83,9 +84,12 @@ def channel_hard_baseline(cfg: FitnessConfig) -> Dict[str, list]:
         "ber_per_snr": bers,
         "n_frames_per_snr": cfg.n_frames_per_snr,
         "code_rate_used": cfg.effective_code_rate,
-        "tx_len": tx_len,
-        "note": "hard-slice channel LLR; excludes 2*Zc prefix and rate-matched parity tail",
+        "info_len_A": cfg.info_len_A,
+        "code_length_E": cfg.code_length_E,
+        "K_cb_bit": K_cb_bit,
+        "note": "hard-slice recovered LLR over K_cb_bit info bits (2*Zc prefix punctured → 0.5 error there)",
     }
 
 
 __all__ = ["uncoded_rate1_baseline", "channel_hard_baseline"]
+

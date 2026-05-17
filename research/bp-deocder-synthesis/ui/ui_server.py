@@ -91,14 +91,19 @@ class LaunchParams(BaseModel):
     rand_max_size: int = 30
     max_attempts_per_slot: int = 500
     workers: int = 16
-    bgn: int = 2
-    set_idx: int = 1
-    zc: int = 8
-    # Optional explicit transmitted code rate.  Leave as 0 / blank to
-    # use the base graph's physical rate (BG2 set1 = 0.20, BG1 set1 =
-    # 0.333).  Any positive value <= 1 triggers parity puncturing in
-    # the channel pipeline.  Must be >= base graph rate.
-    target_code_rate: float = 0.0
+    bgn: int = 2  # informational only; derived from A,E by training
+    set_idx: int = 1  # informational only; derived from A,E by training
+    zc: int = 8  # informational only; derived from A,E by training
+    # User-facing code config: only (A, E).  Everything else (bgn,
+    # set_idx, Zc, K, N, K_cb_bit) is derived per the NR LDPC standard
+    # by `ldpc_5g.derive_params(A, A/E)` inside FitnessConfig.
+    info_len_A: int = 176
+    code_length_E: int = 352
+    # DCE oracle code (independent of training code; default = small
+    # BG2-set1-Zc=2 N=104 lifted code).
+    dce_bgn: int = 2
+    dce_set_idx: int = 1
+    dce_zc: int = 2
 
     # DCE
     dce_bp: bool = True
@@ -118,6 +123,9 @@ class LaunchParams(BaseModel):
     use_cpp_fitness: bool = True
     label: Optional[str] = None
     start_watcher: bool = True
+    # Operator filter: path to a JSON op-filter config (see
+    # pushgp/op_filter.py).  Empty string means no filter.
+    op_config: str = ""
 
     def build_cmdline(self, run_name: str) -> List[str]:
         cmd = [
@@ -138,12 +146,12 @@ class LaunchParams(BaseModel):
             "--rand-max-size", str(self.rand_max_size),
             "--max-attempts-per-slot", str(self.max_attempts_per_slot),
             "--workers", str(self.workers),
-            "--bgn", str(self.bgn),
-            "--set-idx", str(self.set_idx),
-            "--zc", str(self.zc),
+            "--info-len-A", str(self.info_len_A),
+            "--code-length-E", str(self.code_length_E),
+            "--dce-bgn", str(self.dce_bgn),
+            "--dce-set-idx", str(self.dce_set_idx),
+            "--dce-zc", str(self.dce_zc),
         ]
-        if self.target_code_rate and self.target_code_rate > 0.0:
-            cmd += ["--target-code-rate", str(self.target_code_rate)]
         if self.cpp_seeder:
             cmd.append("--cpp-seeder")
         if not self.from_scratch:
@@ -169,6 +177,8 @@ class LaunchParams(BaseModel):
             ]
             if not self.dce_bp_use_cpp:
                 cmd.append("--dce-bp-no-cpp")
+        if self.op_config and str(self.op_config).strip():
+            cmd += ["--op-config", str(self.op_config).strip()]
         return cmd
 
 

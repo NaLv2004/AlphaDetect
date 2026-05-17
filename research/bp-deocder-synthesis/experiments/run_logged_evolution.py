@@ -33,6 +33,7 @@ from pushgp.evolution import (
     EvolutionConfig, TwoPopGenLog, evolve, evolve_from_scratch,
 )
 from pushgp.genome import Genome
+from pushgp.op_filter import load_op_filter
 from pushgp.parallel_init import DEFAULT_WORKERS
 from pushgp.program import deep_copy_program
 from pushgp.serialize import genome_to_dict, tree_max_depth, tree_size
@@ -57,18 +58,24 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--n-mutations", type=int, default=2)
     p.add_argument("--p-const-tweak", type=float, default=0.25)
     p.add_argument("--seed", type=int, default=2025)
-    # Code + fitness eval
-    p.add_argument("--bgn", type=int, default=2)
-    p.add_argument("--set-idx", type=int, default=1)
-    p.add_argument("--zc", type=int, default=8)
+    # Code + fitness eval — user gives only (A, E); everything else is
+    # derived per the NR LDPC standard via ldpc_5g.derive_params.
+    p.add_argument("--info-len-A", type=int, default=176,
+                   help="K-info bits per CB (TS 38.212 A).")
+    p.add_argument("--code-length-E", type=int, default=352,
+                   help="Rate-matched output length per CB (TS 38.212 E).")
     p.add_argument("--snr-list", type=str, default="2,3,4",
                    help="Comma-sep SNRs in dB.")
     p.add_argument("--n-frames", type=int, default=6)
     p.add_argument("--max-iter", type=int, default=8)
-    p.add_argument("--target-code-rate", type=float, default=None,
-                   help="If set, additionally puncture parity bits so the "
-                        "transmitted rate is exactly this value (must be "
-                        ">= base graph physical rate).")
+    # DCE oracle code (independent of training code; default = small
+    # BG2-set1-Zc=2 N=104 lifted code for fast DCE BP probes).
+    p.add_argument("--dce-bgn", type=int, default=2,
+                   help="DCE oracle base graph number (1 or 2).")
+    p.add_argument("--dce-set-idx", type=int, default=1,
+                   help="DCE oracle Zc-set index (1..8).")
+    p.add_argument("--dce-zc", type=int, default=2,
+                   help="DCE oracle lifting size (default 2 -> N=104).")
     # ---- From-scratch / diversity-first knobs ----
     p.add_argument("--from-scratch", action="store_true", default=True,
                    help="Initialize from random valid genomes (no OMS seed). "
@@ -141,6 +148,14 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--no-cpp-fitness", dest="cpp_fitness", action="store_false",
                    help="Use the legacy pure-Python fitness eval loop "
                         "(useful for A/B equivalence testing).")
+    # ---- Operator filter (opcode whitelist) -----------------------
+    p.add_argument("--op-config", type=str, default=None,
+                   help="Path to a JSON op-filter config restricting the "
+                        "opcodes evolution may sample/mutate to. See "
+                        "pushgp/op_filter.py docstring and "
+                        "configs/op_filter_oms.json for format. When "
+                        "set, the C++ seeder is forced off (the cpp "
+                        "seeder does not yet support opcode filtering).")
     return p.parse_args()
 
 
@@ -311,19 +326,18 @@ def main() -> int:
     (out_dir / "individuals.jsonl").write_text("", encoding="utf-8")
     (out_dir / "gen_summary.jsonl").write_text("", encoding="utf-8")
 
-    # Build code + fitness cfg.
-    par = build_parity(bgn=args.bgn, set_idx=args.set_idx, zc=args.zc)
+    # Build code + fitness cfg.  Everything (bgn, set_idx, Zc, K, N,
+    # K_cb_bit, ...) is derived from (A, E) per the NR LDPC standard.
     fit_cfg = FitnessConfig(
-        par=par,
+        info_len_A=args.info_len_A,
+        code_length_E=args.code_length_E,
         snr_list=snr_list,
         n_frames_per_snr=args.n_frames,
         max_iter=args.max_iter,
-        # code_rate intentionally omitted: derived from `par` via
-        # `physical_code_rate(par)`.  Hard-coding 0.5 here previously
-        # under-estimated σ² by ~2.6× on BG2 Zc=2 and biased fitness.
-        target_code_rate=args.target_code_rate,
         use_cpp_fitness=bool(args.cpp_fitness),
     )
+    par = fit_cfg.par
+    p_der = fit_cfg.derived
 
     # Seed (only used if --use-oms-seed).
     if not args.from_scratch:
@@ -331,6 +345,18 @@ def main() -> int:
         seed = load_oms_seed()
     else:
         seed = None
+
+    # Operator filter (opcode whitelist).  Loaded once here so we can
+    # (a) print a summary up front and (b) force-disable cpp_seeder
+    # when active (cpp seeder ignores opcode filtering).
+    op_filter = load_op_filter(args.op_config)
+    if op_filter.applies():
+        print(op_filter.describe(), flush=True)
+        if args.cpp_seeder:
+            print("[op-filter] WARNING: --cpp-seeder is incompatible with "
+                  "--op-config; forcing cpp_seeder=OFF (Python multiprocessing "
+                  "seeder will be used and respects the filter).", flush=True)
+            args.cpp_seeder = False
 
     # Ev cfg.  Default elitism=0 in from-scratch mode (weak-elite/no-elite
     # principle from /memories/repo/gp-search-principles.md).  Caller can
@@ -368,11 +394,17 @@ def main() -> int:
         "run_name": run_name,
         "started_at": datetime.now().isoformat(timespec="seconds"),
         "from_scratch": bool(args.from_scratch),
-        "code": {"bgn": args.bgn, "set_idx": args.set_idx, "zc": args.zc,
-                 "N": int(par.cols), "M": int(par.rows)},
+        "code": {"info_len_A": args.info_len_A,
+                 "code_length_E": args.code_length_E,
+                 "bgn": p_der.bgn, "set_idx": p_der.set_idx,
+                 "zc": p_der.zc, "N": int(par.cols), "M": int(par.rows),
+                 "K_cb_bit": p_der.K_cb_bit, "K": p_der.K,
+                 "N_punctured": p_der.N_punctured,
+                 "effective_code_rate": fit_cfg.effective_code_rate},
         "snr_list_db": list(snr_list),
         "n_frames_per_snr": args.n_frames,
         "max_iter": args.max_iter,
+        "op_filter": op_filter.to_dict(),
         "evolution": {
             "pop_size": ev_cfg.pop_size,
             "generations": ev_cfg.generations,
@@ -407,8 +439,10 @@ def main() -> int:
         json.dumps(meta, indent=2), encoding="utf-8")
 
     print(f"[init] run dir: {out_dir}", flush=True)
-    print(f"[init] code BG{args.bgn} set{args.set_idx} Zc={args.zc} "
-          f"N={par.cols} M={par.rows}", flush=True)
+    print(f"[init] A={args.info_len_A} E={args.code_length_E} "
+          f"R={fit_cfg.effective_code_rate:.4f} -> BG{p_der.bgn} set{p_der.set_idx} "
+          f"Zc={p_der.zc} N={par.cols} M={par.rows} K_cb_bit={p_der.K_cb_bit}",
+          flush=True)
     print(f"[init] SNRs={snr_list}  n_frames={args.n_frames}  "
           f"max_iter={args.max_iter}", flush=True)
     print(f"[init] pop_size={ev_cfg.pop_size} gens={ev_cfg.generations} "
@@ -451,8 +485,11 @@ def main() -> int:
             "n_frames_per_snr": args.n_frames,
             "max_iter": args.max_iter,
             "code_rate": fit_cfg.effective_code_rate,
-            "code": {"bgn": args.bgn, "set_idx": args.set_idx, "zc": args.zc,
-                     "N": int(par.cols), "M": int(par.rows)},
+            "code": {"info_len_A": args.info_len_A,
+                     "code_length_E": args.code_length_E,
+                     "bgn": p_der.bgn, "set_idx": p_der.set_idx,
+                     "zc": p_der.zc, "N": int(par.cols), "M": int(par.rows),
+                     "K_cb_bit": p_der.K_cb_bit},
         },
         "fitness": baseline_m.fitness,
         "ber_per_snr": list(baseline_m.ber_per_snr),
@@ -472,29 +509,42 @@ def main() -> int:
 
     t0 = time.time()
     # ---- Build DCE oracle (par + rx_llrs) if requested ----------------
+    # The DCE oracle uses its OWN (small) lifted code, independent of the
+    # training code (default BG2 set1 Zc=2 -> N=104).  Behaviour-only:
+    # we just need a valid all-zero codeword + AWGN-perturbed LLR vector.
     dce_oracle = None
     if args.dce_bp:
         snr_sorted = sorted(snr_list)
         snr_pick = (args.dce_bp_snr_db if args.dce_bp_snr_db is not None
                     else float(snr_sorted[len(snr_sorted) // 2]))
-        from ldpc_5g import HTYPE, bpsk_modulate, bpsk_llr
-        from pushgp_ldpc.eval import _random_codeword, physical_code_rate
-        htype = HTYPE[par.bgn - 1][par.set_idx - 1]
-        rate = physical_code_rate(par)
-        sigma2 = 1.0 / (2.0 * rate * 10.0 ** (snr_pick / 10.0))
+        from ldpc_5g import (HTYPE, bpsk_modulate, bpsk_llr,
+                             encode_codeblock, build_parity as _bp)
+        dce_par = _bp(bgn=args.dce_bgn, set_idx=args.dce_set_idx, zc=args.dce_zc)
+        htype_dce = HTYPE[dce_par.bgn - 1][dce_par.set_idx - 1]
+        Kb_dce = 10 if dce_par.bgn == 2 else 22
+        K_dce = Kb_dce * dce_par.zc
+        N_dce = dce_par.cols
+        # DCE noise: use physical (un-rate-matched) base-graph rate so
+        # σ² is well-defined and reproducible across configs.
+        rate_dce = float(K_dce) / float(N_dce - 2 * dce_par.zc)
+        sigma2 = 1.0 / (2.0 * rate_dce * 10.0 ** (snr_pick / 10.0))
         sigma = float(np.sqrt(sigma2))
         rx_llrs: List[np.ndarray] = []
         for f_idx in range(int(max(1, args.dce_bp_n_frames))):
             rng = np.random.default_rng(args.dce_bp_oracle_seed + f_idx)
-            cw = _random_codeword(par, htype, rng)
-            tx = bpsk_modulate(cw[2 * par.zc:])
+            info = rng.integers(0, 2, size=K_dce, dtype=np.int8).astype(np.int64)
+            cw_punct = encode_codeblock(info, dce_par, htype_dce)
+            cw_full = np.concatenate(
+                [info[: 2 * dce_par.zc].astype(np.int8), cw_punct]).astype(np.int8)
+            tx = bpsk_modulate(cw_full[2 * dce_par.zc:])
             rx = tx + sigma * rng.standard_normal(tx.shape)
             llr_part = bpsk_llr(rx, sigma2)
-            llr = np.zeros(par.cols, dtype=np.float64)
-            llr[2 * par.zc:] = llr_part
+            llr = np.zeros(N_dce, dtype=np.float64)
+            llr[2 * dce_par.zc:] = llr_part
             rx_llrs.append(llr)
-        dce_oracle = {"par": par, "rx_llrs": rx_llrs}
-        print(f"[init] DCE oracle: snr={snr_pick:+.1f}dB  "
+        dce_oracle = {"par": dce_par, "rx_llrs": rx_llrs}
+        print(f"[init] DCE oracle: BG{dce_par.bgn} set{dce_par.set_idx} "
+              f"Zc={dce_par.zc} N={N_dce}  snr={snr_pick:+.1f}dB  "
               f"frames={len(rx_llrs)}  use_cpp={args.dce_bp_use_cpp}  "
               f"max_iter={args.dce_bp_max_iter}  decimals={args.dce_bp_decimals}",
               flush=True)
@@ -514,6 +564,7 @@ def main() -> int:
                 batch_eval_fn=pev.eval_pairs,
                 on_generation=logger.on_generation_two_pop,
                 dce_oracle=dce_oracle,
+                op_filter=op_filter,
             )
         finally:
             pev.close()

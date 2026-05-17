@@ -27,15 +27,15 @@ def main():
     seed = load_oms_seed()
 
     # Modest evolution settings — small code, few SNRs/frames.
-    par = build_parity(bgn=2, set_idx=1, zc=2)  # 84 x 104
-
+    # A=20 R~0.20 → BG2 set1 Zc=2 N=104 K_cb_bit=20 (same code as before).
     fit_cfg = FitnessConfig(
-        par=par,
+        info_len_A=20,
+        code_length_E=100,
         snr_list=(-3.0, -2.0),
         n_frames_per_snr=4,
         max_iter=6,
-        # code_rate left as None => derived from `par` (physical_code_rate).
     )
+    par = fit_cfg.par
 
     cfg = EvolutionConfig(
         pop_size=10,

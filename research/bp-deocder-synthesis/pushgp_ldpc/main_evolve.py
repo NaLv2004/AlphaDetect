@@ -44,10 +44,10 @@ def _parse_args(argv=None):
     p.add_argument("--frames", type=int, default=4,
                    help="Decoded frames per SNR per genome.")
     p.add_argument("--max-iter", type=int, default=8)
-    p.add_argument("--bgn", type=int, default=2)
-    p.add_argument("--set", dest="set_idx", type=int, default=1)
-    p.add_argument("--zc", type=int, default=8)
-    p.add_argument("--code-rate", type=float, default=0.5)
+    p.add_argument("--info-len-A", type=int, default=176,
+                   help="K-info bits per CB (TS 38.212 A).")
+    p.add_argument("--code-length-E", type=int, default=352,
+                   help="Rate-matched output length per CB (TS 38.212 E).")
     p.add_argument("--n-mutations", type=int, default=2)
     p.add_argument("--p-const-tweak", type=float, default=0.2)
     p.add_argument("--p-crossover", type=float, default=0.5)
@@ -72,14 +72,14 @@ def main(argv=None):
     else:
         seed = load_oms_seed()
 
-    par = build_parity(args.bgn, args.set_idx, args.zc)
     fit_cfg = FitnessConfig(
-        par=par,
+        info_len_A=args.info_len_A,
+        code_length_E=args.code_length_E,
         snr_list=tuple(args.snr_list),
         n_frames_per_snr=args.frames,
         max_iter=args.max_iter,
-        code_rate=args.code_rate,
     )
+    par = fit_cfg.par  # derived BG/set/Zc lifted parity matrix
 
     def fitness(g: Genome) -> float:
         return evaluate_genome(g, fit_cfg)
@@ -111,8 +111,10 @@ def main(argv=None):
               f"median={log.median_fit:.4f} valid={log.n_valid} "
               f"t={log.elapsed_s:.2f}s")
 
-    print(f"[init] code BG{args.bgn} set{args.set_idx} Zc={args.zc} "
-          f"(N={par.cols}, M={par.rows}); SNR={list(args.snr_list)} dB; "
+    p = fit_cfg.derived
+    print(f"[init] A={args.info_len_A} E={args.code_length_E} R={fit_cfg.effective_code_rate:.4f} "
+          f"-> BG{p.bgn} set{p.set_idx} Zc={p.zc} (N={p.N}, M={p.N - (p.K - p.K_cb_bit) - 0}); "
+          f"K_cb_bit={p.K_cb_bit}; SNR={list(args.snr_list)} dB; "
           f"frames/SNR={args.frames}; max_iter={args.max_iter}")
     seed_fit = fitness(seed)
     print(f"[init] OMS seed fitness = {seed_fit:.4f}")

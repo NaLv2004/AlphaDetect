@@ -51,16 +51,16 @@ def main(n_genomes: int = 8,
          fit_tol: float = 1e-6) -> int:
 
     # ---- build cfg ----
-    par = build_parity(bgn=2, set_idx=1, zc=2)
     cfg_py = FitnessConfig(
-        par=par,
+        info_len_A=20,
+        code_length_E=100,
         snr_list=tuple(snr_list),
         n_frames_per_snr=n_frames,
         max_iter=max_iter,
-        code_rate=0.5,
         seed_base=12345,
         use_cpp_fitness=False,
     )
+    par = cfg_py.par
     cfg_cpp = replace(cfg_py, use_cpp_fitness=True)
 
     # ---- generate random genomes via cpp_seeder ----

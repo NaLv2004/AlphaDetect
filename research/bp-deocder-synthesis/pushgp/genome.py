@@ -34,7 +34,29 @@ N_EVO_CONSTS = 8
 # Float.ConstHalf, Float.ConstPi, Float.Const1e-6, ...) cover the
 # remaining structural constants and are unaffected by this change.
 LOG_CONST_MIN = -1.0
-LOG_CONST_MAX = 0.0
+# 2026-05-17: Bumped from 0.0 → 6.0.  The previous [0.1, 1.0] clamp
+# silently broke the OMS adapter: its hand-coded C2V seed reserves
+# `EvoConst1 = 1e6` as the min-fold sentinel (`min(sentinel, |x_0|, ...)`).
+# With max-clip 1.0 the sentinel collapsed to 1.0, so `min|incoming|`
+# was capped at 1.0, c2v magnitudes saturated at `max(1-β,0)=0.75`, BP
+# never converged.  Confirmed against `ldpc_5g.decode_oms_fast` by the
+# iter-by-iter diff at `code_review/diff_cdce_vs_ldpc5g.py`: with the
+# tight clamp pushgp stays at 17 errors forever while the reference
+# converges to 0 in 4 iterations.  Widening to 1e6 restores the seed.
+LOG_CONST_MAX = 6.0
+# 2026-05-17 (later): Decouple *clamp* range from *sampling* range.
+# LOG_CONST_MAX above is the hard clamp (must be ≥6.0 so OMS sentinel
+# 1e6 survives evo_const_values()).  But random initialization and
+# mutation should stay in the small-K regime where useful BP coefficients
+# live, otherwise random programs get K ∈ [1e2, 1e6], BP outputs
+# saturate, and validators reject ~99.997% of seeds — observed pass
+# rate dropped from ~5% (pre-fix) to 0.001% (post-fix) when sampling
+# also widened.  RAND_LOG_CONST_MAX bounds random_log_constants() and
+# mutate_log_constants() to K ∈ [0.1, 10.0], matching the pre-fix
+# behaviour for ordinary GP exploration while preserving the wide
+# clamp for hand-coded sentinels.
+RAND_LOG_CONST_MIN = -1.0
+RAND_LOG_CONST_MAX = 1.0
 MAX_PROG_LEN = 80  # total instruction count (incl. nested) per V2C / C2V program
 
 
@@ -127,6 +149,8 @@ __all__ = [
     "N_EVO_CONSTS",
     "LOG_CONST_MIN",
     "LOG_CONST_MAX",
+    "RAND_LOG_CONST_MIN",
+    "RAND_LOG_CONST_MAX",
     "MAX_PROG_LEN",
     "instruction_to_dict",
     "dict_to_instruction",

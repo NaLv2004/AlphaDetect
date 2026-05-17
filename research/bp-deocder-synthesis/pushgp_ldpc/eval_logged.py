@@ -47,19 +47,20 @@ def evaluate_genome_with_ber(genome: Genome, cfg: FitnessConfig) -> GenomeMetric
     bers: List[float] = []
     fers: List[float] = []
     log_bers: List[float] = []
+    K_cb_bit = cfg.K_cb_bit  # info-bit count; BER denominator
 
     for snr_idx, snr_db in enumerate(cfg.snr_list):
         pairs = _channel_inputs(cfg, snr_db)
         n_err = 0
         n_bits = 0
         n_frame_err = 0
-        for bits, llr in pairs:
+        for info_payload, llr in pairs:
             try:
                 post = decode_bp(
                     llr, cfg.par,
                     v2c_fn=v2c_fn, c2v_fn=c2v_fn,
                     max_iter=cfg.max_iter, offset=0.25,
-                    code_rate=cfg.code_rate,
+                    code_rate=cfg.effective_code_rate,
                 )
             except Exception as e:  # noqa: BLE001
                 # Pad with worst values for remaining SNRs.
@@ -67,10 +68,12 @@ def evaluate_genome_with_ber(genome: Genome, cfg: FitnessConfig) -> GenomeMetric
                 fers.extend([float("nan")] * (len(cfg.snr_list) - snr_idx))
                 return GenomeMetrics(6.0, bers, fers, cfg.n_frames_per_snr,
                                      False, f"decode:{e!r}")
-            hat = (post < 0.0).astype(np.int8)
-            errs = int((hat != bits).sum())
+            # BER over K_cb_bit info bits only (matches simulate.py +
+            # SEU main.cpp:678).
+            hat = (post[:K_cb_bit] < 0.0).astype(np.int8)
+            errs = int((hat != info_payload).sum())
             n_err += errs
-            n_bits += bits.size
+            n_bits += K_cb_bit
             if errs > 0:
                 n_frame_err += 1
         ber = n_err / max(1, n_bits)

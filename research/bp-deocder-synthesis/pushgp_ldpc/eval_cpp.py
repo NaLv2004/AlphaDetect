@@ -106,8 +106,8 @@ def _channel_for(cfg: FitnessConfig, snr_db: float):
         cfg.seed_base,
         cfg.n_frames_per_snr,
         float(snr_db),
-        cfg.effective_code_rate,
-        cfg.tx_len,
+        cfg.info_len_A,
+        cfg.code_length_E,
     )
     cached = _CHANNEL_CACHE.get(key)
     if cached is not None:
@@ -156,13 +156,14 @@ def evaluate_genome_cpp_ber(genome: Genome, cfg: FitnessConfig) -> GenomeMetrics
     bers: List[float] = []
     fers: List[float] = []
     log_bers: List[float] = []
+    K_cb_bit = cfg.K_cb_bit  # info-bit count per CB; BER denominator (= A-bit slice)
 
     for snr_idx, snr_db in enumerate(cfg.snr_list):
         pairs = _channel_for(cfg, snr_db)
         n_err = 0
         n_bits = 0
         n_frame_err = 0
-        for bits, llr in pairs:
+        for info_payload, llr in pairs:
             try:
                 post, _iters = cdce.decode_bp(
                     llr, parH, v_dict, c_dict, evo,
@@ -180,10 +181,13 @@ def evaluate_genome_cpp_ber(genome: Genome, cfg: FitnessConfig) -> GenomeMetrics
                     valid=False,
                     error=f"decode_cpp:{e!r}",
                 )
-            hat = (post < 0.0).astype(np.int8)
-            errs = int((hat != bits).sum())
+            # BER is over the K_cb_bit information bits only (matches
+            # simulate.py and SEU main.cpp:678).  Fillers and parity
+            # are excluded from both numerator and denominator.
+            hat = (post[:K_cb_bit] < 0.0).astype(np.int8)
+            errs = int((hat != info_payload).sum())
             n_err += errs
-            n_bits += bits.size
+            n_bits += K_cb_bit
             if errs > 0:
                 n_frame_err += 1
         ber = n_err / max(1, n_bits)

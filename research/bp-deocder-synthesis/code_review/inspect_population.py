@@ -170,16 +170,15 @@ def survey_population():
     print("TINY EVOLUTION — FINAL POPULATION SURVEY")
     print(DIVIDER)
 
-    par = build_parity(bgn=2, set_idx=1, zc=2)
-    seed = oms_seed_genome()
-
     fit_cfg = FitnessConfig(
-        par=par,
+        info_len_A=20,
+        code_length_E=100,
         snr_list=(-3.0, -2.0),
         n_frames_per_snr=4,
         max_iter=6,
-        code_rate=0.5,
     )
+    par = fit_cfg.par
+    seed = oms_seed_genome()
     cfg = EvolutionConfig(
         pop_size=12,
         generations=8,

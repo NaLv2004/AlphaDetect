@@ -1,0 +1,24 @@
+{
+  "_comment": "Opcode whitelist for OMS rediscovery. v2c/c2v are the only fields read by load_op_filter(); _comment is ignored. Ops match the hand-coded OMS in pushgp_ldpc/adapter.py (C2V uses compact sign+mul form, 13 ops). Ground truth: fit=-3.1731 at A=176 E=352 SNRs=[2,3,4] n_frames=20 max_iter=8 (verify_oms_rediscover_target.py). K1=10 already matches K1=1e6 BER -- default RAND_LOG_CONST_MAX=1.0 is sufficient.",
+  "v2c": [
+    "FVec.Len",
+    "FVec.At",
+    "Float.Add",
+    "Exec.DoTimes"
+  ],
+  "c2v": [
+    "Float.Const0",
+    "Float.Const1",
+    "Float.EvoConst0",
+    "Float.EvoConst1",
+    "Float.Sign",
+    "Float.Mul",
+    "Float.Abs",
+    "Float.Min",
+    "Float.Sub",
+    "Float.Max",
+    "FVec.Len",
+    "FVec.At",
+    "Exec.DoTimes"
+  ]
+}

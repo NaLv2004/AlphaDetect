@@ -258,6 +258,7 @@ __all__ = [
 
 from .crossover import crossover_program
 from .mutation import mutate_log_constants, mutate_program
+from .op_filter import OpFilter, filter_instr_set
 from .parallel_init import (
     DEFAULT_WORKERS,
     parallel_fill_random,
@@ -638,6 +639,7 @@ def evolve_from_scratch(
         [TwoPopGenLog, List, List, List, List[int], List[float]], None
     ]] = None,
     dce_oracle: Optional[Dict] = None,
+    op_filter: Optional[OpFilter] = None,
 ) -> TwoPopResult:
     """Two-pop from-scratch evolution.
 
@@ -660,7 +662,18 @@ def evolve_from_scratch(
         raise ValueError("pop_size must be > 0")
 
     rng = np.random.default_rng(cfg.seed)
-    rpg = RandomProgramGenerator(rng=rng)
+    rpg = RandomProgramGenerator(rng=rng, op_filter=op_filter)
+
+    # Effective per-side instruction sets after applying the filter.
+    # Identical to V2C_INSTR / C2V_INSTR when no filter is active.
+    eff_v2c_instr: List[str] = filter_instr_set("v2c", V2C_INSTR, op_filter)
+    eff_c2v_instr: List[str] = filter_instr_set("c2v", C2V_INSTR, op_filter)
+    if op_filter is not None and op_filter.applies():
+        print(op_filter.describe(), flush=True)
+        print(f"[op-filter] V2C allowed ({len(eff_v2c_instr)}): {sorted(eff_v2c_instr)}",
+              flush=True)
+        print(f"[op-filter] C2V allowed ({len(eff_c2v_instr)}): {sorted(eff_c2v_instr)}",
+              flush=True)
 
     # ---- Resolve DCE-BP config (top-level Python orchestration) -----
     _dce_enabled = bool(cfg.dce_bp_enabled and dce_oracle is not None
@@ -757,6 +770,7 @@ def evolve_from_scratch(
             pool=pool,
             progress_cb=_seed_progress,
             seen_fingerprints=seen_v,
+            op_filter=op_filter,
         )
         pop_c, c_attempts = _fill_random(
             "c2v", cfg.pop_size,
@@ -768,6 +782,7 @@ def evolve_from_scratch(
             pool=pool,
             progress_cb=_seed_progress,
             seen_fingerprints=seen_c,
+            op_filter=op_filter,
         )
         pop_k = [rpg.random_log_constants() for _ in range(cfg.pop_size)]
 
@@ -830,16 +845,18 @@ def evolve_from_scratch(
                     fits=list(fits),  # pair fitness (identity perm)
                     cfg=cfg, rng=rng, rpg=rpg,
                     pool=pool, n_workers=workers,
+                    v2c_instr_set=eff_v2c_instr,
+                    c2v_instr_set=eff_c2v_instr,
                 )
             else:
                 new_pop_v, va, vinv = _evolve_side_offspring(
                     side="v2c", pop=pop_v, fits=fits_v, cfg=cfg, rng=rng,
-                    rpg=rpg, instr_set=V2C_INSTR, pool=pool, n_workers=workers,
+                    rpg=rpg, instr_set=eff_v2c_instr, pool=pool, n_workers=workers,
                     seen_fps_in={_behav_fingerprint("v2c", p) for p in pop_v},
                 )
                 new_pop_c, ca, cinv = _evolve_side_offspring(
                     side="c2v", pop=pop_c, fits=fits_c, cfg=cfg, rng=rng,
-                    rpg=rpg, instr_set=C2V_INSTR, pool=pool, n_workers=workers,
+                    rpg=rpg, instr_set=eff_c2v_instr, pool=pool, n_workers=workers,
                     seen_fps_in={_behav_fingerprint("c2v", p) for p in pop_c},
                 )
                 new_pop_k = _evolve_constants(
@@ -999,6 +1016,8 @@ def _evolve_triple_offspring(
     rpg: RandomProgramGenerator,
     pool=None,
     n_workers: int = 1,
+    v2c_instr_set: Optional[Sequence[str]] = None,
+    c2v_instr_set: Optional[Sequence[str]] = None,
 ) -> Tuple[List, List, List[np.ndarray], int, int, int, int]:
     """Build next-generation populations as **bound triples**.
 
@@ -1031,6 +1050,15 @@ def _evolve_triple_offspring(
     from .program import deep_copy_program
     from .mutation import mutate_log_constants, mutate_program
 
+    # Default to the full per-side ops; callers passing the op_filter
+    # path supply the filtered set.
+    v_instr_set: Sequence[str] = (
+        v2c_instr_set if v2c_instr_set is not None else V2C_INSTR
+    )
+    c_instr_set: Sequence[str] = (
+        c2v_instr_set if c2v_instr_set is not None else C2V_INSTR
+    )
+
     n = cfg.pop_size
     order = np.argsort(np.where(np.isfinite(fits), fits, np.inf))
     rank_of = {int(idx): r for r, idx in enumerate(order)}
@@ -1058,6 +1086,16 @@ def _evolve_triple_offspring(
     n_grafts_c = 0
     target = n
     per_side_budget = cfg.max_attempts_per_slot  # per-slot, per-side
+
+    # ----- Progress reporting setup -----------------------------------
+    import time as _time
+    _bp_t0 = _time.time()
+    _bp_t_last = _bp_t0
+    _bp_print_interval = 1.0  # seconds between progress lines
+    _non_elite = max(1, target - cfg.elitism)
+    print(f"[bind-pairs] start: target={target} elite={cfg.elitism} "
+          f"non_elite={_non_elite} budget/side={per_side_budget}",
+          flush=True)
 
     # ----- Per-slot independent fill --------------------------------
     # IMPORTANT: binding semantics only requires that slot j's V and
@@ -1089,10 +1127,10 @@ def _evolve_triple_offspring(
             v_attempts += 1
             if do_xover:
                 v_child0 = crossover_program(pop_v[a], pop_v[b], rng,
-                                              instr_set=V2C_INSTR)
+                                              instr_set=v_instr_set)
             else:
                 v_child0 = deep_copy_program(pop_v[a])
-            v_try = mutate_program(v_child0, rng, rpg, V2C_INSTR,
+            v_try = mutate_program(v_child0, rng, rpg, v_instr_set,
                                     n_mutations=max(1, n_mut))
             v_seed = int(rng.integers(0, 2**31))
             if not _validate_one("v2c", v_try, deg=cfg.validator_deg,
@@ -1117,10 +1155,10 @@ def _evolve_triple_offspring(
             c_attempts += 1
             if do_xover:
                 c_child0 = crossover_program(pop_c[a], pop_c[b], rng,
-                                              instr_set=C2V_INSTR)
+                                              instr_set=c_instr_set)
             else:
                 c_child0 = deep_copy_program(pop_c[a])
-            c_try = mutate_program(c_child0, rng, rpg, C2V_INSTR,
+            c_try = mutate_program(c_child0, rng, rpg, c_instr_set,
                                     n_mutations=max(1, n_mut))
             c_seed = int(rng.integers(0, 2**31))
             if not _validate_one("c2v", c_try, deg=cfg.validator_deg,
@@ -1141,6 +1179,30 @@ def _evolve_triple_offspring(
         new_v.append(v_cand)
         new_c.append(c_cand)
         new_k.append(k_child)
+
+        # ---- progress print (rate-limited) ----------------------------
+        _now = _time.time()
+        if (_now - _bp_t_last) >= _bp_print_interval or len(new_v) == target:
+            _filled = len(new_v) - cfg.elitism  # non-elite filled
+            _v_pass = (1.0 - v_invalid / max(1, v_attempts)) * 100.0
+            _c_pass = (1.0 - c_invalid / max(1, c_attempts)) * 100.0
+            _elapsed = _now - _bp_t0
+            _rate = _filled / max(1e-9, _elapsed)
+            _eta = (_non_elite - _filled) / max(1e-9, _rate)
+            print(f"[bind-pairs] {_filled:>3}/{_non_elite}  "
+                  f"V-att={v_attempts:>8} pass={_v_pass:5.2f}%  "
+                  f"C-att={c_attempts:>8} pass={_c_pass:5.2f}%  "
+                  f"V-graft={n_grafts_v} C-graft={n_grafts_c}  "
+                  f"elapsed={_elapsed:5.1f}s  ETA={_eta:5.1f}s",
+                  flush=True)
+            _bp_t_last = _now
+
+    print(f"[bind-pairs] DONE: filled={len(new_v) - cfg.elitism}/{_non_elite}  "
+          f"V-att={v_attempts} V-pass={(1.0 - v_invalid/max(1,v_attempts))*100:.2f}%  "
+          f"C-att={c_attempts} C-pass={(1.0 - c_invalid/max(1,c_attempts))*100:.2f}%  "
+          f"V-graft={n_grafts_v} C-graft={n_grafts_c}  "
+          f"elapsed={_time.time() - _bp_t0:.1f}s",
+          flush=True)
 
     if n_grafts_v > 0 or n_grafts_c > 0:
         msg = (

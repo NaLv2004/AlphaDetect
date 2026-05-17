@@ -24,21 +24,41 @@ for target in (None, 0.5):
     tx = tx_length(par, target)
     print(f"  target_R={target}  tx_len={tx}  actual_R={info_bits_count(par)/tx:.4f}")
 
-snrs = (1.0, 2.0, 3.0, 4.0, 5.0)
-cfg = FitnessConfig(par=par, snr_list=snrs, n_frames_per_snr=100,
-                    max_iter=20, target_code_rate=0.5)
-print(f"\nFitnessConfig: target_R=0.5  effective_R={cfg.effective_code_rate:.4f}  tx_len={cfg.tx_len}")
+snrs = tuple(float(x) for x in range(1, 13))  # 1..12 dB
+N_FRAMES = 200
+MAX_ITER = 20
+print(f"\nSweep: {len(snrs)} SNR pts, {N_FRAMES} frames each, max_iter={MAX_ITER}",
+      flush=True)
 
+# Pre-compute uncoded R=1 reference once (fast).
+print("[step] computing uncoded baselines ...", flush=True)
+cfg_full = FitnessConfig(par=par, snr_list=snrs, n_frames_per_snr=N_FRAMES,
+                         max_iter=MAX_ITER, target_code_rate=0.5)
+print(f"  effective_R={cfg_full.effective_code_rate:.4f}  tx_len={cfg_full.tx_len}",
+      flush=True)
 t0 = time.time()
-m = evaluate_genome_cpp_ber(oms_seed_genome(), cfg)
-print(f"OMS eval took {time.time()-t0:.1f}s")
-ch = channel_hard_baseline(cfg)
-r1 = uncoded_rate1_baseline(cfg, bits_per_snr=100 * cfg.tx_len)
-print(f"\n{'SNR':>5} | {'OMS BP':>12} | {'ch-hard':>12} | {'R=1':>12} | {'gain':>8}")
-print("-" * 60)
-for i, s in enumerate(snrs):
-    b1 = m.ber_per_snr[i]
+r1 = uncoded_rate1_baseline(cfg_full, bits_per_snr=N_FRAMES * cfg_full.tx_len)
+ch = channel_hard_baseline(cfg_full)
+print(f"  baselines done in {time.time()-t0:.1f}s", flush=True)
+
+print(f"\n{'SNR':>5} | {'OMS BP':>12} | {'ch-hard':>12} | {'R=1':>12} | "
+      f"{'gain':>8} | {'sec':>6}", flush=True)
+print("-" * 70, flush=True)
+
+oms = oms_seed_genome()
+oms_bers = []
+for i, snr in enumerate(snrs):
+    cfg_one = FitnessConfig(par=par, snr_list=(snr,), n_frames_per_snr=N_FRAMES,
+                            max_iter=MAX_ITER, target_code_rate=0.5)
+    t1 = time.time()
+    m = evaluate_genome_cpp_ber(oms, cfg_one)
+    dt = time.time() - t1
+    b1 = m.ber_per_snr[0]
     b2 = ch['ber_per_snr'][i]
     b3 = r1['ber_per_snr'][i]
     g = (b2 / b1) if b1 > 0 else float('inf')
-    print(f"{s:>5.1f} | {b1:>12.3e} | {b2:>12.3e} | {b3:>12.3e} | {g:>7.2f}x")
+    oms_bers.append(b1)
+    print(f"{snr:>5.1f} | {b1:>12.3e} | {b2:>12.3e} | {b3:>12.3e} | "
+          f"{g:>7.2f}x | {dt:>6.1f}", flush=True)
+
+print(f"\nDONE. OMS BERs: {[f'{b:.3e}' for b in oms_bers]}", flush=True)

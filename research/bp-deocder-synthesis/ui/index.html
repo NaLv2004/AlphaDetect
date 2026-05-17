@@ -162,10 +162,11 @@ const PARAMS = [
   ["p_crossover","P(crossover)",       "number", 0.7],
   ["n_mutations","N mutations",        "number", 2],
   ["p_const_tweak","P(const tweak)",   "number", 0.25],
-  ["bgn",       "BG #",                "number", 2],
-  ["set_idx",   "Set idx",             "number", 1],
-  ["zc",        "Z_c",                 "number", 8],
-  ["target_code_rate","Target R (0=physical)","number", 0],
+  ["info_len_A",     "Info len A (bits)",   "number", 176],
+  ["code_length_E",  "Code len E (bits)",   "number", 352],
+  ["dce_bgn",        "DCE BG #",            "number", 2],
+  ["dce_set_idx",    "DCE Set idx",         "number", 1],
+  ["dce_zc",         "DCE Z_c",             "number", 2],
   ["dce_bp_snr_db","DCE oracle SNR(dB)","number",-2],
   ["dce_bp_n_frames","DCE oracle frames","number",1],
   ["dce_bp_max_iter","DCE max iter",   "number", 8],
@@ -177,6 +178,7 @@ const PARAMS = [
   ["bind_pairs","Bind V2C+C2V+K pairs","bool",   true],
   ["use_cpp_fitness","C++ fitness eval","bool",  true],
   ["start_watcher","Start parser watcher","bool",true],
+  ["op_config", "Op-filter config path (blank=off)", "text", ""],
 ];
 
 function el(tag, attrs={}, ...children){
@@ -475,7 +477,7 @@ class RunView {
       ["progress","Progress"],
       ["population","Population"],
       ["individual","Individual"],
-      ["ber","BER vs OMS"],
+      ["ber","Info-bit BER vs OMS"],
       ["dce","DCE / Sizes"],
       ["log","Logs"],
       ["meta","Meta"],
