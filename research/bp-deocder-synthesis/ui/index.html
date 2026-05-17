@@ -171,7 +171,6 @@ const PARAMS = [
   ["dce_bp_n_frames","DCE oracle frames","number",1],
   ["dce_bp_max_iter","DCE max iter",   "number", 8],
   ["dce_bp_decimals","DCE decimals",   "number", 6],
-  ["cpp_seeder","C++ seeder",          "bool",   true],
   ["dce_bp",    "DCE enabled",         "bool",   true],
   ["dce_bp_use_cpp","DCE use C++",     "bool",   true],
   ["from_scratch","From scratch",      "bool",   true],
@@ -238,6 +237,38 @@ App.fillDefaults = function(){
       inp = el("input",{type, id, value:String(dflt)});
     }
     f.appendChild(inp);
+    // Op-filter path: add a "Browse" button that lists configs/*.json
+    // from the backend and lets the user pick one.
+    if (k === "op_config"){
+      const btn = el("button",{type:"button", style:"margin-left:6px;padding:2px 8px;",
+        onclick: async () => {
+          try {
+            const r = await api("/api/op_configs");
+            const items = (r.items || []);
+            if (items.length === 0){
+              alert("No *.json found in " + (r.dir || "configs/"));
+              return;
+            }
+            const lines = items.map((it, i) => `${i+1}. ${it.path}`).join("\n");
+            const ans = prompt(
+              `Pick op-filter config (1\u2013${items.length})\n` +
+              `Dir: ${r.dir}\n\n${lines}\n\n` +
+              `Enter number (or blank to clear):`, "");
+            if (ans === null) return;
+            const s = String(ans).trim();
+            if (s === ""){ inp.value = ""; return; }
+            const n = parseInt(s, 10);
+            if (!(n >= 1 && n <= items.length)){
+              alert("Invalid choice: " + ans); return;
+            }
+            inp.value = items[n-1].path;
+          } catch (e){
+            alert("Failed to list op_configs: " + e);
+          }
+        }
+      }, "Browse\u2026");
+      f.appendChild(btn);
+    }
   }
 };
 

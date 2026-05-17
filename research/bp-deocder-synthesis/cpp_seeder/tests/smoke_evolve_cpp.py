@@ -27,7 +27,6 @@ def main():
         rand_min_size=4,
         rand_max_size=20,
         dedup=True,
-        cpp_seeder=True,  # <-- the new code path
     )
     res = evolve_from_scratch(stub_fit, cfg, workers=4)
     print(f"OK: best_fit={res.best_fitness:.4f}, n_history={len(res.history)}")

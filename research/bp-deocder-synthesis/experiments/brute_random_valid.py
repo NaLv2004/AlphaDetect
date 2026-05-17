@@ -1,7 +1,7 @@
 """Brute-force probe: how many random tries to get N valid programs.
 
-Thin wrapper around `pushgp.parallel_init.parallel_fill_random` for
-manual inspection.  Outputs valid program one-liners + JSON dump.
+Thin wrapper around `pushgp.cpp_seeder_adapter.cpp_parallel_fill_random`
+for manual inspection.  Outputs valid program one-liners + JSON dump.
 """
 
 from __future__ import annotations
@@ -16,10 +16,10 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from pushgp.parallel_init import (  # noqa: E402
-    DEFAULT_WORKERS, parallel_fill_random,
-)
-from pushgp.serialize import program_to_dict  # noqa: E402
+from pushgp.cpp_seeder_adapter import cpp_parallel_fill_random  # noqa: E402
+from pushgp.op_filter import load_op_filter                     # noqa: E402
+from pushgp.parallel_init import DEFAULT_WORKERS                # noqa: E402
+from pushgp.serialize import program_to_dict                    # noqa: E402
 
 
 def _prog_oneliner(prog) -> str:
@@ -43,9 +43,14 @@ def main():
     p.add_argument("--chunk-attempts", type=int, default=5000)
     p.add_argument("--min-size", type=int, default=4)
     p.add_argument("--max-size", type=int, default=16)
+    p.add_argument("--op-config", type=str, default=None,
+                   help="Optional op-filter JSON path (whitelist of opcodes).")
     p.add_argument("--run-name", type=str,
                    default=datetime.now().strftime("brute_%Y%m%d_%H%M%S"))
     args = p.parse_args()
+
+    op_filter = load_op_filter(args.op_config)
+    print(op_filter.describe(), flush=True)
 
     out_dir = ROOT / "results" / "brute_random_valid" / args.run_name
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -62,7 +67,7 @@ def main():
               f"rate={rate:.4%}  elapsed={dt:.1f}s", flush=True)
 
     for s in sides:
-        progs, attempts = parallel_fill_random(
+        progs, attempts = cpp_parallel_fill_random(
             side=s,
             n_target=args.target,
             max_attempts=args.max_attempts,
@@ -72,6 +77,7 @@ def main():
             max_size=args.max_size,
             base_seed=hash(s) & 0xFFFF,
             progress_cb=_cb,
+            op_filter=op_filter,
         )
         rate = args.target / attempts if attempts > 0 else 0.0
         out = {

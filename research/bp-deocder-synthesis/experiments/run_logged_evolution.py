@@ -96,11 +96,6 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--workers", type=int, default=DEFAULT_WORKERS,
                    help="Multiprocessing pool size for parallel random "
                         "init + offspring validation.")
-    p.add_argument("--cpp-seeder", dest="cpp_seeder", action="store_true",
-                   default=False,
-                   help="Use C++ pybind11 seeder (pushgp_cpp_seeder) for "
-                        "initial random fill of pop_v / pop_c. Bit-identical "
-                        "VM/validator semantics; ~7x faster than Python.")
     # ---- BP-equivalence DCE (post-seed + per-gen post-offspring) ----
     p.add_argument("--dce-bp", dest="dce_bp", action="store_true",
                    default=False,
@@ -347,16 +342,11 @@ def main() -> int:
         seed = None
 
     # Operator filter (opcode whitelist).  Loaded once here so we can
-    # (a) print a summary up front and (b) force-disable cpp_seeder
-    # when active (cpp seeder ignores opcode filtering).
+    # print a summary up front.  The C++ seeder (always used) accepts
+    # the whitelist directly via cpp_seeder_adapter.
     op_filter = load_op_filter(args.op_config)
     if op_filter.applies():
         print(op_filter.describe(), flush=True)
-        if args.cpp_seeder:
-            print("[op-filter] WARNING: --cpp-seeder is incompatible with "
-                  "--op-config; forcing cpp_seeder=OFF (Python multiprocessing "
-                  "seeder will be used and respects the filter).", flush=True)
-            args.cpp_seeder = False
 
     # Ev cfg.  Default elitism=0 in from-scratch mode (weak-elite/no-elite
     # principle from /memories/repo/gp-search-principles.md).  Caller can
@@ -379,7 +369,6 @@ def main() -> int:
         rand_min_size=args.rand_min_size,
         rand_max_size=args.rand_max_size,
         dedup=args.dedup,
-        cpp_seeder=args.cpp_seeder,
         dce_bp_enabled=args.dce_bp,
         dce_bp_max_iter=args.dce_bp_max_iter,
         dce_bp_decimals=args.dce_bp_decimals,
@@ -419,7 +408,6 @@ def main() -> int:
             "max_attempts_per_slot": ev_cfg.max_attempts_per_slot,
             "rand_min_size": ev_cfg.rand_min_size,
             "rand_max_size": ev_cfg.rand_max_size,
-            "cpp_seeder": ev_cfg.cpp_seeder,
             "dce_bp_enabled": ev_cfg.dce_bp_enabled,
             "dce_bp_max_iter": ev_cfg.dce_bp_max_iter,
             "dce_bp_decimals": ev_cfg.dce_bp_decimals,

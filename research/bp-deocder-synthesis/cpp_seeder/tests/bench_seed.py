@@ -1,6 +1,6 @@
-"""Benchmark: C++ parallel_seed vs Python parallel_fill_random.
+"""Benchmark: C++ parallel_seed throughput on both sides.
 
-Generates n_target valid programs both ways and reports wall time.
+Generates n_target valid programs and reports wall time / pass rate.
 """
 import sys, time
 from pathlib import Path

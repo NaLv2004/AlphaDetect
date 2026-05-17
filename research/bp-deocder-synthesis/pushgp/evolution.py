@@ -60,11 +60,6 @@ class EvolutionConfig:
     n_mutations_max: int = 6
     # Reject duplicates by structural fingerprint.
     dedup: bool = True
-    # If True, use C++ pybind11 seeder (pushgp_cpp_seeder.parallel_seed)
-    # instead of the Python multiprocessing pipeline for the *initial*
-    # random fill (and dedup top-up) of pop_v / pop_c.  Bit-identical VM
-    # and validator semantics; ~7x faster on pop=100.
-    cpp_seeder: bool = False
 
     # ---- BP-equivalence DCE pass (post-seeding + post-offspring) ----
     # When enabled and an ``dce_oracle`` is supplied to
@@ -261,7 +256,6 @@ from .mutation import mutate_log_constants, mutate_program
 from .op_filter import OpFilter, filter_instr_set
 from .parallel_init import (
     DEFAULT_WORKERS,
-    parallel_fill_random,
     parallel_validate_programs,
 )
 from .random_program import C2V_INSTR, V2C_INSTR
@@ -724,12 +718,12 @@ def evolve_from_scratch(
               flush=True)
         return new_v, new_c
 
-    # Choose seeding backend (Python multiprocessing or C++ pybind11).
-    if cfg.cpp_seeder:
-        from .cpp_seeder_adapter import cpp_parallel_fill_random as _fill_random
-        print("[init] using C++ seeder (pushgp_cpp_seeder.parallel_seed)", flush=True)
-    else:
-        _fill_random = parallel_fill_random
+    # Random program seeder: always the C++ pybind11 backend
+    # (pushgp_cpp_seeder.parallel_seed) -- the Python multiprocessing
+    # path was removed because it was 5-10x slower and bit-identical
+    # equivalence is guaranteed by cpp_seeder/tests/.
+    from .cpp_seeder_adapter import cpp_parallel_fill_random as _fill_random
+    print("[init] seeder = C++ pushgp_cpp_seeder.parallel_seed", flush=True)
 
     # Persistent pool reused across gens for both init and offspring
     # validation (avoids spawning overhead).

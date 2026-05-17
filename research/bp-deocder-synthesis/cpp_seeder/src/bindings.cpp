@@ -8,8 +8,11 @@
 //   validate_random      (prog, side, evo, deg, ncfg, nperm, seed) -> (ok, reason)
 //   parallel_seed(side, n_target, max_attempts, threads,
 //                 chunk_attempts, min_size, max_size, deg,
-//                 num_configs, num_permutations, base_seed)
-//                                              -> (list[ProgramHandle], n_attempts)
+//                 num_configs, num_permutations, base_seed,
+//                 progress_cb, seen_fingerprints, allowed_op_names)
+//                                              -> (list[ProgramHandle], n_attempts, fingerprints)
+//   allowed_op_names: list[str], empty = no filter; else intersection with
+//                     side's base set (so c2v auto-drops Env_GetChannelLLR).
 //   all_op_names() -> list[str]
 //
 // ProgramHandle is an opaque Python class wrapping shared_ptr<Program>.
@@ -208,7 +211,8 @@ static SeedResult parallel_seed_impl(
     int num_permutations,
     uint64_t base_seed,
     py::object progress_cb,
-    const std::vector<std::string>& seen_in)
+    const std::vector<std::string>& seen_in,
+    const std::vector<std::string>& allowed_op_names)
 {
     if (threads <= 0) threads = 1;
     std::atomic<int64_t> attempts_total{0};
@@ -225,6 +229,34 @@ static SeedResult parallel_seed_impl(
     std::vector<Op> instr_set = (side == "v2c")
         ? RandomProgramGenerator::v2c_set()
         : RandomProgramGenerator::c2v_set();
+
+    // ---- Apply op-filter whitelist (intersection with side's base set) ----
+    // Empty allowed_op_names means "no filter".  Otherwise translate every
+    // name via name_to_op (throwing on unknown), then intersect with the
+    // side's base set (so c2v still excludes Env_GetChannelLLR even if
+    // the user accidentally whitelists it).
+    if (!allowed_op_names.empty()) {
+        std::unordered_set<int> base_set;
+        for (Op op : instr_set) base_set.insert(static_cast<int>(op));
+        std::vector<Op> filtered;
+        filtered.reserve(allowed_op_names.size());
+        for (const auto& nm : allowed_op_names) {
+            Op op;
+            if (!name_to_op(nm, op)) {
+                throw std::invalid_argument(
+                    "parallel_seed: unknown opcode in allowed_op_names: " + nm);
+            }
+            if (base_set.count(static_cast<int>(op))) {
+                filtered.push_back(op);
+            }
+            // Silently drop ops not in this side's base set (e.g. c2v + Env_GetChannelLLR).
+        }
+        if (filtered.empty()) {
+            throw std::invalid_argument(
+                "parallel_seed: allowed_op_names produces empty instruction set for side=" + side);
+        }
+        instr_set = std::move(filtered);
+    }
 
     std::array<double, N_EVO_CONSTS> evo_default{{1,1,1,1,1,1,1,1}};
 
@@ -380,14 +412,15 @@ PYBIND11_MODULE(pushgp_cpp_seeder, m) {
            int threads, int chunk_attempts, int min_size, int max_size,
            int deg, int num_configs, int num_permutations,
            uint64_t base_seed, py::object progress_cb,
-           std::vector<std::string> seen_in) {
+           std::vector<std::string> seen_in,
+           std::vector<std::string> allowed_op_names) {
             SeedResult r;
             {
                 py::gil_scoped_release rel;
                 r = parallel_seed_impl(side, n_target, max_attempts, threads,
                     chunk_attempts, min_size, max_size, deg,
                     num_configs, num_permutations, base_seed, progress_cb,
-                    seen_in);
+                    seen_in, allowed_op_names);
             }
             py::list out;
             for (auto& sp : r.programs) {
@@ -409,7 +442,8 @@ PYBIND11_MODULE(pushgp_cpp_seeder, m) {
         py::arg("num_permutations") = DEFAULT_NUM_PERMUTATIONS,
         py::arg("base_seed") = 1234,
         py::arg("progress_cb") = py::none(),
-        py::arg("seen_fingerprints") = std::vector<std::string>{});
+        py::arg("seen_fingerprints") = std::vector<std::string>{},
+        py::arg("allowed_op_names") = std::vector<std::string>{});
 
     m.def("compute_behav_fp",
         [](const std::string& side, const ProgramHandle& h) {

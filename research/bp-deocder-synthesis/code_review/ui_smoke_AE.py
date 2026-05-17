@@ -19,7 +19,7 @@ p = LaunchParams(
     info_len_A=176, code_length_E=352,
     dce_bgn=2, dce_set_idx=1, dce_zc=2,
     dce_bp=True, dce_bp_max_iter=4, dce_bp_n_frames=1, dce_bp_snr_db=-2.0,
-    cpp_seeder=True, from_scratch=True, bind_pairs=True, use_cpp_fitness=True,
+    from_scratch=True, bind_pairs=True, use_cpp_fitness=True,
 )
 run_name = "ui_smoke_AE"
 cmd = p.build_cmdline(run_name)

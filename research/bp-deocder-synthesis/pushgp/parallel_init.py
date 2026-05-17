@@ -1,18 +1,13 @@
-"""Parallel multiprocessing helpers for random program init + offspring
-batch validation.
+"""Parallel multiprocessing helpers for offspring batch validation.
 
-Two independent program populations (V2C, C2V) are filled by sampling
-purely random programs and accepting only those that pass
-`validate_v2c` / `validate_c2v`.  No structural priors, no biased
-sampling — exactly the same `RandomProgramGenerator` used elsewhere.
-
-Workers communicate by serializing programs to dicts (top-level
-`program_to_list`), so all process boundaries are pickle-safe.
+NOTE: The Python random-program seeder (``parallel_fill_random``) was
+removed -- random program generation is now done exclusively by the C++
+backend (``pushgp.cpp_seeder_adapter.cpp_parallel_fill_random``) which
+is 5-10x faster and bit-equivalent.  Only the batch program validator
+remains here.
 
 Public API
 ----------
-parallel_fill_random_v2c(n_target, *, max_attempts, workers, ...) -> List[List[Instruction]]
-parallel_fill_random_c2v(n_target, *, max_attempts, workers, ...) -> List[List[Instruction]]
 parallel_validate_programs(programs_serialized, side, *, workers, deg, base_seed)
     -> List[bool]                              # one True/False per input program
 """
@@ -21,13 +16,11 @@ from __future__ import annotations
 
 import os
 from multiprocessing import Pool
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 import numpy as np
 
 from .genome import Instruction
-from .op_filter import OpFilter
-from .random_program import RandomProgramGenerator
 from .serialize import program_to_dict, dict_to_program
 from .validators import validate_c2v, validate_v2c
 
@@ -35,39 +28,6 @@ DEFAULT_WORKERS = max(1, (os.cpu_count() or 4) - 1)
 
 
 # ============================================================ Worker tasks
-
-
-def _gen_and_validate_chunk(args):
-    """Worker: generate `n_attempts` random programs of `side`, validate
-    each, and for survivors compute the behavioral fingerprint.
-
-    Args tuple: (side, seed, n_attempts, min_size, max_size, deg, op_filter)
-    Returns:    (side, [(serialized_prog, fingerprint), ...], n_attempts)
-    """
-    side, seed, n_attempts, min_size, max_size, deg, op_filter = args
-    rng = np.random.default_rng(seed)
-    rpg = RandomProgramGenerator(rng=rng, op_filter=op_filter)
-    if side == "v2c":
-        gen = rpg.random_v2c
-        val = validate_v2c
-    elif side == "c2v":
-        gen = rpg.random_c2v
-        val = validate_c2v
-    else:
-        raise ValueError(side)
-
-    # Late import to avoid circulars at module load.
-    from .evolution import _behav_fingerprint  # noqa: E402
-
-    valid: List[Tuple[dict, str]] = []
-    for i in range(n_attempts):
-        prog = gen(min_size=min_size, max_size=max_size)
-        sub_seed = (seed * 0x9E3779B9 + i) & 0xFFFFFFFF
-        ok, _ = val(prog, rng=np.random.default_rng(sub_seed), deg=deg)
-        if ok:
-            fp = _behav_fingerprint(side, prog)
-            valid.append((program_to_dict(prog), fp))
-    return side, valid, n_attempts
 
 
 def _validate_batch(args):
@@ -92,84 +52,6 @@ def _validate_batch(args):
 
 
 # ============================================================ Public API
-
-
-def parallel_fill_random(
-    side: str,
-    n_target: int,
-    *,
-    max_attempts: int = 10_000_000,
-    workers: int = DEFAULT_WORKERS,
-    chunk_attempts: int = 5000,
-    min_size: int = 4,
-    max_size: int = 16,
-    deg: int = 8,
-    base_seed: int = 0,
-    progress_cb=None,
-    pool: Optional[Pool] = None,
-    seen_fingerprints: Optional[set] = None,
-    op_filter: Optional[OpFilter] = None,
-) -> Tuple[List[List[Instruction]], int]:
-    """Generate `n_target` valid random programs of `side` (v2c or c2v).
-
-    Returns `(programs, total_attempts)`.  Raises RuntimeError if
-    max_attempts exceeded before `n_target` reached.
-
-    `progress_cb(side, n_valid, n_attempts, elapsed_s)` invoked after
-    every chunk wave (optional).
-
-    `seen_fingerprints` (optional) is an externally-owned set of
-    behavioral fingerprints (strings).  Any candidate whose fingerprint
-    is already in the set is rejected; accepted candidates have their
-    fingerprint inserted into the set.  This makes deduplication a
-    first-class part of validation: the seeder will never return two
-    programs with identical behavior on the 32-entry panel.
-
-    If `pool` is given it is used (caller manages lifecycle); otherwise
-    a fresh Pool is created and torn down here.
-    """
-    own_pool = pool is None
-    if own_pool:
-        pool = Pool(processes=workers)
-    if seen_fingerprints is None:
-        seen_fingerprints = set()
-    try:
-        valid: List[List[Instruction]] = []
-        attempts = 0
-        seed_counter = base_seed
-        import time as _time
-        t0 = _time.time()
-        while len(valid) < n_target and attempts < max_attempts:
-            jobs = []
-            for _ in range(workers):
-                seed_counter += 1
-                jobs.append((side, seed_counter, chunk_attempts,
-                             min_size, max_size, deg, op_filter))
-            for _side, vlist, n_att in pool.imap_unordered(
-                _gen_and_validate_chunk, jobs
-            ):
-                attempts += n_att
-                for dprog, fp in vlist:
-                    if fp in seen_fingerprints:
-                        continue
-                    seen_fingerprints.add(fp)
-                    valid.append(dict_to_program(dprog))
-                    if len(valid) >= n_target:
-                        break
-                if len(valid) >= n_target:
-                    break
-            if progress_cb is not None:
-                progress_cb(side, len(valid), attempts, _time.time() - t0)
-        if len(valid) < n_target:
-            raise RuntimeError(
-                f"parallel_fill_random({side}) exhausted: got {len(valid)}/{n_target} "
-                f"valid (after dedup) in {attempts} attempts"
-            )
-        return valid[:n_target], attempts
-    finally:
-        if own_pool:
-            pool.close()
-            pool.join()
 
 
 def parallel_validate_programs(
@@ -216,7 +98,6 @@ def parallel_validate_programs(
 
 
 __all__ = [
-    "parallel_fill_random",
     "parallel_validate_programs",
     "DEFAULT_WORKERS",
 ]

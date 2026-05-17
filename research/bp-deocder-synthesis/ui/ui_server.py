@@ -117,7 +117,6 @@ class LaunchParams(BaseModel):
     dce_bp_n_frames: int = 1
 
     # other
-    cpp_seeder: bool = True
     from_scratch: bool = True
     bind_pairs: bool = True
     use_cpp_fitness: bool = True
@@ -152,8 +151,6 @@ class LaunchParams(BaseModel):
             "--dce-set-idx", str(self.dce_set_idx),
             "--dce-zc", str(self.dce_zc),
         ]
-        if self.cpp_seeder:
-            cmd.append("--cpp-seeder")
         if not self.from_scratch:
             cmd.append("--use-oms-seed")
         # Default is bind_pairs=True; only emit --no-bind-pairs when
@@ -265,6 +262,23 @@ def scripts():
 def budget():
     """CPU worker budget snapshot for the UI to render & validate."""
     return pm.budget_status()
+
+
+@app.get("/api/op_configs")
+def op_configs():
+    """List candidate op-filter config files under <repo>/configs/*.json.
+
+    Returns workspace-relative paths so the UI shows short, copy-safe
+    strings while run_logged_evolution.py resolves them correctly when
+    launched with cwd=_BPS.
+    """
+    cfg_dir = _BPS / "configs"
+    items: list[dict] = []
+    if cfg_dir.is_dir():
+        for p in sorted(cfg_dir.glob("*.json")):
+            rel = p.relative_to(_BPS).as_posix()
+            items.append({"path": rel, "name": p.name})
+    return {"dir": str(cfg_dir), "items": items}
 
 
 # --------------------------------------------------------------------------- #

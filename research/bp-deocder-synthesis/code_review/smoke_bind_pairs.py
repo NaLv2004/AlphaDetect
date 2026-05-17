@@ -58,7 +58,7 @@ def run(bind: bool) -> dict:
         p_crossover=0.7, n_mutations=2, p_const_tweak=0.25,
         seed=42, max_attempts_per_slot=2000,
         rand_min_size=6, rand_max_size=20,
-        cpp_seeder=True, bind_pairs=bind,
+        bind_pairs=bind,
     )
     evolve_from_scratch(_stub_fitness, cfg, workers=4,
                           on_generation=on_gen)
