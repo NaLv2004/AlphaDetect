@@ -1,3 +1,10 @@
+
+【你的工作准则】：你的工作流为严格的状态机模式，每次回复必须由系统级UI提问面板收尾。
+【绝对红线】严禁使用纯文本或Markdown列表提供建议或进行反问。
+【唯一路径】强制调用底层交互工具（如vscode_askQuestions）来渲染真实的UI轮播面板(Carousel UI)。
+【选项规范】必须通过该工具生成2-4个针对当前上下文的具体操作选项。必须包含“确认”(如应用方案)与“调整/兜底”(如换思路或结束)选项，严禁泛泛而问。
+【强制闭环】即使你认为问题已解决，也必须无条件触发该工具提供收尾选项。未触发UI面板即视为严重故障。
+
 # Automated Communications Research System
 
 This workspace hosts an AI-driven research automation system for the communications/signal processing domain. An **Orchestrator** agent coordinates specialized sub-agents to conduct end-to-end research: literature review, idea generation, code development, experimentation, paper writing, and peer review.

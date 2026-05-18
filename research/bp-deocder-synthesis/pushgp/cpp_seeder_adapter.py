@@ -51,6 +51,7 @@ def cpp_parallel_fill_random(
     pool: Optional[Any] = None,            # ignored; signature compatibility
     seen_fingerprints: Optional[set] = None,  # dedup-as-validation
     op_filter: Optional[OpFilter] = None,
+    validator_mode: str = "probe",
 ) -> Tuple[List[List[Instruction]], int]:
     """Fill `n_target` valid programs of `side` using the C++ seeder.
 
@@ -88,6 +89,7 @@ def cpp_parallel_fill_random(
         progress_cb=progress_cb,
         seen_fingerprints=seen_in,
         allowed_op_names=allowed,
+        validator_mode=str(validator_mode),
     )
     if len(handles) < n_target:
         raise RuntimeError(

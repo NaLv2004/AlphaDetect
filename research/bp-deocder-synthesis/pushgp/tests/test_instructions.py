@@ -53,9 +53,12 @@ def test_float_basic_arithmetic():
     assert out == 0.5
 
 
-def test_float_div_by_zero_safe():
-    out, _ = run([I("Float.Const1"), I("Float.Const0"), I("Float.Div")])
-    assert out == 0.0  # NAN_INF_REPLACEMENT
+def test_float_div_by_zero_faults():
+    # New guard policy: domain errors set vm.fault and `run` returns None.
+    out, vm = run([I("Float.Const1"), I("Float.Const0"), I("Float.Div")])
+    assert out is None
+    assert vm.state.fault is True
+    assert "domain" in vm.state.fault_reason.lower()
 
 
 def test_float_unary_ops():
@@ -63,8 +66,9 @@ def test_float_unary_ops():
     assert out == 1.0
     out, _ = run([I("Float.Const2"), I("Float.Square")])
     assert out == 4.0
-    out, _ = run([I("Float.ConstNeg1"), I("Float.Sqrt")])
-    assert out == 0.0  # invalid → safe
+    # sqrt of negative: domain fault.
+    out, vm = run([I("Float.ConstNeg1"), I("Float.Sqrt")])
+    assert out is None and vm.state.fault is True
     out, _ = run([I("Float.Const1"), I("Float.Tanh")])
     assert pytest.approx(out, rel=1e-9) == math.tanh(1.0)
 
@@ -233,11 +237,15 @@ def test_if_false_branch():
 
 
 def test_dotimes_loop_cap_enforced():
-    """Asking for 10000 iterations only runs at most N_MAX_LOOP."""
+    """Asking for 10000 iterations only runs at most N_MAX_LOOP.
+
+    Counter is kept on the *int* stack (cap 1e9, well above N_MAX_LOOP)
+    so the per-op float clamp doesn't mask the iteration count.
+    """
     from pushgp.instructions import N_MAX_LOOP
     vm = VM()
     prog = [
-        I("Float.Const0"),
+        I("Int.Const0"),              # accumulator (int)
         I("Int.Const1"),
         I("Int.Const1"),
         I("Int.Add"),                 # 2
@@ -254,7 +262,8 @@ def test_dotimes_loop_cap_enforced():
         I("Int.Const2"),
         I("Int.Mul"),                 # 128 (asked) → capped to N_MAX_LOOP
         I("Exec.DoTimes",
-          b1=[I("Float.Const1"), I("Float.Add")]),
+          b1=[I("Int.Const1"), I("Int.Add")]),
+        I("Float.FromInt"),
     ]
     out = vm.run(prog)
     assert out == float(N_MAX_LOOP)

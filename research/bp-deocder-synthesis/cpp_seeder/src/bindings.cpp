@@ -21,6 +21,9 @@
 #include "opcodes.hpp"
 #include "opcodes_table.hpp"   // include exactly once
 #include "rpg.hpp"
+#include "symbolic_expr.hpp"
+#include "symbolic_validator.hpp"
+#include "symbolic_vm.hpp"
 #include "validator.hpp"
 #include "vm.hpp"
 #include "vm_state.hpp"
@@ -113,8 +116,13 @@ struct ProgramHandle {
 // ---------- Panel conversion ----------
 // Python panel format (one per config):
 //   {"L_v": float, "incoming": np.ndarray[float64],
-//    "perturb_indices": list[int], "permutations": list[np.ndarray]}
-static std::vector<ConfigPanel> dict_to_panels(const py::list& py_panels) {
+//    "permutations": list[np.ndarray]}
+// Input probes are deterministically derived from `incoming` + delta
+// (matching pushgp.validators._build_input_probes), so we don't accept
+// them from Python anymore.  The legacy "perturb_indices" key is
+// silently ignored if present (rev-2 validator doesn't use it).
+static std::vector<ConfigPanel> dict_to_panels(const py::list& py_panels,
+                                               double delta = DEFAULT_PERTURB_DELTA) {
     std::vector<ConfigPanel> out;
     out.reserve(py_panels.size());
     for (auto&& item : py_panels) {
@@ -122,9 +130,7 @@ static std::vector<ConfigPanel> dict_to_panels(const py::list& py_panels) {
         ConfigPanel p;
         if (d.contains("L_v")) p.L_v = d["L_v"].cast<double>();
         p.incoming = numpy_to_fvec(d["incoming"].cast<py::array_t<double>>());
-        for (auto&& x : d["perturb_indices"].cast<py::list>()) {
-            p.perturb_indices.push_back(x.cast<int>());
-        }
+        p.input_probes = build_input_probes(p.incoming, delta);
         for (auto&& arr : d["permutations"].cast<py::list>()) {
             p.permutations.push_back(numpy_to_fvec(arr.cast<py::array_t<double>>()));
         }
@@ -181,12 +187,12 @@ static py::tuple validate_with_panels_impl(
 static py::tuple validate_random_impl(
     const Program& prog, const std::string& side,
     py::array_t<double, py::array::c_style | py::array::forcecast> evo,
-    int deg, int num_configs, int num_permutations, uint64_t seed)
+    int deg, int num_configs, int num_permutations, int num_evo_panels, uint64_t seed)
 {
     auto evo_arr = numpy_to_evo(evo);
     ValidationResult r = (side == "v2c")
-        ? validate_v2c_random(prog, evo_arr, deg, num_configs, num_permutations, seed)
-        : validate_c2v_random(prog, evo_arr, deg, num_configs, num_permutations, seed);
+        ? validate_v2c_random(prog, evo_arr, deg, num_configs, num_permutations, num_evo_panels, seed)
+        : validate_c2v_random(prog, evo_arr, deg, num_configs, num_permutations, num_evo_panels, seed);
     return py::make_tuple(r.ok, r.reason);
 }
 
@@ -209,10 +215,12 @@ static SeedResult parallel_seed_impl(
     int deg,
     int num_configs,
     int num_permutations,
+    int num_evo_panels,
     uint64_t base_seed,
     py::object progress_cb,
     const std::vector<std::string>& seen_in,
-    const std::vector<std::string>& allowed_op_names)
+    const std::vector<std::string>& allowed_op_names,
+    const std::string& validator_mode = "probe")
 {
     if (threads <= 0) threads = 1;
     std::atomic<int64_t> attempts_total{0};
@@ -284,12 +292,33 @@ static SeedResult parallel_seed_impl(
             for (int i = 0; i < my_chunk; ++i) {
                 if (valid_count.load(std::memory_order_relaxed) >= n_target) break;
                 ++my_attempts;
-                Program prog = rpg.random_program(instr_set, min_size, max_size);
+                Program prog = (side == "v2c")
+                    ? rpg.random_program_v2c(instr_set, min_size, max_size)
+                    : rpg.random_program_c2v(instr_set, min_size, max_size);
                 uint64_t sub_seed = (my_seed * 0x9E3779B97F4A7C15ULL + static_cast<uint64_t>(i));
-                ValidationResult r = (side == "v2c")
-                    ? validate_v2c_random(prog, evo_default, deg, num_configs, num_permutations, sub_seed)
-                    : validate_c2v_random(prog, evo_default, deg, num_configs, num_permutations, sub_seed);
-                if (!r.ok) continue;
+                // probe validator: run unless mode is pure "symbolic"
+                if (validator_mode != "symbolic") {
+                    ValidationResult r = (side == "v2c")
+                        ? validate_v2c_random(prog, evo_default, deg, num_configs, num_permutations, num_evo_panels, sub_seed)
+                        : validate_c2v_random(prog, evo_default, deg, num_configs, num_permutations, num_evo_panels, sub_seed);
+                    if (!r.ok) continue;
+                }
+                // symbolic validator: run if mode is "symbolic" or "both".
+                // Wrap in try/catch since random programs may trigger
+                // exceptions — treat any failure as rejection rather than
+                // crashing the whole search.
+                if (validator_mode == "symbolic" || validator_mode == "both") {
+                    bool sym_ok = false;
+                    try {
+                        CheckResult sr = (side == "v2c")
+                            ? validate_symbolic_v2c(prog, deg, 0)
+                            : validate_symbolic_c2v(prog, deg, 0);
+                        sym_ok = sr.ok;
+                    } catch (...) {
+                        sym_ok = false;
+                    }
+                    if (!sym_ok) continue;
+                }
                 std::string fp = compute_behav_fp(side, prog);
                 my_valid.emplace_back(
                     std::make_shared<Program>(std::move(prog)), std::move(fp));
@@ -397,30 +426,32 @@ PYBIND11_MODULE(pushgp_cpp_seeder, m) {
     m.def("validate_random",
         [](const ProgramHandle& h, const std::string& side,
            py::array_t<double, py::array::c_style | py::array::forcecast> evo,
-           int deg, int num_configs, int num_permutations, uint64_t seed) -> py::tuple {
+           int deg, int num_configs, int num_permutations, int num_evo_panels, uint64_t seed) -> py::tuple {
             if (!h.prog) return py::make_tuple(false, std::string("null program"));
-            return validate_random_impl(*h.prog, side, evo, deg, num_configs, num_permutations, seed);
+            return validate_random_impl(*h.prog, side, evo, deg, num_configs, num_permutations, num_evo_panels, seed);
         },
         py::arg("prog"), py::arg("side"), py::arg("evo"),
         py::arg("deg") = DEFAULT_DEG,
         py::arg("num_configs") = DEFAULT_NUM_CONFIGS,
         py::arg("num_permutations") = DEFAULT_NUM_PERMUTATIONS,
+        py::arg("num_evo_panels") = DEFAULT_NUM_EVO_PANELS,
         py::arg("seed") = 0);
 
     m.def("parallel_seed",
         [](const std::string& side, int n_target, int64_t max_attempts,
            int threads, int chunk_attempts, int min_size, int max_size,
-           int deg, int num_configs, int num_permutations,
+           int deg, int num_configs, int num_permutations, int num_evo_panels,
            uint64_t base_seed, py::object progress_cb,
            std::vector<std::string> seen_in,
-           std::vector<std::string> allowed_op_names) {
+           std::vector<std::string> allowed_op_names,
+           std::string validator_mode) {
             SeedResult r;
             {
                 py::gil_scoped_release rel;
                 r = parallel_seed_impl(side, n_target, max_attempts, threads,
                     chunk_attempts, min_size, max_size, deg,
-                    num_configs, num_permutations, base_seed, progress_cb,
-                    seen_in, allowed_op_names);
+                    num_configs, num_permutations, num_evo_panels, base_seed, progress_cb,
+                    seen_in, allowed_op_names, validator_mode);
             }
             py::list out;
             for (auto& sp : r.programs) {
@@ -440,10 +471,12 @@ PYBIND11_MODULE(pushgp_cpp_seeder, m) {
         py::arg("deg") = DEFAULT_DEG,
         py::arg("num_configs") = DEFAULT_NUM_CONFIGS,
         py::arg("num_permutations") = DEFAULT_NUM_PERMUTATIONS,
+        py::arg("num_evo_panels") = DEFAULT_NUM_EVO_PANELS,
         py::arg("base_seed") = 1234,
         py::arg("progress_cb") = py::none(),
         py::arg("seen_fingerprints") = std::vector<std::string>{},
-        py::arg("allowed_op_names") = std::vector<std::string>{});
+        py::arg("allowed_op_names") = std::vector<std::string>{},
+        py::arg("validator_mode") = std::string("probe"));
 
     m.def("compute_behav_fp",
         [](const std::string& side, const ProgramHandle& h) {
@@ -451,4 +484,198 @@ PYBIND11_MODULE(pushgp_cpp_seeder, m) {
             return compute_behav_fp(side, *h.prog);
         },
         py::arg("side"), py::arg("prog"));
+
+    // ============================================================== symbolic
+
+    m.def("symbolic_validate_v2c",
+        [](const ProgramHandle& h, int deg, int iter_idx) -> py::tuple {
+            if (!h.prog) return py::make_tuple(false, std::string("null program"));
+            auto r = validate_symbolic_v2c(*h.prog, deg, iter_idx);
+            return py::make_tuple(r.ok, r.reason);
+        },
+        py::arg("prog"), py::arg("deg") = DEFAULT_DEG, py::arg("iter_idx") = 0);
+
+    m.def("symbolic_validate_c2v",
+        [](const ProgramHandle& h, int deg, int iter_idx) -> py::tuple {
+            if (!h.prog) return py::make_tuple(false, std::string("null program"));
+            auto r = validate_symbolic_c2v(*h.prog, deg, iter_idx);
+            return py::make_tuple(r.ok, r.reason);
+        },
+        py::arg("prog"), py::arg("deg") = DEFAULT_DEG, py::arg("iter_idx") = 0);
+
+    // Generic symbolic check: caller supplies CheckSpec as a dict.
+    //
+    // spec = {
+    //   "deps_required": [{"kind": "X", "indices": []|[0,3,...]}, ...],
+    //       # kind in {"X","LV","EVO"}; indices empty = any-of-kind
+    //   "sym_groups":    [{"kind": "X", "indices": [0,1,2,3,4,5,6]}, ...],
+    //   "require_odd":   true|false,
+    //   "odd_negate":    [{"kind":"X","indices":[0,1,...]}, {"kind":"LV","indices":[0]}]
+    // }
+    // side ∈ {"v2c","c2v"} — selects which atoms are seeded onto the
+    // initial stacks; the validator does NOT enforce side-specific spec.
+    m.def("symbolic_check",
+        [](const ProgramHandle& h, const std::string& side,
+           int deg, int iter_idx, py::dict spec_dict) -> py::tuple {
+            if (!h.prog) return py::make_tuple(false, std::string("null program"));
+            SymbolicVM vm;
+            vm.ctx_deg = deg;
+            vm.ctx_iter = iter_idx;
+            vm.state.clear();
+            if (side == "v2c") vm.seed_v2c_atoms();
+            else if (side == "c2v") vm.seed_c2v_atoms();
+            else return py::make_tuple(false, std::string("unknown side"));
+            ExprRef out = vm.run(*h.prog);
+            if (vm.opaque) return py::make_tuple(false,
+                std::string("opaque: ") + vm.opaque_reason);
+            if (!out) return py::make_tuple(false, std::string("empty float stack"));
+
+            auto kind_from_str = [](const std::string& s) -> AtomKind {
+                if (s == "X") return AtomKind::X;
+                if (s == "LV") return AtomKind::LV;
+                return AtomKind::EVO;
+            };
+            CheckSpec spec;
+            if (spec_dict.contains("deps_required")) {
+                for (auto item : spec_dict["deps_required"].cast<py::list>()) {
+                    py::dict d = item.cast<py::dict>();
+                    DepRequirement dr;
+                    dr.kind = kind_from_str(d["kind"].cast<std::string>());
+                    for (auto v : d["indices"].cast<py::list>())
+                        dr.indices.push_back(v.cast<int>());
+                    spec.deps_required.push_back(std::move(dr));
+                }
+            }
+            if (spec_dict.contains("sym_groups")) {
+                for (auto item : spec_dict["sym_groups"].cast<py::list>()) {
+                    py::dict d = item.cast<py::dict>();
+                    SymGroup g;
+                    g.kind = kind_from_str(d["kind"].cast<std::string>());
+                    for (auto v : d["indices"].cast<py::list>())
+                        g.indices.push_back(v.cast<int>());
+                    spec.sym_groups.push_back(std::move(g));
+                }
+            }
+            if (spec_dict.contains("require_odd"))
+                spec.require_odd = spec_dict["require_odd"].cast<bool>();
+            if (spec_dict.contains("odd_negate")) {
+                for (auto item : spec_dict["odd_negate"].cast<py::list>()) {
+                    py::dict d = item.cast<py::dict>();
+                    AtomKind k = kind_from_str(d["kind"].cast<std::string>());
+                    for (auto v : d["indices"].cast<py::list>())
+                        spec.odd_negate_atoms.push_back(encode_atom(k, v.cast<int>()));
+                }
+            }
+            auto r = symbolic_validate(out, spec);
+            return py::make_tuple(r.ok, r.reason);
+        },
+        py::arg("prog"), py::arg("side"), py::arg("deg") = DEFAULT_DEG,
+        py::arg("iter_idx") = 0, py::arg("spec") = py::dict());
+
+    m.def("symbolic_expr_table_size",
+        []() { return expr_table().size(); });
+
+    m.def("symbolic_expr_table_clear",
+        []() { expr_table().clear(); });
+
+    // Debug dump: returns list of per-path {ok, reason, cond, out},
+    // plus combined output string and σ-substituted combined output
+    // string for a chosen pair-swap of X[a] <-> X[b].
+    m.def("symbolic_dump_v2c",
+        [](const ProgramHandle& h, int deg, int iter_idx, int swap_a, int swap_b) -> py::dict {
+            py::dict r;
+            if (!h.prog) { r["error"] = "null program"; return r; }
+            SymbolicVM vm;
+            vm.ctx_deg = deg;
+            vm.ctx_iter = iter_idx;
+            vm.state.clear();
+            vm.seed_v2c_atoms();
+            auto paths = dump_all_paths_(vm, *h.prog);
+            py::list lst;
+            for (auto& p : paths) {
+                py::dict d;
+                d["ok"] = p.ok;
+                d["reason"] = p.reason;
+                d["cond"] = p.cond;
+                d["out"] = p.out;
+                lst.append(d);
+            }
+            r["paths"] = lst;
+            // combined output:
+            SymbolicVM vm2;
+            vm2.ctx_deg = deg;
+            vm2.ctx_iter = iter_idx;
+            vm2.state.clear();
+            vm2.seed_v2c_atoms();
+            auto raw = run_all_paths_(vm2, *h.prog);
+            ExprRef combined;
+            bool all_ok = true;
+            for (auto& p : raw) if (!p.ok) { all_ok = false; break; }
+            if (all_ok) combined = combine_paths_output_(raw);
+            r["combined"] = expr_to_string(combined);
+            if (combined) {
+                AtomMap mp;
+                mp.table[encode_atom(AtomKind::X, swap_a)] = encode_atom(AtomKind::X, swap_b);
+                mp.table[encode_atom(AtomKind::X, swap_b)] = encode_atom(AtomKind::X, swap_a);
+                ExprRef swapped = substitute(combined, mp);
+                r["sigma"] = expr_to_string(swapped);
+                r["sym_equal"] = (swapped.get() == combined.get());
+            } else {
+                r["sigma"] = std::string("<null>");
+                r["sym_equal"] = false;
+            }
+            return r;
+        },
+        py::arg("prog"), py::arg("deg") = DEFAULT_DEG,
+        py::arg("iter_idx") = 0, py::arg("swap_a") = 0, py::arg("swap_b") = 1);
+
+    // Per-instruction symbolic trace. Runs the program with a single forced
+    // path (no branches expected; opaque if branches needed). After every
+    // dispatched instruction (including those nested inside DoRange/While
+    // bodies) records a snapshot of all stacks rendered via expr_to_string.
+    // Returns:
+    //   { "steps": [ {op, float[], int[], bool[], fvec[][]}, ... ],
+    //     "opaque": bool, "opaque_reason": str, "step_count": int,
+    //     "branches_seen": int }
+    m.def("symbolic_trace_v2c",
+        [](const ProgramHandle& h, int deg, int iter_idx) -> py::dict {
+            py::dict r;
+            if (!h.prog) { r["error"] = "null program"; return r; }
+            SymbolicVM vm;
+            vm.ctx_deg = deg;
+            vm.ctx_iter = iter_idx;
+            vm.state.clear();
+            vm.seed_v2c_atoms();
+            py::list steps;
+            vm.trace_hook = [&](const Instruction& ins) {
+                py::dict d;
+                d["op"] = op_to_name(ins.op);
+                py::list fs;
+                for (auto& e : vm.state.floats) fs.append(expr_to_string(e));
+                d["float"] = fs;
+                py::list is;
+                for (auto& e : vm.state.ints) is.append(expr_to_string(e));
+                d["int"] = is;
+                py::list bs;
+                for (auto& e : vm.state.bools) bs.append(expr_to_string(e));
+                d["bool"] = bs;
+                py::list fvs;
+                for (auto& v : vm.state.fvecs) {
+                    py::list one;
+                    for (auto& e : v) one.append(expr_to_string(e));
+                    fvs.append(one);
+                }
+                d["fvec"] = fvs;
+                d["opaque"] = vm.opaque;
+                steps.append(d);
+            };
+            vm.execute_block(*h.prog);
+            r["steps"] = steps;
+            r["opaque"] = vm.opaque;
+            r["opaque_reason"] = vm.opaque_reason;
+            r["step_count"] = vm.step_count;
+            r["branches_seen"] = vm.total_branches_seen;
+            return r;
+        },
+        py::arg("prog"), py::arg("deg") = DEFAULT_DEG, py::arg("iter_idx") = 0);
 }

@@ -15,6 +15,7 @@ Hard rules enforced here:
 
 from __future__ import annotations
 
+import os
 import time
 import warnings
 from dataclasses import dataclass, field
@@ -60,6 +61,13 @@ class EvolutionConfig:
     n_mutations_max: int = 6
     # Reject duplicates by structural fingerprint.
     dedup: bool = True
+
+    # ---- validator selector ("probe" | "symbolic" | "both") ----
+    # "probe": numeric panel-based probe validator (legacy, fast, has FPs).
+    # "symbolic": symbolic shadow-VM checker over hash-consed Expr DAG
+    # (sound for the dep/symmetry/odd predicates; rejects opaque programs).
+    # "both": run probe first then symbolic post-check.
+    validator_mode: str = "probe"
 
     # ---- BP-equivalence DCE pass (post-seeding + post-offspring) ----
     # When enabled and an ``dce_oracle`` is supplied to
@@ -473,9 +481,30 @@ def _rank_to_n_mutations(rank: int, n_total: int, cfg: "EvolutionConfig") -> int
     return int(round(cfg.n_mutations + frac * (cfg.n_mutations_max - cfg.n_mutations)))
 
 
-def _validate_one(side: str, prog, *, deg: int, seed: int) -> bool:
+def _validate_one(side: str, prog, *, deg: int, seed: int,
+                  validator_mode: str = "probe") -> bool:
     val = validate_v2c if side == "v2c" else validate_c2v
     ok, _ = val(prog, rng=np.random.default_rng(seed & 0xFFFFFFFF), deg=deg)
+    if not ok:
+        return False
+    if validator_mode in ("symbolic", "both"):
+        try:
+            import sys, os as _os
+            _here = _os.path.dirname(_os.path.abspath(__file__))
+            _cpp_dir = _os.path.normpath(_os.path.join(_here, "..", "cpp_seeder"))
+            if _cpp_dir not in sys.path:
+                sys.path.insert(0, _cpp_dir)
+            import pushgp_cpp_seeder as _M
+            from .serialize import program_to_dict as _p2d
+            sym_fn = _M.symbolic_validate_v2c if side == "v2c" else _M.symbolic_validate_c2v
+            handle = _M.build_program(_p2d(prog))
+            ok2, _r = sym_fn(handle, deg, 0)
+            if validator_mode == "symbolic":
+                return bool(ok2)
+            return bool(ok) and bool(ok2)
+        except Exception:
+            # fall through to probe verdict (already True here)
+            pass
     return bool(ok)
 
 
@@ -560,11 +589,13 @@ def _evolve_side_offspring(
             ok_list = parallel_validate_programs(
                 side, cands, workers=n_workers,
                 deg=cfg.validator_deg, base_seed=base_seed, pool=pool,
+                validator_mode=cfg.validator_mode,
             )
         else:
             ok_list = [
                 _validate_one(side, c, deg=cfg.validator_deg,
-                              seed=int(rng.integers(0, 2**31)))
+                              seed=int(rng.integers(0, 2**31)),
+                              validator_mode=cfg.validator_mode)
                 for c in cands
             ]
         n_attempts += len(cands)
@@ -686,11 +717,23 @@ def evolve_from_scratch(
         t0 = time.time()
         sz_v0 = [_plen(p) for p in pop_v]
         sz_c0 = [_plen(p) for p in pop_c]
+        # --- Optional pre-DCE snapshot for diagnosing size-0 bug.
+        _dump_path = os.environ.get("PUSHGP_DCE_DUMP")
+        _pre_v_snap = _pre_c_snap = None
+        if _dump_path:
+            from .genome import program_to_list
+            _pre_v_snap = [program_to_list(p) for p in pop_v]
+            _pre_c_snap = [program_to_list(p) for p in pop_c]
 
         def _cb(side, done, total, elapsed):
             if done == total or (done % max(1, total // 10) == 0):
                 print(f"[dce_bp {tag}] {done}/{total} jobs done in "
                       f"{elapsed:.1f}s", flush=True)
+        # Build the RNG exactly as reduce_populations_bp will internally
+        # (we mirror the seed formula so the same perm_v / perm_c get
+        # generated and we can dump the peer pairing too).
+        _dce_seed = (cfg.seed * 991 + (hash(tag) & 0xFFFFFFFF)) & 0xFFFFFFFF
+        _dce_rng = np.random.default_rng(_dce_seed)
         new_v, new_c, st_v, st_c = reduce_populations_bp(
             pop_v, pop_c, pop_k,
             par=dce_oracle["par"],
@@ -701,8 +744,7 @@ def evolve_from_scratch(
             decimals=cfg.dce_bp_decimals,
             threads=_dce_threads,
             use_cpp=cfg.dce_bp_use_cpp,
-            rng=np.random.default_rng((cfg.seed * 991
-                                       + (hash(tag) & 0xFFFFFFFF)) & 0xFFFFFFFF),
+            rng=_dce_rng,
             on_progress=_cb,
         )
         sz_v1 = [_plen(p) for p in new_v]
@@ -716,6 +758,60 @@ def evolve_from_scratch(
               f"elapsed={time.time()-t0:.1f}s  "
               f"threads={_dce_threads}  use_cpp={cfg.dce_bp_use_cpp}",
               flush=True)
+        # --- Dump per-individual pre/post programs (always, when enabled).
+        if _dump_path:
+            import json
+            import pickle
+            from .genome import program_to_list
+            zero_v = [i for i, s in enumerate(sz_v1) if s == 0]
+            zero_c = [i for i, s in enumerate(sz_c1) if s == 0]
+            print(f"[dce_bp {tag}] ZERO V={len(zero_v)}/{len(pop_v)} "
+                  f"idx={zero_v}  ZERO C={len(zero_c)}/{len(pop_c)} idx={zero_c}",
+                  flush=True)
+            # Recompute the exact perm used by reduce_populations_bp.
+            _n = len(pop_v)
+            _rng2 = np.random.default_rng(_dce_seed)
+            perm_v = list(map(int, _rng2.permutation(_n)))
+            perm_c = list(map(int, _rng2.permutation(_n)))
+            rec = {
+                "tag": tag,
+                "perm_v": perm_v, "perm_c": perm_c,
+                "v": [{
+                    "i": i, "peer_c_idx": perm_v[i],
+                    "size_before": sz_v0[i], "size_after": sz_v1[i],
+                    "before": _pre_v_snap[i],
+                    "after":  program_to_list(new_v[i]),
+                    "passes": st_v[i].passes, "fp_evals": st_v[i].fp_evals,
+                } for i in range(_n)],
+                "c": [{
+                    "i": i, "peer_v_idx": perm_c[i],
+                    "size_before": sz_c0[i], "size_after": sz_c1[i],
+                    "before": _pre_c_snap[i],
+                    "after":  program_to_list(new_c[i]),
+                    "passes": st_c[i].passes, "fp_evals": st_c[i].fp_evals,
+                } for i in range(_n)],
+            }
+            out_path = f"{_dump_path}.{tag}.json"
+            with open(out_path, "w", encoding="utf-8") as f:
+                json.dump(rec, f, default=str)
+            # Pickle pop_k + oracle so the debug script can reproduce DCE exactly.
+            extra = {
+                "pop_k": [np.asarray(k) for k in pop_k],
+                "pre_pop_v": _pre_v_snap, "pre_pop_c": _pre_c_snap,
+                "post_pop_v": [program_to_list(p) for p in new_v],
+                "post_pop_c": [program_to_list(p) for p in new_c],
+                "perm_v": perm_v, "perm_c": perm_c,
+                "dce_par": dce_oracle["par"],
+                "rx_llrs": dce_oracle["rx_llrs"],
+                "max_iter": cfg.dce_bp_max_iter,
+                "max_passes": cfg.dce_bp_max_passes,
+                "max_decode_evals": cfg.dce_bp_max_decode_evals,
+                "decimals": cfg.dce_bp_decimals,
+            }
+            with open(f"{_dump_path}.{tag}.pkl", "wb") as f:
+                pickle.dump(extra, f)
+            print(f"[dce_bp {tag}] dumped pre/post to {out_path} + .pkl",
+                  flush=True)
         return new_v, new_c
 
     # Random program seeder: always the C++ pybind11 backend
@@ -765,6 +861,7 @@ def evolve_from_scratch(
             progress_cb=_seed_progress,
             seen_fingerprints=seen_v,
             op_filter=op_filter,
+            validator_mode=cfg.validator_mode,
         )
         pop_c, c_attempts = _fill_random(
             "c2v", cfg.pop_size,
@@ -777,6 +874,7 @@ def evolve_from_scratch(
             progress_cb=_seed_progress,
             seen_fingerprints=seen_c,
             op_filter=op_filter,
+            validator_mode=cfg.validator_mode,
         )
         pop_k = [rpg.random_log_constants() for _ in range(cfg.pop_size)]
 
@@ -1128,7 +1226,8 @@ def _evolve_triple_offspring(
                                     n_mutations=max(1, n_mut))
             v_seed = int(rng.integers(0, 2**31))
             if not _validate_one("v2c", v_try, deg=cfg.validator_deg,
-                                  seed=v_seed):
+                                  seed=v_seed,
+                                  validator_mode=cfg.validator_mode):
                 v_invalid += 1
                 continue
             if cfg.dedup:
@@ -1156,7 +1255,8 @@ def _evolve_triple_offspring(
                                     n_mutations=max(1, n_mut))
             c_seed = int(rng.integers(0, 2**31))
             if not _validate_one("c2v", c_try, deg=cfg.validator_deg,
-                                  seed=c_seed):
+                                  seed=c_seed,
+                                  validator_mode=cfg.validator_mode):
                 c_invalid += 1
                 continue
             if cfg.dedup:

@@ -93,6 +93,12 @@ def parse_args() -> argparse.Namespace:
                         "raising.")
     p.add_argument("--rand-min-size", type=int, default=4)
     p.add_argument("--rand-max-size", type=int, default=30)
+    p.add_argument("--validator-mode",
+                   choices=["probe", "symbolic", "both"],
+                   default="probe",
+                   help="Validator backend: probe (legacy numeric), "
+                        "symbolic (cpp shadow-VM, sound), or both "
+                        "(probe then symbolic post-check).")
     p.add_argument("--workers", type=int, default=DEFAULT_WORKERS,
                    help="Multiprocessing pool size for parallel random "
                         "init + offspring validation.")
@@ -369,6 +375,7 @@ def main() -> int:
         rand_min_size=args.rand_min_size,
         rand_max_size=args.rand_max_size,
         dedup=args.dedup,
+        validator_mode=args.validator_mode,
         dce_bp_enabled=args.dce_bp,
         dce_bp_max_iter=args.dce_bp_max_iter,
         dce_bp_decimals=args.dce_bp_decimals,

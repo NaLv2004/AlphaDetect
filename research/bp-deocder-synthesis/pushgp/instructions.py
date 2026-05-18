@@ -31,7 +31,12 @@ from typing import TYPE_CHECKING, Callable, Dict, List
 import numpy as np
 
 from .program import Instruction
-from .types import FLOAT_ABS_MAX, NAN_INF_REPLACEMENT, Type
+from .types import (
+    FLOAT_ABS_MAX,
+    DomainError,
+    Type,
+    get_float_clamp,
+)
 
 if TYPE_CHECKING:  # pragma: no cover
     from .vm import VM
@@ -41,8 +46,16 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 def _safe_float(x: float) -> float:
+    """Input/constant sanitizer: replace NaN/Inf with 0, clamp to the
+    *hard* range ±FLOAT_ABS_MAX (NOT the small per-op clamp).  Used for
+    constants, conversions, vector reads -- contexts where the value did
+    NOT come out of a guarded arithmetic op.
+
+    Math op results go through `_finalize_op_float` instead, which
+    enforces the smaller ±get_float_clamp() ceiling and turns NaN into
+    a fault."""
     if not math.isfinite(x):
-        return NAN_INF_REPLACEMENT
+        return 0.0
     if x > FLOAT_ABS_MAX:
         return FLOAT_ABS_MAX
     if x < -FLOAT_ABS_MAX:
@@ -51,10 +64,35 @@ def _safe_float(x: float) -> float:
 
 
 def _safe_array(a: np.ndarray) -> np.ndarray:
-    """Sanitize an ndarray: replace NaN/Inf, clamp magnitude."""
-    a = np.where(np.isfinite(a), a, NAN_INF_REPLACEMENT).astype(np.float64, copy=False)
+    """Sanitize an ndarray on the data-flow path (not an op result):
+    replace NaN/Inf with 0, clamp magnitude to the hard FLOAT_ABS_MAX.
+    Used for incoming-vec / memory copies, not for arithmetic outputs."""
+    a = np.where(np.isfinite(a), a, 0.0).astype(np.float64, copy=False)
     np.clip(a, -FLOAT_ABS_MAX, FLOAT_ABS_MAX, out=a)
     return a
+
+
+def _finalize_op_float(vm: "VM", value: float) -> bool:
+    """Push a math op's result, enforcing the new guard policy:
+      * NaN  -> set vm.fault, do NOT push.
+      * +Inf -> push +get_float_clamp().
+      * -Inf -> push -get_float_clamp().
+      * finite -> push value clipped to ±get_float_clamp().
+    Returns True on success, False on fault."""
+    if math.isnan(value):
+        vm._abort("float op produced NaN")
+        return False
+    clamp = get_float_clamp()
+    if math.isinf(value):
+        vm.state.floats.push(clamp if value > 0 else -clamp)
+        return True
+    if value > clamp:
+        vm.state.floats.push(clamp)
+    elif value < -clamp:
+        vm.state.floats.push(-clamp)
+    else:
+        vm.state.floats.push(value)
+    return True
 
 
 # ===================================================================== Registry
@@ -83,9 +121,23 @@ def _float_binop(vm: "VM", op: Callable[[float, float], float]) -> None:
     a = s.pop()
     try:
         r = op(float(a), float(b))  # type: ignore[arg-type]
-    except (ZeroDivisionError, OverflowError, ValueError):
-        r = NAN_INF_REPLACEMENT
-    s.push(_safe_float(r))
+    except DomainError as exc:
+        vm._abort(f"domain: {exc}")
+        return
+    except ZeroDivisionError as exc:
+        vm._abort(f"domain: ZeroDivisionError: {exc}")
+        return
+    except ValueError as exc:
+        vm._abort(f"domain: ValueError: {exc}")
+        return
+    except OverflowError:
+        # Sign-unknown overflow path (rare; mostly hit by x*y near FLOAT_ABS_MAX).
+        # Treat as +clamp to keep deterministic behaviour.
+        vm.state.floats.push(get_float_clamp())
+        vm.charge_flops(1)
+        return
+    if not _finalize_op_float(vm, r):
+        return
     vm.charge_flops(1)
 
 
@@ -96,10 +148,30 @@ def _float_unop(vm: "VM", op: Callable[[float], float]) -> None:
     a = s.pop()
     try:
         r = op(float(a))  # type: ignore[arg-type]
-    except (ValueError, OverflowError):
-        r = NAN_INF_REPLACEMENT
-    s.push(_safe_float(r))
+    except DomainError as exc:
+        vm._abort(f"domain: {exc}")
+        return
+    except ValueError as exc:
+        vm._abort(f"domain: ValueError: {exc}")
+        return
+    except OverflowError:
+        vm.state.floats.push(get_float_clamp())
+        vm.charge_flops(1)
+        return
+    if not _finalize_op_float(vm, r):
+        return
     vm.charge_flops(1)
+
+
+# Tiny lambda shims for ops that need to raise DomainError on bad inputs.
+def _domain(msg: str):
+    raise DomainError(msg)
+
+
+# log of get_float_clamp() ~ log(10)=2.30 by default; we still gate exp on a
+# physically reasonable input ceiling (math.exp(700) is the IEEE-754 ceiling).
+# Anything above that we treat as overflow and clamp positive.
+_EXP_INPUT_HARD_CAP = 700.0
 
 
 @_reg("Float.Add")
@@ -109,9 +181,9 @@ def _f_sub(vm, ins): _float_binop(vm, lambda a, b: a - b)
 @_reg("Float.Mul")
 def _f_mul(vm, ins): _float_binop(vm, lambda a, b: a * b)
 @_reg("Float.Div")
-def _f_div(vm, ins): _float_binop(vm, lambda a, b: a / b if b != 0.0 else NAN_INF_REPLACEMENT)
+def _f_div(vm, ins): _float_binop(vm, lambda a, b: a / b if b != 0.0 else _domain("Float.Div by zero"))
 @_reg("Float.Mod")
-def _f_mod(vm, ins): _float_binop(vm, lambda a, b: math.fmod(a, b) if b != 0.0 else NAN_INF_REPLACEMENT)
+def _f_mod(vm, ins): _float_binop(vm, lambda a, b: math.fmod(a, b) if b != 0.0 else _domain("Float.Mod by zero"))
 @_reg("Float.Min")
 def _f_min(vm, ins): _float_binop(vm, min)
 @_reg("Float.Max")
@@ -122,19 +194,20 @@ def _f_abs(vm, ins): _float_unop(vm, abs)
 @_reg("Float.Neg")
 def _f_neg(vm, ins): _float_unop(vm, lambda a: -a)
 @_reg("Float.Inv")
-def _f_inv(vm, ins): _float_unop(vm, lambda a: 1.0 / a if a != 0.0 else NAN_INF_REPLACEMENT)
+def _f_inv(vm, ins): _float_unop(vm, lambda a: 1.0 / a if a != 0.0 else _domain("Float.Inv of zero"))
 @_reg("Float.Sqrt")
-def _f_sqrt(vm, ins): _float_unop(vm, lambda a: math.sqrt(a) if a >= 0.0 else NAN_INF_REPLACEMENT)
+def _f_sqrt(vm, ins): _float_unop(vm, lambda a: math.sqrt(a) if a >= 0.0 else _domain("Float.Sqrt of negative"))
 @_reg("Float.Square")
 def _f_square(vm, ins): _float_unop(vm, lambda a: a * a)
 @_reg("Float.Exp")
-def _f_exp(vm, ins): _float_unop(vm, lambda a: math.exp(a) if a < 80.0 else NAN_INF_REPLACEMENT)
+def _f_exp(vm, ins): _float_unop(vm,
+    lambda a: math.exp(a) if a <= _EXP_INPUT_HARD_CAP else float("inf"))
 @_reg("Float.Log")
-def _f_log(vm, ins): _float_unop(vm, lambda a: math.log(a) if a > 0.0 else NAN_INF_REPLACEMENT)
+def _f_log(vm, ins): _float_unop(vm, lambda a: math.log(a) if a > 0.0 else _domain("Float.Log of non-positive"))
 @_reg("Float.Tanh")
 def _f_tanh(vm, ins): _float_unop(vm, math.tanh)
 @_reg("Float.Atanh")
-def _f_atanh(vm, ins): _float_unop(vm, lambda a: math.atanh(a) if -1.0 < a < 1.0 else NAN_INF_REPLACEMENT)
+def _f_atanh(vm, ins): _float_unop(vm, lambda a: math.atanh(a) if -1.0 < a < 1.0 else _domain("Float.Atanh outside (-1,1)"))
 @_reg("Float.Sign")
 def _f_sign(vm, ins): _float_unop(vm, lambda a: 1.0 if a > 0 else (-1.0 if a < 0 else 0.0))
 @_reg("Float.Floor")
@@ -231,8 +304,17 @@ def _int_binop(vm, op):
     a = s.pop()
     try:
         r = int(op(int(a), int(b)))  # type: ignore[arg-type]
-    except (ZeroDivisionError, OverflowError, ValueError):
-        r = 0
+    except DomainError as exc:
+        vm._abort(f"domain: {exc}")
+        return
+    except ZeroDivisionError as exc:
+        vm._abort(f"domain: ZeroDivisionError: {exc}")
+        return
+    except (OverflowError, ValueError) as exc:
+        # OverflowError on ints means astronomical magnitude; clamp.
+        # ValueError on int ops shouldn't happen with int inputs, but
+        # treat conservatively as overflow.
+        r = 10**9 if (isinstance(exc, OverflowError) and (a or 0) > 0) else 0
     # Bound the integer to avoid astronomical loop counters elsewhere.
     if r > 10**9:
         r = 10**9
@@ -249,6 +331,9 @@ def _int_unop(vm, op):
     a = s.pop()
     try:
         r = int(op(int(a)))  # type: ignore[arg-type]
+    except DomainError as exc:
+        vm._abort(f"domain: {exc}")
+        return
     except (OverflowError, ValueError):
         r = 0
     s.push(r)
@@ -262,9 +347,9 @@ def _i_sub(vm, ins): _int_binop(vm, lambda a, b: a - b)
 @_reg("Int.Mul")
 def _i_mul(vm, ins): _int_binop(vm, lambda a, b: a * b)
 @_reg("Int.Div")
-def _i_div(vm, ins): _int_binop(vm, lambda a, b: a // b if b != 0 else 0)
+def _i_div(vm, ins): _int_binop(vm, lambda a, b: a // b if b != 0 else _domain("Int.Div by zero"))
 @_reg("Int.Mod")
-def _i_mod(vm, ins): _int_binop(vm, lambda a, b: a % b if b != 0 else 0)
+def _i_mod(vm, ins): _int_binop(vm, lambda a, b: a % b if b != 0 else _domain("Int.Mod by zero"))
 @_reg("Int.Min")
 def _i_min(vm, ins): _int_binop(vm, min)
 @_reg("Int.Max")

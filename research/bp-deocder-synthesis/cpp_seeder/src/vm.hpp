@@ -14,6 +14,10 @@
 namespace pushgp_cpp {
 
 // ---------- numeric guards ----------
+// `safe_float` is the DATA-PATH sanitiser (constants, conversions, vector
+// reads).  Non-finite -> 0, magnitude clipped to FLOAT_ABS_MAX.  This is
+// NOT used for math-op outputs; those go through finalize_op_float_ which
+// faults on NaN and clamps to ±FLOAT_CLAMP_DEFAULT.
 inline double safe_float(double x) {
     if (std::isnan(x) || std::isinf(x)) return NAN_INF_REPLACEMENT;
     if (x >  FLOAT_ABS_MAX) return  FLOAT_ABS_MAX;
@@ -27,6 +31,15 @@ inline int64_t clamp_int(int64_t x) {
 }
 inline void sanitize_fvec(FVec& v) {
     for (auto& x : v) x = safe_float(x);
+}
+
+// Sentinel returned by guarded op-lambdas to indicate the domain check
+// failed.  Distinct from finite results because NaN comparisons fail and
+// because we encode it as a specific quiet NaN payload via the helper.
+inline double domain_sentinel() {
+    // signalling NaN with payload 0x42 — finalize_op_float_ rejects any NaN,
+    // so the exact payload only matters for debugging.
+    return std::numeric_limits<double>::quiet_NaN();
 }
 
 class VM {
@@ -100,31 +113,37 @@ class VM {
     void dispatch_(const Instruction& ins) {
         using O = Op;
         switch (ins.op) {
-        // ============== Float arith ==============
+        // ============== Float arith (DOMAIN fault / OVERFLOW clamp) ==============
+        // Lambdas return NaN to signal a domain error; finalize_op_float_
+        // turns NaN into a fault.  +Inf / large finite values get clamped
+        // to ±FLOAT_CLAMP_DEFAULT.
         case O::Float_Add: f_binop_([](double a, double b){ return a + b; }); break;
         case O::Float_Sub: f_binop_([](double a, double b){ return a - b; }); break;
         case O::Float_Mul: f_binop_([](double a, double b){ return a * b; }); break;
         case O::Float_Div: f_binop_([](double a, double b){
-            return b != 0.0 ? a / b : NAN_INF_REPLACEMENT; }); break;
+            return b != 0.0 ? a / b : domain_sentinel(); }); break;
         case O::Float_Mod: f_binop_([](double a, double b){
-            return b != 0.0 ? std::fmod(a, b) : NAN_INF_REPLACEMENT; }); break;
+            return b != 0.0 ? std::fmod(a, b) : domain_sentinel(); }); break;
         case O::Float_Min: f_binop_([](double a, double b){ return std::min(a, b); }); break;
         case O::Float_Max: f_binop_([](double a, double b){ return std::max(a, b); }); break;
 
         case O::Float_Abs:    f_unop_([](double a){ return std::fabs(a); }); break;
         case O::Float_Neg:    f_unop_([](double a){ return -a; }); break;
         case O::Float_Inv:    f_unop_([](double a){
-            return a != 0.0 ? 1.0 / a : NAN_INF_REPLACEMENT; }); break;
+            return a != 0.0 ? 1.0 / a : domain_sentinel(); }); break;
         case O::Float_Sqrt:   f_unop_([](double a){
-            return a >= 0.0 ? std::sqrt(a) : NAN_INF_REPLACEMENT; }); break;
+            return a >= 0.0 ? std::sqrt(a) : domain_sentinel(); }); break;
         case O::Float_Square: f_unop_([](double a){ return a * a; }); break;
         case O::Float_Exp:    f_unop_([](double a){
-            return a < EXP_INPUT_CAP ? std::exp(a) : NAN_INF_REPLACEMENT; }); break;
+            // Mirror Python: above EXP_INPUT_HARD_CAP we treat as overflow
+            // (returns +Inf -> clamped to +FLOAT_CLAMP_DEFAULT).  Otherwise
+            // exp itself may overflow to +Inf which is also clamped.
+            return a <= EXP_INPUT_HARD_CAP ? std::exp(a) : std::numeric_limits<double>::infinity(); }); break;
         case O::Float_Log:    f_unop_([](double a){
-            return a > 0.0 ? std::log(a) : NAN_INF_REPLACEMENT; }); break;
+            return a > 0.0 ? std::log(a) : domain_sentinel(); }); break;
         case O::Float_Tanh:   f_unop_([](double a){ return std::tanh(a); }); break;
         case O::Float_Atanh:  f_unop_([](double a){
-            return (a > -1.0 && a < 1.0) ? std::atanh(a) : NAN_INF_REPLACEMENT; }); break;
+            return (a > -1.0 && a < 1.0) ? std::atanh(a) : domain_sentinel(); }); break;
         case O::Float_Sign:   f_unop_([](double a){
             return a > 0 ? 1.0 : (a < 0 ? -1.0 : 0.0); }); break;
         case O::Float_Floor:  f_unop_([](double a){
@@ -586,7 +605,29 @@ class VM {
     }
 
     // Generic helpers used by handlers
+    // push_f_ is for constants / conversions / vector reads (data-path):
+    // it uses safe_float (NaN/Inf -> 0).  Math-op outputs use
+    // finalize_op_float_ instead so that NaN faults the program and
+    // overflow clamps to ±FLOAT_CLAMP_DEFAULT.
     void push_f_(double v) { state.floats.push(safe_float(v)); }
+
+    // Math-op finaliser: mirrors pushgp.instructions._finalize_op_float.
+    //   NaN  -> abort_("float op produced NaN"), return false.
+    //   +Inf -> push +FLOAT_CLAMP_DEFAULT.
+    //   -Inf -> push -FLOAT_CLAMP_DEFAULT.
+    //   finite -> push clipped to ±FLOAT_CLAMP_DEFAULT.
+    bool finalize_op_float_(double v) {
+        if (std::isnan(v)) { abort_("float op produced NaN"); return false; }
+        const double clamp = FLOAT_CLAMP_DEFAULT;
+        if (std::isinf(v)) {
+            state.floats.push(v > 0.0 ? clamp : -clamp);
+            return true;
+        }
+        if (v >  clamp) state.floats.push( clamp);
+        else if (v < -clamp) state.floats.push(-clamp);
+        else                 state.floats.push(v);
+        return true;
+    }
 
     template <class F>
     void f_binop_(F op) {
@@ -594,8 +635,8 @@ class VM {
         double b; pop_float_(b);
         double a; pop_float_(a);
         double r;
-        try { r = op(a, b); } catch (...) { r = NAN_INF_REPLACEMENT; }
-        push_f_(r);
+        try { r = op(a, b); } catch (...) { abort_("float binop exception"); return; }
+        if (!finalize_op_float_(r)) return;
         charge_flops(1);
     }
     template <class F>
@@ -603,8 +644,8 @@ class VM {
         if (state.floats.empty()) return;
         double a; pop_float_(a);
         double r;
-        try { r = op(a); } catch (...) { r = NAN_INF_REPLACEMENT; }
-        push_f_(r);
+        try { r = op(a); } catch (...) { abort_("float unop exception"); return; }
+        if (!finalize_op_float_(r)) return;
         charge_flops(1);
     }
     template <class F>

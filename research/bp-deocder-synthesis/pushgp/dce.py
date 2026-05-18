@@ -673,6 +673,60 @@ def reduce_seeded_population(
     return out_progs, out_stats
 
 
+def _validator_guard(
+    orig_progs: Sequence[List[Instruction]],
+    reduced_progs: List[List[Instruction]],
+    stats_list: List[DCEStats],
+    side: str,
+    pop_k: Sequence["np.ndarray"],
+    rng_seed: int = 0,
+) -> int:
+    """Revert any reduced program that fails the validator while the
+    original passed.  Mutates ``reduced_progs`` and ``stats_list`` in
+    place.  Returns the number of reversions.
+
+    Invariant: ``len(orig_progs) == len(reduced_progs) == len(stats_list)``.
+    Per-program evo_consts come from ``pop_k[i]`` (log_constants ->
+    10**log).  Each program is validated with a deterministic Generator
+    seeded from ``rng_seed + i`` to ensure reproducibility.
+    """
+    import numpy as _np
+    from .genome import Genome
+    from .validators import validate_v2c, validate_c2v
+    validator = validate_v2c if side == "v2c" else validate_c2v
+    n_reverted = 0
+    for i in range(len(orig_progs)):
+        red = reduced_progs[i]
+        orig = orig_progs[i]
+        if len(red) == len(orig):
+            continue  # nothing was removed; trivially same as orig
+        # Compute evo for this individual.
+        g = Genome(prog_v2c=orig if side == "v2c" else orig,
+                   prog_c2v=orig if side == "c2v" else orig,
+                   log_constants=pop_k[i])
+        evo = g.evo_const_values().astype(_np.float64)
+        rng_red = _np.random.default_rng(rng_seed + i)
+        ok_red, _ = validator(red, rng=rng_red, evo_consts=evo)
+        if ok_red:
+            continue
+        # Reduced fails — does the original pass?
+        rng_orig = _np.random.default_rng(rng_seed + i)
+        ok_orig, _ = validator(orig, rng=rng_orig, evo_consts=evo)
+        if not ok_orig:
+            continue  # both fail; DCE didn't worsen it
+        # Revert.
+        reduced_progs[i] = deep_copy_program(orig)
+        stats_list[i].size_after = program_length(orig)
+        stats_list[i].removed_positions = []
+        # Tag the stats so callers can count reversions.
+        try:
+            stats_list[i].reverted_by_validator = True  # type: ignore[attr-defined]
+        except Exception:
+            pass
+        n_reverted += 1
+    return n_reverted
+
+
 def reduce_populations_bp(
     pop_v: Sequence[List[Instruction]],
     pop_c: Sequence[List[Instruction]],
@@ -688,6 +742,7 @@ def reduce_populations_bp(
     use_cpp: bool = True,
     rng: Optional["np.random.Generator"] = None,
     on_progress: Optional[Callable[[str, int, int, float], None]] = None,
+    validator_guard: bool = True,
 ) -> Tuple[List[List[Instruction]], List[List[Instruction]],
            List[DCEStats], List[DCEStats]]:
     """Apply BP-equivalence DCE to a whole two-pop population.
@@ -788,6 +843,11 @@ def reduce_populations_bp(
             st.passes    = int(r["stats"]["passes"])
             st.fp_evals  = int(r["stats"]["fp_evals"])
             stats_c.append(st)
+        if validator_guard:
+            n_rv = _validator_guard(pop_v, new_pop_v, stats_v, "v2c", pop_k)
+            n_rc = _validator_guard(pop_c, new_pop_c, stats_c, "c2v", pop_k)
+            if on_progress is not None and (n_rv + n_rc) > 0:
+                on_progress("validator_guard", n_rv + n_rc, 2 * n, 0.0)
         return new_pop_v, new_pop_c, stats_v, stats_c
 
     # ---- Python reference path (serial, slow).  Used to generate
@@ -826,4 +886,9 @@ def reduce_populations_bp(
         stats_c.append(st)
         if on_progress is not None:
             on_progress("c2v", n + i + 1, 2 * n, 0.0)
+    if validator_guard:
+        n_rv = _validator_guard(pop_v, new_pop_v, stats_v, "v2c", pop_k)
+        n_rc = _validator_guard(pop_c, new_pop_c, stats_c, "c2v", pop_k)
+        if on_progress is not None and (n_rv + n_rc) > 0:
+            on_progress("validator_guard", n_rv + n_rc, 2 * n, 0.0)
     return new_pop_v, new_pop_c, stats_v, stats_c

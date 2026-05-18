@@ -176,8 +176,15 @@ def interpret(expr: Optional[str], evo_consts: Optional[List[float]]) -> str:
         notes.append("uses channel LLR")
     else:
         notes.append("ignores channel LLR")
-    n_m = len(re.findall(r"m\d+", e))
-    notes.append(f"refs {n_m} neighbor msgs")
+    # Count neighbor-msg references.  The renderer uses `m<i>` for
+    # incoming reads it can statically resolve, but FVec.At with a
+    # dynamic index (e.g. inside Exec.DoTimes using the loop counter)
+    # stays as the literal "FVec.At(<arg>)" — those must be counted too,
+    # otherwise loop-driven readers look like 0-neighbor programs.
+    n_m = len(re.findall(r"\bm\d+\b", e))
+    n_dynamic = e.count("FVec.At") + e.count("Env.GetIncomingVec")
+    n_neighbor = n_m + n_dynamic
+    notes.append(f"refs {n_neighbor} neighbor msgs")
     return e + "    [" + "; ".join(notes) + "]"
 
 
